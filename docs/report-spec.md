@@ -67,7 +67,7 @@ The report generation pipeline enforces a strict, unidirectional processing flow
 sequenceDiagram
     autonumber
     participant App as Mobile / Admin App
-    participant API as NestJS Backend API
+    participant API as Fastify Backend API
     participant DB as PostgreSQL
     participant Pay as Razorpay Gateway
     participant Queue as Redis / BullMQ

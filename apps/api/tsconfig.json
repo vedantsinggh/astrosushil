@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2021",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "declaration": false,
+    "removeComments": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
+    "paths": {
+      "@astro/shared": ["../../packages/shared/dist", "../../packages/shared/src"],
+      "@astro/astrology-engine": ["../../packages/astrology-engine/dist", "../../packages/astrology-engine/src"],
+      "@astro/gupta-nadi-engine": ["../../packages/gupta-nadi-engine/dist", "../../packages/gupta-nadi-engine/src"],
+      "@astro/prediction-engine": ["../../packages/prediction-engine/dist", "../../packages/prediction-engine/src"],
+      "@astro/report-engine": ["../../packages/report-engine/dist", "../../packages/report-engine/src"]
+    }
+  },
+  "include": ["src/**/*"]
+}

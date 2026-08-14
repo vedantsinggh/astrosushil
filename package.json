@@ -1,0 +1,25 @@
+{
+  "name": "astro-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scalable Astrology Platform Monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:admin": "npm run build --workspace=apps/admin",
+    "build:packages": "npm run build --workspace=packages/shared --workspace=packages/astrology-engine --workspace=packages/gupta-nadi-engine --workspace=packages/prediction-engine --workspace=packages/report-engine"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

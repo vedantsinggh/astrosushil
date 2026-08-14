@@ -4,7 +4,7 @@
 
 The **Astro Sushil** platform is designed around four core architectural principles:
 
-1. **Modular Monolith**: Initial development is structured as a single monorepo containing a unified NestJS backend monolith with cleanly decoupled internal packages. Microservices are deliberately avoided unless strict technical scalability limits necessitate service extraction.
+1. **Modular Monolith**: Initial development is structured as a single monorepo containing a unified Fastify backend monolith with cleanly decoupled internal packages. Microservices are deliberately avoided unless strict technical scalability limits necessitate service extraction.
 2. **Deterministic Computation**: Astrological chart calculations, planetary positions, divisional charts (Vargas), and Gupta Nadi rule matchers run deterministically.
 3. **LLM as Formatting Layer**: Large Language Models (LLMs) format and enrich structured outputs into fluent prose. The LLM is never part of the calculation or prediction logic pipeline.
 4. **Channel Agnostic Core**: Core business rules reside in backend modules and packages. Client channels (Mobile, Admin Web, WhatsApp) interface purely through secure API contracts.
@@ -17,12 +17,12 @@ To ensure clear ownership and boundaries, system components are categorized into
 
 ### A. Applications (`apps/`)
 Deployable user-facing software and API entry points.
-- **`apps/api`**: Node.js NestJS REST & WebSocket API service. Serves as the central application server orchestrating business logic, auth, and worker queues.
+- **`apps/api`**: Node.js Fastify REST & WebSocket API service. Serves as the central application server orchestrating business logic, auth, and worker queues.
 - **`apps/mobile`**: Cross-platform mobile client built with Flutter (iOS & Android). Interacts exclusively with `apps/api`.
 - **`apps/admin`**: Web management dashboard built with Next.js (React). Interacts exclusively with `apps/api` for administrative and monitoring operations.
 
 ### B. Internal Packages (`packages/`)
-Reusable internal TypeScript libraries compiled into the NestJS backend. These are **NOT separate deployed server processes**, but modular libraries maintaining domain encapsulation.
+Reusable internal TypeScript libraries compiled into the Fastify backend. These are **NOT separate deployed server processes**, but modular libraries maintaining domain encapsulation.
 - **`packages/astrology-engine`**: Handles ephemeris calculations, planetary coordinates, Lagna calculation, house division, Vargas, Dashas, and Panchang.
 - **`packages/gupta-nadi-engine`**: Implements Brihaspati Nandi Nadi (BNN) rule evaluation, planet-combination matrix, directional aspects, and transit overlays.
 - **`packages/prediction-engine`**: Compiles raw chart calculations and Nadi rules into deterministic prediction output trees.
@@ -55,7 +55,7 @@ graph TD
     end
 
     subgraph API & Domain Core (Modular Monolith)
-        NestAPI["NestJS Backend API (apps/api)"]
+        FastifyAPI["Fastify Backend API (apps/api)"]
         
         subgraph Domain Packages (packages/)
             AstroEng["astrology-engine"]
@@ -80,20 +80,20 @@ graph TD
     end
 
     %% Client Connections
-    FlutterApp -->|REST / WebSockets| NestAPI
-    AdminApp -->|REST API| NestAPI
-    WhatsAppMsg <-->|Webhooks / Delivery| NestAPI
+    FlutterApp -->|REST / WebSockets| FastifyAPI
+    AdminApp -->|REST API| FastifyAPI
+    WhatsAppMsg <-->|Webhooks / Delivery| FastifyAPI
 
     %% Backend Internal Interactions
-    NestAPI --> AstroEng
-    NestAPI --> NadiEng
-    NestAPI --> PredEng
-    NestAPI --> RepEng
+    FastifyAPI --> AstroEng
+    FastifyAPI --> NadiEng
+    FastifyAPI --> PredEng
+    FastifyAPI --> RepEng
 
     %% Data Infrastructure Connections
-    NestAPI <--> Postgres
-    NestAPI <--> Redis
-    NestAPI -->|Enqueue Jobs| Redis
+    FastifyAPI <--> Postgres
+    FastifyAPI <--> Redis
+    FastifyAPI -->|Enqueue Jobs| Redis
     Redis <--> Workers
     Workers <--> Postgres
     Workers -->|Upload PDFs| ObjectStore
@@ -102,7 +102,7 @@ graph TD
     Workers -->|Format Prose| LLM
     Workers -->|Send Push| FCM
     Workers -->|Send Message| MetaWA
-    NestAPI <--> Razorpay
+    FastifyAPI <--> Razorpay
 ```
 
 ---
@@ -115,7 +115,7 @@ graph TD
 sequenceDiagram
     autonumber
     participant User as Flutter App / User
-    participant API as NestJS API
+    participant API as Fastify API
     participant DB as PostgreSQL
     participant RPay as Razorpay
     participant Q as Redis / BullMQ
@@ -148,6 +148,6 @@ sequenceDiagram
 
 ## 5. Architectural Boundaries & Restrictions
 
-1. **Separation of Execution**: Expensive calculations and document generation tasks MUST be delegated to BullMQ workers to prevent blocking NestJS HTTP request loop.
-2. **No Direct DB Access**: Client applications (Flutter, Next.js Admin) must never access PostgreSQL or Redis directly. All interactions go through NestJS API controllers with authentication and DTO validation.
-3. **Stateless Backend**: The NestJS API nodes must remain stateless to support horizontal scaling behind a cloud load balancer.
+1. **Separation of Execution**: Expensive calculations and document generation tasks MUST be delegated to BullMQ workers to prevent blocking Fastify HTTP request loop.
+2. **No Direct DB Access**: Client applications (Flutter, Next.js Admin) must never access PostgreSQL or Redis directly. All interactions go through Fastify API routes with authentication and DTO validation.
+3. **Stateless Backend**: The Fastify API nodes must remain stateless to support horizontal scaling behind a cloud load balancer.

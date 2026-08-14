@@ -12,15 +12,15 @@ This document records the key architectural and technical decisions made for the
 ---
 
 ## ADR-002: Modular Monolith Initial Deployment Pattern
-- **Decision**: Build the backend application as a unified NestJS modular monolith (`apps/api`) rather than a distributed microservices architecture.
+- **Decision**: Build the backend application as a unified Node.js + TypeScript + Fastify modular monolith (`apps/api`) rather than a distributed microservices architecture.
 - **Reason**: Minimizes operational complexity, network latency, and infrastructure costs for a 2-developer team during the initial 60-day bring-up phase, while preserving clean package boundaries for potential future microservice extraction.
 - **Status**: **ACCEPTED**
 
 ---
 
-## ADR-003: NestJS Framework for Backend API
-- **Decision**: Use Node.js with NestJS and strict TypeScript for the primary API backend.
-- **Reason**: Provides an opinionated, enterprise-ready architecture (Dependency Injection, Controllers, Services, Modules, DTO validation with `class-validator`) that enforces clean code standards.
+## ADR-003: Fastify Framework for Backend API
+- **Decision**: Use Node.js + TypeScript + Fastify instead of NestJS.
+- **Reason**: The project is a small two-developer team and requires a lightweight modular monolith. Fastify provides the required HTTP framework without the additional abstraction and boilerplate of NestJS.
 - **Status**: **ACCEPTED**
 
 ---
@@ -48,7 +48,7 @@ This document records the key architectural and technical decisions made for the
 
 ## ADR-007: Redis and BullMQ for Asynchronous Workloads
 - **Decision**: Utilize Redis in combination with BullMQ for in-memory caching and background job queue management.
-- **Reason**: Offloads expensive PDF document compilation, LLM prompt processing, and notification dispatches away from main NestJS HTTP threads to maintain sub-300ms API response times.
+- **Reason**: Offloads expensive PDF document compilation, LLM prompt processing, and notification dispatches away from main Fastify HTTP threads to maintain sub-300ms API response times.
 - **Status**: **ACCEPTED**
 
 ---

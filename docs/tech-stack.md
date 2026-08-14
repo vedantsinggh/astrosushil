@@ -12,9 +12,9 @@ This document provides a detailed breakdown of all software technologies, framew
 - **Licensing/Cost**: Free & Open-Source (BSD 3-Clause).
 - **MVP Status**: **Required for Initial MVP**.
 
-### 1.2 Backend Runtime & Framework: Node.js, TypeScript & NestJS
-- **What it does**: Node.js execution runtime, static type checking with TypeScript, and enterprise backend structure using NestJS.
-- **Why considered**: NestJS provides an out-of-the-box architecture (Dependency Injection, Controllers, Modules, Guards) ideal for building maintainable modular monoliths. Shared TypeScript interfaces across backend packages ensure type safety.
+### 1.2 Backend Runtime & Framework: Node.js, TypeScript & Fastify
+- **What it does**: Node.js execution runtime, static type checking with TypeScript, and lightweight modular backend framework using Fastify.
+- **Why considered**: Fastify provides high performance, low overhead, and a clean plugin/route architecture ideal for building lightweight modular monoliths without NestJS abstraction overhead. Shared TypeScript interfaces across backend packages ensure type safety.
 - **Licensing/Cost**: Free & Open-Source (MIT).
 - **MVP Status**: **Required for Initial MVP**.
 
@@ -131,7 +131,7 @@ This document provides a detailed breakdown of all software technologies, framew
 | Technology | Category | License / Cost Model | MVP Priority |
 | :--- | :--- | :--- | :--- |
 | **Flutter** | Mobile Frontend | Open-Source (BSD) | MVP (Required) |
-| **NestJS / Node.js** | Backend API | Open-Source (MIT) | MVP (Required) |
+| **Fastify / Node.js** | Backend API | Open-Source (MIT) | MVP (Required) |
 | **Next.js** | Admin Web | Open-Source (MIT) | MVP (Required) |
 | **PostgreSQL + Prisma** | Primary Database | Open-Source (PostgreSQL/Apache) | MVP (Required) |
 | **Redis + BullMQ** | Caching & Queues | Open-Source (BSD/MIT) | MVP (Required) |
