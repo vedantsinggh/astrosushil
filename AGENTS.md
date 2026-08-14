@@ -60,7 +60,7 @@ This file contains permanent directives, architectural rules, and mandatory stan
 ```
 astro-platform/
 ├── apps/
-│   ├── api/                  # NestJS API backend
+│   ├── api/                  # Node.js + Fastify API backend
 │   ├── mobile/               # Flutter mobile app
 │   └── admin/                # Next.js admin portal
 ├── packages/
@@ -79,6 +79,6 @@ astro-platform/
 ## 4. Code Quality & Formatting Rules
 
 - TypeScript code must adhere to strict type checking (`"strict": true`). Avoid `any` types.
-- Follow NestJS standards (Dependency Injection, Controllers, Services, Modules, DTO validation).
+- Follow Fastify and TypeScript best practices (clean modular architecture, plugins, routes, services, schemas).
 - Flutter code must follow standard Dart style guidelines and state management patterns (Provider/Bloc/Riverpod as specified).
 - Write descriptive commit messages following Conventional Commits format (e.g. `feat(astrology): add dasha calculation engine`).

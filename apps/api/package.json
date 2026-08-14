@@ -1,0 +1,21 @@
+{
+  "name": "@astro/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "start:prod": "node dist/server.js"
+  },
+  "dependencies": {
+    "@astro/shared": "*",
+    "@astro/astrology-engine": "*",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

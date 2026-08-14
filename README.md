@@ -64,7 +64,7 @@ The system is designed as a **Modular Monolith** initially, allowing high cohesi
                                   v REST / WebSocket APIs
 +-----------------------------------------------------------------------+
 |                            BACKEND APPLICATION                        |
-|                         (Node.js / NestJS Monolith)                   |
+|                         (Node.js / Fastify Monolith)                  |
 |                                                                       |
 |  +---------------------+  +--------------------+  +----------------+  |
 |  | Auth & User Module  |  | Astrology Engine   |  | Gupta Nadi     |  |
@@ -97,7 +97,7 @@ The system is designed as a **Modular Monolith** initially, allowing high cohesi
 | :--- | :--- | :--- |
 | **Mobile Application** | Flutter (Dart) | Cross-platform mobile app for iOS and Android |
 | **Admin Panel** | Next.js (React / TypeScript) | Operational web panel for management and analytics |
-| **Backend Framework** | Node.js / NestJS (TypeScript) | Modular monolithic API backend |
+| **Backend Framework** | Node.js / Fastify (TypeScript) | Modular monolithic API backend |
 | **Database** | PostgreSQL | Primary relational data store |
 | **Caching & Queues** | Redis + BullMQ | Fast key-value caching and async background processing |
 | **Astrology Calculations** | Internal TS Package | Open-source/Local ephemeris engine (To Be Evaluated) |

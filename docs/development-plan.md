@@ -20,7 +20,7 @@ gantt
     PostgreSQL Schema & Prisma DB :p5, 2026-08-25, 7d
 
     section Phase 3: Monolith Backend & Workers
-    apps/api NestJS Scaffolding   :p6, 2026-09-03, 10d
+    apps/api Fastify Scaffolding  :p6, 2026-09-03, 10d
     Redis, BullMQ & Workers       :p7, 2026-09-08, 8d
     packages/report-engine (PDF)  :p8, 2026-09-12, 10d
 
@@ -50,7 +50,7 @@ gantt
 - Write 100+ unit tests against verified reference birth charts.
 
 ### Days 21–35: Phase 3 — Backend API & Background Workers
-- Build `apps/api` NestJS modular application core (Auth, User Profiles, Astrology controllers).
+- Build `apps/api` Fastify modular application core (Auth, User Profiles, Astrology routes).
 - Integrate Redis + BullMQ asynchronous queue system.
 - Build `packages/report-engine` (HTML/CSS Handlebars templates, Puppeteer PDF rendering).
 - Integrate LLM Explanation service layer (OpenAI/Anthropic API integration for prose generation).
@@ -67,7 +67,7 @@ gantt
 
 ### Days 56–60: Phase 6 — Infrastructure Hardening, QA & Production Launch
 - Dockerize all services and build CI/CD pipelines (GitHub Actions).
-- Deploy PostgreSQL, Redis, NestJS API, Workers, and Next.js Admin to Cloud infrastructure.
+- Deploy PostgreSQL, Redis, Fastify API, Workers, and Next.js Admin to Cloud infrastructure.
 - Complete security audit, rate-limiting verification, and load testing.
 - Launch Astro Sushil MVP to Production.
 
@@ -82,7 +82,7 @@ gantt
 - Project architecture oversight & monorepo structure.
 - Implementation of `packages/astrology-engine` and calculation accuracy validation.
 - Implementation of `packages/gupta-nadi-engine` (BNN rule engine architecture & priority resolution).
-- Backend API foundation (`apps/api`), NestJS module architecture, and database design.
+- Backend API foundation (`apps/api`), Fastify module architecture, and database design.
 - Async queue infrastructure (Redis, BullMQ, Background Workers).
 - Cloud deployment, Dockerization, CI/CD pipelines, and infrastructure setup.
 - Pull request code review and security audits.
