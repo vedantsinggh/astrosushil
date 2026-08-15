@@ -14,6 +14,11 @@ export function buildApp(): FastifyInstance {
       level: config.NODE_ENV === 'test' ? 'silent' : 'info',
       redact: ['req.headers.authorization', 'body.password', 'body.refreshToken', 'headers.cookie'],
     },
+    ajv: {
+      customOptions: {
+        keywords: ['example'],
+      },
+    },
     genReqId: (req) => {
       const existingReqId = req.headers['x-request-id'];
       if (existingReqId && typeof existingReqId === 'string') {

@@ -1,0 +1,178 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/custom_button.dart';
+import '../../../shared/widgets/error_banner.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/auth_text_field.dart';
+
+class RegisterScreen extends ConsumerStatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      FocusScope.of(context).unfocus();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      final success = await ref.read(authStateProvider.notifier).register(email, password);
+      if (success && mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authStateProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Account'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+                const Text(
+                  'Join Astro Platform',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Create an account to start managing birth profiles',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF94A3B8),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                if (authState.errorMessage != null) ...[
+                  ErrorBanner(
+                    message: authState.errorMessage!,
+                    onRetry: () => ref.read(authStateProvider.notifier).clearError(),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                AuthTextField(
+                  controller: _emailController,
+                  labelText: 'Email Address',
+                  hintText: 'user@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AuthTextField(
+                  controller: _passwordController,
+                  labelText: 'Password',
+                  isPassword: _obscurePassword,
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (val.length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    if (!RegExp(r'[A-Z]').hasMatch(val)) {
+                      return 'Password must contain at least one uppercase letter';
+                    }
+                    if (!RegExp(r'[a-z]').hasMatch(val)) {
+                      return 'Password must contain at least one lowercase letter';
+                    }
+                    if (!RegExp(r'[0-9]').hasMatch(val)) {
+                      return 'Password must contain at least one number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AuthTextField(
+                  controller: _confirmPasswordController,
+                  labelText: 'Confirm Password',
+                  isPassword: _obscurePassword,
+                  prefixIcon: const Icon(Icons.lock_clock_outlined),
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Please confirm password';
+                    }
+                    if (val != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                CustomButton(
+                  text: 'Register',
+                  isLoading: authState.isLoading,
+                  onPressed: _submit,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Already have an account?",
+                      style: TextStyle(color: Color(0xFF94A3B8)),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Sign In'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
