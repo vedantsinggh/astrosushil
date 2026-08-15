@@ -11,8 +11,11 @@ class AstroMobileApp extends StatelessWidget {
     return MaterialApp(
       title: 'Astro Sushil',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.light,
       home: const SplashScreen(),
     );
   }
 }
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../providers/birth_profile_provider.dart';
@@ -47,17 +48,17 @@ class BirthProfileListScreen extends ConsumerWidget {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.account_box_outlined,
                                   size: 64,
-                                  color: Color(0xFF64748B),
+                                  color: Theme.of(context).colorScheme.secondary,
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
+                                Text(
                                   'No birth profiles created yet',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    color: Color(0xFF94A3B8),
+                                    color: Theme.of(context).colorScheme.textSecondary,
                                   ),
                                 ),
                                 const SizedBox(height: 24),

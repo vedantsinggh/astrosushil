@@ -6,6 +6,8 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../onboarding/providers/onboarding_provider.dart';
+import '../../onboarding/screens/onboarding_screen.dart';
 import '../../../home/screens/home_screen.dart';
 
 /// Official Animated Splash Screen for Astro Platform
@@ -54,12 +56,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     _timer = Timer(const Duration(milliseconds: 2500), _checkAuthAndNavigate);
   }
 
-  void _checkAuthAndNavigate() {
+  void _checkAuthAndNavigate() async {
     if (!mounted) return;
 
-    final authState = ref.read(authStateProvider);
+    var authState = ref.read(authStateProvider);
+
+    // Wait until session validation finishes loading
+    while (authState.isLoading && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      authState = ref.read(authStateProvider);
+    }
+
+    if (!mounted) return;
 
     if (authState.isAuthenticated) {
+      // Authenticated user goes directly to Home Screen
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const HomeScreen(),
@@ -71,9 +82,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
         ),
       );
     } else {
+      // Unauthenticated user starts at Onboarding Screen
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const LoginScreen(),
+          pageBuilder: (_, __, ___) => const OnboardingScreen(),
           transitionsBuilder: (_, animation, __, child) => FadeTransition(
             opacity: animation,
             child: child,

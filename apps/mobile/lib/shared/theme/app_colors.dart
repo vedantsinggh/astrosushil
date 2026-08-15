@@ -61,4 +61,27 @@ class AppColors {
 
   /// Inactive / Disabled State
   static const Color disabled = Color(0xFF475569);
+
+  // ===========================================================================
+  // LIGHT THEME TOKENS (HOME SCREEN & LIGHT MODE)
+  // ===========================================================================
+
+  /// Warm/neutral light background for Home Screen
+  static const Color lightBackground = Color(0xFFFAFAFC);
+
+  /// Pure white surface for light cards
+  static const Color lightSurface = Color(0xFFFFFFFF);
+
+  /// High contrast primary text on light background (#121440)
+  static const Color lightTextPrimary = Color(0xFF121440);
+
+  /// Secondary text on light background (Slate 600)
+  static const Color lightTextSecondary = Color(0xFF475569);
+
+  /// Muted text on light background (Slate 400)
+  static const Color lightTextMuted = Color(0xFF94A3B8);
+
+  /// Light border tint
+  static const Color lightBorder = Color(0xFFE2E8F0);
 }
+
