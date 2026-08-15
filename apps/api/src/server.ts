@@ -24,7 +24,7 @@ const shutdown = async (signal: string) => {
     app.log.info('Server and Database connections closed successfully.');
     process.exit(0);
   } catch (err) {
-    app.log.error('Error during graceful shutdown:', err);
+    app.log.error(err, 'Error during graceful shutdown');
     process.exit(1);
   }
 };
