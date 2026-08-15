@@ -29,18 +29,43 @@ Reusable internal TypeScript libraries compiled into the Fastify backend. These 
 - **`packages/report-engine`**: Orchestrates PDF compilation, template rendering, and async job creation for generated reports.
 - **`packages/shared`**: Data transfer objects (DTOs), interface definitions, utility helpers, and constants shared across backend services.
 
-### C. Background Infrastructure & Data Store
-- **PostgreSQL**: Primary transactional database storing users, birth profiles, orders, report metadata, rule configurations, and logs.
-- **Redis**: In-memory cache for fast ephemeris lookup, session caching, rate-limiting, and queue storage.
-- **BullMQ Queue System**: Job queue handling async workloads (PDF generation, LLM prompt formatting, WhatsApp notification delivery, email dispatch).
-- **Background Workers (`workers/`)**: Processors executing heavy BullMQ jobs asynchronously off the main API HTTP thread.
-- **Object Storage**: S3-compatible cloud storage for storing generated PDF reports and static user media.
+### C. Fastify API Integration Architecture (`apps/api/src/modules/astrology`)
+To expose the domain computational packages cleanly through the Fastify backend without framework pollution, the application layer implements strict boundary mappers and application services:
 
-### D. External Integrated Services
-- **Razorpay**: Payment gateway for order creation, payment collection, signature verification, and refund processing.
-- **Meta WhatsApp Business Platform**: External communication API channel (webhooks for incoming messages; REST for outgoing messages). **WhatsApp is an external integration channel, NOT a separate frontend application.**
-- **Firebase Cloud Messaging (FCM)**: Native push notification platform for Android and iOS mobile devices.
-- **LLM Provider**: OpenAI / Anthropic / Gemini API endpoint used strictly for converting prediction JSON structures into natural language explanations.
+```
+HTTP Request
+    │
+    ▼
+Fastify Route (`astrology.routes.ts`)
+    │ (Auth Hook: Bearer JWT)
+    ▼
+Request Validation (`astrology.schemas.ts`)
+    │
+    ▼
+Astrology Application Service (`astrology.service.ts`)
+    │ (Server-Side Ownership Check: userId == profile.userId)
+    ▼
+Birth Profile Repository / Prisma DB (`birth_profiles`)
+    │
+    ▼
+BirthDetails Mapper (`birth-details.mapper.ts`)
+    │ (Converts Prisma model to domain BirthDetails)
+    ▼
+Astrology Engine (`@astro/astrology-engine`)
+    │ (Executes local AstronomyEngineAdapter / Ephemeris calculation)
+    ▼
+AstroChart Domain Output
+    │
+    ▼
+Response DTO Mapper (`astrology-response.mapper.ts`)
+    │
+    ▼
+HTTP Response (Sanitized JSON DTO)
+```
+
+**Boundary Purity Verification**:
+- `packages/astrology-engine` has ZERO imports of Fastify, Prisma, HTTP libraries, auth libraries, Redis, or BullMQ.
+- All database entities are isolated inside `apps/api` and converted to domain interfaces before reaching `@astro/astrology-engine`.
 
 ---
 

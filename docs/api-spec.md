@@ -1,4 +1,4 @@
-# REST API Specification - Astro Sushil Platform Backend Foundation (Phase 1)
+# REST API Specification - Astro Sushil Platform Backend Foundation
 
 This document specifies the actual implemented API architecture and endpoints for `apps/api` (Fastify + TypeScript + Prisma + PostgreSQL).
 
@@ -17,7 +17,7 @@ All error responses adhere to a consistent JSON structure:
 ```json
 {
   "error": {
-    "code": "VALIDATION_ERROR | AUTHENTICATION_ERROR | AUTHORIZATION_ERROR | NOT_FOUND | CONFLICT | INTERNAL_ERROR",
+    "code": "VALIDATION_ERROR | AUTHENTICATION_ERROR | AUTHORIZATION_ERROR | NOT_FOUND | CONFLICT | UNCONFIRMED_METHODOLOGY | ASTROLOGY_CALCULATION_FAILED | INTERNAL_ERROR",
     "message": "Human-readable error summary",
     "details": [
       {
@@ -32,7 +32,7 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-## 2. Implemented API Endpoints (Phase 1)
+## 2. Implemented API Endpoints
 
 ### 2.1 System Health
 - **`GET /api/v1/health`** (and `/health`)
@@ -216,10 +216,69 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-## 3. Future Planned Endpoints (Phase 2+)
+### 2.5 Astrology Engine Module (`/api/v1/astrology`)
 
-The following modules are planned for future phases:
-- **Astrology Engine** (`/api/v1/astrology/*`)
+- **`POST /api/v1/astrology/chart`**
+  - **Auth**: Bearer JWT (`USER` or `ADMIN`)
+  - **Summary**: Calculates natal chart, planetary coordinates, Rashis, and Nakshatras for an authenticated user's birth profile.
+  - **Authorization**: Server-side ownership enforced. Returns `404 NOT_FOUND` if profile is missing or owned by another user.
+  - **Request Body**:
+    ```json
+    {
+      "birthProfileId": "f8d8b13c-7c08-410a-9d22-ee029199d91f"
+    }
+    ```
+  - **Response 200**:
+    ```json
+    {
+      "chart": {
+        "calculationVersion": "0.1.0",
+        "providerName": "AstronomyEngineAdapter (astronomy-engine)",
+        "providerVersion": "2.1.19-mit",
+        "normalizedTime": {
+          "utcIsoString": "1990-05-15T09:00:00.000Z",
+          "julianDayUT": 2448026.875,
+          "timezoneOffsetMinutes": 330
+        },
+        "config": {
+          "zodiacType": "SIDEREAL",
+          "ayanamsa": "LAHIRI",
+          "houseSystem": "WHOLE_SIGN",
+          "nodeCalculation": "MEAN_NODE",
+          "planetaryCalculationMode": "GEOCENTRIC"
+        },
+        "ascendant": null,
+        "planets": [
+          {
+            "planet": "SUN",
+            "longitude": 50.2541,
+            "latitude": 0.0,
+            "speedLongitude": 0.963,
+            "isRetrograde": false,
+            "rashiIndex": 2,
+            "rashiName": "Vrishabha",
+            "degreeInRashi": 20.2541,
+            "nakshatraIndex": 4,
+            "nakshatraName": "Rohini",
+            "pada": 4,
+            "nakshatraLord": "MOON"
+          }
+        ],
+        "houses": [],
+        "rashis": [],
+        "nakshatras": []
+      }
+    }
+    ```
+  - **Response 400**: Missing or non-UUID `birthProfileId`.
+  - **Response 404**: Profile not found or unauthorized access attempt.
+  - **Response 422**: Unconfirmed astrology methodology blocking execution (`UNCONFIRMED_METHODOLOGY`).
+  - **Response 500**: Astrology engine internal calculation error (`ASTROLOGY_CALCULATION_FAILED`).
+
+---
+
+## 3. Future Planned Endpoints (Phase 4+)
+
 - **Gupta Nadi Engine** (`/api/v1/gupta-nadi/*`)
 - **Predictions & Transits** (`/api/v1/predictions/*`)
 - **Reports & PDF Generation** (`/api/v1/reports/*`)
