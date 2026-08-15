@@ -1,0 +1,65 @@
+// Prisma Schema for Astro Sushil Platform Backend Foundation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  role          Role           @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  birthProfiles BirthProfile[]
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model BirthProfile {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  dateOfBirth String   // Canonical format: YYYY-MM-DD
+  timeOfBirth String   // Canonical 24h format: HH:mm:ss
+  latitude    Float    // Decimal degrees [-90, 90]
+  longitude   Float    // Decimal degrees [-180, 180]
+  timezone    String   // IANA Timezone ID (e.g. "Asia/Kolkata")
+  placeName   String?  // Optional display place name
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("birth_profiles")
+}
