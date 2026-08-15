@@ -47,9 +47,9 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
       updatedAt: new Date(),
     });
 
-    vi.spyOn(prisma.birthProfile, 'findUnique').mockImplementation(async ({ where }: any) => {
-      return profilesDb.get(where.id) || null;
-    });
+    vi.spyOn(prisma.birthProfile, 'findUnique').mockImplementation((({ where }: any) => {
+      return Promise.resolve(profilesDb.get(where.id) || null);
+    }) as any);
 
     app = buildApp();
     await app.ready();

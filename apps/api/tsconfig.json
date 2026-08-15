@@ -23,5 +23,12 @@
       "@astro/report-engine": ["../../packages/report-engine/dist", "../../packages/report-engine/src"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/astrology-engine" },
+    { "path": "../../packages/gupta-nadi-engine" },
+    { "path": "../../packages/prediction-engine" },
+    { "path": "../../packages/report-engine" }
+  ]
 }
