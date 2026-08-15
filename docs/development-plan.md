@@ -1,99 +1,121 @@
-# 60-Day Development Roadmap & Work Breakdown - Astro Sushil
+# 60-Day Development Plan & Roadmap - Astro Sushil
 
-This document outlines the 60-day execution plan for developing and deploying the **Astro Sushil** platform with a team of two developers.
+This document defines the 60-day engineering roadmap, milestone deliverables, phase breakdowns, and developer task allocation for building the **Astro Sushil** platform.
 
 ---
 
-## 1. Project Timeline & Phase Breakdown
+## 1. Developer Role Division
 
-```mermaid
-gantt
-    title Astro Sushil 60-Day Development Roadmap
-    dateFormat  YYYY-MM-DD
-    section Phase 1: Architecture & Specs
-    Specs & Rule Framework        :active, p1, 2026-08-15, 7d
-    Ephemeris Spike & Library Choice: p2, 2026-08-18, 5d
+The development team consists of two developers working concurrently across specialized domain areas:
 
-    section Phase 2: Core Engines & Database
-    packages/astrology-engine     :p3, 2026-08-22, 10d
-    packages/gupta-nadi-engine    :p4, 2026-08-27, 12d
-    PostgreSQL Schema & Prisma DB :p5, 2026-08-25, 7d
+### Primary Developer (Backend, Architecture & Core Engines)
+- Monorepo architecture & NestJS backend framework setup.
+- `packages/astrology-engine` implementation & ephemeris integration.
+- `packages/gupta-nadi-engine` core matcher logic & transit overlay math.
+- PostgreSQL database schemas, migrations, and Prisma ORM configuration.
+- Redis, BullMQ queue setup, worker processors, and PDF rendering pipeline.
+- Payment gateway (Razorpay) & WhatsApp webhook integration.
+- Code review, integration testing, and CI/CD deployment pipelines.
 
-    section Phase 3: Monolith Backend & Workers
-    apps/api Fastify Scaffolding  :p6, 2026-09-03, 10d
-    Redis, BullMQ & Workers       :p7, 2026-09-08, 8d
-    packages/report-engine (PDF)  :p8, 2026-09-12, 10d
+### Second Developer (Mobile UI, Admin UI & Feature Integration)
+- Flutter mobile application UI/UX screens (Kundli views, Panchang, Birth forms).
+- Next.js Admin portal UI components, tables, and management workflows.
+- API integration in Flutter app & Next.js Admin using TypeScript/Dart DTOs.
+- CRUD features (User profiles, birth chart history, saved profiles).
+- Encoding BNN rule JSON entries under supervision of Primary Developer.
+- Unit testing, widget testing, QA verification, and user documentation.
 
-    section Phase 4: Frontend Applications
-    apps/mobile (Flutter App)     :p9, 2026-09-10, 18d
-    apps/admin (Next.js Panel)    :p10, 2026-09-15, 14d
+---
 
-    section Phase 5: Integrations & Testing
-    Razorpay & WhatsApp Integrations :p11, 2026-09-25, 8d
-    End-to-End Testing & QA       :p12, 2026-10-01, 8d
-    Cloud Infra & Production Launch :p13, 2026-10-08, 6d
+## 2. 60-Day Phase Roadmap
+
+```
++-----------------------------------------------------------------------------------+
+| PHASE 1: Architecture & Specs (Days 1-7)                                          |
+| PHASE 2: Core Engines (Days 8-20)                                                 |
+| PHASE 3: Backend APIs & Database (Days 21-35)                                      |
+| PHASE 4: Mobile & Admin Applications (Days 36-48)                                 |
+| PHASE 5: Reports, Payments & WhatsApp (Days 49-54)                                |
+| PHASE 6: Worker Queues & Notifications (Days 55-57)                               |
+| PHASE 7: QA, Testing & Deployment (Days 58-60)                                    |
++-----------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Detailed Sprints & Deliverables
-
-### Days 1–7: Phase 1 — Specification, Architecture & Ephemeris Spike
-- Finalize client rules and requirements (`docs/client-questions.md`).
-- Conduct ephemeris library spike (verify Swiss Ephemeris vs Astronomy Engine licenses and accuracy).
-- Establish monorepo repository structure and package boundary standards.
-
-### Days 8–20: Phase 2 — Core Engine Package Development
-- Build `packages/astrology-engine` (Planetary positions, Ascendant, Vargas, Vimshottari Dashas).
-- Build `packages/gupta-nadi-engine` (Directional combination matrix, BNN rule matchers, transit overlays).
-- Create PostgreSQL database schemas with Prisma ORM.
-- Write 100+ unit tests against verified reference birth charts.
-
-### Days 21–35: Phase 3 — Backend API & Background Workers
-- Build `apps/api` Fastify modular application core (Auth, User Profiles, Astrology routes).
-- Integrate Redis + BullMQ asynchronous queue system.
-- Build `packages/report-engine` (HTML/CSS Handlebars templates, Puppeteer PDF rendering).
-- Integrate LLM Explanation service layer (OpenAI/Anthropic API integration for prose generation).
-
-### Days 30–48: Phase 4 — Client Applications (Flutter Mobile & Next.js Admin)
-- **Flutter App**: Auth screens, birth data entry, North/South Indian Kundli chart rendering, basic free utilities, report purchasing UI.
-- **Next.js Admin Panel**: Admin authentication, dashboard analytics, user list, order queue monitoring, BNN rule viewer/editor.
-
-### Days 45–55: Phase 5 — External Integrations & E2E Testing
-- Integrate Razorpay SDK & backend webhook signature verification.
-- Integrate Meta WhatsApp Business API for automated PDF delivery.
-- Integrate Firebase Cloud Messaging (FCM) for mobile push notifications.
-- Execute full E2E test suites (Payment -> Job Queue -> PDF Generation -> WhatsApp Delivery).
-
-### Days 56–60: Phase 6 — Infrastructure Hardening, QA & Production Launch
-- Dockerize all services and build CI/CD pipelines (GitHub Actions).
-- Deploy PostgreSQL, Redis, Fastify API, Workers, and Next.js Admin to Cloud infrastructure.
-- Complete security audit, rate-limiting verification, and load testing.
-- Launch Astro Sushil MVP to Production.
+### Phase 1: Requirements & Specification Phase (Days 1 - 7)
+- [x] Establish monorepo structure blueprints and agent directives (`AGENTS.md`).
+- [x] Finalize system architecture and technical specifications in `/docs`.
+- [ ] Evaluate open-source astronomical ephemeris calculation libraries.
+- [ ] Receive client confirmation on BNN rules, Ayanamsa, house systems, and pricing.
 
 ---
 
-## 3. Team Member Division of Responsibilities
+### Phase 2: Core Engine Development (Days 8 - 20)
+- **Primary Developer**:
+  - Scaffold monorepo packages (`astrology-engine`, `gupta-nadi-engine`, `prediction-engine`, `shared`).
+  - Implement planetary longitudes, Ascendant, house division, Vargas, Vimshottari Dasha, and Panchang in `astrology-engine`.
+  - Build BNN rule matcher matrix, planetary trine math, and transit overlay logic in `gupta-nadi-engine`.
+  - Write comprehensive unit tests against 50 reference benchmark charts.
+- **Second Developer**:
+  - Begin Flutter app UI scaffolding (Theme, Navigation, Custom Painter for Kundli chart drawing).
+  - Scaffold Next.js Admin portal project layout and design system.
+  - Encode initial set of client-provided BNN rules into JSON schema fixtures under supervision.
 
-### Developer 1 (Primary Lead Developer)
-**Primary Focus**: System Architecture, Calculation Engines, Backend Infrastructure, Core Business Logic.
+---
 
-**Responsibilities**:
-- Project architecture oversight & monorepo structure.
-- Implementation of `packages/astrology-engine` and calculation accuracy validation.
-- Implementation of `packages/gupta-nadi-engine` (BNN rule engine architecture & priority resolution).
-- Backend API foundation (`apps/api`), Fastify module architecture, and database design.
-- Async queue infrastructure (Redis, BullMQ, Background Workers).
-- Cloud deployment, Dockerization, CI/CD pipelines, and infrastructure setup.
-- Pull request code review and security audits.
+### Phase 3: Backend APIs & Data Layer (Days 21 - 35)
+- **Primary Developer**:
+  - Initialize NestJS API server (`apps/api`).
+  - Design PostgreSQL schema (Users, BirthProfiles, Orders, Reports, RuleConfigs) with Prisma.
+  - Implement authentication module (JWT, OTP request/verification).
+  - Expose REST API endpoints for birth charts, planetary tables, and dasha trees.
+- **Second Developer**:
+  - Implement mobile onboarding screens, phone authentication UI, and birth detail input forms.
+  - Build profile management screens for saved family birth charts.
+  - Integrate mobile app with backend REST endpoints.
+  - Build Admin UI screens for User management and Order monitoring.
 
-### Developer 2 (Second Developer)
-**Primary Focus**: Mobile UI (Flutter), Admin Web UI (Next.js), Integrations, Rule Encoding & QA.
+---
 
-**Responsibilities**:
-- Development of `apps/mobile` (Flutter app UI, Kundli graphic rendering, state management, state flows).
-- Development of `apps/admin` (Next.js admin portal, dashboards, tables, rule configuration views).
-- Mobile & Admin API integration with backend endpoints.
-- Encoding individual BNN rules into structured JSON format under Developer 1 supervision.
-- Unit and integration testing for UI components and API endpoints.
-- Documentation updates and Quality Assurance (QA) testing.
+### Phase 4: Mobile App & Admin Panel Completion (Days 36 - 48)
+- **Primary Developer**:
+  - Expose Gupta Nadi prediction endpoints and daily Rashi Bhavishya APIs.
+  - Optimize API query performance, caching layer with Redis, and input DTO validations.
+- **Second Developer**:
+  - Complete Flutter UI screens for Kundli visualization (North/South styles), Planetary tables, Nakshatra details, and Daily Horoscopes.
+  - Implement Vastu guidance screens and Panchang utility views in Flutter.
+  - Build Admin UI screens for Gupta Nadi rule inspection and rule priority tuning.
+
+---
+
+### Phase 5: Report Generation, Payments & WhatsApp (Days 49 - 54)
+- **Primary Developer**:
+  - Implement `packages/report-engine` and HTML/CSS PDF report templates.
+  - Integrate Puppeteer headless Chrome rendering for high-resolution PDF output.
+  - Integrate Razorpay backend payment order creation and signature verification webhooks.
+  - Setup Meta WhatsApp Business Platform webhook receiver and PDF message dispatcher.
+- **Second Developer**:
+  - Build mobile app report purchase flow, pricing UI, and Razorpay checkout SDK integration.
+  - Build in-app report download, PDF viewer, and share options.
+  - Test WhatsApp interactive message flows and delivery dispatches.
+
+---
+
+### Phase 6: Async Workers, Redis Queues & Push Notifications (Days 55 - 57)
+- **Primary Developer**:
+  - Configure BullMQ worker processes (`workers/`) for off-thread PDF generation and LLM prompt dispatches.
+  - Setup S3 / Cloud Storage upload handlers for generated PDF reports.
+  - Integrate Firebase Cloud Messaging (FCM) backend service for push notifications.
+- **Second Developer**:
+  - Integrate FCM mobile client SDK for push notification reception.
+  - Perform end-to-end user journey testing (Order -> Payment -> Queue -> Push Notification -> PDF View).
+
+---
+
+### Phase 7: Testing, QA, Security & Deployment (Days 58 - 60)
+- **Both Developers**:
+  - Execute end-to-end integration test suite and load testing.
+  - Audit security: TLS setup, rate-limiting, CORS, SQL injection prevention, DTO sanitization.
+  - Configure Docker production builds and CI/CD GitHub Actions deployment workflows.
+  - Deploy to production cloud infrastructure and execute final launch checklist.

@@ -1,148 +1,114 @@
-# Gupta Nadi Engine Technical Specification - Astro Sushil
+# Gupta Nadi (Brihaspati Nandi Nadi / BNN) Specification - Astro Sushil
 
-This document specifies the architecture, inputs, outputs, rule representation structure, evaluation pipeline, and testing methodology for `packages/gupta-nadi-engine`.
+This specification outlines the functional design, rule format, evaluation logic, and audit structure for `packages/gupta-nadi-engine`.
 
-> **IMPORTANT**: This engine strictly implements the client's proprietary **Brihaspati Nandi Nadi (BNN)** methodology. No formulas or astrological rules are invented in this specification. All rule sets and exact formula parameters must be provided by the client (`[CLIENT CONFIRMATION REQUIRED]`).
+> **IMPORTANT**: No custom astrological formulas or predictive rules are invented in this document. Specific rules and formulas will be encoded based on client-provided Brihaspati Nandi Nadi (BNN) documentation.
 
 ---
 
 ## 1. Purpose & Core Philosophy
 
-The Gupta Nadi Engine evaluates planetary relationships, transit overlays, and combinations (yogas) based on Brihaspati Nandi Nadi (BNN) principles. 
-
-Key principles:
-1. **100% Deterministic**: Given the exact same chart data and transit timing, the engine must produce identical rule matches and prediction codes every single time.
-2. **Auditable & Traceable**: Every prediction snippet must directly link to the specific Rule ID and planetary conditions that triggered it.
-3. **No AI Inference**: The engine never uses LLMs or probabilistic heuristics to determine astrological rules or outcomes.
+Gupta Nadi is the flagship predictive module of the Astro Sushil platform. It implements **Brihaspati Nandi Nadi (BNN)** methodology:
+- **Karaka-Based System**: Jupiter (Brihaspati) represents the Jiva (Self for males), Venus represents the Jiva (Self for females), Saturn represents Karma (profession), Mars represents Ego/Brothers/Energy, Mercury represents Intellect/Commerce/Friends, Moon represents Mind/Travel/Blame, Sun represents Soul/Father/Government, Rahu represents Illusion/Expansion/Foreign, and Ketu represents Moksha/Obstacles/Dispute.
+- **Directional & Aspect Relationships**: Focuses on planet combinations based on trine positions (1, 5, 9), adjacent houses (2, 12), opposite houses (7), and 3-11 relationships rather than traditional house lordships alone.
+- **100% Deterministic Evaluation**: Rules execute as pure logical conditions. For any given natal chart and transit date, rule outputs are completely repeatable, objective, and auditable.
 
 ---
 
-## 2. Input Data Requirements
+## 2. Input Requirements
 
-The Gupta Nadi Engine consumes output from `packages/astrology-engine` and current transit parameters:
-
-### 2.1 Natal Astrological Data
-- **Planetary Vector**: Positions (sign, degree, house, retrograde status) for Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu.
-- **Lagna (Ascendant)**: Sign and exact degree.
-- **Planetary Directional Alignment**: Planetary distribution across direction vectors (East, South, West, North corresponding to Fire, Earth, Air, Water signs).
-- **Planetary Friendship & Aspect Matrix**: Mutual relationships and directional combinations (1-5-9 trines, 2-12 adjacent, 3-11 sextiles, 7th opposite).
-
-### 2.2 Transit Data (Gochar)
-- Current or target date planetary longitudes, signs, and retrograde statuses (specifically Saturn, Jupiter, Rahu, Ketu).
+The engine consumes processed astrological data from `packages/astrology-engine`:
+1. **Natal Planetary Coordinates**: Sidereal longitudes for Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu.
+2. **Natal House Positions & Signs**: Sign placement for each planet (1 to 12).
+3. **Gender of Native**: Male / Female (determines Jiva Karaka).
+4. **Transit Coordinates**: Planetary positions for a target evaluation date.
+5. **Dasha Timeline**: Active Vimshottari Mahadasha and Antardasha lords.
 
 ---
 
-## 3. Rule Representation Format
+## 3. Rule Structure & Template
 
-Rules are stored in structured JSON/TypeScript schemas. Each rule follows a standard declarative format:
+Every Gupta Nadi rule must be encoded in a standardized JSON/TypeScript schema following this structure:
 
-```json
-{
-  "ruleId": "BNN-CAR-001",
-  "domain": "CAREER",
-  "title": "Saturn-Saturn Transit & Saturn-Jupiter Alignment",
-  "priority": 100,
-  "conditions": {
-    "natalCombination": [
-      {
-        "planet": "Saturn",
-        "aspectsOrTrines": ["Jupiter"],
-        "maxOrbDegrees": 30.0
-      }
-    ],
-    "transitCondition": {
-      "transitPlanet": "Jupiter",
-      "targetPlanet": "Saturn",
-      "aspectType": "TRINE_1_5_9"
-    }
-  },
-  "exceptions": [
-    {
-      "planet": "Rahu",
-      "relationship": "INTERSECTING_ORB",
-      "effect": "DELAY_OR_OBSTACLE"
-    }
-  ],
-  "expectedResult": {
-    "code": "CAREER_PROMOTION_FAVORABLE",
-    "category": "CAREER",
-    "timingWindowMonths": 12,
-    "severity": "POSITIVE"
-  },
-  "referenceExample": "Chart Ref #BNN-REF-104 (Jupiter transit over Natal Saturn in 5th sign)"
-}
+```
+Rule ID: NADI-CAR-001
+Domain: Career / Profession
+Conditions:
+  - Jiva/Karma Lord: Saturn
+  - Planetary Combination: Saturn trine (1, 5, 9) with Mercury AND Venus
+  - Directional Alignment: Same sign or trine sign placement
+Exceptions:
+  - Ketu in 2nd house from Saturn (causes initial interruption)
+Priority: 10 (High)
+Expected Result:
+  - Trajectory: High success in commerce, trading, finance, or intellectual fields.
+  - Characteristics: Financial acumen, strong analytical skills, early professional stability.
+Reference Example: Benchmark Chart #14 (Birth Date: 1985-06-12)
 ```
 
-### Rule Specification Schema Template
-For encoding individual rules provided by the client:
-
-- **Rule ID**: Unique alphanumeric code (e.g. `BNN-MAR-012`)
-- **Domain**: Domain category (`CAREER`, `MARRIAGE`, `PROGENY`, `FINANCE`, `HEALTH`, `GENERAL`)
-- **Conditions**: Required planetary placements, directional alignments (1-5-9, 2-12, 3-11, 7), sign elemental matches, and retrograde states.
-- **Exceptions**: Neutralizing or modifying conditions (e.g. Rahu/Ketu intervention, combust states).
-- **Priority**: Integer score resolving rule precedence when multiple rules trigger.
-- **Expected Result**: Structured prediction code, impact polarity, and timing windows.
-- **Reference Example**: Client-verified reference chart ID demonstrating the rule.
+### 3.1 Rule Schema Definition
+- **Rule ID**: Unique alphanumeric identifier (e.g. `NADI-FIN-042`).
+- **Domain**: Category (`Career`, `Marriage`, `Health`, `Finance`, `Travel`, `Progeny`, `Spirituality`).
+- **Conditions**: Array of planet-sign-aspect requirements that must all evaluate to `true`.
+- **Exceptions**: Overriding conditions that suppress or modify the rule output.
+- **Priority**: Integer score (1-100) resolving precedence when multiple rules trigger within the same domain.
+- **Expected Result**: Structured prediction payload containing outcome type, timing window, and severity/impact rating.
+- **Reference Example**: Verified sample chart ID validating the rule accuracy.
 
 ---
 
-## 4. Evaluation Pipeline
+## 4. Rule Evaluation Engine Logic
 
-```mermaid
-flowchart TD
-    A[Natal Planetary Data + Transit Data] --> B[Build Directional & Aspect Matrix]
-    B --> C[Fetch Active BNN Rules]
-    C --> D[Evaluate Natal Rule Conditions]
-    D --> E[Filter Exceptions & Obstructing Planets]
-    E --> F[Evaluate Transit Timing Overlays]
-    F --> G[Sort Triggered Rules by Priority]
-    G --> H[Output Deterministic Prediction Tree]
+```
+   +-------------------------------------------------------------+
+   |                  Raw Astrological Data                      |
+   +------------------------------+------------------------------+
+                                  |
+                                  v
+   +-------------------------------------------------------------+
+   |              Planet Aspect & Trine Matrix Builder           |
+   |   (Calculates 1-5-9, 2-12, 3-11, 7th relationships)         |
+   +------------------------------+------------------------------+
+                                  |
+                                  v
+   +-------------------------------------------------------------+
+   |                    Rule Matcher Engine                      |
+   |   - Filter active rules by Domain                           |
+   |   - Evaluate Conditions & Exceptions                        |
+   |   - Sort triggered rules by Priority                        |
+   +------------------------------+------------------------------+
+                                  |
+                                  v
+   +-------------------------------------------------------------+
+   |                Transit & Timing Overlay Engine              |
+   |   (Correlates triggered rules with Saturn/Jupiter transits) |
+   +------------------------------+------------------------------+
+                                  |
+                                  v
+   +-------------------------------------------------------------+
+   |              Deterministic Prediction Tree Output           |
+   +-------------------------------------------------------------+
 ```
 
-1. **Matrix Construction**: Map planets into directional trines (East/South/West/North) and calculate angular separations.
-2. **Natal Evaluation**: Match natal planetary alignments against rule criteria.
-3. **Exception Handling**: Check if blocking planets (e.g. Rahu/Ketu interpositions) invalidate or modify the rule output.
-4. **Transit Overlay**: Check current transit positions (e.g. Jupiter transiting natal Saturn or Saturn transiting natal Karma planet).
-5. **Conflict & Priority Resolution**: When opposing rules trigger, sort by priority weight and client-defined precedence logic (`[CLIENT CONFIRMATION REQUIRED: Priority sorting rules]`).
-6. **Output Generation**: Produce a structured JSON payload containing triggered Rule IDs, raw prediction statements, and timing windows.
+---
+
+## 5. Timing of Events (Transit & Dasha Overlays)
+
+1. **Major Life Events**: Triggered when transiting Jupiter (Brihaspati) or Saturn (Karma) forms exact conjunctions or trines (1, 5, 9) to natal planetary combinations.
+2. **Node Interceptions**: Transiting Rahu/Ketu crossing natal Karakas signals major transformations or Karma completion.
+3. **Dasha Overlay**: Active Dasha lord acts as an activator for specific Nadi rule combinations.
 
 ---
 
-## 5. Timing of Events (Gochar / Transits)
+## 6. Auditability & Explainability
 
-In BNN methodology, transits activate natal combinations:
-- **Jupiter Transits**: Expand and activate events (brings results within 1-year transit windows).
-- **Saturn Transits**: Impose karmic duty, structure, or delay (2.5-year transit windows).
-- **Rahu/Ketu Transits**: Bring sudden shifts or karmic disruptions (1.5-year transit windows).
+- **Prediction Traceability**: Every generated prediction JSON includes an `auditTrail` array containing the specific `Rule ID`s triggered, exact degrees evaluated, and priority scores used.
+- **Zero Hallucination**: The rule engine strictly emits structured data. Text summaries generated later by LLMs must map 1-to-1 to the underlying rule outputs.
 
 ---
 
-## 6. Output & Explainability
+## 7. Validation & Testing Strategy
 
-The output of the Nadi engine is a deterministic JSON document containing:
-- List of triggered `RuleID`s.
-- Structured prediction outputs (e.g. `MARRIAGE_TIMING_ACTIVE`, `CAREER_CHANGE_FAVORABLE`).
-- Exact planetary evidence (e.g. "Saturn in East trine with Jupiter in 5th sign").
-- Timing indicators.
-
-> **Note**: The output contains NO AI-generated prose. It is fed into `packages/report-engine` and the LLM explanation layer for natural language conversion.
-
----
-
-## 7. Reference Examples & Client Confirmations Required
-
-| Parameter / Rule | Status | Action Required |
-| :--- | :--- | :--- |
-| **Complete BNN Rulebook** | `[CLIENT CONFIRMATION REQUIRED]` | Client must provide complete rule document / formula list |
-| **Directional Orbs** | `[CLIENT CONFIRMATION REQUIRED]` | Confirm degree orb for trine/directional combinations |
-| **Retrograde Planet Direction** | `[CLIENT CONFIRMATION REQUIRED]` | Confirm whether retrograde planets count from previous sign |
-| **Rule Precedence Matrix** | `[CLIENT CONFIRMATION REQUIRED]` | Confirm resolution logic when positive and negative rules conflict |
-| **Reference Charts** | `[CLIENT CONFIRMATION REQUIRED]` | Client to provide 10-20 benchmark charts with expected predictions |
-
----
-
-## 8. Testing & Validation Methodology
-
-1. **Unit Testing**: Test individual rule conditions in isolation using mock chart matrices.
-2. **Fixture-Based Integration Testing**: Run the engine against client-supplied reference charts and verify 100% exact match of triggered Rule IDs.
-3. **Regression Prevention**: Automated test suite executed on every pull request to ensure rule definitions remain strictly intact.
+1. **Unit Testing**: Individual unit test files for each encoded Nadi rule verifying condition logic against mock chart inputs.
+2. **Reference Chart Validation**: Test suite of reference charts provided by the client with expected output verification.
+3. **Conflict Resolution Tests**: Integration tests verifying that high-priority exception rules correctly override lower-priority rules.

@@ -1,160 +1,115 @@
-# Report Generation Pipeline Specification - Astro Sushil
+# Report Engine & PDF Generation Architecture - Astro Sushil
 
-This document specifies the end-to-end report generation architecture, data pipeline, template engine, asynchronous queue management, and LLM explanation layer for `packages/report-engine`.
-
----
-
-## 1. Core Architecture Principle
-
-The report generation pipeline enforces a strict, unidirectional processing flow:
-
-```
-[Astrology Engine Calculations]
-               │
-               ▼
-[Gupta Nadi & Rule Evaluation]
-               │
-               ▼
-[Deterministic Prediction JSON]
-               │
-               ▼
-[LLM Natural Language Explanation]
-               │
-               ▼
-[PDF Layout & Compilation]
-               │
-               ▼
-[Object Storage & Notification]
-```
-
-> **CRITICAL DIRECTIVE**: The data pipeline is **Calculations → Deterministic Result → LLM Explanation → PDF Report**. The system MUST NEVER follow **LLM → Astrology Prediction**. The LLM is strictly an explanation and natural language formatting engine.
+This specification defines the asynchronous report generation pipeline for `packages/report-engine`.
 
 ---
 
-## 2. Report Types & Categories
+## 1. Architectural Philosophy
 
-### 2.1 Standard Paid Reports
+```
++-----------------------------------------------------------------------------------+
+|                            MANDATORY REPORT PIPELINE                              |
+|                                                                                   |
+|  [ Astrological Math ] --> [ Gupta Nadi Rules ] --> [ Deterministic Prediction ]  |
+|                                                                |                  |
+|                                                                v                  |
+|  [ Object Storage ] <-- [ PDF Generation ] <-- [ LLM Text Explanation Layer ]     |
++-----------------------------------------------------------------------------------+
+```
+
+> **CRITICAL RULE**: The pipeline flow MUST ALWAYS BE `Calculation -> Deterministic Prediction Output -> LLM Natural Language Formatting -> PDF Compilation`. Under no circumstances shall an LLM generate predictions or perform astrological calculations directly.
+
+---
+
+## 2. Supported Report Types
+
 1. **Marriage & Compatibility Report**
-   - Ashtakoota / Dashakoota matching matrix.
-   - Manglik Dosha evaluation & remedies.
-   - 7th House & Venus/Jupiter planetary analysis.
-   - Timing of marriage via Nadi transit overlays.
-
-2. **Career & Financial Success Report**
-   - D-10 Dasamsa chart analysis.
-   - 10th House lord, Karma planet (Saturn) interactions.
-   - Favorable vocational domains & timing of promotions/job changes.
-   - Financial stability cycles (2nd & 11th House analysis).
-
+   - Synastry chart overlays, Ashtakoota / Dashakoota points, Manglik Dosha evaluation, relationship longevity, planetary harmony, timing of marriage.
+2. **Career & Professional Success Report**
+   - D-10 Dasamsa analysis, Saturn Karma Karaka evaluation, favorable industry domains, career growth periods, job change timing.
 3. **Childbirth & Family Expansion Report**
-   - D-7 Saptamsa chart analysis.
-   - 5th House, Jupiter, and progeny combinations.
-   - Favorable time windows for childbirth/conception.
-
+   - D-7 Saptamsa analysis, Jupiter transit timing, favorable time windows for conception/progeny.
 4. **Gupta Nadi Flagship Dossier**
-   - Deep-dive BNN rule analysis across all major life domains.
-   - Complete directional aspect matrix.
-   - Key lifetime transit timeline (Saturn & Jupiter cycles).
-
-5. **Future Custom Reports**
-   - Architecture supports pluggable report definitions for Health, Education, Vastu Deep-Dive, and Annual Yearbooks.
+   - Deep BNN multi-domain breakdown covering career, finance, marriage, health, transits, and yearly remedies.
+5. **Future Modular Report Types**
+   - Designed to support pluggable template plugins (e.g. Health & Longevity Report, Financial Prosperity Report, Annual Solar Return / Varshaphal Report).
 
 ---
 
-## 3. End-to-End Processing Workflow
+## 3. End-to-End Report Generation Lifecycle
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant App as Mobile / Admin App
-    participant API as Fastify Backend API
-    participant DB as PostgreSQL
-    participant Pay as Razorpay Gateway
-    participant Queue as Redis / BullMQ
+    participant App as Mobile App / WhatsApp
+    participant API as NestJS API Server
+    participant DB as PostgreSQL Database
+    participant Queue as Redis (BullMQ Queue)
     participant Worker as Background Worker
-    participant Astro as Astrology & Nadi Engines
-    participant LLM as LLM Explanation Provider
-    participant S3 as S3 Object Storage
-    participant WA as Meta WhatsApp / FCM
+    participant Astro as Astrology Engine
+    participant Nadi as Gupta Nadi Engine
+    participant LLM as LLM Explanation Proxy
+    participant PDF as Headless Chrome / Puppeteer
+    participant S3 as Object Storage
 
-    App->>API: 1. Create Report Order (Birth details + Report Type)
-    API->>DB: 2. Save Order (Status: PENDING_PAYMENT)
-    API->>Pay: 3. Initialize Razorpay Order
-    Pay-->>App: 4. Complete Payment Flow
-    Pay->>API: 5. Webhook Signature Verification
-    API->>DB: 6. Update Order (Status: PAID / PROCESSING)
-    API->>Queue: 7. Enqueue Report Job (orderId)
+    App->>API: 1. Request Report Generation (Birth Details, Report Type)
+    API->>DB: 2. Verify Payment Order & Create Report Record (Status: PENDING)
+    API->>Queue: 3. Dispatch Job: generate-report (ReportId)
+    API-->>App: 4. Return Report Pending Status (Polling Token)
 
-    Queue->>Worker: 8. Pick up Job
-    Worker->>Astro: 9. Compute Planetary Positions & Evaluate Nadi Rules
-    Astro-->>Worker: 10. Return Structured Prediction JSON
-    Worker->>LLM: 11. Request Prose Explanation (Prompt + Prediction JSON)
+    Queue->>Worker: 5. Consume Report Job
+    Worker->>DB: 6. Update Report Status (PROCESSING)
+
+    Worker->>Astro: 7. Calculate Ephemeris, Chart, Vargas, Dasha
+    Astro-->>Worker: 8. Return Planetary & Chart JSON Data
+
+    Worker->>Nadi: 9. Evaluate BNN Rules & Transits
+    Nadi-->>Worker: 10. Return Triggered Prediction Tree JSON
+
+    Worker->>LLM: 11. Send Prediction Tree + Structured System Prompt
+    Note over LLM: Formats JSON predictions into human-readable prose
     LLM-->>Worker: 12. Return Formatted Text Sections
-    Worker->>Worker: 13. Render HTML Template & Compile PDF (Puppeteer)
-    Worker->>S3: 14. Upload PDF File
-    Worker->>DB: 15. Store File URL & Update Order (Status: COMPLETED)
-    Worker->>WA: 16. Dispatch Download Link via WhatsApp / FCM
+
+    Worker->>PDF: 13. Inject Text & Chart SVGs into HTML/CSS Template
+    PDF-->>Worker: 14. Render & Output Binary PDF Document
+
+    Worker->>S3: 15. Upload PDF Document to Cloud Object Storage
+    S3-->>Worker: 16. Return Secure Download URL
+
+    Worker->>DB: 17. Save URL, Update Status (COMPLETED)
+    Worker->>API: 18. Dispatch Push Notification / WhatsApp Delivery
 ```
 
 ---
 
-## 4. Asynchronous Queue & Status Management
+## 4. Detailed Stage Specifications
 
-Report generation is performed asynchronously via BullMQ background workers to prevent blocking backend HTTP workers.
+### Stage 1: Asynchronous Queueing
+- Job queues are managed via BullMQ on Redis.
+- Concurrency and retry parameters:
+  - Max Retries: 3 attempts with exponential backoff.
+  - Job Timeout: 120 seconds.
 
-### 4.1 Report Order Status Lifecycle
-1. `PENDING_PAYMENT`: Order initialized, awaiting payment confirmation.
-2. `PAID`: Payment verified successfully; job queued.
-3. `CALCULATING`: Astrological math and Nadi rules currently evaluating.
-4. `GENERATING_PROSE`: LLM actively formatting structured output into text.
-5. `COMPILING_PDF`: HTML rendering and PDF conversion in progress.
-6. `COMPLETED`: PDF uploaded to Object Storage; download URL active.
-7. `FAILED`: Processing error encountered; queued for auto-retry or admin alert.
+### Stage 2: Astrological Computation & Rule Evaluation
+- Compute natal planetary coordinates, houses, Vargas, and Vimshottari dasha periods.
+- Run `packages/gupta-nadi-engine` to match relevant BNN rules for the requested report domain.
 
----
+### Stage 3: LLM Explanation Formatting
+- Construct a strict prompt containing:
+  - System Instructions: "Act as a compassionate, professional Vedic Astrologer. Translate the provided prediction rules into fluent prose. Do not invent any predictions not present in the input JSON."
+  - User Payload: Structured prediction JSON node tree.
+- Format sections (Introduction, Strengths, Timeline, Challenges, Summary).
 
-## 5. LLM Explanation Layer Specifications
+### Stage 4: Document Compilation (PDF Generation)
+- Combine:
+  - User birth details header.
+  - High-resolution SVG renderings of D-1 and D-9 charts.
+  - Planetary position table.
+  - LLM-generated narrative prose.
+  - Disclaimer footer.
+- Render via Puppeteer (Headless Chrome) using styled HTML/CSS templates.
 
-### 5.1 LLM Role & Constraints
-- **Role**: Translate technical astrological codes (e.g. `CAREER_PROMOTION_FAVORABLE`, `RULE_BNN_CAR_001`) into warm, compassionate, professional, and clear natural language.
-- **Constraints**:
-  - Temperature set to low (`0.2` - `0.3`) to prevent creative deviation.
-  - Strict system prompt instructing the model to rely *only* on the provided JSON data.
-  - Explicitly forbidden from inferring new predictions or adding uncalculated astrological placements.
-
-### 5.2 Example Prompt Structure
-```json
-{
-  "systemPrompt": "You are a professional astrological report writer for Astro Sushil. Translate the structured astrological prediction data below into a clear, compassionate, and readable section for a client's career report. Do NOT add any planetary positions, timing, or predictions not explicitly present in the input JSON.",
-  "inputData": {
-    "userFirstName": "Rahul",
-    "domain": "CAREER",
-    "triggeredRules": [
-      {
-        "ruleId": "BNN-CAR-001",
-        "description": "Saturn and Jupiter in East directional trine",
-        "prediction": "Favorable period for career advancement and increased responsibility.",
-        "timing": "Next 12 months"
-      }
-    ]
-  }
-}
-```
-
----
-
-## 6. PDF Rendering & Storage Engine
-
-1. **Templating Engine**: HTML5 / Handlebars / React PDF templates styled with custom CSS.
-2. **PDF Compiler**: Headless Chrome (Puppeteer) converts responsive HTML layouts into high-resolution, print-ready PDF files.
-3. **Branding Elements**: Premium typography, Astro Sushil cover pages, clean chart graphic embeds, and page numbering.
-4. **Storage**: PDF files uploaded to S3-compatible Object Storage with presigned download URLs (expiring or secure public depending on client setting).
-
----
-
-## 7. Delivery & Notifications
-
-Upon completion, `packages/report-engine` triggers multi-channel delivery:
-- **In-App Download**: Available in Flutter app under "My Reports".
-- **WhatsApp Direct Delivery**: Media message sent via Meta WhatsApp Business API containing the PDF document.
-- **Push Notification**: FCM alert sent to the user's mobile device.
+### Stage 5: Storage & Notification Delivery
+- Save PDF to Cloud Object Storage (S3 / Cloudflare R2).
+- Update database record state to `COMPLETED` with download expiry metadata.
+- Trigger push notification via FCM or send WhatsApp PDF message payload via Meta API.

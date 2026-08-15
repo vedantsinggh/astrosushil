@@ -1,76 +1,73 @@
-# Client Questionnaire & Clarifications Required - Astro Sushil
+# Client Clarification Questionnaire - Astro Sushil
 
-This document compiles all mandatory astrological, technical, operational, and business questions that must be formally answered by the client prior to core engine implementation.
+This document catalogs essential business rules, astrological methodologies, content specifications, and operational parameters requiring explicit confirmation from the client prior to core engine implementation.
 
 ---
 
-## 1. Astrological Methodology & Math Parameters
+## 1. Astrological Methodology & Engine Standards
 
-1. **Ayanamsa Preference**: Which Ayanamsa standard should be set as the platform default?
-   - [ ] Lahiri / Chitrapaksha (Standard Indian default)
+1. **Ayanamsa Preference**: Which Ayanamsa standard must be used for Kundli and planetary positions?
+   - [ ] Lahiri / Chitrapaksha Ayanamsa (Standard default)
    - [ ] Raman Ayanamsa
    - [ ] Krishnamurti (KP) Ayanamsa
-   - [ ] Option to allow user toggle?
+   - [ ] Other (Please specify)
 
-2. **House System (Bhava Chalit)**: Which house system should be used for Bhava Chalit chart generation?
-   - [ ] Equal House / Whole Sign System (recommended for Rashi chart)
-   - [ ] Sri Pati House System (traditional Indian Bhava Chalit)
-   - [ ] Placidus System
+2. **House System (Bhava Division)**:
+   - [ ] Equal House System / Whole Sign (Standard for Rashi Kundli)
+   - [ ] Sri Pati / Placidus System (For Bhava Chalit)
+   - [ ] Other
 
-3. **Node Calculation Method**: How should Rahu and Ketu coordinates be computed?
+3. **Node Calculation Method**:
    - [ ] Mean Node (Standard default)
    - [ ] True Node
 
-4. **Dasha Year Standard**: What year length standard should Vimshottari Dasha calculations follow?
-   - [ ] Solar Year (365.2425 days per year)
-   - [ ] Savana Year (360 days per year)
+4. **Dasha Engine Parameters**:
+   - Confirm Vimshottari Dasha calculation year length:
+     - [ ] 365.2425 days (Standard Tropical/Solar calendar year)
+     - [ ] 360 days (Savana year)
+   - Required Dasha Depth: Up to Level 3 (Mahadasha -> Antardasha -> Pratyantardasha) or Level 4?
 
-5. **Mandatory Divisional Charts (Vargas)**: Please confirm the exact list of Vargas required for paid reports.
-   - [x] D-1 (Rashi)
-   - [x] D-7 (Saptamsa - Children)
-   - [x] D-9 (Navamsha - Marriage/Spouse)
-   - [x] D-10 (Dasamsa - Career)
-   - [ ] Additional Vargas (e.g. D-2 Hora, D-3 Drekkana, D-12 Dwadasamsa, D-30 Trimsamsa, D-60 Shashtiamsa)?
+5. **Divisional Charts (Vargas)**:
+   - Please confirm the exact list of required Vargas to display in mobile app & reports:
+     - Mandatory: D-1 (Rashi), D-9 (Navamsha), D-10 (Dasamsa), D-7 (Saptamsa)
+     - Optional: D-2, D-3, D-12, D-30, D-60.
 
-6. **Panchang Specifications**: Are there specific regional variations required for Panchang output (e.g. Amanta vs Purnimanta month endings)?
+6. **Panchang Requirements**:
+   - Are daily Panchang calculations based on solar sunrise time at user location or standard regional time?
 
 ---
 
-## 2. Proprietary Gupta Nadi (BNN) Specifications
+## 2. Gupta Nadi (Brihaspati Nandi Nadi / BNN) Specifications
 
-1. **Complete Rulebook**: Can the client provide the complete, written rulebook / formula set for Brihaspati Nandi Nadi (BNN) combinations?
-2. **Directional Orbs**: What is the maximum acceptable degree orb for planets to be considered in directional trine (1-5-9) alignment?
-3. **Retrograde Planet Rules**: Does a retrograde planet in BNN evaluate from its current sign, its preceding sign, or both?
-4. **Rule Precedence Matrix**: When two opposing BNN rules trigger simultaneously (e.g. one indicating career promotion, another indicating delay), what deterministic priority or scoring system resolves the conflict?
-5. **Reference Validation Charts**: Can the client supply 10 to 20 benchmark birth charts with verified BNN hand-calculated outcomes for engine verification?
+1. **Formula Documentation**:
+   - Please provide the written rules, formulas, and planetary aspect matrices for the BNN engine.
+2. **Rule Priority & Precedence**:
+   - How should conflicting rules be resolved? (e.g. If a career rule indicates high success but another indicates interruption due to Ketu aspect).
+3. **Reference Benchmark Charts**:
+   - Can the client provide 10-20 verified sample charts with expected BNN prediction outputs to serve as unit testing reference data?
 
 ---
 
 ## 3. Product Features & Content Libraries
 
 1. **Daily Horoscope (Rashi Bhavishya)**:
-   - Should daily horoscopes be dynamically compiled based on transit movements over moon signs, or provided as a static daily/weekly content feed managed via the Admin Panel?
-2. **Vastu Content Library**:
-   - Can the client supply the text guidelines and recommendations library for the Vastu feature section?
-3. **Remedies & Gemstones**:
-   - Should paid reports recommend specific gemstone, mantra, or ritual remedies? If yes, please provide the approved remedy matching catalog.
+   - Will daily horoscopes be generated dynamically via transit engine rules or provided as a daily text content feed?
+2. **Vastu Guidance Content**:
+   - Please provide the text library / guidelines for Vastu rules, cardinal direction advice, and room placements.
+3. **Astrological Remedies**:
+   - What remedies (gemstones, mantras, charity recommendations) should be included in generated reports? Please provide approved remedy rules.
 
 ---
 
-## 4. Report Specifications & Design
+## 4. Business, Pricing & Delivery Channels
 
-1. **Sample PDF Reports**: Can the client provide sample target PDFs or visual design templates for Marriage, Career, and Childbirth reports?
-2. **Report Length & Depth**: What is the target page count for standard paid reports (e.g. 15-20 pages vs 30+ pages)?
-3. **Branding Expectations**: Are there specific brand guidelines (colors, typography, logo assets, visual aesthetic preferences) for the mobile app, PDF reports, and admin panel?
-
----
-
-## 5. Monetization, Pricing & External Services
-
-1. **Pricing Structure**: What are the exact pricing points in INR and USD for:
-   - Marriage Report: ________
-   - Career Report: ________
-   - Childbirth Report: ________
-   - Gupta Nadi Flagship Report: ________
-2. **SMS / OTP Service Provider**: What is the preferred SMS/OTP vendor for mobile authentication (e.g. MSG91, Twilio, Firebase Auth)?
-3. **WhatsApp Business Account**: Does the client already have an active Meta WhatsApp Business API account set up, or does a new account need to be created?
+1. **Report Pricing & Product Tiers**:
+   - What are the explicit INR / USD prices for paid reports (Marriage, Career, Childbirth, Gupta Nadi Flagship Dossier)?
+2. **Report Page Length & Design Format**:
+   - Do you have existing PDF report examples or preferred page length targets (e.g. 15-page comprehensive report vs 5-page concise report)?
+3. **WhatsApp Flow Expectations**:
+   - Which specific user actions should trigger WhatsApp dispatches (Order confirmation, PDF delivery, daily notification, interactive Kundli query)?
+4. **SMS / OTP Service Provider**:
+   - Which OTP vendor should be configured for mobile authentication (Twilio, MSG91, Firebase Auth, SMS Country)?
+5. **Branding & Design Expectations**:
+   - Are there specific brand colors, logos, font guidelines, or design references for the Flutter mobile app and Next.js admin panel?

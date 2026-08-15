@@ -1,64 +1,66 @@
 # Team Workflow & Engineering Standards - Astro Sushil
 
-This document outlines team operating procedures, Git branching rules, pull request workflows, testing requirements, and the Definition of Done for developing the **Astro Sushil** platform.
+This document outlines team guidelines, Git branching conventions, pull request rules, code review standards, and the Definition of Done (DoD) for developers working on the **Astro Sushil** platform.
 
 ---
 
-## 1. Git & Branching Strategy
+## 1. Git Branching Strategy
 
-The team follows a simplified **GitHub Flow / Feature Branch** strategy:
+The repository follows a modified **GitHub Flow / Git Flow** model suited for monorepos:
 
-- **`main`**: Production-ready branch. Code in `main` must always be stable, tested, and deployable.
-- **`develop`**: Integration branch for upcoming release features.
-- **Feature Branches**: Formatted as `<type>/<short-description>`:
-  - `feat/astrology-vimshottari-dasha`
-  - `feat/nadi-directional-matrix`
-  - `feat/flutter-kundli-chart-view`
-  - `fix/razorpay-webhook-signature`
-  - `docs/gupta-nadi-rulebook`
-
-### Commit Message Conventions
-Commits must strictly adhere to the **Conventional Commits** standard:
-- `feat(astrology): add Navamsha D-9 calculation algorithm`
-- `fix(api): correct timezone offset parsing in birth profile DTO`
-- `docs(nadi): update BNN rule priorities for career domain`
-- `test(engine): add 10 reference chart unit tests for D-1 Rashi`
+- **`main`**: Production-ready branch. Must always be stable, tested, and deployable. Direct commits to `main` are strictly prohibited.
+- **`develop`**: Integration branch for current sprint features.
+- **`feature/<domain>-<short-description>`**: Feature development branches created off `develop` (e.g. `feature/astrology-dasha-engine`, `feature/mobile-kundli-view`).
+- **`fix/<issue-id>-<description>`**: Bug fix branches (e.g. `fix/razorpay-webhook-signature`).
+- **`docs/<topic>`**: Documentation updates.
 
 ---
 
-## 2. Pull Request & Code Review Process
+## 2. Commit Message Standards
 
-1. **Self-Review**: Developers must review their own code diffs before opening a Pull Request (PR).
-2. **Automated Checks**: PRs must pass automated linting (`eslint`), type checks (`tsc`), and unit test suites before review.
-3. **Peer Review**: Every PR targeting `develop` or `main` requires at least one approving code review from the other developer.
-4. **No Direct Pushes**: Direct pushes to `main` and `develop` are strictly blocked.
+Commits must follow **Conventional Commits** format:
+
+```
+<type>(<scope>): <short summary>
+
+[optional body description]
+```
+
+### Types:
+- `feat`: New feature or business logic addition.
+- `fix`: Bug fix in existing functionality.
+- `docs`: Documentation updates only.
+- `refactor`: Code restructuring without changing external behavior.
+- `test`: Adding or updating unit/integration tests.
+- `chore`: Infrastructure, dependency, or config updates.
+
+### Examples:
+- `feat(astrology): implement Vimshottari dasha calculation engine`
+- `fix(payments): resolve Razorpay webhook signature verification bug`
+- `docs(specs): add BNN rule priority template to gupta-nadi-spec`
 
 ---
 
-## 3. Testing Requirements
+## 3. Pull Request (PR) & Code Review Guidelines
 
-- **Engine Packages (`packages/*`)**: 100% unit test coverage required for core mathematical formulas, chart calculations, and BNN rule evaluations.
-- **Backend API (`apps/api`)**: Controller and service integration tests for all public API endpoints.
-- **Client Apps (`apps/mobile`, `apps/admin`)**: Component widget testing and API integration mock tests.
-- **Reference Fixture Validation**: Astrological algorithms must pass test suites against 50 verified reference charts before PR approval.
-
----
-
-## 4. Task Ownership & Issue Tracking
-
-- Tasks are managed via GitHub Issues / Project Board.
-- Each issue must have an assigned owner (Developer 1 or Developer 2), priority label, and target phase/sprint.
-- Issue descriptions must link to relevant specifications in `/docs`.
+1. **Self-Review First**: The PR author must review their own diff before requesting review.
+2. **PR Size Limit**: Keep PRs focused (`< 500 lines` of diff preferred) to facilitate thorough review.
+3. **Mandatory Peer Review**: Every PR targeting `develop` or `main` requires at least one approving code review from the Primary Developer or designated reviewer.
+4. **CI Checks Passing**: All automated tests, linter checks, and TypeScript typechecks (`tsc --noEmit`) must pass cleanly before merge.
+5. **No Direct Pushes**: `main` and `develop` branches are protected.
 
 ---
 
-## 5. Definition of Done (DoD)
+## 4. Definition of Done (DoD)
 
-A task or feature is considered **DONE** only when:
+A feature or task is considered **DONE** only when all the following criteria are met:
 
-1. **Specification Compliance**: The feature fully meets the requirements specified in `/docs`.
-2. **Type Safety**: Code passes strict TypeScript compilation with zero `any` types.
-3. **Test Passing**: All new unit and integration tests pass without failures.
-4. **Documentation Updated**: Relevant spec docs in `/docs` updated to reflect implementation details or configuration parameters.
-5. **Code Reviewed**: Approved pull request merged into target integration branch.
-6. **No Security / Architecture Violations**: Verified compliance with `AGENTS.md` (no external paid astrology APIs, zero LLM calculation logic, proper channel isolation).
+1. **Code Implementation**: Feature is completely implemented according to specifications in `/docs`.
+2. **Type Safety & Linting**: Code strictly passes TypeScript strict checks (`"strict": true`) without `any` types, or Dart analysis.
+3. **Automated Unit Tests**:
+   - New business logic, astrology formulas, or BNN rules have unit tests.
+   - All unit tests pass locally and in CI runner.
+4. **No Regression**: Existing tests remain green.
+5. **Documentation Updated**: Relevant spec docs in `/docs` or execution logs in `docs/agent-execution-log.md` are updated.
+6. **Code Review Approval**: Minimum of 1 approving review from team lead / reviewer.
+7. **No Unapproved Dependencies**: No new external npm / pub packages added without documented justification.
