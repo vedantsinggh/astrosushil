@@ -1,0 +1,172 @@
+import { prisma } from '../../services/prisma.service';
+import { NotFoundError } from '../../errors/app-error';
+import { normalizeBirthProfile } from '../../utils/birth-details-normalizer';
+import { CreateBirthProfileInput, UpdateBirthProfileInput } from './birth-profiles.schemas';
+
+export class BirthProfilesService {
+  /**
+   * Creates a new birth profile for an authenticated user.
+   */
+  public async createProfile(userId: string, input: CreateBirthProfileInput) {
+    // Validate & normalize birth input
+    const normalized = normalizeBirthProfile({
+      name: input.name,
+      dateOfBirth: input.dateOfBirth,
+      timeOfBirth: input.timeOfBirth,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone,
+      placeName: input.placeName,
+    });
+
+    const profile = await prisma.birthProfile.create({
+      data: {
+        userId,
+        name: normalized.name,
+        dateOfBirth: input.dateOfBirth,
+        timeOfBirth: normalized.localDateTime.split('T')[1],
+        latitude: normalized.latitude,
+        longitude: normalized.longitude,
+        timezone: normalized.timezone,
+        placeName: normalized.placeName,
+      },
+    });
+
+    return {
+      ...profile,
+      normalizedDetails: normalized,
+    };
+  }
+
+  /**
+   * Retrieves all birth profiles created by the authenticated user.
+   */
+  public async getUserProfiles(userId: string) {
+    const profiles = await prisma.birthProfile.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return profiles.map((p) => ({
+      ...p,
+      normalizedDetails: normalizeBirthProfile({
+        id: p.id,
+        name: p.name,
+        dateOfBirth: p.dateOfBirth,
+        timeOfBirth: p.timeOfBirth,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        timezone: p.timezone,
+        placeName: p.placeName,
+      }),
+    }));
+  }
+
+  /**
+   * Retrieves a specific birth profile by ID with strict user authorization check.
+   */
+  public async getProfileById(profileId: string, requestingUser: { id: string; role: 'USER' | 'ADMIN' }) {
+    const profile = await prisma.birthProfile.findUnique({
+      where: { id: profileId },
+    });
+
+    // Security Check: Enforce server-side ownership authorization
+    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+      throw new NotFoundError('Birth profile not found');
+    }
+
+    return {
+      ...profile,
+      normalizedDetails: normalizeBirthProfile({
+        id: profile.id,
+        name: profile.name,
+        dateOfBirth: profile.dateOfBirth,
+        timeOfBirth: profile.timeOfBirth,
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        timezone: profile.timezone,
+        placeName: profile.placeName,
+      }),
+    };
+  }
+
+  /**
+   * Updates a birth profile with strict user authorization check.
+   */
+  public async updateProfile(
+    profileId: string,
+    input: UpdateBirthProfileInput,
+    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+  ) {
+    const existing = await prisma.birthProfile.findUnique({
+      where: { id: profileId },
+    });
+
+    // Security Check: Enforce server-side ownership authorization
+    if (!existing || (existing.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+      throw new NotFoundError('Birth profile not found');
+    }
+
+    const merged = {
+      name: input.name ?? existing.name,
+      dateOfBirth: input.dateOfBirth ?? existing.dateOfBirth,
+      timeOfBirth: input.timeOfBirth ?? existing.timeOfBirth,
+      latitude: input.latitude ?? existing.latitude,
+      longitude: input.longitude ?? existing.longitude,
+      timezone: input.timezone ?? existing.timezone,
+      placeName: input.placeName !== undefined ? input.placeName : existing.placeName,
+    };
+
+    // Re-validate and normalize merged data
+    const normalized = normalizeBirthProfile({
+      id: profileId,
+      name: merged.name,
+      dateOfBirth: merged.dateOfBirth,
+      timeOfBirth: merged.timeOfBirth,
+      latitude: merged.latitude,
+      longitude: merged.longitude,
+      timezone: merged.timezone,
+      placeName: merged.placeName,
+    });
+
+    const updated = await prisma.birthProfile.update({
+      where: { id: profileId },
+      data: {
+        name: normalized.name,
+        dateOfBirth: merged.dateOfBirth,
+        timeOfBirth: normalized.localDateTime.split('T')[1],
+        latitude: normalized.latitude,
+        longitude: normalized.longitude,
+        timezone: normalized.timezone,
+        placeName: normalized.placeName,
+      },
+    });
+
+    return {
+      ...updated,
+      normalizedDetails: normalized,
+    };
+  }
+
+  /**
+   * Deletes a birth profile with strict user authorization check.
+   */
+  public async deleteProfile(profileId: string, requestingUser: { id: string; role: 'USER' | 'ADMIN' }) {
+    const existing = await prisma.birthProfile.findUnique({
+      where: { id: profileId },
+    });
+
+    // Security Check: Enforce server-side ownership authorization
+    if (!existing || (existing.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+      throw new NotFoundError('Birth profile not found');
+    }
+
+    await prisma.birthProfile.delete({
+      where: { id: profileId },
+    });
+
+    return { message: 'Birth profile deleted successfully' };
+  }
+}
+
+export const birthProfilesService = new BirthProfilesService();

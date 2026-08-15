@@ -15,16 +15,16 @@ This document records the key architectural and design decisions made for the **
 ## ADR-002: Modular Monolith Architecture
 
 - **Status**: Accepted
-- **Decision**: Build the backend application as a unified NestJS modular monolith (`apps/api`) rather than microservices.
+- **Decision**: Build the backend application as a unified modular monolith (`apps/api`) rather than microservices.
 - **Reason**: Microservices introduce operational overhead, RPC latency, deployment complexity, and distributed tracing costs unnecessary for the team size and initial scale. Modular packages maintain clear domain boundaries for future service splitting if ever required.
 
 ---
 
-## ADR-003: NestJS Backend Framework
+## ADR-003: Fastify Backend Framework (Supersedes NestJS)
 
-- **Status**: Accepted
-- **Decision**: Select Node.js with NestJS framework and TypeScript for backend development.
-- **Reason**: NestJS provides a mature, enterprise-grade architecture out of the box (Dependency Injection, Modules, Guards, Interceptors) that pairs naturally with shared TypeScript packages across the monorepo.
+- **Status**: Accepted (Supersedes NestJS decision)
+- **Decision**: Select Node.js with Fastify framework, TypeScript, Zod, and Prisma ORM for backend development.
+- **Reason**: Fastify provides significantly higher HTTP throughput, lower memory overhead, minimal abstraction tax compared to NestJS, and a clean plugin/schema system that integrates cleanly with Zod and TypeScript.
 
 ---
 
@@ -44,7 +44,7 @@ This document records the key architectural and design decisions made for the **
 
 ---
 
-## ADR-006: PostgreSQL Relational Database
+## ADR-006: PostgreSQL Relational Database & Prisma ORM
 
 - **Status**: Accepted
 - **Decision**: Select PostgreSQL as the primary relational database with Prisma ORM.
@@ -81,3 +81,19 @@ This document records the key architectural and design decisions made for the **
 - **Status**: Accepted
 - **Decision**: Never rely on paid per-request third-party astrology APIs. Implement internal calculation packages (`packages/astrology-engine`) using open-source or commercially licensed calculation libraries running locally on owned infrastructure.
 - **Reason**: Prevents unsustainable per-request operational costs as user traffic scales, ensuring high profit margins and complete data ownership.
+
+---
+
+## ADR-011: Hashed Refresh Token Rotation Strategy
+
+- **Status**: Accepted
+- **Decision**: Use short-lived JWT access tokens (15m) paired with database-backed refresh tokens (7d). Refresh tokens are stored as SHA-256 hashes in PostgreSQL and are rotated on every refresh call.
+- **Reason**: Prevents refresh token theft and plaintext leakage if the database is accessed, while supporting instant session revocation and replay protection.
+
+---
+
+## ADR-012: Server-Side Birth Profile Ownership Isolation
+
+- **Status**: Accepted
+- **Decision**: Enforce birth profile authorization strictly on the backend API service level. Requests for birth profiles return 404 Not Found if the requested profile ID does not belong to the authenticated user ID (unless requested by an ADMIN role).
+- **Reason**: Guarantees zero cross-tenant data leaks and prevents ID enumeration probing across user accounts.

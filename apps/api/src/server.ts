@@ -1,14 +1,13 @@
 import { buildApp } from './app';
+import { config } from './config';
 
 const app = buildApp();
 
-const port = parseInt(process.env.PORT || '3000', 10);
-const host = process.env.HOST || '0.0.0.0';
-
 const start = async () => {
   try {
-    await app.listen({ port, host });
-    app.log.info(`Server listening on http://${host}:${port}`);
+    await app.listen({ port: config.PORT, host: config.HOST });
+    app.log.info(`🚀 Astro Sushil Backend API running on http://${config.HOST}:${config.PORT}`);
+    app.log.info(`📚 Swagger Documentation available at http://${config.HOST}:${config.PORT}/documentation`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
