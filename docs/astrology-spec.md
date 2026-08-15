@@ -1,105 +1,136 @@
 # Astrology Engine Technical Specification - Astro Sushil
 
-This specification outlines the technical contracts, inputs, outputs, mathematical standards, and configuration parameters for `packages/astrology-engine`.
-
-> **IMPORTANT**: No custom formulas are invented in this document. Parameters requiring client verification are explicitly marked as `[CLIENT CONFIRMATION REQUIRED]`.
+This specification documents the technical architecture, mathematical standards, input/output models, and methodology configurations for `packages/astrology-engine`.
 
 ---
 
-## 1. Input Parameters & Normalization
+## 1. Core Architectural Boundary
 
-### 1.1 Birth Data Structure
-The engine accepts raw birth input structured as follows:
-- **Date of Birth**: Year, Month, Day (Gregorian Calendar).
-- **Time of Birth**: Hours, Minutes, Seconds (24-hour format).
-- **Geographic Latitude**: Decimal degrees (-90.0 to +90.0). Positive = North, Negative = South.
-- **Geographic Longitude**: Decimal degrees (-180.0 to +180.0). Positive = East, Negative = West.
-- **Altitude**: Altitude above sea level in meters (Default: 0m).
-- **Timezone Offset**: Standard UTC offset (e.g. `+05:30` for IST).
-
-### 1.2 Date & Time Standardization
-1. Convert local birth time to Coordinated Universal Time (UTC).
-2. Account for Daylight Saving Time (DST) historical offsets based on geographical location.
-3. Compute Julian Day Number (UT) and Ephemeris Time (TT = UT + Delta T).
+`packages/astrology-engine` is an independent, pure TypeScript computational library.
+- **Zero HTTP / Network Dependencies**: Does not depend on Fastify, HTTP, PostgreSQL, Prisma, Redis, or BullMQ.
+- **Zero Paid Astrology API Dependencies**: All calculations execute 100% locally on owned infrastructure.
+- **Data Flow**: `BirthDetails` -> `Astrology Engine` -> `AstroChart`.
 
 ---
 
-## 2. Astronomical Standards & Calculations
+## 2. Input Model & Validation
 
-### 2.1 Astronomical Source Engine
-- **Ephemeris Data Source**: `[CLIENT CONFIRMATION REQUIRED: Swiss Ephemeris vs Pure JS Open-Source Ephemeris Engine]`
-- **Planets Calculated**: Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu (North Node), Ketu (South Node).
-- **Outer Planets (Optional)**: Uranus, Neptune, Pluto `[CLIENT CONFIRMATION REQUIRED: Include outer planets in Kundli?]`
-- **Node Calculation Method**: `[CLIENT CONFIRMATION REQUIRED: Mean Node vs True Node (Default recommended: Mean Node)]`
+### 2.1 Canonical `BirthDetails` Structure
+```ts
+export interface LocalDateInput {
+  year: number;   // Four-digit year, e.g. 1990
+  month: number;  // 1 to 12
+  day: number;    // 1 to 31
+}
 
-### 2.2 Zodiac Methodology & Ayanamsa
-- **Zodiac System**: Sidereal Zodiac (Nirayana Chakra).
-- **Ayanamsa System**: `[CLIENT CONFIRMATION REQUIRED: Lahiri / Chitrapaksha Ayanamsa vs Krishnamurti (KP) vs Raman Ayanamsa (Default recommended: Lahiri)]`
+export interface LocalTimeInput {
+  hour: number;   // 0 to 23
+  minute: number; // 0 to 59
+  second: number; // 0 to 59
+}
 
-### 2.3 Ascendant (Lagna) & House System (Bhava)
-- **Ascendant Calculation**: Exact longitude of the eastern horizon at the birth moment for given latitude/longitude.
-- **House System (Bhava Chalit)**: `[CLIENT CONFIRMATION REQUIRED: Whole Sign System vs Equal House System vs Sri Pati / Placidus Bhava Chalit (Default recommended: Equal House / Whole Sign for Rashi Chart, Sri Pati for Bhava Chalit)]`
+export interface BirthDetails {
+  date: LocalDateInput;
+  time: LocalTimeInput;
+  timezone: string;       // IANA Timezone ID (e.g. "Asia/Kolkata")
+  latitude: number;       // Decimal degrees [-90.0, 90.0]
+  longitude: number;      // Decimal degrees [-180.0, 180.0]
+  altitudeMeters?: number;// Altitude above sea level in meters (Default: 0)
+  placeName?: string;     // Optional location description
+}
+```
 
----
-
-## 3. Core Astrological Data Outputs
-
-### 3.1 Planetary Position Vector
-For each planet (Sun through Ketu), the engine outputs:
-- **Longitude**: Absolute tropical/sidereal longitude (0° to 360°).
-- **Rashi (Sign)**: Sign index (1 = Aries / Mesha to 12 = Pisces / Meena).
-- **Degree in Sign**: Degree, Minute, Second (0°0'0" to 29°59'59").
-- **House (Bhava)**: House index (1 to 12).
-- **Nakshatra**: Nakshatra index (1 = Ashwini to 27 = Revati). Abhijit Nakshatra handling: `[CLIENT CONFIRMATION REQUIRED: Include 28-Nakshatra system for specific calculations?]`
-- **Nakshatra Pada**: Quarter index (1, 2, 3, or 4).
-- **Nakshatra Lord**: Planetary ruler of the nakshatra.
-- **Retrograde Status (Vakra)**: Boolean (`true` if planet has negative daily velocity).
-- **Combustion Status (Lupta)**: Boolean (`true` if angular distance to Sun is within combustion orb limits). `[CLIENT CONFIRMATION REQUIRED: Specify combustion orb degrees per planet]`
-
----
-
-### 3.2 Divisional Charts (Vargas)
-The engine must compute the following Vargas:
-- **D-1**: Rashi Chart (Primary natal chart).
-- **D-2**: Hora Chart (Wealth & resources). `[CLIENT CONFIRMATION REQUIRED: Parashari Hora vs Traditional]`
-- **D-3**: Drekkana (Siblings & courage).
-- **D-7**: Saptamsa (Progeny & children).
-- **D-9**: Navamsha (Spouse, inner self, marriage). `[CLIENT CONFIRMATION REQUIRED: Standard Parashari D-9 mapping]`
-- **D-10**: Dasamsa (Career, status, occupation).
-- **D-12**: Dwadasamsa (Parents).
-- **D-30**: Trimsamsa (Misfortunes & obstacles).
-- **D-60**: Shashtiamsa (Past karma & deep subtle analysis). `[CLIENT CONFIRMATION REQUIRED: List all mandatory Vargas]`
+### 2.2 Date & Time Normalization Rules
+1. Preserves original local birth details untouched.
+2. Converts local birth time to UTC ISO string (`YYYY-MM-DDTHH:mm:ss.sssZ`) via IANA timezone lookup.
+3. Computes Julian Day Number in Universal Time (`julianDayUT`).
 
 ---
 
-### 3.3 Dasha Systems
-- **Primary Dasha**: Vimshottari Dasha (120-year cycle based on Moon's birth Nakshatra).
-- **Dasha Levels**:
-  - Mahadasha (Major period)
-  - Antardasha / Bhukti (Sub-period)
-  - Pratyantardasha (Sub-sub-period)
-  - Sookshmadasha (Level 4 - optional)
-- **Year Length Standard**: `[CLIENT CONFIRMATION REQUIRED: 365.2425 days solar year vs 360-day Savana year]`
+## 3. Methodology Configuration (`AstrologyConfig`)
+
+Methodology parameters that require explicit client confirmation are marked with `CLIENT_CONFIRMATION_REQUIRED`.
+Attempts to perform calculations using unconfirmed methodologies throw an `UnconfirmedMethodologyError`.
+
+```ts
+export const CLIENT_CONFIRMATION_REQUIRED = 'CLIENT_CONFIRMATION_REQUIRED' as const;
+
+export interface AstrologyConfig {
+  zodiacType: 'SIDEREAL' | 'TROPICAL' | typeof CLIENT_CONFIRMATION_REQUIRED;
+  ayanamsa: 'LAHIRI' | 'RAMAN' | 'KRISHNAMURTI' | 'KP' | typeof CLIENT_CONFIRMATION_REQUIRED;
+  houseSystem: 'WHOLE_SIGN' | 'EQUAL' | 'PLACIDUS' | 'SRI_PATI' | typeof CLIENT_CONFIRMATION_REQUIRED;
+  nodeCalculation: 'MEAN_NODE' | 'TRUE_NODE' | typeof CLIENT_CONFIRMATION_REQUIRED;
+  planetaryCalculationMode: 'GEOCENTRIC' | 'TOPOCENTRIC' | typeof CLIENT_CONFIRMATION_REQUIRED;
+  precisionDegrees: number;
+  roundingRule: 'NEAREST' | 'TRUNCATE' | 'NONE';
+  dashaSystem: 'VIMSHOTTARI' | typeof CLIENT_CONFIRMATION_REQUIRED;
+}
+```
 
 ---
 
-### 3.4 Panchang Calculations
-- **Tithi**: Lunar day based on Moon-Sun angular distance (1 to 30).
-- **Vara**: Solar weekday (Sunday to Saturday).
-- **Nakshatra**: Moon's nakshatra position.
-- **Yoga**: Combined Sun + Moon longitude (1 = Vishkambha to 27 = Vaidhriti).
-- **Karana**: Half-tithi period (1 to 60).
+## 4. Ephemeris Abstraction & Local Calculations
+
+Calculation primitives are decoupled from underlying astronomy libraries via the `EphemerisProvider` abstraction:
+
+```
+  AstrologyEngine (ChartCalculator)
+            │
+            ▼
+     EphemerisProvider (Interface)
+        /           \
+       v             v
+AstronomyEngineAdapter   MockEphemerisProvider
+ (astronomy-engine MIT)   (Offline Unit Testing)
+```
 
 ---
 
-## 4. Computational Precision & Validation
+## 5. Output Model (`AstroChart`)
 
-### 4.1 Precision Standards
-- Planetary Longitudes: Minimum precision of `0.0001` degrees (`~0.36` arcseconds).
-- Ascendant Degrees: Minimum precision of `0.001` degrees.
-- Time Handling: Millisecond precision converted to fractional days.
+```ts
+export const ASTROLOGY_ENGINE_VERSION = '0.1.0';
 
-### 4.2 Chart Validation Methodology
-1. **Reference Benchmark Charts**: A test suite of 50 standard reference charts with verified planetary positions across various global coordinates and historical dates.
-2. **Regression Testing**: Automated test runner verifying that changes in `packages/astrology-engine` do not alter reference chart outputs.
-3. **Cross-Validation**: Periodic verification against verified ephemeris tables (e.g. NASA JPL / Swiss Ephemeris test vectors).
+export interface ChartCalculationMetadata {
+  engineVersion: string;
+  calculationTimestampIso: string;
+  providerName: string;
+  providerVersion: string;
+  config: AstrologyConfig;
+  normalizedTime: NormalizedBirthTime;
+}
+
+export interface AstroChart {
+  metadata: ChartCalculationMetadata;
+  birthDetails: BirthDetails;
+  ascendant?: CalculatedPoint;
+  planets: Record<PlanetSymbol, PlanetPosition>;
+  houses?: HousePlacement[];
+  vargas?: Partial<Record<VargaType, VargaChart>>;
+  dashas?: VimshottariDashaTree;
+}
+```
+
+---
+
+## 6. Requirements Status
+
+### 6.1 Confirmed Engine Features (Phase 2 Foundation)
+- [x] Independent TypeScript package architecture (`packages/astrology-engine`).
+- [x] Canonical `BirthDetails` input model & strict validation.
+- [x] Timezone-aware UTC normalization & Julian Day UT calculation.
+- [x] Explicit `AstrologyConfig` with `CLIENT_CONFIRMATION_REQUIRED` boundary safety.
+- [x] `EphemerisProvider` abstraction layer.
+- [x] Evaluated and integrated `astronomy-engine` (MIT License) for zero-cost, local execution.
+- [x] Mock ephemeris provider for ultra-fast, deterministic offline unit tests.
+- [x] Floating-point boundary-safe Rashi, Nakshatra, and Pada algorithms.
+- [x] Engine version constant (`ASTROLOGY_ENGINE_VERSION = '0.1.0'`).
+- [x] 100% deterministic & reproducible calculation pipeline tested across 100 runs.
+
+### 6.2 Unresolved Requirements (Awaiting Client Confirmation)
+- [ ] Confirmation of primary Ayanamsa (Lahiri vs Raman vs KP).
+- [ ] Confirmation of primary House system for natal chart and Bhava Chalit.
+- [ ] Confirmation of Mean Node vs True Node for Rahu/Ketu calculations.
+- [ ] Confirmation of required Divisional Charts (Vargas list).
+- [ ] Confirmation of Vimshottari Dasha year length (365.2425 days vs 360-day Savana year).
+- [ ] Client reference benchmark chart fixtures.
