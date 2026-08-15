@@ -1,78 +1,86 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 
-/// Clean, minimal application theme adhering to project design constraints
+/// Extension providing easy access to official brand accent tokens via ColorScheme
+extension AstroColorSchemeExtension on ColorScheme {
+  Color get premiumAccent => AppColors.premiumAccent;
+  Color get supportingAccent => AppColors.supportingAccent;
+  Color get textSecondary => AppColors.textSecondary;
+  Color get border => AppColors.border;
+}
+
+/// Official Application Theme for Astro Platform Mobile Client
 class AppTheme {
   AppTheme._();
-
-  static const Color primaryColor = Color(0xFF4F46E5); // Indigo 600
-  static const Color secondaryColor = Color(0xFF0EA5E9); // Sky 500
-  static const Color backgroundColor = Color(0xFF0F172A); // Slate 900
-  static const Color surfaceColor = Color(0xFF1E293B); // Slate 800
-  static const Color errorColor = Color(0xFFEF4444); // Red 500
-  static const Color textPrimary = Color(0xFFF8FAFC); // Slate 50
-  static const Color textSecondary = Color(0xFF94A3B8); // Slate 400
 
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: backgroundColor,
+      scaffoldBackgroundColor: AppColors.background,
+      primaryColor: AppColors.primary,
       colorScheme: const ColorScheme.dark(
-        primary: primaryColor,
-        secondary: secondaryColor,
-        surface: surfaceColor,
-        error: errorColor,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        tertiary: AppColors.tertiary,
+        surface: AppColors.surface,
+        error: AppColors.error,
         onPrimary: Colors.white,
-        onSurface: textPrimary,
+        onSecondary: Colors.white,
+        onTertiary: Colors.white,
+        onSurface: AppColors.textPrimary,
+        onError: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: surfaceColor,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        actionsIconTheme: IconThemeData(color: AppColors.textPrimary),
         titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: AppColors.textPrimary,
         ),
       ),
       cardTheme: CardThemeData(
-        color: surfaceColor,
+        color: AppColors.surface,
         elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: const BorderSide(color: AppColors.border, width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF0F172A),
+        fillColor: AppColors.background,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
+          borderSide: const BorderSide(color: AppColors.secondary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: errorColor),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: errorColor, width: 2),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
-        labelStyle: const TextStyle(color: textSecondary),
-        hintStyle: const TextStyle(color: Color(0xFF64748B)),
+        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        hintStyle: const TextStyle(color: AppColors.textMuted),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
@@ -86,9 +94,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: textPrimary,
+          foregroundColor: AppColors.textPrimary,
           minimumSize: const Size.fromHeight(48),
-          side: const BorderSide(color: Color(0xFF475569)),
+          side: const BorderSide(color: AppColors.secondary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -97,6 +105,13 @@ class AppTheme {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.border,
+        thickness: 1,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.secondary,
       ),
     );
   }

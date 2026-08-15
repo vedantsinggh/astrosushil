@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../home/screens/home_screen.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../providers/auth_provider.dart';
@@ -34,7 +36,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final password = _passwordController.text;
       final success = await ref.read(authStateProvider.notifier).register(email, password);
       if (success && mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const HomeScreen(),
+          ),
+          (route) => false,
+        );
       }
     }
   }
@@ -42,6 +49,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -65,11 +73,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Create an account to start managing birth profiles',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF94A3B8),
+                    color: theme.colorScheme.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -158,9 +166,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       "Already have an account?",
-                      style: TextStyle(color: Color(0xFF94A3B8)),
+                      style: TextStyle(color: theme.colorScheme.textSecondary),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),

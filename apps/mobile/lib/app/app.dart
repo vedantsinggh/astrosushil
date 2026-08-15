@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../features/splash/screens/splash_screen.dart';
 import '../shared/theme/app_theme.dart';
-import 'router.dart';
 
 /// Root Application Widget for Astro Platform Mobile Client
 class AstroMobileApp extends StatelessWidget {
@@ -9,10 +9,10 @@ class AstroMobileApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Astro Platform',
+      title: 'Astro Sushil',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const AppRouter(),
+      home: const SplashScreen(),
     );
   }
 }

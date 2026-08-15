@@ -13,23 +13,26 @@ class ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final errorColor = theme.colorScheme.error;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF451A1A),
-        border: Border.all(color: const Color(0xFF991B1B)),
+        color: errorColor.withOpacity(0.15),
+        border: Border.all(color: errorColor.withOpacity(0.5)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFFFCA5A5), size: 20),
+          Icon(Icons.error_outline, color: errorColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: Color(0xFFFECACA),
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
                 fontSize: 14,
               ),
             ),
@@ -37,7 +40,7 @@ class ErrorBanner extends StatelessWidget {
           if (onRetry != null) ...[
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.refresh, color: Color(0xFFFCA5A5), size: 20),
+              icon: Icon(Icons.refresh, color: errorColor, size: 20),
               onPressed: onRetry,
               tooltip: 'Retry',
             ),

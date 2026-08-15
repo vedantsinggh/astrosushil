@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 /// Standard centered loading indicator with message support
 class LoadingIndicator extends StatelessWidget {
@@ -11,6 +12,8 @@ class LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -20,9 +23,9 @@ class LoadingIndicator extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               message!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF94A3B8),
+                color: theme.colorScheme.textSecondary,
               ),
             ),
           ],

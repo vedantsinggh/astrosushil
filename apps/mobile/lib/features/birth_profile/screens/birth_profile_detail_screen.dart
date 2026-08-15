@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
@@ -18,6 +19,7 @@ class BirthProfileDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(singleBirthProfileProvider(profileId));
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -46,9 +48,9 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            const CircleAvatar(
-                              backgroundColor: Color(0xFF312E81),
-                              child: Icon(Icons.person, color: Color(0xFF818CF8)),
+                            CircleAvatar(
+                              backgroundColor: theme.colorScheme.primary,
+                              child: Icon(Icons.person, color: theme.colorScheme.secondary),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -64,9 +66,9 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                                   ),
                                   Text(
                                     'Profile ID: ${profile.id}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFF64748B),
+                                      color: theme.colorScheme.textSecondary,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -77,30 +79,35 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                         ),
                         const Divider(height: 24),
                         _buildDetailRow(
+                          context: context,
                           icon: Icons.calendar_today,
                           label: 'Date of Birth',
                           value: Formatters.formatDisplayDate(profile.dateOfBirth),
                         ),
                         const SizedBox(height: 12),
                         _buildDetailRow(
+                          context: context,
                           icon: Icons.access_time,
                           label: 'Time of Birth',
                           value: profile.timeOfBirth,
                         ),
                         const SizedBox(height: 12),
                         _buildDetailRow(
+                          context: context,
                           icon: Icons.public,
                           label: 'Timezone',
                           value: profile.timezone,
                         ),
                         const SizedBox(height: 12),
                         _buildDetailRow(
+                          context: context,
                           icon: Icons.place,
                           label: 'Place Name',
                           value: profile.placeName,
                         ),
                         const SizedBox(height: 12),
                         _buildDetailRow(
+                          context: context,
                           icon: Icons.my_location,
                           label: 'Coordinates',
                           value:
@@ -118,22 +125,24 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Normalized Server Details',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF818CF8),
+                              color: theme.colorScheme.secondary,
                             ),
                           ),
                           const SizedBox(height: 12),
                           _buildDetailRow(
+                            context: context,
                             icon: Icons.schedule,
                             label: 'UTC DateTime',
                             value: profile.normalizedDetails!.utcDateTime.toIso8601String(),
                           ),
                           const SizedBox(height: 8),
                           _buildDetailRow(
+                            context: context,
                             icon: Icons.timelapse,
                             label: 'Offset Minutes',
                             value: '${profile.normalizedDetails!.timezoneOffsetMinutes} mins',
@@ -164,31 +173,34 @@ class BirthProfileDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildDetailRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final theme = Theme.of(context);
+
     return Row(
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
+        Icon(icon, size: 18, color: theme.colorScheme.textSecondary),
         const SizedBox(width: 10),
         SizedBox(
           width: 110,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: Color(0xFF94A3B8),
+              color: theme.colorScheme.textSecondary,
             ),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ),

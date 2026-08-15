@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../models/birth_profile_model.dart';
 
 /// Card widget displaying summarized birth profile information
@@ -15,6 +16,8 @@ class BirthProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -33,23 +36,23 @@ class BirthProfileCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 14, color: Color(0xFF94A3B8)),
+                Icon(Icons.calendar_today, size: 14, color: theme.colorScheme.secondary),
                 const SizedBox(width: 6),
                 Text(
                   '${Formatters.formatDisplayDate(profile.dateOfBirth)} at ${profile.timeOfBirth}',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+                  style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
                 ),
               ],
             ),
             const SizedBox(height: 2),
             Row(
               children: [
-                const Icon(Icons.location_on, size: 14, color: Color(0xFF94A3B8)),
+                Icon(Icons.location_on, size: 14, color: theme.colorScheme.textSecondary),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     profile.placeName,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                    style: TextStyle(fontSize: 13, color: theme.colorScheme.textSecondary),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -57,7 +60,7 @@ class BirthProfileCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right, color: Color(0xFF64748B)),
+        trailing: Icon(Icons.chevron_right, color: theme.colorScheme.textSecondary),
       ),
     );
   }

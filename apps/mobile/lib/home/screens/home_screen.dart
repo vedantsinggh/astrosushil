@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../shared/widgets/custom_button.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -12,6 +13,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -37,10 +39,10 @@ class HomeScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      const CircleAvatar(
+                      CircleAvatar(
                         radius: 32,
-                        backgroundColor: Color(0xFF312E81),
-                        child: Icon(Icons.person, size: 36, color: Color(0xFF818CF8)),
+                        backgroundColor: theme.colorScheme.primary,
+                        child: Icon(Icons.person, size: 36, color: theme.colorScheme.secondary),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -53,9 +55,9 @@ class HomeScreen extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(
                         'Role: ${user?.role ?? "USER"}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF94A3B8),
+                          color: theme.colorScheme.textSecondary,
                         ),
                       ),
                     ],
@@ -63,12 +65,12 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Quick Navigation & Integration Actions',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF94A3B8),
+                  color: theme.colorScheme.textSecondary,
                 ),
               ),
               const SizedBox(height: 12),

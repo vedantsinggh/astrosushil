@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../home/screens/home_screen.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../providers/auth_provider.dart';
@@ -31,13 +33,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       FocusScope.of(context).unfocus();
       final email = _emailController.text.trim();
       final password = _passwordController.text;
-      await ref.read(authStateProvider.notifier).login(email, password);
+      final success = await ref.read(authStateProvider.notifier).login(email, password);
+      if (success && mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const HomeScreen(),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -61,11 +71,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Sign in to access birth profiles and astrology charts',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF94A3B8),
+                    color: theme.colorScheme.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -129,9 +139,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       "Don't have an account?",
-                      style: TextStyle(color: Color(0xFF94A3B8)),
+                      style: TextStyle(color: theme.colorScheme.textSecondary),
                     ),
                     TextButton(
                       onPressed: () {

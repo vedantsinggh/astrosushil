@@ -1,4 +1,5 @@
 import React from 'react';
+import './globals.css';
 
 export const metadata = {
   title: 'Astro Sushil Admin Portal',
@@ -12,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, padding: 0, backgroundColor: '#0f172a', color: '#f8fafc' }}>
+      <body>
         {children}
       </body>
     </html>

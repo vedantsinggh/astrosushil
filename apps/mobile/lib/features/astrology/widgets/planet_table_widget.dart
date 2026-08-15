@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../models/astro_chart_model.dart';
 
 /// Clean table displaying planetary positions, Rashis, and Nakshatras
@@ -13,14 +14,16 @@ class PlanetTableWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (planets.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Center(
             child: Text(
               'No planetary data available',
-              style: TextStyle(color: Color(0xFF94A3B8)),
+              style: TextStyle(color: theme.colorScheme.textSecondary),
             ),
           ),
         ),
@@ -71,9 +74,9 @@ class PlanetTableWidget extends StatelessWidget {
                             if (planet.isRetrograde) ...[
                               const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF991B1B),
+                                  color: theme.colorScheme.supportingAccent,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
