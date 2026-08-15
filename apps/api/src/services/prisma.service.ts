@@ -15,3 +15,22 @@ class PrismaService {
 }
 
 export const prisma = PrismaService.getInstance();
+
+/**
+ * Fast lightweight database ping checking PostgreSQL connectivity.
+ */
+export async function checkDatabaseHealth(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Gracefully disconnect PrismaClient on server shutdown.
+ */
+export async function disconnectPrisma(): Promise<void> {
+  await prisma.$disconnect();
+}
