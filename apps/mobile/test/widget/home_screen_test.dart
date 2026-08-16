@@ -6,6 +6,8 @@ import 'package:astro_mobile/home/data/mock_home_repository.dart';
 import 'package:astro_mobile/home/providers/home_provider.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
+import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
+import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
@@ -17,13 +19,30 @@ void main() {
     createdAt: DateTime(2026, 1, 1),
   );
 
+  final testBirthProfile = BirthProfileModel(
+    id: 'bp_123',
+    userId: 'usr_test_123',
+    fullName: 'Cosmic Traveler',
+    dateOfBirth: DateTime(1995, 5, 15),
+    timeOfBirth: '14:30',
+    latitude: 28.6139,
+    longitude: 77.2090,
+    cityName: 'New Delhi',
+    ayanamsa: 'LAHIRI',
+    createdAt: DateTime(2026, 1, 1),
+  );
+
   Widget buildTestWidget({
     required AuthState authState,
+    List<BirthProfileModel> profiles = const [],
   }) {
     return ProviderScope(
       overrides: [
         secureStorageProvider.overrideWithValue(InMemorySecureStorageService()),
         authStateProvider.overrideWith((ref) => TestAuthNotifier(authState)),
+        birthProfilesListNotifierProvider.overrideWith(
+          (ref) => TestBirthProfilesNotifier(profiles),
+        ),
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -41,15 +60,31 @@ void main() {
       expect(find.text('Explore your cosmic journey'), findsOneWidget);
     });
 
-    testWidgets('Renders Hero Astrology Card with CTA', (WidgetTester tester) async {
-      await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
+    testWidgets('Renders Hero Card with "Create Your Birth Profile" for first-time user without birth profile', (WidgetTester tester) async {
+      await tester.pumpWidget(buildTestWidget(
+        authState: AuthState.authenticated(testUser),
+        profiles: [],
+      ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Your Cosmic Journey'), findsOneWidget);
+      expect(find.textContaining('Create Your'), findsOneWidget);
+      expect(find.textContaining('Birth Profile'), findsOneWidget);
+      expect(find.text('Add Birth Details'), findsOneWidget);
+    });
+
+    testWidgets('Renders Hero Card with "Your Cosmic Journey" when user has a birth profile', (WidgetTester tester) async {
+      await tester.pumpWidget(buildTestWidget(
+        authState: AuthState.authenticated(testUser),
+        profiles: [testBirthProfile],
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Your Cosmic'), findsOneWidget);
+      expect(find.textContaining('Journey'), findsOneWidget);
       expect(find.text('View Your Chart'), findsOneWidget);
     });
 
-    testWidgets('Renders Quick Access section and cards', (WidgetTester tester) async {
+    testWidgets('Renders Quick Access section and 4 core cards', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();
 
@@ -65,7 +100,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Gupta Nadi'), findsOneWidget);
-      expect(find.text('FLAGSHIP PREMIUM'), findsOneWidget);
+      expect(find.text('PREMIUM'), findsOneWidget);
       expect(find.text('Explore Gupta Nadi'), findsOneWidget);
     });
 
@@ -79,13 +114,12 @@ void main() {
       expect(find.text('Childbirth Report'), findsOneWidget);
     });
 
-    testWidgets('Renders Daily Rashi Bhavishya and Vastu preview cards', (WidgetTester tester) async {
+    testWidgets('Renders Today\'s Rashi Bhavishya preview card', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();
 
-      expect(find.text('Daily Forecast'), findsOneWidget);
-      expect(find.text('Mesha (Aries)'), findsOneWidget);
-      expect(find.text('Vastu Guidance'), findsOneWidget);
+      expect(find.text("Today's Rashi Bhavishya"), findsOneWidget);
+      expect(find.text('Aries'), findsOneWidget);
     });
 
     testWidgets('Bottom Navigation allows switching between Home, Reports, and Profile tabs', (WidgetTester tester) async {
@@ -160,4 +194,16 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 
   @override
   void clearError() {}
+}
+
+class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>
+    implements BirthProfilesNotifier {
+  TestBirthProfilesNotifier(List<BirthProfileModel> profiles)
+      : super(BirthProfilesState(isLoading: false, profiles: profiles));
+
+  @override
+  Future<void> fetchProfiles() async {}
+
+  @override
+  Future<BirthProfileModel?> createProfile(CreateBirthProfileDto dto) async => null;
 }

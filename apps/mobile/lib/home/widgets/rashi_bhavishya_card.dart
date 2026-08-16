@@ -2,6 +2,68 @@ import 'package:flutter/material.dart';
 import '../../shared/theme/app_colors.dart';
 import '../models/home_models.dart';
 
+/// Section and preview card for Today's Rashi Bhavishya
+class RashiBhavishyaSection extends StatelessWidget {
+  final RashiBhavishyaPreview preview;
+  final VoidCallback onReadTap;
+  final VoidCallback? onViewAllTap;
+
+  const RashiBhavishyaSection({
+    super.key,
+    required this.preview,
+    required this.onReadTap,
+    this.onViewAllTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                "Today's Rashi Bhavishya",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              InkWell(
+                onTap: onViewAllTap ?? onReadTap,
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                  child: Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        RashiBhavishyaCard(
+          preview: preview,
+          onReadTap: onReadTap,
+        ),
+      ],
+    );
+  }
+}
+
 /// Compact preview card for daily Rashi Bhavishya prediction
 class RashiBhavishyaCard extends StatelessWidget {
   final RashiBhavishyaPreview preview;
@@ -15,12 +77,16 @@ class RashiBhavishyaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Extract sign name (e.g. "Aries" from "Mesha (Aries)" or use preview.rashiName)
+    final rashiTitle = preview.rashiName.contains('(')
+        ? preview.rashiName.split('(').last.replaceAll(')', '').trim()
+        : preview.rashiName;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.lightBorder, width: 1),
         boxShadow: [
           BoxShadow(
@@ -30,137 +96,136 @@ class RashiBhavishyaCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: AppColors.premiumAccent.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.premiumAccent.withOpacity(0.5),
-                        width: 1,
+          // Background Constellation Art (Right Aligned)
+          Positioned(
+            right: 40,
+            top: 10,
+            bottom: 10,
+            width: 100,
+            child: CustomPaint(
+              painter: _ConstellationPatternPainter(),
+            ),
+          ),
+
+          // Content
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: onReadTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Left Sign Icon Circle Container (Dark Navy + Gold Aries Symbol)
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          '♈',
+                          style: TextStyle(
+                            fontSize: 26,
+                            color: AppColors.premiumAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                    child: const Icon(
-                      Icons.wb_sunny_rounded,
-                      size: 20,
+
+                    const SizedBox(width: 14),
+
+                    // Middle Details Column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rashiTitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'March 21 - April 19',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.lightTextSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'A positive day for new beginnings. Your confidence will attract good opportunities.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.lightTextSecondary,
+                              height: 1.35,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Right Arrow Indicator
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
                       color: AppColors.primary,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        preview.rashiName,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.lightTextPrimary,
-                        ),
-                      ),
-                      Text(
-                        preview.date,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.lightTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'DAILY PREVIEW',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                    letterSpacing: 0.5,
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            preview.predictionPreview,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.lightTextSecondary,
-              height: 1.4,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Color: ${preview.luckyColor}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.lightTextMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Number: ${preview.luckyNumber}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.lightTextMuted,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: onReadTap,
-                borderRadius: BorderRadius.circular(8),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Row(
-                    children: [
-                      Text(
-                        "Read Today's Prediction",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 11,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
+}
+
+/// Custom painter for subtle faint constellation dots & lines in card background
+class _ConstellationPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = AppColors.premiumAccent.withOpacity(0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    final dotPaint = Paint()
+      ..color = AppColors.premiumAccent.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+
+    final pts = [
+      Offset(size.width * 0.2, size.height * 0.7),
+      Offset(size.width * 0.45, size.height * 0.4),
+      Offset(size.width * 0.75, size.height * 0.3),
+      Offset(size.width * 0.9, size.height * 0.5),
+    ];
+
+    for (int i = 0; i < pts.length - 1; i++) {
+      canvas.drawLine(pts[i], pts[i + 1], linePaint);
+    }
+    for (final pt in pts) {
+      canvas.drawCircle(pt, 2.0, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

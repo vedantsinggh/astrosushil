@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../shared/theme/app_colors.dart';
 
-/// Top Header component for Home Screen showing user greeting and profile avatar
+/// Top Header component for Home Screen showing user greeting, notification bell, and profile avatar
 class HomeHeader extends StatelessWidget {
   final String userName;
   final VoidCallback onProfileTap;
@@ -17,9 +17,9 @@ class HomeHeader extends StatelessWidget {
     // Extract a clean display name from email or user string
     final displayName = userName.isNotEmpty
         ? (userName.contains('@') ? userName.split('@').first : userName)
-        : 'Cosmic Seeker';
+        : 'User';
 
-    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A';
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
@@ -34,10 +34,10 @@ class HomeHeader extends StatelessWidget {
                 Text(
                   'Hello, $displayName',
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                    letterSpacing: -0.3,
+                    color: AppColors.primary,
+                    letterSpacing: -0.4,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -46,7 +46,7 @@ class HomeHeader extends StatelessWidget {
                 const Text(
                   'Explore your cosmic journey',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: AppColors.lightTextSecondary,
                     fontWeight: FontWeight.w400,
                   ),
@@ -56,39 +56,60 @@ class HomeHeader extends StatelessWidget {
           ),
           Row(
             children: [
-              // Non-functional placeholder notification icon as per spec
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.lightBorder, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              // Notification Icon Button with subtle red badge dot
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Notifications feature coming soon.'),
+                      duration: Duration(seconds: 2),
                     ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.notifications_none_outlined,
-                    color: AppColors.primary,
-                    size: 22,
-                  ),
-                  tooltip: 'Notifications',
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Notifications feature coming soon.'),
-                        duration: Duration(seconds: 2),
+                  );
+                },
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.lightBorder, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
-                    );
-                  },
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(
+                        Icons.notifications_none_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                      // Notification Red Badge Dot (top-right)
+                      Positioned(
+                        top: 10,
+                        right: 12,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              // User Profile Avatar
+
+              // User Profile Avatar with Gold Border
               GestureDetector(
                 onTap: onProfileTap,
                 child: Container(
@@ -99,7 +120,7 @@ class HomeHeader extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: AppColors.premiumAccent,
-                      width: 1.5,
+                      width: 1.8,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -128,3 +149,4 @@ class HomeHeader extends StatelessWidget {
     );
   }
 }
+
