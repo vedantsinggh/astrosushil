@@ -71,7 +71,29 @@ export async function birthProfilesRoutes(fastify: FastifyInstance, _options: Fa
     },
   });
 
-  // PUT /api/v1/birth-profiles/:id
+  // PATCH /api/v1/birth-profiles/:id
+  fastify.patch('/:id', {
+    schema: {
+      tags: ['Birth Profiles'],
+      summary: 'Partially update a birth profile',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const { id } = birthProfileParamsSchema.parse(request.params);
+      const input = updateBirthProfileSchema.parse(request.body);
+      const updated = await birthProfilesService.updateProfile(id, input, request.user);
+      return reply.status(200).send(updated);
+    },
+  });
+
+  // PUT /api/v1/birth-profiles/:id (Alias for PATCH / update)
   fastify.put('/:id', {
     schema: {
       tags: ['Birth Profiles'],

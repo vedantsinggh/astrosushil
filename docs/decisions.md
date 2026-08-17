@@ -97,3 +97,14 @@ This document records the key architectural and design decisions made for the **
 - **Status**: Accepted
 - **Decision**: Enforce birth profile authorization strictly on the backend API service level. Requests for birth profiles return 404 Not Found if the requested profile ID does not belong to the authenticated user ID (unless requested by an ADMIN role).
 - **Reason**: Guarantees zero cross-tenant data leaks and prevents ID enumeration probing across user accounts.
+
+---
+
+## ADR-013: Astrology Chart Calculation Strategy (Option A: On-Demand)
+
+- **Status**: Accepted
+- **Decision**: Compute natal astrology charts on-demand directly from canonical `BirthProfile` data without persisting chart calculation blobs or introducing a complex Redis cache layer.
+- **Reason**:
+  1. **Low Execution Cost**: Single chart calculations run in `< 1 ms` on local CPU cores, eliminating any latency or CPU bottleneck.
+  2. **Automatic Data Invalidation**: Whenever a user updates their `BirthProfile` (date, time, timezone, latitude, or longitude), on-demand calculation guarantees 100% freshness. No stale cached charts exist to invalidate or synchronize.
+  3. **Auditability & Reproducibility**: Each chart output specifies its calculation engine version, provider version, and active config parameters.

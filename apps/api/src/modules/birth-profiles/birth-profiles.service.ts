@@ -2,12 +2,20 @@ import { prisma } from '../../services/prisma.service';
 import { NotFoundError } from '../../errors/app-error';
 import { normalizeBirthProfile } from '../../utils/birth-details-normalizer';
 import { CreateBirthProfileInput, UpdateBirthProfileInput } from './birth-profiles.schemas';
+import {
+  mapBirthProfileToResponseDto,
+  BirthProfileWithDetailsResponseDto,
+  BirthProfileResponseDto,
+} from './birth-profile-response.mapper';
 
 export class BirthProfilesService {
   /**
    * Creates a new birth profile for an authenticated user.
    */
-  public async createProfile(userId: string, input: CreateBirthProfileInput) {
+  public async createProfile(
+    userId: string,
+    input: CreateBirthProfileInput
+  ): Promise<BirthProfileWithDetailsResponseDto> {
     // Validate & normalize birth input
     const normalized = normalizeBirthProfile({
       name: input.name,
@@ -28,12 +36,14 @@ export class BirthProfilesService {
         latitude: normalized.latitude,
         longitude: normalized.longitude,
         timezone: normalized.timezone,
-        placeName: normalized.placeName,
+        placeName: normalized.placeName ?? null,
       },
     });
 
+    const dto = mapBirthProfileToResponseDto(profile);
+
     return {
-      ...profile,
+      ...dto,
       normalizedDetails: normalized,
     };
   }
@@ -41,31 +51,37 @@ export class BirthProfilesService {
   /**
    * Retrieves all birth profiles created by the authenticated user.
    */
-  public async getUserProfiles(userId: string) {
+  public async getUserProfiles(userId: string): Promise<BirthProfileWithDetailsResponseDto[]> {
     const profiles = await prisma.birthProfile.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
 
-    return profiles.map((p) => ({
-      ...p,
-      normalizedDetails: normalizeBirthProfile({
-        id: p.id,
-        name: p.name,
-        dateOfBirth: p.dateOfBirth,
-        timeOfBirth: p.timeOfBirth,
-        latitude: p.latitude,
-        longitude: p.longitude,
-        timezone: p.timezone,
-        placeName: p.placeName,
-      }),
-    }));
+    return profiles.map((p) => {
+      const dto = mapBirthProfileToResponseDto(p);
+      return {
+        ...dto,
+        normalizedDetails: normalizeBirthProfile({
+          id: p.id,
+          name: p.name,
+          dateOfBirth: p.dateOfBirth,
+          timeOfBirth: p.timeOfBirth,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          timezone: p.timezone,
+          placeName: p.placeName,
+        }),
+      };
+    });
   }
 
   /**
    * Retrieves a specific birth profile by ID with strict user authorization check.
    */
-  public async getProfileById(profileId: string, requestingUser: { id: string; role: 'USER' | 'ADMIN' }) {
+  public async getProfileById(
+    profileId: string,
+    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+  ): Promise<BirthProfileWithDetailsResponseDto> {
     const profile = await prisma.birthProfile.findUnique({
       where: { id: profileId },
     });
@@ -75,8 +91,10 @@ export class BirthProfilesService {
       throw new NotFoundError('Birth profile not found');
     }
 
+    const dto = mapBirthProfileToResponseDto(profile);
+
     return {
-      ...profile,
+      ...dto,
       normalizedDetails: normalizeBirthProfile({
         id: profile.id,
         name: profile.name,
@@ -97,7 +115,7 @@ export class BirthProfilesService {
     profileId: string,
     input: UpdateBirthProfileInput,
     requestingUser: { id: string; role: 'USER' | 'ADMIN' }
-  ) {
+  ): Promise<BirthProfileWithDetailsResponseDto> {
     const existing = await prisma.birthProfile.findUnique({
       where: { id: profileId },
     });
@@ -138,12 +156,14 @@ export class BirthProfilesService {
         latitude: normalized.latitude,
         longitude: normalized.longitude,
         timezone: normalized.timezone,
-        placeName: normalized.placeName,
+        placeName: normalized.placeName ?? null,
       },
     });
 
+    const dto = mapBirthProfileToResponseDto(updated);
+
     return {
-      ...updated,
+      ...dto,
       normalizedDetails: normalized,
     };
   }
@@ -151,7 +171,10 @@ export class BirthProfilesService {
   /**
    * Deletes a birth profile with strict user authorization check.
    */
-  public async deleteProfile(profileId: string, requestingUser: { id: string; role: 'USER' | 'ADMIN' }) {
+  public async deleteProfile(
+    profileId: string,
+    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+  ): Promise<{ message: string }> {
     const existing = await prisma.birthProfile.findUnique({
       where: { id: profileId },
     });

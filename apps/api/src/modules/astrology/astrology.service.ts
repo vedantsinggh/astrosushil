@@ -9,6 +9,14 @@ import { NotFoundError, AppError, ValidationError } from '../../errors/app-error
 import { mapBirthProfileToBirthDetails } from './birth-details.mapper';
 import { mapAstroChartToResponse, AstroChartResponseDto } from './astrology-response.mapper';
 
+export interface ChartCalculationResult extends AstroChartResponseDto {
+  executionMetrics: {
+    durationMs: number;
+    engineVersion: string;
+    methodologyVersion: string;
+  };
+}
+
 export class AstrologyService {
   private readonly calculator: ChartCalculator;
 
@@ -23,7 +31,7 @@ export class AstrologyService {
   public async calculateChartForProfile(
     birthProfileId: string,
     requestingUser: { id: string; role: 'USER' | 'ADMIN' }
-  ): Promise<AstroChartResponseDto> {
+  ): Promise<ChartCalculationResult> {
     // 1. Fetch birth profile from PostgreSQL
     const profile = await prisma.birthProfile.findUnique({
       where: { id: birthProfileId },
@@ -55,12 +63,24 @@ export class AstrologyService {
       dashaSystem: 'VIMSHOTTARI',
     };
 
-    // 5. Execute local deterministic astrology engine calculation
+    // 5. Execute local deterministic astrology engine calculation with performance measurement
+    const startTime = performance.now();
     try {
       const astroChart = await this.calculator.calculateChart(birthDetails, activeConfig);
+      const endTime = performance.now();
+      const durationMs = Number((endTime - startTime).toFixed(3));
 
       // 6. Map domain AstroChart output to public API response DTO
-      return mapAstroChartToResponse(astroChart);
+      const mappedResponse = mapAstroChartToResponse(astroChart);
+
+      return {
+        ...mappedResponse,
+        executionMetrics: {
+          durationMs,
+          engineVersion: astroChart.metadata.engineVersion,
+          methodologyVersion: `${activeConfig.zodiacType}_${activeConfig.ayanamsa}_${activeConfig.nodeCalculation}`,
+        },
+      };
     } catch (err: any) {
       if (err instanceof UnconfirmedMethodologyError) {
         throw new AppError(
@@ -70,7 +90,10 @@ export class AstrologyService {
         );
       }
       if (err instanceof BirthDetailsValidationError) {
-        throw new ValidationError(`Invalid birth details: ${err.message}`, err.validationErrors.map(msg => ({ message: msg })));
+        throw new ValidationError(
+          `Invalid birth details: ${err.message}`,
+          err.validationErrors.map((msg) => ({ message: msg }))
+        );
       }
 
       // Catch-all calculation error preventing unhandled stack trace leaks
