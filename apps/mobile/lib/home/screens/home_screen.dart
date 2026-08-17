@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
+import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../shared/theme/app_colors.dart';
 import '../providers/home_provider.dart';
-import '../widgets/free_features_section.dart';
+import '../widgets/celestial_background_painter.dart';
 import '../widgets/gupta_nadi_card.dart';
 import '../widgets/hero_astrology_card.dart';
 import '../widgets/home_bottom_navigation.dart';
@@ -12,7 +14,6 @@ import '../widgets/home_header.dart';
 import '../widgets/quick_access_section.dart';
 import '../widgets/rashi_bhavishya_card.dart';
 import '../widgets/reports_section.dart';
-import '../widgets/vastu_card.dart';
 import 'profile_screen.dart';
 import 'reports_screen.dart';
 
@@ -26,13 +27,15 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      body: IndexedStack(
-        index: currentTabIndex,
-        children: [
-          const _HomeTabContentView(),
-          const ReportsScreen(),
-          const ProfileScreen(),
-        ],
+      body: SubtleCelestialBackground(
+        child: IndexedStack(
+          index: currentTabIndex,
+          children: [
+            const _HomeTabContentView(),
+            const ReportsScreen(),
+            const ProfileScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: HomeBottomNavigation(
         currentIndex: currentTabIndex,
@@ -44,19 +47,27 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// Home Tab Content View displaying hierarchy of free tools, hero, reports, and flagship features
+/// Home Tab Content View displaying clear UX hierarchy: Header -> Hero -> Quick Access -> Rashi Bhavishya -> Reports -> Gupta Nadi
 class _HomeTabContentView extends ConsumerWidget {
   const _HomeTabContentView();
 
-  void _navigateToKundli(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const BirthProfileListScreen(),
-      ),
-    );
+  void _navigateToKundli(BuildContext context, bool hasProfile) {
+    if (hasProfile) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const BirthProfileListScreen(),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const CreateBirthProfileScreen(),
+        ),
+      );
+    }
   }
 
-  void _showGuptaNadiModal(BuildContext context) {
+  void _showGuptaNadiModal(BuildContext context, bool hasProfile) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -123,7 +134,7 @@ class _HomeTabContentView extends ConsumerWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                _navigateToKundli(context);
+                _navigateToKundli(context, hasProfile);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.premiumAccent,
@@ -158,125 +169,84 @@ class _HomeTabContentView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
+    final profilesState = ref.watch(birthProfilesListNotifierProvider);
+    final hasProfile = profilesState.profiles.isNotEmpty;
+
     final prediction = ref.watch(dailyRashiBhavishyaProvider);
     final reports = ref.watch(paidReportsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. TOP HEADER
-              HomeHeader(
-                userName: user?.email ?? 'Cosmic Seeker',
-                onProfileTap: () {
-                  ref.read(homeTabControllerProvider.notifier).state = 2;
-                },
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 10.0),
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. TOP HEADER ("Hello, [User Name]")
+            HomeHeader(
+              userName: user?.email ?? 'User',
+              onProfileTap: () {
+                ref.read(homeTabControllerProvider.notifier).state = 2;
+              },
+            ),
+
+            const SizedBox(height: 18),
+
+            // 2. HERO CARD ("Your Cosmic Journey" / "Create Your Birth Profile")
+            HeroAstrologyCard(
+              hasBirthProfile: hasProfile,
+              onViewChartTap: () => _navigateToKundli(context, hasProfile),
+            ),
+
+            const SizedBox(height: 26),
+
+            // 3. QUICK ACCESS (Birth Chart, Planets, Rashi Bhavishya, Vastu)
+            QuickAccessSection(
+              onKundliTap: () => _navigateToKundli(context, hasProfile),
+              onPlanetsTap: () => _navigateToKundli(context, hasProfile),
+              onPredictionTap: () => _showFeatureNotice(
+                context,
+                'Rashi Bhavishya',
+                'Daily forecast detailed breakdown',
               ),
-
-              const SizedBox(height: 20),
-
-              // 2. HERO CARD ("Your Cosmic Journey")
-              HeroAstrologyCard(
-                onViewChartTap: () => _navigateToKundli(context),
+              onVastuTap: () => _showFeatureNotice(
+                context,
+                'Vastu',
+                'Vastu spatial orientation guide',
               ),
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 26),
 
-              // 3. QUICK ACCESS
-              QuickAccessSection(
-                onKundliTap: () => _navigateToKundli(context),
-                onPlanetsTap: () => _navigateToKundli(context),
-                onPredictionTap: () => _showFeatureNotice(
-                  context,
-                  'Rashi Bhavishya',
-                  'Daily forecast detailed breakdown',
-                ),
-                onVastuTap: () => _showFeatureNotice(
-                  context,
-                  'Vastu',
-                  'Vastu spatial orientation guide',
-                ),
+            // 4. TODAY'S RASHI BHAVISHYA PREVIEW
+            RashiBhavishyaSection(
+              preview: prediction,
+              onReadTap: () => _showFeatureNotice(
+                context,
+                'Rashi Bhavishya',
+                'Full prediction report',
               ),
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 26),
 
-              // 4. FREE ASTROLOGY FEATURES ("Explore Astrology")
-              FreeFeaturesSection(
-                onKundliTap: () => _navigateToKundli(context),
-                onPlanetsTap: () => _navigateToKundli(context),
-                onRashiTap: () => _showFeatureNotice(
-                  context,
-                  'Rashi Bhavishya',
-                  'Daily planetary forecast preview',
-                ),
-                onVastuTap: () => _showFeatureNotice(
-                  context,
-                  'Vastu Guidance',
-                  'Directional energy alignment',
-                ),
-              ),
+            // 5. PERSONALIZED REPORTS
+            ReportsSection(
+              reports: reports,
+              onReportTap: (report) {
+                ref.read(homeTabControllerProvider.notifier).state = 1;
+              },
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 26),
 
-              // 5. GUPTA NADI / FLAGSHIP PREMIUM FEATURE
-              GuptaNadiCard(
-                onExploreTap: () => _showGuptaNadiModal(context),
-              ),
+            // 6. GUPTA NADI FLAGSHIP FEATURE
+            GuptaNadiCard(
+              onExploreTap: () => _showGuptaNadiModal(context, hasProfile),
+            ),
 
-              const SizedBox(height: 28),
-
-              // 6. DAILY RASHI BHAVISHYA PREVIEW
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.0),
-                child: Text(
-                  'Daily Forecast',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              RashiBhavishyaCard(
-                preview: prediction,
-                onReadTap: () => _showFeatureNotice(
-                  context,
-                  'Rashi Bhavishya',
-                  'Full prediction report',
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // 7. VASTU FEATURE CARD
-              VastuCard(
-                onExploreTap: () => _showFeatureNotice(
-                  context,
-                  'Vastu Guidance',
-                  'Home orientation & spatial flow entry point',
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // 8. PAID PERSONALIZED REPORTS
-              ReportsSection(
-                reports: reports,
-                onReportTap: (report) {
-                  ref.read(homeTabControllerProvider.notifier).state = 1;
-                },
-              ),
-
-              const SizedBox(height: 32),
-            ],
-          ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );

@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import '../../shared/theme/app_colors.dart';
 import '../models/home_models.dart';
 
-/// Section showcasing paid personalized report options
+/// Section showcasing paid personalized report options in horizontal carousel/list
 class ReportsSection extends StatelessWidget {
   final List<PaidReportInfo> reports;
   final Function(PaidReportInfo report) onReportTap;
+  final VoidCallback? onViewAllTap;
 
   const ReportsSection({
     super.key,
     required this.reports,
     required this.onReportTap,
+    this.onViewAllTap,
   });
 
   @override
@@ -18,63 +20,110 @@ class ReportsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        // Section Header: "Personalized Reports" + "View All"
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
+              const Text(
                 'Personalized Reports',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.lightTextPrimary,
+                  color: AppColors.primary,
                   letterSpacing: -0.3,
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
-                'Get deeper insights based on your birth details.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.lightTextSecondary,
+              InkWell(
+                onTap: onViewAllTap ?? () {},
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                  child: Text(
+                    'View All',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        Column(
-          children: reports.map((report) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: _ReportCard(
+
+        // Horizontal Carousel of Report Cards
+        SizedBox(
+          height: 225,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: reports.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final report = reports[index];
+              return _ReportCardItem(
                 report: report,
+                index: index,
                 onTap: () => onReportTap(report),
-              ),
-            );
-          }).toList(),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 }
 
-class _ReportCard extends StatelessWidget {
+class _ReportCardItem extends StatelessWidget {
   final PaidReportInfo report;
+  final int index;
   final VoidCallback onTap;
 
-  const _ReportCard({
+  const _ReportCardItem({
     required this.report,
+    required this.index,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Style configurations based on report index for distinct color accents
+    final Color iconBgColor;
+    final Color iconColor;
+    final Color btnBgColor;
+    final Color btnTextColor;
+    final IconData cardIcon;
+
+    if (report.id.contains('career')) {
+      iconBgColor = const Color(0xFFEAE8F4);
+      iconColor = AppColors.secondary;
+      btnBgColor = const Color(0xFFEAE8F4);
+      btnTextColor = AppColors.secondary;
+      cardIcon = Icons.work_outline_rounded;
+    } else if (report.id.contains('marriage') || report.id.contains('relationship')) {
+      iconBgColor = const Color(0xFFFBE8EE);
+      iconColor = AppColors.supportingAccent;
+      btnBgColor = const Color(0xFFFBE8EE);
+      btnTextColor = AppColors.supportingAccent;
+      cardIcon = Icons.favorite_border_rounded;
+    } else {
+      iconBgColor = const Color(0xFFFAF3DC);
+      iconColor = const Color(0xFFB38E22);
+      btnBgColor = const Color(0xFFFAF3DC);
+      btnTextColor = const Color(0xFFB38E22);
+      cardIcon = Icons.child_care_rounded;
+    }
+
     return Container(
+      width: 215,
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.lightBorder, width: 1),
         boxShadow: [
           BoxShadow(
@@ -84,112 +133,116 @@ class _ReportCard extends StatelessWidget {
           ),
         ],
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icon container with gold accent border
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.05),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.premiumAccent.withOpacity(0.6),
-                    width: 1.5,
-                  ),
-                ),
-                child: Icon(
-                  report.icon,
-                  size: 24,
-                  color: AppColors.primary,
+      child: Stack(
+        children: [
+          // Top Right Premium Crown Badge
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF8EC),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text(
+                  '👑',
+                  style: TextStyle(fontSize: 12),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
+            ),
+          ),
+
+          // Main Card Content
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            report.title,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.lightTextPrimary,
-                            ),
-                          ),
+                    // Top Icon Container
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          cardIcon,
+                          size: 22,
+                          color: iconColor,
                         ),
-                        if (report.badgeText != null) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.premiumAccent.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: AppColors.premiumAccent.withOpacity(0.4),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Text(
-                              report.badgeText!,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      report.description,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.lightTextSecondary,
-                        height: 1.35,
                       ),
                     ),
+
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+
+                    // Title & Description
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          report.ctaText,
+                          report.title,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
+                            height: 1.25,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                          color: AppColors.primary,
+                        const SizedBox(height: 4),
+                        Text(
+                          report.description,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.lightTextSecondary,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // View Report Button Pill
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: btnBgColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Center(
+                        child: Text(
+                          report.ctaText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: btnTextColor,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

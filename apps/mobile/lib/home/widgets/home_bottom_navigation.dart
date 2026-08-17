@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../shared/theme/app_colors.dart';
 
-/// Clean floating rounded bottom navigation container for Astro Platform
+/// Clean floating rounded light bottom navigation container matching reference UI
 class HomeBottomNavigation extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -14,27 +14,26 @@ class HomeBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: AppColors.premiumAccent.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(35),
+          border: Border.all(
+            color: AppColors.lightBorder,
+            width: 1,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -93,31 +92,21 @@ class _NavItem extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(25),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.premiumAccent.withOpacity(0.18)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: isSelected
-              ? Border.all(
-                  color: AppColors.premiumAccent.withOpacity(0.5),
-                  width: 1,
-                )
-              : null,
+          color: isSelected ? const Color(0xFFEAE8F4) : Colors.transparent,
+          borderRadius: BorderRadius.circular(25),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               displayIcon,
-              size: 22,
-              color: isSelected
-                  ? AppColors.premiumAccent
-                  : Colors.white.withOpacity(0.6),
+              size: 20,
+              color: isSelected ? AppColors.primary : AppColors.lightTextSecondary,
             ),
             if (isSelected) ...[
               const SizedBox(width: 8),
@@ -126,7 +115,7 @@ class _NavItem extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.premiumAccent,
+                  color: AppColors.primary,
                 ),
               ),
             ],
