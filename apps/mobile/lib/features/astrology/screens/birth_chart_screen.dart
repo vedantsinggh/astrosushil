@@ -5,10 +5,9 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/error_banner.dart';
-import '../../../shared/widgets/loading_indicator.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
-import '../../birth_profile/screens/birth_profile_list_screen.dart';
+import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/astro_chart_model.dart';
 import '../providers/astrology_provider.dart';
 import '../services/kundli_pdf_service.dart';
@@ -30,6 +29,7 @@ class BirthChartScreen extends ConsumerStatefulWidget {
 class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   int _selectedControlIndex = 0; // 0 = Chart, 1 = Planets, 2 = Houses, 3 = Nakshatra
   bool _isDownloadingPdf = false;
+  BirthProfileModel? _selectedProfileOverride;
 
   Future<void> _downloadKundliPdf(BirthProfileModel profile, AstroChartModel chart) async {
     setState(() => _isDownloadingPdf = true);
@@ -78,7 +78,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   @override
   Widget build(BuildContext context) {
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
-    final activeProfile = widget.profile ??
+    final activeProfile = _selectedProfileOverride ??
+        widget.profile ??
         (profilesState.profiles.isNotEmpty ? profilesState.profiles.first : null);
 
     final chartAsync = activeProfile != null
@@ -86,7 +87,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.lightBackground,
       body: SafeArea(
         top: false,
         child: activeProfile == null
@@ -99,21 +100,22 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                       physics: const BouncingScrollPhysics(),
                       child: Column(
                         children: [
-                          // A. COSMIC TOP HEADER & APP BAR & PROFILE CARD
+                          // A. COSMIC TOP HEADER & PROFILE DROPDOWN
                           _buildCosmicTopSection(
                             context,
                             activeProfile,
+                            profilesState.profiles,
                             chartAsync?.value,
                           ),
 
-                          // B. LIGHT CONTENT CONTAINER OVERLAY
+                          // B. LIGHT CONTENT CONTAINER
                           _buildLightContentArea(
                             context,
                             activeProfile,
                             chartAsync,
                           ),
 
-                          // Extra bottom padding to ensure scrollable content is never obscured by the fixed bottom card!
+                          // Bottom padding to ensure content is not obscured by fixed bottom card
                           const SizedBox(height: 100),
                         ],
                       ),
@@ -153,7 +155,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const BirthProfileListScreen()),
+                    MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -175,7 +177,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
 
   Widget _buildCosmicTopSection(
     BuildContext context,
-    BirthProfileModel profile,
+    BirthProfileModel activeProfile,
+    List<BirthProfileModel> allProfiles,
     AstroChartModel? chart,
   ) {
     final topPadding = MediaQuery.of(context).padding.top;
@@ -184,164 +187,267 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
       width: double.infinity,
       decoration: const BoxDecoration(
         color: AppColors.primary,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
-      child: Stack(
-        children: [
-          // Background celestial image overlay
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.35,
-              child: Image.asset(
-                AppAssets.subtleCelestialBackground,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, topPadding + 8, 16, 20),
-            child: Column(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, topPadding + 8, 16, 20),
+        child: Column(
+          children: [
+            // TOP APP BAR
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // TOP APP BAR (Back Button + Title + Subtitle + Download Action)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                Column(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                      onPressed: () => Navigator.of(context).pop(),
+                    const Text(
+                      'Your Birth Chart',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                    Column(
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppColors.premiumAccent, shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
                         const Text(
-                          'Your Birth Chart',
+                          'Your cosmic blueprint',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
+                            fontSize: 12,
+                            color: AppColors.premiumAccent,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppColors.premiumAccent, shape: BoxShape.circle)),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Your cosmic blueprint',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.premiumAccent,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppColors.premiumAccent, shape: BoxShape.circle)),
-                          ],
-                        ),
+                        const SizedBox(width: 6),
+                        Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppColors.premiumAccent, shape: BoxShape.circle)),
                       ],
-                    ),
-                    IconButton(
-                      icon: _isDownloadingPdf
-                          ? const AstroLoaderInline(size: 18, isDark: true)
-                          : const Icon(Icons.download_rounded, color: Colors.white, size: 22),
-                      tooltip: 'Download Kundli',
-                      onPressed: (_isDownloadingPdf || chart == null)
-                          ? null
-                          : () => _downloadKundliPdf(profile, chart),
                     ),
                   ],
                 ),
+                IconButton(
+                  icon: _isDownloadingPdf
+                      ? const AstroLoaderInline(size: 18, isDark: true)
+                      : const Icon(Icons.download_rounded, color: Colors.white, size: 22),
+                  tooltip: 'Download Kundli',
+                  onPressed: (_isDownloadingPdf || chart == null)
+                      ? null
+                      : () => _downloadKundliPdf(activeProfile, chart),
+                ),
+              ],
+            ),
 
-                const SizedBox(height: 18),
+            const SizedBox(height: 18),
 
-                // PROFILE CARD
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.tertiary.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+            // PROFILE CARD WITH DROPDOWN PROFILE SELECTOR
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.tertiary,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withOpacity(0.3),
-                          shape: BoxShape.circle,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activeProfile.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                        child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 2),
+                        Text(
+                          '${activeProfile.dateOfBirth}  •  ${activeProfile.timeOfBirth}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        Text(
+                          activeProfile.placeName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withOpacity(0.6),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // DROPDOWN MENU FOR SELECTING/CHANGING PROFILES
+                  PopupMenuButton<dynamic>(
+                    color: AppColors.tertiary,
+                    elevation: 10,
+                    tooltip: 'Select Birth Profile',
+                    offset: const Offset(0, 42),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: AppColors.premiumAccent.withOpacity(0.4), width: 1.5),
+                    ),
+                    onSelected: (value) {
+                      if (value is BirthProfileModel) {
+                        setState(() {
+                          _selectedProfileOverride = value;
+                        });
+                      } else if (value == 'add_new') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                        );
+                      }
+                    },
+                    itemBuilder: (BuildContext context) {
+                      final List<PopupMenuEntry<dynamic>> items = [];
+
+                      for (final p in allProfiles) {
+                        final isSelected = p.id == activeProfile.id;
+                        items.add(
+                          PopupMenuItem<BirthProfileModel>(
+                            value: p,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.premiumAccent.withOpacity(0.15)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                border: isSelected
+                                    ? Border.all(color: AppColors.premiumAccent.withOpacity(0.4))
+                                    : null,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isSelected
+                                        ? Icons.check_circle_rounded
+                                        : Icons.person_outline_rounded,
+                                    size: 20,
+                                    color: isSelected ? AppColors.premiumAccent : const Color(0xFFA0A0C0),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          p.name,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${p.dateOfBirth} • ${p.placeName}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isSelected
+                                                ? AppColors.premiumAccent
+                                                : const Color(0xFF94A3B8),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      items.add(const PopupMenuDivider());
+
+                      items.add(
+                        const PopupMenuItem<String>(
+                          value: 'add_new',
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            child: Row(
+                              children: [
+                                Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.premiumAccent),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Add New Profile',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.premiumAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+
+                      return items;
+                    },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.premiumAccent, width: 1),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              profile.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${profile.dateOfBirth}  •  ${profile.timeOfBirth}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                            ),
-                            Text(
-                              profile.placeName,
+                              'Switch',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.white.withOpacity(0.6),
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.premiumAccent,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 18,
+                              color: AppColors.premiumAccent,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const BirthProfileListScreen()),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          minimumSize: Size.zero,
-                          side: const BorderSide(color: AppColors.premiumAccent, width: 1),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text(
-                          'Change Profile',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.premiumAccent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        ),
+      );
   }
 
   Widget _buildLightContentArea(
@@ -351,20 +457,17 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   ) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.lightBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      color: AppColors.lightBackground,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
       child: Column(
         children: [
           // 1. KUNDLI CARD HEADER
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.star_rate_rounded, size: 12, color: AppColors.premiumAccent),
-              const SizedBox(width: 8),
-              const Text(
+              Icon(Icons.star_rate_rounded, size: 12, color: AppColors.premiumAccent),
+              SizedBox(width: 8),
+              Text(
                 'KUNDLI (NORTH INDIAN STYLE)',
                 style: TextStyle(
                   fontSize: 12,
@@ -373,8 +476,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                   color: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.star_rate_rounded, size: 12, color: AppColors.premiumAccent),
+              SizedBox(width: 8),
+              Icon(Icons.star_rate_rounded, size: 12, color: AppColors.premiumAccent),
             ],
           ),
 
@@ -391,6 +494,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                   child: Center(
                     child: AstroLoaderCard(
                       message: AstroLoaderMessages.kundli,
+                      isDark: false,
                     ),
                   ),
                 ),
@@ -442,7 +546,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.05),
+        color: AppColors.primary.withOpacity(0.06),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
