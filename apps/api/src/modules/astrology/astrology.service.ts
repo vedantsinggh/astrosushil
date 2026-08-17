@@ -77,7 +77,7 @@ export class AstrologyService {
         ...mappedResponse,
         executionMetrics: {
           durationMs,
-          engineVersion: astroChart.calculationVersion,
+          engineVersion: astroChart.metadata.engineVersion,
           methodologyVersion: `${activeConfig.zodiacType}_${activeConfig.ayanamsa}_${activeConfig.nodeCalculation}`,
         },
       };

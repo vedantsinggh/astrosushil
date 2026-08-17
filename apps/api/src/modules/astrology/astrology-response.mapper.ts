@@ -1,4 +1,4 @@
-import { AstroChart } from '@astro/astrology-engine';
+import { AstroChart, RASHIS, NAKSHATRAS } from '@astro/astrology-engine';
 
 export interface PlanetResponseDto {
   planet: string;
@@ -15,7 +15,52 @@ export interface PlanetResponseDto {
   nakshatraLord: string;
 }
 
+export interface RashiSummaryDto {
+  index: number;
+  name: string;
+  englishName: string;
+  lord: string;
+  element: string;
+  modality: string;
+  planetsPresent: string[];
+}
+
+export interface NakshatraSummaryDto {
+  index: number;
+  name: string;
+  lord: string;
+  planetsPresent: string[];
+}
+
+export interface AstroChartDataDto {
+  metadata: {
+    engineVersion: string;
+    providerName: string;
+    providerVersion: string;
+    calculationVersion: string;
+    normalizedTime: {
+      utcIsoString: string;
+      julianDayUT: number;
+      timezoneOffsetMinutes: number;
+    };
+    config: {
+      zodiacType: string;
+      ayanamsa: string;
+      houseSystem: string;
+      nodeCalculation: string;
+      planetaryCalculationMode: string;
+    };
+  };
+  ascendant: any | null;
+  houses: any[];
+  planets: PlanetResponseDto[];
+  rashis: RashiSummaryDto[];
+  nakshatras: NakshatraSummaryDto[];
+}
+
 export interface AstroChartResponseDto {
+  data: AstroChartDataDto;
+  // Included for backward compatibility with root-level chart readers
   chart: {
     calculationVersion: string;
     providerName: string;
@@ -35,8 +80,8 @@ export interface AstroChartResponseDto {
     ascendant: any | null;
     planets: PlanetResponseDto[];
     houses: any[];
-    rashis: any[];
-    nakshatras: any[];
+    rashis: RashiSummaryDto[];
+    nakshatras: NakshatraSummaryDto[];
   };
 }
 
@@ -60,11 +105,66 @@ export function mapAstroChartToResponse(chart: AstroChart): AstroChartResponseDt
     nakshatraLord: p.nakshatraLord,
   }));
 
-  return {
-    chart: {
-      calculationVersion: chart.metadata.engineVersion,
+  // Build Rashi summaries (1 to 12) with planet placements
+  const rashisList: RashiSummaryDto[] = RASHIS.map((rashi) => {
+    const planetsInRashi = planetsList
+      .filter((p) => p.rashiIndex === rashi.index)
+      .map((p) => p.planet);
+
+    return {
+      index: rashi.index,
+      name: rashi.sanskritName,
+      englishName: rashi.englishName,
+      lord: rashi.ruler,
+      element: rashi.element,
+      modality: rashi.modality,
+      planetsPresent: planetsInRashi,
+    };
+  });
+
+  // Build Nakshatra summaries (1 to 27) with planet placements
+  const nakshatrasList: NakshatraSummaryDto[] = NAKSHATRAS.map((nakshatra) => {
+    const planetsInNakshatra = planetsList
+      .filter((p) => p.nakshatraIndex === nakshatra.index)
+      .map((p) => p.planet);
+
+    return {
+      index: nakshatra.index,
+      name: nakshatra.name,
+      lord: nakshatra.lord,
+      planetsPresent: planetsInNakshatra,
+    };
+  });
+
+  const chartPayload = {
+    calculationVersion: chart.metadata.engineVersion,
+    providerName: chart.metadata.providerName,
+    providerVersion: chart.metadata.providerVersion,
+    normalizedTime: {
+      utcIsoString: chart.metadata.normalizedTime.utcIsoString,
+      julianDayUT: chart.metadata.normalizedTime.julianDayUT,
+      timezoneOffsetMinutes: chart.metadata.normalizedTime.timezoneOffsetMinutes,
+    },
+    config: {
+      zodiacType: String(chart.metadata.config.zodiacType),
+      ayanamsa: String(chart.metadata.config.ayanamsa),
+      houseSystem: String(chart.metadata.config.houseSystem),
+      nodeCalculation: String(chart.metadata.config.nodeCalculation),
+      planetaryCalculationMode: String(chart.metadata.config.planetaryCalculationMode),
+    },
+    ascendant: chart.ascendant ? { ...chart.ascendant } : null,
+    planets: planetsList,
+    houses: chart.houses ? [...chart.houses] : [],
+    rashis: rashisList,
+    nakshatras: nakshatrasList,
+  };
+
+  const dataPayload: AstroChartDataDto = {
+    metadata: {
+      engineVersion: chart.metadata.engineVersion,
       providerName: chart.metadata.providerName,
       providerVersion: chart.metadata.providerVersion,
+      calculationVersion: chart.metadata.engineVersion,
       normalizedTime: {
         utcIsoString: chart.metadata.normalizedTime.utcIsoString,
         julianDayUT: chart.metadata.normalizedTime.julianDayUT,
@@ -77,11 +177,16 @@ export function mapAstroChartToResponse(chart: AstroChart): AstroChartResponseDt
         nodeCalculation: String(chart.metadata.config.nodeCalculation),
         planetaryCalculationMode: String(chart.metadata.config.planetaryCalculationMode),
       },
-      ascendant: chart.ascendant ? { ...chart.ascendant } : null,
-      planets: planetsList,
-      houses: chart.houses ? [...chart.houses] : [],
-      rashis: [],
-      nakshatras: [],
     },
+    ascendant: chart.ascendant ? { ...chart.ascendant } : null,
+    houses: chart.houses ? [...chart.houses] : [],
+    planets: planetsList,
+    rashis: rashisList,
+    nakshatras: nakshatrasList,
+  };
+
+  return {
+    data: dataPayload,
+    chart: chartPayload,
   };
 }

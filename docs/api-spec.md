@@ -1,4 +1,4 @@
-# REST API Specification - Astro Sushil Platform Backend Foundation
+# REST API Specification - Astro Sushil Platform Core Free Astrology Backend
 
 This document specifies the actual implemented API architecture and endpoints for `apps/api` (Fastify + TypeScript + Prisma + PostgreSQL).
 
@@ -194,29 +194,22 @@ All error responses adhere to a consistent JSON structure:
 - **`GET /api/v1/birth-profiles`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
   - **Summary**: Returns array of all birth profiles owned by authenticated user.
-  - **Response 200**: Array of `BirthProfile` objects with `normalizedDetails`.
 
 - **`GET /api/v1/birth-profiles/:id`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
-  - **Summary**: Returns details for specified birth profile. Enforces server-side ownership authorization. Returns 404 if profile does not exist or does not belong to user.
+  - **Summary**: Returns details for specified birth profile. Enforces server-side ownership authorization (404 if unauthorized).
 
-- **`PATCH /api/v1/birth-profiles/:id`** (and `PUT /api/v1/birth-profiles/:id`)
+- **`PATCH /api/v1/birth-profiles/:id`** (and `PUT`)
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
   - **Summary**: Updates birth profile parameters. Enforces server-side ownership authorization.
 
 - **`DELETE /api/v1/birth-profiles/:id`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
   - **Summary**: Deletes birth profile. Enforces server-side ownership authorization.
-  - **Response 200**:
-    ```json
-    {
-      "message": "Birth profile deleted successfully"
-    }
-    ```
 
 ---
 
-## 2.5 Astrology Engine Module (`/api/v1/astrology`)
+## 2.5 Astrology Engine / Kundli Module (`/api/v1/astrology`)
 
 - **`POST /api/v1/astrology/chart`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
@@ -231,23 +224,27 @@ All error responses adhere to a consistent JSON structure:
   - **Response 200**:
     ```json
     {
-      "chart": {
-        "calculationVersion": "0.1.0",
-        "providerName": "AstronomyEngineAdapter (astronomy-engine)",
-        "providerVersion": "2.1.19-mit",
-        "normalizedTime": {
-          "utcIsoString": "1990-05-15T09:00:00.000Z",
-          "julianDayUT": 2448026.875,
-          "timezoneOffsetMinutes": 330
-        },
-        "config": {
-          "zodiacType": "SIDEREAL",
-          "ayanamsa": "LAHIRI",
-          "houseSystem": "WHOLE_SIGN",
-          "nodeCalculation": "MEAN_NODE",
-          "planetaryCalculationMode": "GEOCENTRIC"
+      "data": {
+        "metadata": {
+          "engineVersion": "0.1.0",
+          "providerName": "AstronomyEngineAdapter (astronomy-engine)",
+          "providerVersion": "2.1.19-mit",
+          "calculationVersion": "0.1.0",
+          "normalizedTime": {
+            "utcIsoString": "1990-05-15T09:00:00.000Z",
+            "julianDayUT": 2448026.875,
+            "timezoneOffsetMinutes": 330
+          },
+          "config": {
+            "zodiacType": "SIDEREAL",
+            "ayanamsa": "LAHIRI",
+            "houseSystem": "WHOLE_SIGN",
+            "nodeCalculation": "MEAN_NODE",
+            "planetaryCalculationMode": "GEOCENTRIC"
+          }
         },
         "ascendant": null,
+        "houses": [],
         "planets": [
           {
             "planet": "SUN",
@@ -264,23 +261,126 @@ All error responses adhere to a consistent JSON structure:
             "nakshatraLord": "MOON"
           }
         ],
-        "houses": [],
-        "rashis": [],
-        "nakshatras": []
+        "rashis": [
+          {
+            "index": 1,
+            "name": "Mesha",
+            "englishName": "Aries",
+            "lord": "MARS",
+            "element": "FIRE",
+            "modality": "CHARA",
+            "planetsPresent": []
+          }
+        ],
+        "nakshatras": [
+          {
+            "index": 1,
+            "name": "Ashwini",
+            "lord": "KETU",
+            "planetsPresent": []
+          }
+        ]
       }
     }
     ```
-  - **Response 400**: Missing or non-UUID `birthProfileId`.
-  - **Response 404**: Profile not found or unauthorized access attempt.
-  - **Response 422**: Unconfirmed astrology methodology blocking execution (`UNCONFIRMED_METHODOLOGY`).
-  - **Response 500**: Astrology engine internal calculation error (`ASTROLOGY_CALCULATION_FAILED`).
+
+---
+
+## 2.6 Rashi Bhavishya Module (`/api/v1/rashi-bhavishya`)
+
+- **`GET /api/v1/rashi-bhavishya/today`**
+  - **Auth**: Bearer JWT (`USER` or `ADMIN`)
+  - **Query Params**: `?rashi=Mesha` or `?rashiIndex=1` or `?date=YYYY-MM-DD` (Optional).
+  - **Behavior**: If query parameters are omitted, automatically calculates the authenticated user's Moon Rashi from their default `BirthProfile`.
+  - **Response 200**:
+    ```json
+    {
+      "data": {
+        "date": "2026-08-18",
+        "rashi": {
+          "index": 1,
+          "sanskritName": "Mesha",
+          "englishName": "Aries",
+          "element": "Fire",
+          "ruler": "Mars"
+        },
+        "prediction": {
+          "summary": "A dynamic energy surround your day...",
+          "categories": {
+            "general": "...",
+            "health": "...",
+            "love": "...",
+            "career": "...",
+            "finance": "..."
+          },
+          "luckyNumber": 9,
+          "luckyColor": "Red"
+        },
+        "source": "AstroSushil Reference Content Fixtures",
+        "isDevelopmentFixture": true
+      }
+    }
+    ```
+
+- **`GET /api/v1/rashi-bhavishya/all`**
+  - **Auth**: Bearer JWT (`USER` or `ADMIN`)
+  - **Summary**: Returns daily predictions for all 12 Rashis.
+
+---
+
+## 2.7 Vastu Shastra Module (`/api/v1/vastu`)
+
+- **`GET /api/v1/vastu/categories`**
+  - **Auth**: Bearer JWT (`USER` or `ADMIN`)
+  - **Summary**: Returns all 8 Vastu room/space categories.
+  - **Response 200**:
+    ```json
+    {
+      "data": [
+        {
+          "id": 1,
+          "slug": "main-entrance",
+          "name": "Main Entrance (Simhadwara)",
+          "sanskritName": "Simhadwara",
+          "description": "The primary gateway of cosmic Prana energy...",
+          "idealDirection": "North, East, or North-East",
+          "element": "Air / Space",
+          "iconName": "door"
+        }
+      ]
+    }
+    ```
+
+- **`GET /api/v1/vastu/guidance`**
+  - **Auth**: Bearer JWT (`USER` or `ADMIN`)
+  - **Query Params**: `?category=main-entrance` or `?categoryId=1` (Optional).
+  - **Response 200**:
+    ```json
+    {
+      "data": [
+        {
+          "categoryId": 1,
+          "categorySlug": "main-entrance",
+          "categoryName": "Main Entrance (Simhadwara)",
+          "idealDirection": "North, East, or North-East",
+          "alternativeDirections": ["North-West"],
+          "forbiddenDirections": ["South-West"],
+          "element": "Air / Space",
+          "rulingPlanet": "Jupiter / Sun",
+          "keyPrinciples": [...],
+          "dos": [...],
+          "donts": [...],
+          "remedies": [...]
+        }
+      ]
+    }
+    ```
 
 ---
 
 ## 3. Future Planned Endpoints (Phase 5+)
 
 - **Gupta Nadi Engine** (`/api/v1/gupta-nadi/*`)
-- **Predictions & Transits** (`/api/v1/predictions/*`)
-- **Reports & PDF Generation** (`/api/v1/reports/*`)
+- **Paid Reports** (`/api/v1/reports/*`)
 - **Razorpay Payments** (`/api/v1/payments/*`)
 - **WhatsApp Webhooks** (`/api/v1/webhooks/whatsapp`)
