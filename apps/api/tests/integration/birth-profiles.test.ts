@@ -122,14 +122,14 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
     expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('POST /api/v1/birth-profiles should reject invalid date format', async () => {
+  it('POST /api/v1/birth-profiles should reject non-existent calendar date (2023-02-29)', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/birth-profiles',
       headers: { authorization: `Bearer ${user1Token}` },
       payload: {
-        name: 'Invalid Date',
-        dateOfBirth: '25/10/1995',
+        name: 'Invalid Leap Date',
+        dateOfBirth: '2023-02-29',
         timeOfBirth: '08:45:00',
         latitude: 28.6139,
         longitude: 77.209,
@@ -196,24 +196,24 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
     expect(body.error.code).toBe('NOT_FOUND');
   });
 
-  it('PUT /api/v1/birth-profiles/:id should allow User 1 to update their profile', async () => {
+  it('PATCH /api/v1/birth-profiles/:id should allow User 1 to update their profile', async () => {
     const response = await app.inject({
-      method: 'PUT',
+      method: 'PATCH',
       url: `/api/v1/birth-profiles/${createdProfileId}`,
       headers: { authorization: `Bearer ${user1Token}` },
       payload: {
-        name: 'Updated User 1 Name',
+        name: 'Updated User 1 Name via PATCH',
       },
     });
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.payload);
-    expect(body.name).toBe('Updated User 1 Name');
+    expect(body.name).toBe('Updated User 1 Name via PATCH');
   });
 
-  it('PUT /api/v1/birth-profiles/:id should DENY User 2 from updating User 1 profile', async () => {
+  it('PATCH /api/v1/birth-profiles/:id should DENY User 2 from updating User 1 profile', async () => {
     const response = await app.inject({
-      method: 'PUT',
+      method: 'PATCH',
       url: `/api/v1/birth-profiles/${createdProfileId}`,
       headers: { authorization: `Bearer ${user2Token}` },
       payload: {

@@ -50,7 +50,7 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-### 2.2 Authentication Module (`/api/v1/auth`)
+## 2.2 Authentication Module (`/api/v1/auth`)
 
 - **`POST /api/v1/auth/register`**
   - **Auth**: Public
@@ -138,7 +138,7 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-### 2.3 User Profile Module (`/api/v1/users`)
+## 2.3 User Profile Module (`/api/v1/users`)
 
 - **`GET /api/v1/users/me`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
@@ -147,7 +147,7 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-### 2.4 Birth Profile Module (`/api/v1/birth-profiles`)
+## 2.4 Birth Profile Module (`/api/v1/birth-profiles`)
 
 - **`POST /api/v1/birth-profiles`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
@@ -200,7 +200,7 @@ All error responses adhere to a consistent JSON structure:
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
   - **Summary**: Returns details for specified birth profile. Enforces server-side ownership authorization. Returns 404 if profile does not exist or does not belong to user.
 
-- **`PUT /api/v1/birth-profiles/:id`**
+- **`PATCH /api/v1/birth-profiles/:id`** (and `PUT /api/v1/birth-profiles/:id`)
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
   - **Summary**: Updates birth profile parameters. Enforces server-side ownership authorization.
 
@@ -216,7 +216,7 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-### 2.5 Astrology Engine Module (`/api/v1/astrology`)
+## 2.5 Astrology Engine Module (`/api/v1/astrology`)
 
 - **`POST /api/v1/astrology/chart`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
@@ -277,7 +277,7 @@ All error responses adhere to a consistent JSON structure:
 
 ---
 
-## 3. Future Planned Endpoints (Phase 4+)
+## 3. Future Planned Endpoints (Phase 5+)
 
 - **Gupta Nadi Engine** (`/api/v1/gupta-nadi/*`)
 - **Predictions & Transits** (`/api/v1/predictions/*`)

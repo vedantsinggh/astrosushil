@@ -1,12 +1,29 @@
 import { z } from 'zod';
 
 export const createBirthProfileSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100, 'Name must not exceed 100 characters').trim(),
+  name: z
+    .string({ required_error: 'Name is required' })
+    .min(1, 'Name is required')
+    .max(100, 'Name must not exceed 100 characters')
+    .trim(),
   dateOfBirth: z
-    .string()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Date of birth must be in YYYY-MM-DD format'),
+    .string({ required_error: 'Date of birth is required' })
+    .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Date of birth must be in YYYY-MM-DD format')
+    .refine((dateStr) => {
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return false;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const dateObj = new Date(Date.UTC(year, month, day));
+      return (
+        dateObj.getUTCFullYear() === year &&
+        dateObj.getUTCMonth() === month &&
+        dateObj.getUTCDate() === day
+      );
+    }, { message: 'Date of birth must be a valid calendar date in YYYY-MM-DD format' }),
   timeOfBirth: z
-    .string()
+    .string({ required_error: 'Time of birth is required' })
     .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Time of birth must be in HH:mm or HH:mm:ss (24-hour) format'),
   latitude: z
     .number({ required_error: 'Latitude is required' })
@@ -17,7 +34,7 @@ export const createBirthProfileSchema = z.object({
     .min(-180, 'Longitude must be >= -180.0 degrees')
     .max(180, 'Longitude must be <= 180.0 degrees'),
   timezone: z
-    .string()
+    .string({ required_error: 'Timezone is required' })
     .min(1, 'Timezone is required')
     .refine((tz) => {
       try {
