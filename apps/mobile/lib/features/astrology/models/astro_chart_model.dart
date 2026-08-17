@@ -91,6 +91,11 @@ class PlanetModel {
       nakshatraLord: json['nakshatraLord'] as String? ?? '',
     );
   }
+
+  /// Calculates Whole Sign House placement (1..12) given the Ascendant Rashi Index (1..12)
+  int calculateHouseNumber(int ascendantRashiIndex) {
+    return ((rashiIndex - ascendantRashiIndex + 12) % 12) + 1;
+  }
 }
 
 class AscendantModel {
@@ -176,9 +181,11 @@ class AstroChartModel {
   });
 
   factory AstroChartModel.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> chartMap = (json['chart'] is Map)
-        ? Map<String, dynamic>.from(json['chart'] as Map)
-        : json;
+    final Map<String, dynamic> chartMap = (json['data'] is Map)
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : (json['chart'] is Map)
+            ? Map<String, dynamic>.from(json['chart'] as Map)
+            : json;
 
     return AstroChartModel(
       calculationVersion: chartMap['calculationVersion'] as String? ?? '0.1.0',

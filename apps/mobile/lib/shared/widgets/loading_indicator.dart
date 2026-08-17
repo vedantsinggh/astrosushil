@@ -1,36 +1,26 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'astro_loader/astro_loader.dart';
 
-/// Standard centered loading indicator with message support
+/// Standard centered loading indicator with message support backed by AstroLoader
 class LoadingIndicator extends StatelessWidget {
   final String? message;
+  final bool isDark;
 
   const LoadingIndicator({
     super.key,
     this.message,
+    this.isDark = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(),
-          if (message != null && message!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              message!,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.textSecondary,
-              ),
-            ),
-          ],
-        ],
+      child: AstroLoader.inline(
+        message: message,
+        size: 32.0,
+        isDark: isDark,
       ),
     );
   }
 }
+

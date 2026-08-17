@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/error_banner.dart';
-import '../../../shared/widgets/loading_indicator.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/chart_summary_card.dart';
 import '../widgets/planet_table_widget.dart';
@@ -32,8 +32,8 @@ class ChartResultScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: chartAsync.when(
-          loading: () => const LoadingIndicator(
-            message: 'Executing deterministic planetary calculations...',
+          loading: () => const AstroLoader.fullScreen(
+            message: AstroLoaderMessages.kundli,
           ),
           error: (err, stack) => Padding(
             padding: const EdgeInsets.all(16.0),

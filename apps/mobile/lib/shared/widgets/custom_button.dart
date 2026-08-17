@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'astro_loader/astro_loader.dart';
 
 /// Reusable accessible button widget supporting loading states
 class CustomButton extends StatelessWidget {
@@ -23,11 +24,7 @@ class CustomButton extends StatelessWidget {
       return OutlinedButton(
         onPressed: isLoading ? null : onPressed,
         child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+            ? const AstroLoaderInline(size: 20, isDark: false)
             : _buildChild(),
       );
     }
@@ -35,14 +32,7 @@ class CustomButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: isLoading ? null : onPressed,
       child: isLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
+          ? const AstroLoaderInline(size: 20, isDark: true)
           : _buildChild(),
     );
   }
