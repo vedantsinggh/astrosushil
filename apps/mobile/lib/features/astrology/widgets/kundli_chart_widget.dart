@@ -9,11 +9,13 @@ import '../models/astro_chart_model.dart';
 class KundliChartWidget extends StatelessWidget {
   final AstroChartModel? chart;
   final double size;
+  final bool showTitle;
 
   const KundliChartWidget({
     super.key,
     this.chart,
     this.size = 320,
+    this.showTitle = false,
   });
 
   @override
@@ -36,16 +38,18 @@ class KundliChartWidget extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(
-              'KUNDLI (NORTH INDIAN STYLE)',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.secondary.withOpacity(0.8),
-                letterSpacing: 1.2,
+            if (showTitle) ...[
+              Text(
+                'KUNDLI (NORTH INDIAN STYLE)',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.secondary.withOpacity(0.8),
+                  letterSpacing: 1.2,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             Expanded(
               child: Center(
                 child: CustomPaint(

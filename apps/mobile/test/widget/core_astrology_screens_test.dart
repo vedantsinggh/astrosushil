@@ -36,15 +36,45 @@ void main() {
   }
 
   group('Core Astrology UI Widget Tests', () {
-    testWidgets('BirthChartScreen renders profile summary and chart components', (tester) async {
+    testWidgets('BirthChartScreen renders profile summary and chart tab by default', (tester) async {
       await tester.pumpWidget(createTestableWidget(BirthChartScreen(profile: testProfile)));
       await tester.pumpAndSettle();
 
       expect(find.text('Your Birth Chart'), findsOneWidget);
       expect(find.text('Rahul Sharma'), findsOneWidget);
-      expect(find.text('2002-08-12 • 08:42:00'), findsOneWidget);
-      expect(find.text('KUNDLI (NORTH INDIAN STYLE)'), findsOneWidget);
+      expect(find.text('2002-08-12  •  08:42:00'), findsOneWidget);
+      expect(find.text('Kundli'), findsOneWidget);
+      expect(find.text('•  North Indian Style'), findsOneWidget);
+      expect(find.text('At a Glance'), findsOneWidget);
       expect(find.text('Key Placements'), findsOneWidget);
+      expect(find.text('Your chart is a map of your potential.'), findsOneWidget);
+    });
+
+    testWidgets('BirthChartScreen switches tabs correctly (Planets, Houses, Nakshatra)', (tester) async {
+      await tester.pumpWidget(createTestableWidget(BirthChartScreen(profile: testProfile)));
+      await tester.pumpAndSettle();
+
+      // Tap Planets tab
+      await tester.tap(find.text('Planets'));
+      await tester.pumpAndSettle();
+      expect(find.text('Planetary Positions'), findsOneWidget);
+
+      // Tap Houses tab
+      await tester.tap(find.text('Houses'));
+      await tester.pumpAndSettle();
+      expect(find.text('12 Houses (Bhavas)'), findsOneWidget);
+      expect(find.text('1st House • Tanu Bhava'), findsOneWidget);
+
+      // Tap Nakshatra tab
+      await tester.tap(find.text('Nakshatra'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nakshatra Profile'), findsOneWidget);
+      expect(find.text('BIRTH NAKSHATRA (JANMA NAKSHATRA)'), findsOneWidget);
+
+      // Tap Chart tab back
+      await tester.tap(find.text('Chart'));
+      await tester.pumpAndSettle();
+      expect(find.text('Kundli'), findsOneWidget);
     });
 
     testWidgets('PlanetsScreen renders scannable list of planetary positions', (tester) async {
@@ -52,7 +82,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Planets'), findsOneWidget);
-      expect(find.text('Explore the planetary positions in your birth chart.'), findsOneWidget);
+      expect(find.text('See where each planet was positioned at the time of your birth.'), findsOneWidget);
       expect(find.text('Sun'), findsWidgets);
       expect(find.text('Moon'), findsWidgets);
     });
