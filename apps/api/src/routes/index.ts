@@ -6,6 +6,13 @@ import { birthProfilesRoutes } from '../modules/birth-profiles/birth-profiles.ro
 import { astrologyRoutes } from '../modules/astrology/astrology.routes';
 import { rashiBhavishyaRoutes } from '../modules/rashi-bhavishya/rashi-bhavishya.routes';
 import { vastuRoutes } from '../modules/vastu/vastu.routes';
+import { guptaNadiRoutes } from '../modules/gupta-nadi/gupta-nadi.routes';
+import { predictionsRoutes } from '../modules/predictions/predictions.routes';
+import { paymentsRoutes } from '../modules/payments/payments.routes';
+import { webhooksRoutes } from '../modules/webhooks/webhooks.routes';
+import { reportsRoutes } from '../modules/reports/reports.routes';
+import { adminRoutes } from '../modules/admin/admin.routes';
+import { notificationsRoutes } from '../modules/notifications/notifications.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -21,7 +28,15 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(astrologyRoutes, { prefix: '/astrology' });
       await v1.register(rashiBhavishyaRoutes, { prefix: '/rashi-bhavishya' });
       await v1.register(vastuRoutes, { prefix: '/vastu' });
+      await v1.register(guptaNadiRoutes, { prefix: '/gupta-nadi' });
+      await v1.register(predictionsRoutes, { prefix: '/predictions' });
+      await v1.register(paymentsRoutes, { prefix: '/payments' });
+      await v1.register(webhooksRoutes, { prefix: '/webhooks' });
+      await v1.register(reportsRoutes, { prefix: '/reports' });
+      await v1.register(adminRoutes, { prefix: '/admin' });
+      await v1.register(notificationsRoutes, { prefix: '/notifications' });
     },
     { prefix: '/api/v1' }
   );
 }
+
