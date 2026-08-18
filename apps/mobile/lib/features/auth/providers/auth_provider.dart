@@ -83,8 +83,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = await _repository.getMe();
       state = AuthState.authenticated(user);
     } catch (e) {
-      // Token invalid or network failure, revert to unauthenticated
-      state = AuthState.unauthenticated();
+      // If network request failed (offline / server down), preserve authenticated state using cached profile
+      final hasToken = await _repository.hasToken();
+      final cachedUser = await _repository.getCachedUser();
+      if (hasToken && cachedUser != null) {
+        state = AuthState.authenticated(cachedUser);
+      } else {
+        state = AuthState.unauthenticated();
+      }
     }
   }
 

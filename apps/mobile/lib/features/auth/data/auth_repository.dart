@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../models/auth_tokens_model.dart';
@@ -28,6 +29,7 @@ class AuthRepository {
     );
     final authResult = AuthResponseDto.fromJson(response);
     await _saveTokens(authResult.tokens);
+    await saveUser(authResult.user);
     return authResult;
   }
 
@@ -45,13 +47,45 @@ class AuthRepository {
     );
     final authResult = AuthResponseDto.fromJson(response);
     await _saveTokens(authResult.tokens);
+    await saveUser(authResult.user);
     return authResult;
   }
 
-  /// Fetch authenticated user profile using current session token
+  /// Fetch authenticated user profile using current session token with offline fallback
   Future<UserModel> getMe() async {
-    final response = await _apiClient.get('/auth/me');
-    return UserModel.fromJson(response);
+    try {
+      final response = await _apiClient.get('/auth/me');
+      final user = UserModel.fromJson(response);
+      await saveUser(user);
+      return user;
+    } catch (e) {
+      final cachedUser = await getCachedUser();
+      if (cachedUser != null) {
+        return cachedUser;
+      }
+      rethrow;
+    }
+  }
+
+  /// Save user profile to persistent storage
+  Future<void> saveUser(UserModel user) async {
+    final rawJson = jsonEncode(user.toJson());
+    await _storageService.write(
+      key: StorageKeys.userProfile,
+      value: rawJson,
+    );
+  }
+
+  /// Retrieve cached user profile for offline session persistence
+  Future<UserModel?> getCachedUser() async {
+    final rawJson = await _storageService.read(key: StorageKeys.userProfile);
+    if (rawJson == null || rawJson.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+      return UserModel.fromJson(decoded);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Logout user and clear tokens locally and on backend
