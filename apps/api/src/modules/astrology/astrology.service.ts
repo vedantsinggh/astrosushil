@@ -38,7 +38,7 @@ export class AstrologyService {
   public async calculateChartForProfile(
     birthProfileId: string,
     requestingUser: { id: string; role: 'USER' | 'ADMIN' }
-  ): Promise<ChartCalculationResult> {
+  ): Promise<AstroChartResponseDto> {
     // 1. Fetch birth profile from PostgreSQL
     const profile = await prisma.birthProfile.findUnique({
       where: { id: birthProfileId },
