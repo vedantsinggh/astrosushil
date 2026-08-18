@@ -3,25 +3,32 @@ import {
   AstrologyConfig,
   UnconfirmedMethodologyError,
   BirthDetailsValidationError,
+  BirthDetails,
 } from '@astro/astrology-engine';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError, AppError, ValidationError } from '../../errors/app-error';
 import { mapBirthProfileToBirthDetails } from './birth-details.mapper';
 import { mapAstroChartToResponse, AstroChartResponseDto } from './astrology-response.mapper';
-
-export interface ChartCalculationResult extends AstroChartResponseDto {
-  executionMetrics: {
-    durationMs: number;
-    engineVersion: string;
-    methodologyVersion: string;
-  };
-}
+import { DirectBirthDetailsInput } from './astrology.schemas';
 
 export class AstrologyService {
   private readonly calculator: ChartCalculator;
 
   constructor(calculator?: ChartCalculator) {
     this.calculator = calculator || new ChartCalculator();
+  }
+
+  private getActiveConfig(): AstrologyConfig {
+    return {
+      zodiacType: 'SIDEREAL',
+      ayanamsa: 'LAHIRI',
+      houseSystem: 'WHOLE_SIGN',
+      nodeCalculation: 'MEAN_NODE',
+      planetaryCalculationMode: 'GEOCENTRIC',
+      precisionDegrees: 0.0001,
+      roundingRule: 'NEAREST',
+      dashaSystem: 'VIMSHOTTARI',
+    };
   }
 
   /**
@@ -38,49 +45,57 @@ export class AstrologyService {
     });
 
     // 2. Authorization & Privacy Guard: Enforce strict server-side ownership isolation.
-    // Return 404 NotFound if profile does not exist or belongs to another user.
     if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
       throw new NotFoundError('Birth profile not found');
     }
 
     // 3. Map Prisma BirthProfile to domain BirthDetails
-    let birthDetails;
+    let birthDetails: BirthDetails;
     try {
       birthDetails = mapBirthProfileToBirthDetails(profile);
     } catch (err: any) {
       throw new ValidationError(`Invalid birth profile data: ${err.message}`);
     }
 
-    // 4. Define current active engine configuration
-    const activeConfig: AstrologyConfig = {
-      zodiacType: 'SIDEREAL',
-      ayanamsa: 'LAHIRI',
-      houseSystem: 'WHOLE_SIGN',
-      nodeCalculation: 'MEAN_NODE',
-      planetaryCalculationMode: 'GEOCENTRIC',
-      precisionDegrees: 0.0001,
-      roundingRule: 'NEAREST',
-      dashaSystem: 'VIMSHOTTARI',
-    };
+    return this.executeCalculation(birthDetails);
+  }
 
-    // 5. Execute local deterministic astrology engine calculation with performance measurement
-    const startTime = performance.now();
+  /**
+   * Calculates an AstroChart directly from provided birth details (Guest Mode / ephemeral calculation).
+   * Does NOT touch or persist anything to PostgreSQL.
+   */
+  public async calculateChartForDirectInput(
+    input: DirectBirthDetailsInput
+  ): Promise<AstroChartResponseDto> {
+    const timeParts = input.timeOfBirth.split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    const seconds = timeParts.length > 2 ? parseInt(timeParts[2], 10) : 0;
+
+    let birthDetails: BirthDetails;
+    try {
+      birthDetails = BirthDetails.create({
+        name: input.name,
+        dateOfBirth: input.dateOfBirth,
+        timeOfBirth: { hours, minutes, seconds },
+        latitude: input.latitude,
+        longitude: input.longitude,
+        timezone: input.timezone,
+        placeName: input.placeName || 'Unknown Location',
+      });
+    } catch (err: any) {
+      throw new ValidationError(`Invalid birth details input: ${err.message}`);
+    }
+
+    return this.executeCalculation(birthDetails);
+  }
+
+  private async executeCalculation(birthDetails: BirthDetails): Promise<AstroChartResponseDto> {
+    const activeConfig = this.getActiveConfig();
+
     try {
       const astroChart = await this.calculator.calculateChart(birthDetails, activeConfig);
-      const endTime = performance.now();
-      const durationMs = Number((endTime - startTime).toFixed(3));
-
-      // 6. Map domain AstroChart output to public API response DTO
-      const mappedResponse = mapAstroChartToResponse(astroChart);
-
-      return {
-        ...mappedResponse,
-        executionMetrics: {
-          durationMs,
-          engineVersion: astroChart.metadata.engineVersion,
-          methodologyVersion: `${activeConfig.zodiacType}_${activeConfig.ayanamsa}_${activeConfig.nodeCalculation}`,
-        },
-      };
+      return mapAstroChartToResponse(astroChart);
     } catch (err: any) {
       if (err instanceof UnconfirmedMethodologyError) {
         throw new AppError(
@@ -96,7 +111,6 @@ export class AstrologyService {
         );
       }
 
-      // Catch-all calculation error preventing unhandled stack trace leaks
       throw new AppError('Unable to calculate astrology chart', 500, 'ASTROLOGY_CALCULATION_FAILED');
     }
   }

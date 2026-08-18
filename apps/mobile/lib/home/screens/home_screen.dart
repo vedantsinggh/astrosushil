@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/auth/auth_required_gate.dart';
+import '../../core/auth/feature_access_service.dart';
 import '../../features/astrology/screens/birth_chart_screen.dart';
 import '../../features/astrology/screens/planets_screen.dart';
 import '../../features/astrology/screens/rashi_bhavishya_screen.dart';
@@ -236,7 +238,15 @@ class _HomeTabContentView extends ConsumerWidget {
             ReportsSection(
               reports: reports,
               onReportTap: (report) {
-                ref.read(homeTabControllerProvider.notifier).state = 1;
+                AuthRequiredGate.checkAndProceed(
+                  context: context,
+                  ref: ref,
+                  feature: AppFeature.premiumReportMarriage,
+                  featureTitle: report.title,
+                  onAllowed: () {
+                    ref.read(homeTabControllerProvider.notifier).state = 1;
+                  },
+                );
               },
             ),
 
@@ -244,7 +254,15 @@ class _HomeTabContentView extends ConsumerWidget {
 
             // 6. GUPTA NADI FLAGSHIP FEATURE
             GuptaNadiCard(
-              onExploreTap: () => _showGuptaNadiModal(context, hasProfile),
+              onExploreTap: () {
+                AuthRequiredGate.checkAndProceed(
+                  context: context,
+                  ref: ref,
+                  feature: AppFeature.guptaNadi,
+                  featureTitle: 'Gupta Nadi Analysis',
+                  onAllowed: () => _showGuptaNadiModal(context, hasProfile),
+                );
+              },
             ),
 
             const SizedBox(height: 24),

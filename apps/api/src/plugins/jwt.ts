@@ -32,6 +32,25 @@ export async function registerJwt(app: FastifyInstance) {
     }
   });
 
+  // Optional Authentication Decorator
+  app.decorate('authenticateOptional', async (request: FastifyRequest, _reply: FastifyReply) => {
+    if (!request.headers.authorization) {
+      return;
+    }
+    try {
+      await request.jwtVerify();
+      const decoded = request.user as unknown as { sub: string; role: 'USER' | 'ADMIN' };
+      if (decoded && decoded.sub) {
+        request.user = {
+          id: decoded.sub,
+          role: decoded.role,
+        };
+      }
+    } catch (_err) {
+      // Ignore token verification error for optional auth
+    }
+  });
+
   // Role Authorization Decorator
   app.decorate('authorize', (allowedRoles: ('USER' | 'ADMIN')[]) => {
     return async (request: FastifyRequest, _reply: FastifyReply) => {
@@ -49,6 +68,7 @@ export async function registerJwt(app: FastifyInstance) {
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authenticateOptional: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     authorize: (allowedRoles: ('USER' | 'ADMIN')[]) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }

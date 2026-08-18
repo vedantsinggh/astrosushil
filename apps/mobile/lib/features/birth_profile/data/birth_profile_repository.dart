@@ -1,19 +1,64 @@
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/local_cache_service.dart';
 import '../models/birth_profile_model.dart';
+import 'local_guest_birth_profile_service.dart';
 
-/// Repository for Birth Profile API endpoints with local offline cache support
+/// Repository for Birth Profile API endpoints and local guest storage
 class BirthProfileRepository {
   final ApiClient _apiClient;
   final LocalCacheService? _cacheService;
+  final LocalGuestBirthProfileService? _guestService;
 
   static const String _profilesCacheKey = 'user_birth_profiles_list';
 
   BirthProfileRepository({
     required ApiClient apiClient,
     LocalCacheService? cacheService,
+    LocalGuestBirthProfileService? guestService,
   })  : _apiClient = apiClient,
-        _cacheService = cacheService;
+        _cacheService = cacheService,
+        _guestService = guestService;
+
+  /// Fetch guest profile from local storage
+  Future<BirthProfileModel?> getGuestProfile() async {
+    if (_guestService == null) return null;
+    return await _guestService!.getGuestProfile();
+  }
+
+  /// Save local guest birth profile
+  Future<BirthProfileModel> saveGuestProfile(CreateBirthProfileDto dto) async {
+    if (_guestService == null) {
+      throw Exception('Guest storage service unavailable');
+    }
+    return await _guestService!.saveGuestProfile(dto);
+  }
+
+  /// Clear local guest birth profile
+  Future<void> clearGuestProfile() async {
+    if (_guestService != null) {
+      await _guestService!.clearGuestProfile();
+    }
+  }
+
+  /// Migrate guest birth profile to authenticated DB user account
+  Future<BirthProfileModel> migrateGuestProfile(CreateBirthProfileDto dto) async {
+    final response = await _apiClient.post(
+      '/birth-profiles/migrate',
+      data: dto.toJson(),
+    );
+    final migratedProfile = BirthProfileModel.fromJson(response);
+
+    // Clear local guest profile after successful migration
+    await clearGuestProfile();
+
+    // Invalidate profiles cache
+    final cache = _cacheService;
+    if (cache != null) {
+      await cache.remove(_profilesCacheKey);
+    }
+
+    return migratedProfile;
+  }
 
   /// Fetch all birth profiles owned by authenticated user with offline caching
   Future<List<BirthProfileModel>> getProfiles({bool forceRefresh = false}) async {

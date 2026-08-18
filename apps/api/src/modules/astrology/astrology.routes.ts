@@ -1,27 +1,46 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { astrologyService } from './astrology.service';
 import { calculateChartSchema } from './astrology.schemas';
+import { AuthenticationError } from '../../errors/app-error';
 
 export async function astrologyRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
-  // Enforce JWT Authentication for all astrology routes
-  fastify.addHook('onRequest', fastify.authenticate);
+  // Use optional authentication hook for astrology routes to support Guest Mode
+  fastify.addHook('onRequest', fastify.authenticateOptional);
 
   // POST /api/v1/astrology/chart
   fastify.post('/chart', {
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       tags: ['Astrology'],
-      summary: 'Calculate natal astrology chart for a birth profile',
-      description: 'Calculates planetary positions, Rashis, and Nakshatras for an authenticated user birth profile.',
+      summary: 'Calculate natal astrology chart for a birth profile or direct birth details',
+      description: 'Calculates planetary positions, Rashis, and Nakshatras for a DB birth profile or direct guest birth details.',
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['birthProfileId'],
         properties: {
           birthProfileId: {
             type: 'string',
             format: 'uuid',
             example: '123e4567-e89b-12d3-a456-426614174000',
-            description: 'UUID of the user-owned BirthProfile',
+            description: 'UUID of the user-owned BirthProfile (requires authentication)',
+          },
+          birthDetails: {
+            type: 'object',
+            description: 'Direct birth details for guest calculations',
+            properties: {
+              name: { type: 'string', example: 'Aarav Sharma' },
+              dateOfBirth: { type: 'string', example: '1995-08-15' },
+              timeOfBirth: { type: 'string', example: '14:30:00' },
+              latitude: { type: 'number', example: 28.6139 },
+              longitude: { type: 'number', example: 77.2090 },
+              timezone: { type: 'string', example: 'Asia/Kolkata' },
+              placeName: { type: 'string', example: 'New Delhi, India' },
+            },
           },
         },
       },
@@ -56,23 +75,7 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
                 ascendant: { type: 'object', nullable: true },
                 planets: {
                   type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      planet: { type: 'string', example: 'SUN' },
-                      longitude: { type: 'number', example: 50.2541 },
-                      latitude: { type: 'number', example: 0.0 },
-                      speedLongitude: { type: 'number', example: 0.963 },
-                      isRetrograde: { type: 'boolean', example: false },
-                      rashiIndex: { type: 'number', example: 2 },
-                      rashiName: { type: 'string', example: 'Vrishabha' },
-                      degreeInRashi: { type: 'number', example: 20.2541 },
-                      nakshatraIndex: { type: 'number', example: 4 },
-                      nakshatraName: { type: 'string', example: 'Rohini' },
-                      pada: { type: 'number', example: 4 },
-                      nakshatraLord: { type: 'string', example: 'MOON' },
-                    },
-                  },
+                  items: { type: 'object' },
                 },
                 houses: { type: 'array', items: { type: 'object' } },
                 rashis: { type: 'array', items: { type: 'object' } },
@@ -88,7 +91,7 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
               type: 'object',
               properties: {
                 code: { type: 'string', example: 'VALIDATION_ERROR' },
-                message: { type: 'string', example: 'birthProfileId must be a valid UUID' },
+                message: { type: 'string', example: 'Either birthProfileId or birthDetails must be provided' },
               },
             },
           },
@@ -117,14 +120,14 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
             },
           },
         },
-        422: {
+        429: {
           type: 'object',
           properties: {
             error: {
               type: 'object',
               properties: {
-                code: { type: 'string', example: 'UNCONFIRMED_METHODOLOGY' },
-                message: { type: 'string', example: 'Calculation blocked: methodology requires explicit client confirmation.' },
+                code: { type: 'string', example: 'RATE_LIMIT_EXCEEDED' },
+                message: { type: 'string', example: 'Rate limit exceeded' },
               },
             },
           },
@@ -145,16 +148,28 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
     },
     handler: async (request, reply) => {
       // Validate request payload
-      const { birthProfileId } = calculateChartSchema.parse(request.body);
+      const input = calculateChartSchema.parse(request.body);
 
-      // Perform calculation via AstrologyService
-      const result = await astrologyService.calculateChartForProfile(birthProfileId, request.user);
+      let result;
+      const authMode = request.user ? 'authenticated' : 'guest';
 
-      // Log execution metrics without sensitive birth details
+      if (input.birthProfileId) {
+        if (!request.user) {
+          throw new AuthenticationError('Authentication required to calculate chart for saved profile');
+        }
+        result = await astrologyService.calculateChartForProfile(input.birthProfileId, request.user);
+      } else if (input.birthDetails) {
+        result = await astrologyService.calculateChartForDirectInput(input.birthDetails);
+      } else {
+        throw new AuthenticationError('Invalid calculation input');
+      }
+
+      // Log request metadata distinguishing guest vs authenticated mode without sensitive details
       request.log.info(
         {
-          birthProfileId,
-          userId: request.user.id,
+          authMode,
+          userId: request.user?.id ?? null,
+          hasBirthProfileId: !!input.birthProfileId,
           calculationVersion: result.chart.calculationVersion,
           durationMs: result.executionMetrics.durationMs,
           methodologyVersion: result.executionMetrics.methodologyVersion,
