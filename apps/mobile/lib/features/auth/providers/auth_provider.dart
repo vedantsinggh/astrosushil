@@ -27,6 +27,7 @@ class AuthState {
 
   bool get isGuest => status == AuthStatus.guest;
   bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isGuestOrAuthenticated => status == AuthStatus.authenticated || status == AuthStatus.guest;
 
   factory AuthState.initial() => const AuthState(isLoading: true);
   factory AuthState.unauthenticated({String? error}) =>
@@ -89,6 +90,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> checkSession() async {
     state = AuthState.loading();
     try {
+      // 1. Check if user previously chose guest mode
+      final isGuestVal = await _storage.read(key: StorageKeys.isGuestMode);
+      if (isGuestVal == 'true') {
+        state = AuthState.guest();
+        return;
+      }
+
+      // 2. Check if user is authenticated with token
       final hasToken = await _repository.hasToken();
       if (hasToken) {
         try {
@@ -96,23 +105,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
           state = AuthState.authenticated(user);
           return;
         } catch (_) {
+          // Server error or offline mode: check local cached user profile
           final cachedUser = await _repository.getCachedUser();
           if (cachedUser != null) {
             state = AuthState.authenticated(cachedUser);
             return;
           }
+          // Token exists, treat as authenticated offline session
+          state = AuthState.authenticated(
+            const UserModel(id: 'offline', email: 'Offline User', role: 'USER'),
+          );
+          return;
         }
       }
 
-      // Check if user previously chose guest mode
+      state = AuthState.unauthenticated();
+    } catch (e) {
+      // Offline fallback check
       final isGuestVal = await _storage.read(key: StorageKeys.isGuestMode);
       if (isGuestVal == 'true') {
         state = AuthState.guest();
         return;
       }
-
-      state = AuthState.unauthenticated();
-    } catch (e) {
+      final cachedUser = await _repository.getCachedUser();
+      if (cachedUser != null) {
+        state = AuthState.authenticated(cachedUser);
+        return;
+      }
       state = AuthState.unauthenticated();
     }
   }
@@ -138,7 +157,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState.authenticated(authResult.user);
       return true;
     } catch (e) {
-      state = AuthState.unauthenticated(error: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
@@ -152,7 +171,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState.authenticated(authResult.user);
       return true;
     } catch (e) {
-      state = AuthState.unauthenticated(error: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
