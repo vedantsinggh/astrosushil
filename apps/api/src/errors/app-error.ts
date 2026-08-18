@@ -49,6 +49,24 @@ export class ConflictError extends AppError {
   }
 }
 
+export class RateLimitError extends AppError {
+  constructor(message: string = 'Too many requests. Please wait a moment before trying again.') {
+    super(message, 429, 'RATE_LIMIT_EXCEEDED');
+  }
+}
+
+export class MaintenanceError extends AppError {
+  constructor(message: string = 'Astro Sushil is temporarily undergoing maintenance.') {
+    super(message, 503, 'SERVICE_MAINTENANCE');
+  }
+}
+
+export class DatabaseUnavailableError extends AppError {
+  constructor(message: string = 'Service is temporarily undergoing database maintenance.') {
+    super(message, 503, 'DATABASE_UNAVAILABLE');
+  }
+}
+
 export class InternalServerError extends AppError {
   constructor(message: string = 'An unexpected internal server error occurred') {
     super(message, 500, 'INTERNAL_ERROR');

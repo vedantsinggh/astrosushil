@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/network_state_manager.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/birth_profile_repository.dart';
 import '../models/birth_profile_model.dart';
@@ -6,7 +7,11 @@ import '../models/birth_profile_model.dart';
 /// Provider for BirthProfileRepository
 final birthProfileRepositoryProvider = Provider<BirthProfileRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
-  return BirthProfileRepository(apiClient: apiClient);
+  final cacheService = ref.watch(localCacheServiceProvider);
+  return BirthProfileRepository(
+    apiClient: apiClient,
+    cacheService: cacheService,
+  );
 });
 
 /// State model for birth profiles list

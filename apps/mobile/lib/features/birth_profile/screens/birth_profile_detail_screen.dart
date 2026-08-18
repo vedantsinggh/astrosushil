@@ -5,7 +5,7 @@ import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import '../../astrology/screens/chart_result_screen.dart';
+import '../../astrology/screens/birth_chart_screen.dart';
 import '../providers/birth_profile_provider.dart';
 
 class BirthProfileDetailScreen extends ConsumerWidget {
@@ -159,7 +159,7 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => ChartResultScreen(birthProfileId: profile.id),
+                        builder: (_) => BirthChartScreen(profile: profile),
                       ),
                     );
                   },

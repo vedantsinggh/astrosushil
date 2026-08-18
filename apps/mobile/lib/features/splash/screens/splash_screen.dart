@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../onboarding/providers/onboarding_provider.dart';
@@ -114,14 +115,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
         children: [
           // Background 1: Image Asset or Custom Painted Celestial Night Sky Fallback
           Positioned.fill(
-            child: Image.asset(
-              AppAssets.splashBackground,
+            child: AstroImage(
+              assetPath: AppAssets.splashBackground,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return CustomPaint(
-                  painter: _CelestialBackgroundPainter(),
-                );
-              },
+              fallback: AstroImageFallback.celestial,
+              semanticLabel: 'Celestial night sky background',
             ),
           ),
 
@@ -129,10 +127,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           Positioned.fill(
             child: Opacity(
               opacity: 0.35,
-              child: Image.asset(
-                AppAssets.zodiacWheelOverlay,
+              child: AstroImage(
+                assetPath: AppAssets.zodiacWheelOverlay,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                fallback: AstroImageFallback.minimal,
+                semanticLabel: 'Zodiac wheel overlay',
               ),
             ),
           ),
@@ -141,10 +140,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           Positioned.fill(
             child: Opacity(
               opacity: 0.25,
-              child: Image.asset(
-                AppAssets.constellationsOverlay,
+              child: AstroImage(
+                assetPath: AppAssets.constellationsOverlay,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                fallback: AstroImageFallback.minimal,
+                semanticLabel: 'Constellation star map overlay',
               ),
             ),
           ),
@@ -178,16 +178,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                         ],
                       ),
                       child: Center(
-                        child: Image.asset(
-                          AppAssets.logoAs,
+                        child: AstroImage(
+                          assetPath: AppAssets.logoAs,
                           width: 85,
                           height: 85,
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            Icons.auto_awesome,
-                            size: 75,
-                            color: goldColor,
-                          ),
+                          fallback: AstroImageFallback.icon,
+                          semanticLabel: 'Astro Sushil logo',
                         ),
                       ),
                     ),
