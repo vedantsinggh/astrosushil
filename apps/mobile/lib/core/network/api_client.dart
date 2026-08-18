@@ -4,7 +4,7 @@ import '../storage/secure_storage_service.dart';
 import 'api_exception.dart';
 import 'auth_interceptor.dart';
 
-/// Centralized API client wrapping Dio HTTP requests.
+/// Centralized API client wrapping Dio HTTP requests with retries, custom timeouts, and cancellation.
 class ApiClient {
   final Dio _dio;
 
@@ -30,49 +30,95 @@ class ApiClient {
   /// Expose base URL for testing / verification
   String get baseUrl => _dio.options.baseUrl;
 
-  /// Perform HTTP GET request
+  /// Helper to execute requests with controlled exponential backoff retry for idempotent requests
+  Future<T> _retry<T>(
+    Future<T> Function() action, {
+    int maxRetries = 2,
+    Duration initialDelay = const Duration(milliseconds: 500),
+  }) async {
+    int attempt = 0;
+    while (true) {
+      try {
+        return await action();
+      } catch (e) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        // Exponential backoff
+        await Future.delayed(initialDelay * (1 << (attempt - 1)));
+      }
+    }
+  }
+
+  /// Perform HTTP GET request with automatic retry
   Future<Map<String, dynamic>> get(
     String path, {
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+    Duration? timeout,
   }) async {
-    try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        path,
-        queryParameters: queryParameters,
-      );
-      return response.data ?? {};
-    } catch (e) {
-      throw ApiExceptionHandler.handle(e);
-    }
+    return _retry(() async {
+      try {
+        final options = timeout != null
+            ? Options(sendTimeout: timeout, receiveTimeout: timeout)
+            : null;
+        final response = await _dio.get<Map<String, dynamic>>(
+          path,
+          queryParameters: queryParameters,
+          cancelToken: cancelToken,
+          options: options,
+        );
+        return response.data ?? {};
+      } catch (e) {
+        throw ApiExceptionHandler.handle(e);
+      }
+    });
   }
 
-  /// Perform HTTP GET request returning List
+  /// Perform HTTP GET request returning List with automatic retry
   Future<List<dynamic>> getList(
     String path, {
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+    Duration? timeout,
   }) async {
-    try {
-      final response = await _dio.get<List<dynamic>>(
-        path,
-        queryParameters: queryParameters,
-      );
-      return response.data ?? [];
-    } catch (e) {
-      throw ApiExceptionHandler.handle(e);
-    }
+    return _retry(() async {
+      try {
+        final options = timeout != null
+            ? Options(sendTimeout: timeout, receiveTimeout: timeout)
+            : null;
+        final response = await _dio.get<List<dynamic>>(
+          path,
+          queryParameters: queryParameters,
+          cancelToken: cancelToken,
+          options: options,
+        );
+        return response.data ?? [];
+      } catch (e) {
+        throw ApiExceptionHandler.handle(e);
+      }
+    });
   }
 
-  /// Perform HTTP POST request
+  /// Perform HTTP POST request (No automatic retry unless safe)
   Future<Map<String, dynamic>> post(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+    Duration? timeout,
   }) async {
     try {
+      final options = timeout != null
+          ? Options(sendTimeout: timeout, receiveTimeout: timeout)
+          : null;
       final response = await _dio.post<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        cancelToken: cancelToken,
+        options: options,
       );
       return response.data ?? {};
     } catch (e) {
@@ -85,12 +131,14 @@ class ApiClient {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
   }) async {
     try {
       final response = await _dio.put<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        cancelToken: cancelToken,
       );
       return response.data ?? {};
     } catch (e) {
@@ -103,12 +151,14 @@ class ApiClient {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
   }) async {
     try {
       final response = await _dio.delete<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        cancelToken: cancelToken,
       );
       return response.data ?? {};
     } catch (e) {

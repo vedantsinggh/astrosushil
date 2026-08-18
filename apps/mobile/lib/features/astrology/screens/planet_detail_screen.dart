@@ -5,6 +5,7 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/astro_chip.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 
 class PlanetDetailScreen extends StatefulWidget {
@@ -156,26 +157,23 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
           alignment: Alignment.center,
           children: [
             // Celestial background layer
-            Image.asset(
-              AppAssets.subtleCelestialBackground,
+            AstroImage(
+              assetPath: AppAssets.subtleCelestialBackground,
               fit: BoxFit.cover,
               width: 140,
               height: 140,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              fallback: AstroImageFallback.minimal,
+              semanticLabel: 'Celestial background',
             ),
             // Planet PNG Image or Custom Painter fallback
             if (assetPath != null)
-              Image.asset(
-                assetPath,
+              AstroImage(
+                assetPath: assetPath,
                 width: 110,
                 height: 110,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return CustomPaint(
-                    size: const Size(140, 140),
-                    painter: _PlanetEmblemPainter(planetName: planet),
-                  );
-                },
+                fallback: AstroImageFallback.icon,
+                semanticLabel: '$planet planet illustration',
               )
             else
               CustomPaint(

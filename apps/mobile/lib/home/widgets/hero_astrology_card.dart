@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../shared/assets/app_assets.dart';
 import '../../shared/theme/app_colors.dart';
+import '../../shared/widgets/astro_image.dart';
 
 /// Large Hero Card for Home Screen representing main birth chart entry point
 class HeroAstrologyCard extends StatelessWidget {
@@ -43,15 +44,11 @@ class HeroAstrologyCard extends StatelessWidget {
               top: -20,
               bottom: -20,
               width: 260,
-              child: Image.asset(
-                AppAssets.homeHero,
+              child: AstroImage(
+                assetPath: AppAssets.homeHero,
                 fit: BoxFit.contain,
-                alignment: Alignment.centerRight,
-                errorBuilder: (context, error, stackTrace) {
-                  return CustomPaint(
-                    painter: _HeroZodiacWheelPainter(),
-                  );
-                },
+                fallback: AstroImageFallback.celestial,
+                semanticLabel: 'Celestial zodiac wheel illustration',
               ),
             ),
 

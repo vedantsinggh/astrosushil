@@ -4,6 +4,7 @@ import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/rashi_bhavishya_model.dart';
@@ -106,12 +107,13 @@ class RashiBhavishyaScreen extends ConsumerWidget {
                 ),
                 child: ClipOval(
                   child: rashiAsset != null
-                      ? Image.asset(
-                          rashiAsset,
+                      ? AstroImage(
+                          assetPath: rashiAsset,
                           width: 46,
                           height: 46,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildSymbolText(selectedRashi['symbol'] as String),
+                          fallback: AstroImageFallback.icon,
+                          semanticLabel: '${selectedRashi['english']} zodiac sign',
                         )
                       : _buildSymbolText(selectedRashi['symbol'] as String),
                 ),

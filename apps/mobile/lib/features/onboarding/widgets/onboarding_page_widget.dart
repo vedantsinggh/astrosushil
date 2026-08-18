@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../models/onboarding_page_model.dart';
 
 /// Single page widget displaying the card illustration, headline, and supporting text
@@ -50,19 +51,13 @@ class OnboardingPageWidget extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24.0),
-                child: Stack(
-                  children: [
-                    // Image Asset with Image.asset and error fallback
-                    Positioned.fill(
-                      child: Image.asset(
-                        page.imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _FallbackIllustration(pageIndex: page.imagePath);
-                        },
-                      ),
-                    ),
-                  ],
+                child: AstroImage(
+                  assetPath: page.imagePath,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  fallback: AstroImageFallback.celestial,
+                  semanticLabel: page.titlePrefix + ' ' + page.titleHighlight,
                 ),
               ),
             ),
@@ -139,43 +134,4 @@ class OnboardingPageWidget extends StatelessWidget {
   }
 }
 
-/// Vector Painter Fallback if image asset files are loading or unavailable
-class _FallbackIllustration extends StatelessWidget {
-  final String pageIndex;
 
-  const _FallbackIllustration({required this.pageIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    final goldColor = Theme.of(context).colorScheme.premiumAccent;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.tertiary,
-            AppColors.primary,
-          ],
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              pageIndex.contains('chart')
-                  ? Icons.auto_graph_rounded
-                  : pageIndex.contains('direction')
-                      ? Icons.alt_route_rounded
-                      : Icons.stars_rounded,
-              size: 72,
-              color: goldColor,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

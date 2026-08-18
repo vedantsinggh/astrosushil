@@ -34,6 +34,22 @@ export function buildApp(): FastifyInstance {
     return payload;
   });
 
+  // Maintenance mode check hook
+  app.addHook('onRequest', async (request, reply) => {
+    const isMaintenance = process.env.MAINTENANCE_MODE === 'true';
+    const isHealthEndpoint = request.url === '/health' || request.url === '/ready' || request.url.startsWith('/documentation');
+
+    if (isMaintenance && !isHealthEndpoint) {
+      return reply.status(503).send({
+        error: {
+          code: 'SERVICE_MAINTENANCE',
+          message: 'Astro Sushil is temporarily undergoing scheduled maintenance.',
+          requestId: request.id,
+        },
+      });
+    }
+  });
+
   // Register Global Error Handler
   app.setErrorHandler(globalErrorHandler);
 

@@ -23,6 +23,16 @@ class RashiBhavishyaCategoryModel {
       finance: json['finance'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'general': general,
+      'health': health,
+      'love': love,
+      'career': career,
+      'finance': finance,
+    };
+  }
 }
 
 class RashiBhavishyaPredictionModel {
@@ -47,6 +57,15 @@ class RashiBhavishyaPredictionModel {
       luckyNumber: (json['luckyNumber'] as num?)?.toInt() ?? 7,
       luckyColor: json['luckyColor'] as String? ?? 'Gold',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'summary': summary,
+      'categories': categories.toJson(),
+      'luckyNumber': luckyNumber,
+      'luckyColor': luckyColor,
+    };
   }
 }
 
@@ -73,6 +92,16 @@ class RashiInfoModel {
       element: json['element'] as String? ?? 'Fire',
       ruler: json['ruler'] as String? ?? 'Mars',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'index': index,
+      'sanskritName': sanskritName,
+      'englishName': englishName,
+      'element': element,
+      'ruler': ruler,
+    };
   }
 }
 
@@ -118,5 +147,15 @@ class RashiBhavishyaModel {
       source: dataMap['source'] as String? ?? 'AstroSushil Reference Content Fixtures',
       isDevelopmentFixture: dataMap['isDevelopmentFixture'] as bool? ?? true,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'rashi': rashi.toJson(),
+      'prediction': prediction.toJson(),
+      'source': source,
+      'isDevelopmentFixture': isDevelopmentFixture,
+    };
   }
 }

@@ -119,4 +119,47 @@ class AppAssets {
   static const String vastuKitchen = '$assetDir/vastu_kitchen.png';
   static const String vastuStudy = '$assetDir/vastu_study.png';
   static const String vastuPuja = '$assetDir/vastu_puja.png';
+
+  // 5. System State & Resilience Assets
+  static const String stateOffline = '$assetDir/state_offline.png';
+  static const String stateSlowConnection = '$assetDir/state_slow_connection.png';
+  static const String stateServerError = '$assetDir/state_server_error.png';
+  static const String stateEmptyData = '$assetDir/state_empty_data.png';
+  static const String stateMaintenance = '$assetDir/state_maintenance.png';
+  static const String stateSessionExpired = '$assetDir/state_session_expired.png';
+  static const String stateNoBirthProfile = '$assetDir/state_no_birth_profile.png';
+  static const String statePdfError = '$assetDir/state_pdf_error.png';
+
+  // Helper method to resolve system state asset by name or key
+  static String? getStateAsset(String stateKey) {
+    switch (stateKey.trim().toLowerCase()) {
+      case 'offline':
+        return stateOffline;
+      case 'slow_connection':
+      case 'slowconnection':
+      case 'slow':
+        return stateSlowConnection;
+      case 'server_error':
+      case 'servererror':
+      case 'error':
+        return stateServerError;
+      case 'empty_data':
+      case 'emptydata':
+      case 'empty':
+        return stateEmptyData;
+      case 'maintenance':
+        return stateMaintenance;
+      case 'session_expired':
+      case 'sessionexpired':
+        return stateSessionExpired;
+      case 'no_birth_profile':
+      case 'nobirthprofile':
+        return stateNoBirthProfile;
+      case 'pdf_error':
+      case 'pdferror':
+        return statePdfError;
+      default:
+        return null;
+    }
+  }
 }

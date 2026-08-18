@@ -32,6 +32,19 @@ class VastuCategoryModel {
       iconName: json['iconName'] as String? ?? 'home',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'slug': slug,
+      'name': name,
+      'sanskritName': sanskritName,
+      'description': description,
+      'idealDirection': idealDirection,
+      'element': element,
+      'iconName': iconName,
+    };
+  }
 }
 
 class VastuGuidanceModel {
@@ -82,5 +95,22 @@ class VastuGuidanceModel {
       donts: (json['donts'] as List? ?? []).map((e) => e.toString()).toList(),
       remedies: (json['remedies'] as List? ?? []).map((e) => e.toString()).toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'categoryId': categoryId,
+      'categorySlug': categorySlug,
+      'categoryName': categoryName,
+      'idealDirection': idealDirection,
+      'alternativeDirections': alternativeDirections,
+      'forbiddenDirections': forbiddenDirections,
+      'element': element,
+      'rulingPlanet': rulingPlanet,
+      'keyPrinciples': keyPrinciples,
+      'dos': dos,
+      'donts': donts,
+      'remedies': remedies,
+    };
   }
 }

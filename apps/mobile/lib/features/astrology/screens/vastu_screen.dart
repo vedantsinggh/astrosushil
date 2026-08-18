@@ -4,6 +4,7 @@ import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/vastu_model.dart';
@@ -98,21 +99,11 @@ class VastuScreen extends ConsumerWidget {
           children: [
             // Background Vastu hero image if present
             Positioned.fill(
-              child: Image.asset(
-                AppAssets.vastuHero,
+              child: AstroImage(
+                assetPath: AppAssets.vastuHero,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.secondary.withOpacity(0.4),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
+                fallback: AstroImageFallback.celestial,
+                semanticLabel: 'Vastu Shastra background',
               ),
             ),
             // Dark gradient overlay for text readability
@@ -228,12 +219,13 @@ class VastuScreen extends ConsumerWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: assetPath != null
-                      ? Image.asset(
-                          assetPath,
+                      ? AstroImage(
+                          assetPath: assetPath,
                           width: 28,
                           height: 28,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(_getIconForCategory(cat.slug), size: 18, color: AppColors.primary),
+                          fallback: AstroImageFallback.icon,
+                          semanticLabel: '${cat.name} vastu illustration',
                         )
                       : Icon(_getIconForCategory(cat.slug), size: 18, color: AppColors.primary),
                 ),

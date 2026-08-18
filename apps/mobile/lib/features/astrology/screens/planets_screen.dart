@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
+import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
@@ -68,8 +72,22 @@ class PlanetsScreen extends ConsumerWidget {
                   const AstroLoaderCard(
                     message: AstroLoaderMessages.planetaryData,
                   )
-                else if (chartAsync != null && chartAsync.value != null && chartAsync.value!.planets.isNotEmpty)
-                  ...chartAsync.value!.planets.map((planet) => _buildPlanetRow(context, planet))
+                else if (chartAsync != null && chartAsync.hasError)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
+                    child: ErrorBanner(
+                      message: chartAsync.error is NetworkException
+                          ? (chartAsync.error as NetworkException).message
+                          : 'Unable to connect to server. Showing default positions.',
+                      onRetry: activeProfile != null
+                          ? () => ref.refresh(astrologyChartProvider(activeProfile.id))
+                          : null,
+                    ),
+                  )
+                else if (chartAsync != null &&
+                    chartAsync.valueOrNull != null &&
+                    chartAsync.valueOrNull!.planets.isNotEmpty)
+                  ...chartAsync.valueOrNull!.planets.map((planet) => _buildPlanetRow(context, planet))
                 else
                   ..._buildMockPlanetRows(context),
               ],
@@ -244,12 +262,13 @@ class PlanetsScreen extends ConsumerWidget {
           border: Border.all(color: AppColors.lightBorder),
         ),
         child: ClipOval(
-          child: Image.asset(
-            assetPath,
+          child: AstroImage(
+            assetPath: assetPath,
             width: 36,
             height: 36,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => _buildFallbackVectorIcon(cleanName),
+            fallback: AstroImageFallback.icon,
+            semanticLabel: '$cleanName planet',
           ),
         ),
       );

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -105,7 +108,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                             context,
                             activeProfile,
                             profilesState.profiles,
-                            chartAsync?.value,
+                            chartAsync?.valueOrNull,
                           ),
 
                           // B. LIGHT CONTENT CONTAINER
@@ -498,14 +501,25 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                     ),
                   ),
                 ),
-                error: (err, stack) => Padding(
-                  key: const ValueKey('kundli_error'),
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: ErrorBanner(
-                    message: 'Could not load Kundli chart. Showing cached preview.',
-                    onRetry: () => ref.refresh(astrologyChartProvider(profile.id)),
-                  ),
-                ),
+                error: (err, stack) {
+                  final String errorMessage;
+                  if (err is NetworkException) {
+                    errorMessage = err.message;
+                  } else if (err.toString().contains('offline') || err.toString().contains('reach')) {
+                    errorMessage = 'Unable to reach Astro Sushil servers. You appear to be offline.';
+                  } else {
+                    errorMessage = 'Could not load Kundli chart. Showing cached preview.';
+                  }
+
+                  return Padding(
+                    key: const ValueKey('kundli_error'),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: ErrorBanner(
+                      message: errorMessage,
+                      onRetry: () => ref.refresh(astrologyChartProvider(profile.id)),
+                    ),
+                  );
+                },
                 data: (chart) => KundliChartWidget(
                   key: const ValueKey('kundli_data'),
                   chart: chart,
@@ -524,12 +538,12 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
           const SizedBox(height: 24),
 
           // 4. KEY PLACEMENTS (Ascendant, Sun, Moon)
-          _buildKeyPlacementsSection(context, profile, chartAsync?.value),
+          _buildKeyPlacementsSection(context, profile, chartAsync?.valueOrNull),
 
           const SizedBox(height: 24),
 
           // 5. PLANETARY SUMMARY
-          _buildPlanetarySummarySection(context, chartAsync?.value),
+          _buildPlanetarySummarySection(context, chartAsync?.valueOrNull),
         ],
       ),
     );
@@ -802,10 +816,11 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
               ),
               child: ClipOval(
                 child: assetPath != null
-                    ? Image.asset(
-                        assetPath,
+                    ? AstroImage(
+                        assetPath: assetPath,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.circle, size: 16, color: AppColors.premiumAccent),
+                        fallback: AstroImageFallback.icon,
+                        semanticLabel: '${p.planet} planet',
                       )
                     : const Icon(Icons.circle, size: 16, color: AppColors.premiumAccent),
               ),
@@ -880,10 +895,11 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                 ),
                 child: ClipOval(
                   child: assetPath != null
-                      ? Image.asset(
-                          assetPath,
+                      ? AstroImage(
+                          assetPath: assetPath,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.circle, size: 16, color: AppColors.premiumAccent),
+                          fallback: AstroImageFallback.icon,
+                          semanticLabel: '$name planet',
                         )
                       : const Icon(Icons.circle, size: 16, color: AppColors.premiumAccent),
                 ),

@@ -1,6 +1,6 @@
 import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
-import { AppError, ErrorDetail } from './app-error';
+import { AppError, ErrorDetail, DatabaseUnavailableError } from './app-error';
 
 export function globalErrorHandler(error: FastifyError | AppError | Error, request: FastifyRequest, reply: FastifyReply) {
   const requestId = (request.id as string) || undefined;
@@ -13,6 +13,24 @@ export function globalErrorHandler(error: FastifyError | AppError | Error, reque
         code: error.code,
         message: error.message,
         details: error.details,
+        requestId,
+      },
+    });
+  }
+
+  // Handle Prisma Database Connection Failures
+  const isPrismaDbError =
+    error.name === 'PrismaClientInitializationError' ||
+    error.name === 'PrismaClientKnownRequestError' ||
+    (error.message && (error.message.includes('Can\'t reach database') || error.message.includes('P1001') || error.message.includes('P1002')));
+
+  if (isPrismaDbError) {
+    request.log.error({ err: error, requestId }, 'Database Connection Error');
+    const dbErr = new DatabaseUnavailableError();
+    return reply.status(dbErr.statusCode).send({
+      error: {
+        code: dbErr.code,
+        message: dbErr.message,
         requestId,
       },
     });
@@ -54,7 +72,18 @@ export function globalErrorHandler(error: FastifyError | AppError | Error, reque
     });
   }
 
-  // Fastify JWT / Auth errors
+  // Fastify Rate Limit Error (429)
+  if ('statusCode' in error && error.statusCode === 429) {
+    return reply.status(429).send({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'You\'re making requests a little too quickly. Please wait a moment.',
+        requestId,
+      },
+    });
+  }
+
+  // Fastify JWT / Auth errors (401)
   if ('statusCode' in error && error.statusCode === 401) {
     return reply.status(401).send({
       error: {

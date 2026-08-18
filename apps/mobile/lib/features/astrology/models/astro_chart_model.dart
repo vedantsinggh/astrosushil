@@ -18,6 +18,14 @@ class NormalizedTimeModel {
       timezoneOffsetMinutes: (json['timezoneOffsetMinutes'] as num?)?.toInt() ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'utcIsoString': utcIsoString,
+      'julianDayUT': julianDayUT,
+      'timezoneOffsetMinutes': timezoneOffsetMinutes,
+    };
+  }
 }
 
 class ChartConfigModel {
@@ -43,6 +51,16 @@ class ChartConfigModel {
       nodeCalculation: json['nodeCalculation'] as String? ?? 'MEAN_NODE',
       planetaryCalculationMode: json['planetaryCalculationMode'] as String? ?? 'GEOCENTRIC',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'zodiacType': zodiacType,
+      'ayanamsa': ayanamsa,
+      'houseSystem': houseSystem,
+      'nodeCalculation': nodeCalculation,
+      'planetaryCalculationMode': planetaryCalculationMode,
+    };
   }
 }
 
@@ -92,6 +110,23 @@ class PlanetModel {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'planet': planet,
+      'longitude': longitude,
+      'latitude': latitude,
+      'speedLongitude': speedLongitude,
+      'isRetrograde': isRetrograde,
+      'rashiIndex': rashiIndex,
+      'rashiName': rashiName,
+      'degreeInRashi': degreeInRashi,
+      'nakshatraIndex': nakshatraIndex,
+      'nakshatraName': nakshatraName,
+      'pada': pada,
+      'nakshatraLord': nakshatraLord,
+    };
+  }
+
   /// Calculates Whole Sign House placement (1..12) given the Ascendant Rashi Index (1..12)
   int calculateHouseNumber(int ascendantRashiIndex) {
     return ((rashiIndex - ascendantRashiIndex + 12) % 12) + 1;
@@ -131,6 +166,19 @@ class AscendantModel {
       nakshatraLord: json['nakshatraLord'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'longitude': longitude,
+      'rashiIndex': rashiIndex,
+      'rashiName': rashiName,
+      'degreeInRashi': degreeInRashi,
+      'nakshatraIndex': nakshatraIndex,
+      'nakshatraName': nakshatraName,
+      'pada': pada,
+      'nakshatraLord': nakshatraLord,
+    };
+  }
 }
 
 class HouseModel {
@@ -156,6 +204,16 @@ class HouseModel {
       endLongitude: (json['endLongitude'] as num?)?.toDouble() ?? 0.0,
       rashiName: json['rashiName'] as String? ?? '',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'houseNumber': houseNumber,
+      'startLongitude': startLongitude,
+      'cuspLongitude': cuspLongitude,
+      'endLongitude': endLongitude,
+      'rashiName': rashiName,
+    };
   }
 }
 
@@ -213,5 +271,18 @@ class AstroChartModel {
           .map((h) => HouseModel.fromJson(Map<String, dynamic>.from(h)))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'calculationVersion': calculationVersion,
+      'providerName': providerName,
+      'providerVersion': providerVersion,
+      'normalizedTime': normalizedTime.toJson(),
+      'config': config.toJson(),
+      if (ascendant != null) 'ascendant': ascendant!.toJson(),
+      'planets': planets.map((p) => p.toJson()).toList(),
+      'houses': houses.map((h) => h.toJson()).toList(),
+    };
   }
 }
