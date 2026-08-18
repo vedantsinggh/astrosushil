@@ -150,17 +150,22 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
       // Perform calculation via AstrologyService
       const result = await astrologyService.calculateChartForProfile(birthProfileId, request.user);
 
-      // Log request execution metadata
+      // Log execution metrics without sensitive birth details
       request.log.info(
         {
           birthProfileId,
           userId: request.user.id,
           calculationVersion: result.chart.calculationVersion,
+          durationMs: result.executionMetrics.durationMs,
+          methodologyVersion: result.executionMetrics.methodologyVersion,
         },
         'Astrology chart calculated successfully'
       );
 
-      return reply.status(200).send(result);
+      // Omit executionMetrics from client response to maintain strict DTO contract
+      const { executionMetrics, ...responsePayload } = result;
+
+      return reply.status(200).send(responsePayload);
     },
   });
 }
