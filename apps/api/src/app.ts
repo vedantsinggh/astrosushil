@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { registerCors } from './plugins/cors';
 import { registerHelmet } from './plugins/helmet';
 import { registerJwt } from './plugins/jwt';
+import { registerRateLimit } from './plugins/rate-limit';
 import { registerSwagger } from './plugins/swagger';
 import { registerRoutes } from './routes';
 import { globalErrorHandler } from './errors/error-handler';
@@ -58,6 +59,7 @@ export function buildApp(): FastifyInstance {
     await registerCors(instance);
     await registerHelmet(instance);
     await registerJwt(instance);
+    await registerRateLimit(instance);
     await registerSwagger(instance);
     await registerRoutes(instance);
   });

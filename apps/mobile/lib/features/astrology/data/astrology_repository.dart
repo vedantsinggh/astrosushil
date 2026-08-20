@@ -1,5 +1,6 @@
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/local_cache_service.dart';
+import '../../birth_profile/models/birth_profile_model.dart';
 import '../models/astro_chart_model.dart';
 
 /// Repository for Astrology API endpoints with offline-first caching
@@ -15,12 +16,21 @@ class AstrologyRepository {
   })  : _apiClient = apiClient,
         _cacheService = cacheService;
 
-  /// Calculate natal chart for a given birth profile ID with offline cache fallback
-  Future<AstroChartModel> getChart(
-    String birthProfileId, {
+  /// Derive deterministic cache key for a birth profile
+  String _getCacheKey(BirthProfileModel profile) {
+    if (profile.id.isNotEmpty && profile.id != 'guest_profile_local') {
+      return 'kundli_chart_${profile.id}_$engineVersion';
+    }
+    final inputHash = '${profile.name}_${profile.dateOfBirth}_${profile.timeOfBirth}_${profile.latitude}_${profile.longitude}';
+    return 'kundli_chart_${inputHash.hashCode}_$engineVersion';
+  }
+
+  /// Calculate natal chart for a given birth profile with offline cache fallback
+  Future<AstroChartModel> getChartForProfile(
+    BirthProfileModel profile, {
     bool forceRefresh = false,
   }) async {
-    final cacheKey = 'kundli_chart_${birthProfileId}_$engineVersion';
+    final cacheKey = _getCacheKey(profile);
     final cache = _cacheService;
 
     // 1. Try local cache first if available and not forcing refresh
@@ -36,9 +46,28 @@ class AstrologyRepository {
 
     // 2. Fetch fresh calculation from network
     try {
+      final isGuestProfile = profile.id.isEmpty || profile.id == 'guest_profile_local';
+      final Map<String, dynamic> payload;
+
+      if (isGuestProfile) {
+        payload = {
+          'birthDetails': {
+            'name': profile.name,
+            'dateOfBirth': profile.dateOfBirth,
+            'timeOfBirth': profile.timeOfBirth,
+            'latitude': profile.latitude,
+            'longitude': profile.longitude,
+            'timezone': profile.timezone,
+            'placeName': profile.placeName,
+          },
+        };
+      } else {
+        payload = {'birthProfileId': profile.id};
+      }
+
       final response = await _apiClient.post(
         '/astrology/chart',
-        data: {'birthProfileId': birthProfileId},
+        data: payload,
         timeout: const Duration(seconds: 30),
       );
       final chart = AstroChartModel.fromJson(response);
@@ -70,14 +99,24 @@ class AstrologyRepository {
     }
   }
 
-  /// Get cache envelope for a birth chart to inspect cache metadata (stale age)
-  Future<CacheEnvelope<AstroChartModel>?> getChartCacheEnvelope(String birthProfileId) async {
-    final cache = _cacheService;
-    if (cache == null) return null;
-    final cacheKey = 'kundli_chart_${birthProfileId}_$engineVersion';
-    return cache.getEnvelope<AstroChartModel>(
-      key: cacheKey,
-      fromJson: (data) => AstroChartModel.fromJson(Map<String, dynamic>.from(data as Map)),
+  /// Deprecated convenience overload for profile ID lookup
+  Future<AstroChartModel> getChart(
+    String birthProfileId, {
+    bool forceRefresh = false,
+  }) async {
+    final dummyProfile = BirthProfileModel(
+      id: birthProfileId,
+      userId: '',
+      name: '',
+      dateOfBirth: '',
+      timeOfBirth: '',
+      latitude: 0,
+      longitude: 0,
+      timezone: '',
+      placeName: '',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
+    return getChartForProfile(dummyProfile, forceRefresh: forceRefresh);
   }
 }

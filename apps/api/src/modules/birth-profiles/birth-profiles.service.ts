@@ -49,6 +49,42 @@ export class BirthProfilesService {
   }
 
   /**
+   * Migrates a guest birth profile to an authenticated user account idempotently.
+   */
+  public async migrateGuestProfile(userId: string, input: CreateBirthProfileInput) {
+    // Idempotency check: look for an existing profile with matching core fields
+    const existingProfiles = await prisma.birthProfile.findMany({
+      where: { userId },
+    });
+
+    const duplicate = existingProfiles.find(
+      (p) =>
+        p.name.toLowerCase() === input.name.toLowerCase() &&
+        p.dateOfBirth === input.dateOfBirth &&
+        Math.abs(p.latitude - input.latitude) < 0.001 &&
+        Math.abs(p.longitude - input.longitude) < 0.001
+    );
+
+    if (duplicate) {
+      return {
+        ...duplicate,
+        normalizedDetails: normalizeBirthProfile({
+          id: duplicate.id,
+          name: duplicate.name,
+          dateOfBirth: duplicate.dateOfBirth,
+          timeOfBirth: duplicate.timeOfBirth,
+          latitude: duplicate.latitude,
+          longitude: duplicate.longitude,
+          timezone: duplicate.timezone,
+          placeName: duplicate.placeName,
+        }),
+      };
+    }
+
+    return this.createProfile(userId, input);
+  }
+
+  /**
    * Retrieves all birth profiles created by the authenticated user.
    */
   public async getUserProfiles(userId: string): Promise<BirthProfileWithDetailsResponseDto[]> {

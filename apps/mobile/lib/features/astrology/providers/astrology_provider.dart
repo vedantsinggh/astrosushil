@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/network_state_manager.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../birth_profile/models/birth_profile_model.dart';
+import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../data/astrology_repository.dart';
 import '../models/astro_chart_model.dart';
 
@@ -14,9 +16,17 @@ final astrologyRepositoryProvider = Provider<AstrologyRepository>((ref) {
   );
 });
 
+/// Family FutureProvider to calculate/fetch chart for a BirthProfileModel
+final astrologyChartForProfileProvider =
+    FutureProvider.family<AstroChartModel, BirthProfileModel>((ref, profile) async {
+  final repository = ref.watch(astrologyRepositoryProvider);
+  return await repository.getChartForProfile(profile);
+});
+
 /// Family FutureProvider to calculate/fetch chart for a birth profile ID
 final astrologyChartProvider =
     FutureProvider.family<AstroChartModel, String>((ref, birthProfileId) async {
   final repository = ref.watch(astrologyRepositoryProvider);
-  return await repository.getChart(birthProfileId);
+  final profile = await ref.watch(singleBirthProfileProvider(birthProfileId).future);
+  return await repository.getChartForProfile(profile);
 });

@@ -70,8 +70,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     if (!mounted) return;
 
-    if (authState.isAuthenticated) {
-      // Authenticated user goes directly to Home Screen
+    if (authState.isGuestOrAuthenticated) {
+      // Authenticated or guest user goes directly to Home Screen
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const HomeScreen(),

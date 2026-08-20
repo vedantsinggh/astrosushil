@@ -4,36 +4,49 @@ import '../../../core/storage/secure_storage_service.dart';
 import '../data/auth_repository.dart';
 import '../models/user_model.dart';
 
+/// Authentication status enum
+enum AuthStatus {
+  unauthenticated,
+  guest,
+  authenticated,
+}
+
 /// Authentication state model
 class AuthState {
   final bool isLoading;
-  final bool isAuthenticated;
+  final AuthStatus status;
   final UserModel? user;
   final String? errorMessage;
 
   const AuthState({
     this.isLoading = false,
-    this.isAuthenticated = false,
+    this.status = AuthStatus.unauthenticated,
     this.user,
     this.errorMessage,
   });
 
+  bool get isGuest => status == AuthStatus.guest;
+  bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isGuestOrAuthenticated => status == AuthStatus.authenticated || status == AuthStatus.guest;
+
   factory AuthState.initial() => const AuthState(isLoading: true);
   factory AuthState.unauthenticated({String? error}) =>
-      AuthState(isAuthenticated: false, errorMessage: error);
+      AuthState(status: AuthStatus.unauthenticated, errorMessage: error);
+  factory AuthState.guest() =>
+      const AuthState(status: AuthStatus.guest);
   factory AuthState.authenticated(UserModel user) =>
-      AuthState(isAuthenticated: true, user: user);
+      AuthState(status: AuthStatus.authenticated, user: user);
   factory AuthState.loading() => const AuthState(isLoading: true);
 
   AuthState copyWith({
     bool? isLoading,
-    bool? isAuthenticated,
+    AuthStatus? status,
     UserModel? user,
     String? errorMessage,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
-      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      status: status ?? this.status,
       user: user ?? this.user,
       errorMessage: errorMessage,
     );
@@ -61,37 +74,78 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// Auth State Notifier provider managing app session lifecycle
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repository);
+  final storage = ref.watch(secureStorageProvider);
+  return AuthNotifier(repository, storage);
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final SecureStorageService _storage;
 
-  AuthNotifier(this._repository) : super(AuthState.initial()) {
+  AuthNotifier(this._repository, this._storage) : super(AuthState.initial()) {
     checkSession();
   }
 
-  /// App launch session check: check stored token and fetch user
+  /// App launch session check: check stored token, guest mode, or unauthenticated
   Future<void> checkSession() async {
     state = AuthState.loading();
     try {
-      final hasToken = await _repository.hasToken();
-      if (!hasToken) {
-        state = AuthState.unauthenticated();
+      // 1. Check if user previously chose guest mode
+      final isGuestVal = await _storage.read(key: StorageKeys.isGuestMode);
+      if (isGuestVal == 'true') {
+        state = AuthState.guest();
         return;
       }
-      final user = await _repository.getMe();
-      state = AuthState.authenticated(user);
-    } catch (e) {
-      // If network request failed (offline / server down), preserve authenticated state using cached profile
+
+      // 2. Check if user is authenticated with token
       final hasToken = await _repository.hasToken();
-      final cachedUser = await _repository.getCachedUser();
-      if (hasToken && cachedUser != null) {
-        state = AuthState.authenticated(cachedUser);
-      } else {
-        state = AuthState.unauthenticated();
+      if (hasToken) {
+        try {
+          final user = await _repository.getMe();
+          state = AuthState.authenticated(user);
+          return;
+        } catch (_) {
+          // Server error or offline mode: check local cached user profile
+          final cachedUser = await _repository.getCachedUser();
+          if (cachedUser != null) {
+            state = AuthState.authenticated(cachedUser);
+            return;
+          }
+          // Token exists, treat as authenticated offline session
+          state = AuthState.authenticated(
+            const UserModel(id: 'offline', email: 'Offline User', role: 'USER'),
+          );
+          return;
+        }
       }
+
+      state = AuthState.unauthenticated();
+    } catch (e) {
+      // Offline fallback check
+      final isGuestVal = await _storage.read(key: StorageKeys.isGuestMode);
+      if (isGuestVal == 'true') {
+        state = AuthState.guest();
+        return;
+      }
+      final cachedUser = await _repository.getCachedUser();
+      if (cachedUser != null) {
+        state = AuthState.authenticated(cachedUser);
+        return;
+      }
+      state = AuthState.unauthenticated();
     }
+  }
+
+  /// Enter Guest Mode
+  Future<void> continueAsGuest() async {
+    await _storage.write(key: StorageKeys.isGuestMode, value: 'true');
+    state = AuthState.guest();
+  }
+
+  /// Exit Guest Mode
+  Future<void> exitGuestMode() async {
+    await _storage.delete(key: StorageKeys.isGuestMode);
+    state = AuthState.unauthenticated();
   }
 
   /// Register user
@@ -99,10 +153,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final authResult = await _repository.register(email: email, password: password);
+      await _storage.delete(key: StorageKeys.isGuestMode);
       state = AuthState.authenticated(authResult.user);
       return true;
     } catch (e) {
-      state = AuthState.unauthenticated(error: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
@@ -112,10 +167,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final authResult = await _repository.login(email: email, password: password);
+      await _storage.delete(key: StorageKeys.isGuestMode);
       state = AuthState.authenticated(authResult.user);
       return true;
     } catch (e) {
-      state = AuthState.unauthenticated(error: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
@@ -124,6 +180,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
     await _repository.logout();
+    await _storage.delete(key: StorageKeys.isGuestMode);
     state = AuthState.unauthenticated();
   }
 

@@ -37,6 +37,33 @@ export async function birthProfilesRoutes(fastify: FastifyInstance, _options: Fa
     },
   });
 
+  // POST /api/v1/birth-profiles/migrate
+  fastify.post('/migrate', {
+    schema: {
+      tags: ['Birth Profiles'],
+      summary: 'Migrate local guest birth profile to authenticated account (idempotent)',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['name', 'dateOfBirth', 'timeOfBirth', 'latitude', 'longitude', 'timezone'],
+        properties: {
+          name: { type: 'string', example: 'Sushil Kumar' },
+          dateOfBirth: { type: 'string', example: '1990-05-15' },
+          timeOfBirth: { type: 'string', example: '14:30:00' },
+          latitude: { type: 'number', example: 28.6139 },
+          longitude: { type: 'number', example: 77.2090 },
+          timezone: { type: 'string', example: 'Asia/Kolkata' },
+          placeName: { type: 'string', example: 'New Delhi, India' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = createBirthProfileSchema.parse(request.body);
+      const result = await birthProfilesService.migrateGuestProfile(request.user.id, input);
+      return reply.status(200).send(result);
+    },
+  });
+
   // GET /api/v1/birth-profiles
   fastify.get('/', {
     schema: {

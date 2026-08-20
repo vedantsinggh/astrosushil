@@ -31,7 +31,7 @@ class PlanetsScreen extends ConsumerWidget {
         (profilesState.profiles.isNotEmpty ? profilesState.profiles.first : null);
 
     final chartAsync = activeProfile != null
-        ? ref.watch(astrologyChartProvider(activeProfile.id))
+        ? ref.watch(astrologyChartForProfileProvider(activeProfile))
         : null;
 
     return Scaffold(
