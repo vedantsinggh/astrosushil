@@ -269,7 +269,7 @@ class KundliPdfService {
     // Map planets to houses
     for (final p in chart.planets) {
       final houseNum = p.calculateHouseNumber(ascRashiIndex);
-      var label = p.planet.substring(0, 2);
+      var label = p.planet.length >= 2 ? p.planet.substring(0, 2) : p.planet;
       if (p.isRetrograde) label += '(R)';
       housePlanets[houseNum]?.add(label);
     }

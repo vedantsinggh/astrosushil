@@ -48,6 +48,10 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
         200: {
           type: 'object',
           properties: {
+            data: {
+              type: 'object',
+              additionalProperties: true,
+            },
             chart: {
               type: 'object',
               properties: {
@@ -72,14 +76,87 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
                     planetaryCalculationMode: { type: 'string', example: 'GEOCENTRIC' },
                   },
                 },
-                ascendant: { type: 'object', nullable: true },
+                ascendant: {
+                  type: 'object',
+                  nullable: true,
+                  properties: {
+                    name: { type: 'string', example: 'Ascendant' },
+                    longitude: { type: 'number', example: 148.5 },
+                    rashiIndex: { type: 'integer', example: 5 },
+                    degreeInRashi: { type: 'number', example: 28.5 },
+                    nakshatraIndex: { type: 'integer', example: 11 },
+                    pada: { type: 'integer', example: 4 },
+                    nakshatraLord: { type: 'string', example: 'VENUS' },
+                    rashiName: { type: 'string', example: 'Simha' },
+                    nakshatraName: { type: 'string', example: 'Purva Phalguni' },
+                  },
+                  additionalProperties: true,
+                },
                 planets: {
                   type: 'array',
-                  items: { type: 'object' },
+                  items: {
+                    type: 'object',
+                    properties: {
+                      planet: { type: 'string', example: 'SUN' },
+                      longitude: { type: 'number', example: 123.45 },
+                      latitude: { type: 'number', example: 0.0001 },
+                      speedLongitude: { type: 'number', example: 0.96 },
+                      isRetrograde: { type: 'boolean', example: false },
+                      rashiIndex: { type: 'integer', example: 5 },
+                      rashiName: { type: 'string', example: 'Simha' },
+                      degreeInRashi: { type: 'number', example: 3.45 },
+                      nakshatraIndex: { type: 'integer', example: 10 },
+                      nakshatraName: { type: 'string', example: 'Magha' },
+                      pada: { type: 'integer', example: 1 },
+                      nakshatraLord: { type: 'string', example: 'KETU' },
+                    },
+                    additionalProperties: true,
+                  },
                 },
-                houses: { type: 'array', items: { type: 'object' } },
-                rashis: { type: 'array', items: { type: 'object' } },
-                nakshatras: { type: 'array', items: { type: 'object' } },
+                houses: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      houseNumber: { type: 'integer', example: 1 },
+                      cuspLongitude: { type: 'number', example: 120 },
+                      startLongitude: { type: 'number', example: 120 },
+                      endLongitude: { type: 'number', example: 150 },
+                      rashiIndex: { type: 'integer', example: 5 },
+                      rashiName: { type: 'string', example: 'Simha' },
+                    },
+                    additionalProperties: true,
+                  },
+                },
+                rashis: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      index: { type: 'integer', example: 1 },
+                      name: { type: 'string', example: 'Mesha' },
+                      englishName: { type: 'string', example: 'Aries' },
+                      lord: { type: 'string', example: 'MARS' },
+                      element: { type: 'string', example: 'FIRE' },
+                      modality: { type: 'string', example: 'CHARA' },
+                      planetsPresent: { type: 'array', items: { type: 'string' } },
+                    },
+                    additionalProperties: true,
+                  },
+                },
+                nakshatras: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      index: { type: 'integer', example: 1 },
+                      name: { type: 'string', example: 'Ashwini' },
+                      lord: { type: 'string', example: 'KETU' },
+                      planetsPresent: { type: 'array', items: { type: 'string' } },
+                    },
+                    additionalProperties: true,
+                  },
+                },
               },
             },
           },
@@ -147,6 +224,8 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
       },
     },
     handler: async (request, reply) => {
+      const startTime = Date.now();
+
       // Validate request payload
       const input = calculateChartSchema.parse(request.body);
 
@@ -164,6 +243,46 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
         throw new AuthenticationError('Invalid calculation input');
       }
 
+      const durationMs = Date.now() - startTime;
+
+      // [DEV-ONLY DIAGNOSTIC] Log serialization verification - REMOVE before production
+      if (process.env.NODE_ENV !== 'production') {
+        const chartData = result.chart;
+        const firstPlanet = chartData.planets?.[0];
+        request.log.info(
+          {
+            diagLabel: 'ASTROLOGY_ENGINE_RAW_RESULT',
+            ascendant: {
+              type: typeof chartData.ascendant,
+              keys: chartData.ascendant ? Object.keys(chartData.ascendant) : [],
+              jsonStringifyResult: JSON.stringify(chartData.ascendant)?.substring(0, 200),
+            },
+            planets: {
+              count: chartData.planets?.length ?? 0,
+              firstPlanetType: typeof firstPlanet,
+              firstPlanetKeys: firstPlanet ? Object.keys(firstPlanet) : [],
+              firstPlanetOwnPropertyNames: firstPlanet ? Object.getOwnPropertyNames(firstPlanet) : [],
+              firstPlanetJsonStringify: JSON.stringify(firstPlanet)?.substring(0, 300),
+              planetIdentities: chartData.planets?.map((p: any) => p.planet) ?? [],
+            },
+            houses: {
+              count: chartData.houses?.length ?? 0,
+              firstHouseKeys: chartData.houses?.[0] ? Object.keys(chartData.houses[0]) : [],
+            },
+            rashis: {
+              count: chartData.rashis?.length ?? 0,
+              firstRashiKeys: chartData.rashis?.[0] ? Object.keys(chartData.rashis[0]) : [],
+            },
+            nakshatras: {
+              count: chartData.nakshatras?.length ?? 0,
+              firstNakshatraKeys: chartData.nakshatras?.[0] ? Object.keys(chartData.nakshatras[0]) : [],
+            },
+          },
+          'Astrology engine diagnostic: pre-serialization data inspection'
+        );
+      }
+      // [END DEV-ONLY DIAGNOSTIC]
+
       // Log request metadata distinguishing guest vs authenticated mode without sensitive details
       request.log.info(
         {
@@ -171,16 +290,12 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
           userId: request.user?.id ?? null,
           hasBirthProfileId: !!input.birthProfileId,
           calculationVersion: result.chart.calculationVersion,
-          durationMs: result.executionMetrics.durationMs,
-          methodologyVersion: result.executionMetrics.methodologyVersion,
+          durationMs,
         },
         'Astrology chart calculated successfully'
       );
 
-      // Omit executionMetrics from client response to maintain strict DTO contract
-      const { executionMetrics, ...responsePayload } = result;
-
-      return reply.status(200).send(responsePayload);
+      return reply.status(200).send(result);
     },
   });
 }

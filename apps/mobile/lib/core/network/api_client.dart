@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../config/app_config.dart';
 import '../storage/secure_storage_service.dart';
@@ -110,6 +112,9 @@ class ApiClient {
     Duration? timeout,
   }) async {
     try {
+      if (kDebugMode) {
+        developer.log('[API] POST ${baseUrl}$path', name: 'ApiClient');
+      }
       final options = timeout != null
           ? Options(sendTimeout: timeout, receiveTimeout: timeout)
           : null;
@@ -120,8 +125,14 @@ class ApiClient {
         cancelToken: cancelToken,
         options: options,
       );
+      if (kDebugMode) {
+        developer.log('[API] Response: ${response.statusCode} from POST $path', name: 'ApiClient');
+      }
       return response.data ?? {};
     } catch (e) {
+      if (kDebugMode) {
+        developer.log('[API] Error on POST $path: ${e.runtimeType}', name: 'ApiClient', error: e);
+      }
       throw ApiExceptionHandler.handle(e);
     }
   }

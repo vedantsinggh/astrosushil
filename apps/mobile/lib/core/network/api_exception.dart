@@ -69,18 +69,20 @@ class ApiExceptionHandler {
             }
           }
 
-          if (statusCode == 401) {
-            return const AuthenticationException('Your session has expired. Please sign in again.');
+          if (statusCode == 400 || statusCode == 422) {
+            return const ValidationException('Please check your birth details.', code: 'VALIDATION_ERROR');
+          } else if (statusCode == 401) {
+            return const AuthenticationException('Please sign in to continue.', code: 'AUTHENTICATION_ERROR');
           } else if (statusCode == 403) {
-            return const AuthorizationException('Access denied for this resource.');
+            return const AuthorizationException('Access denied for this resource.', code: 'AUTHORIZATION_ERROR');
           } else if (statusCode == 404) {
-            return const NotFoundException('Requested resource was not found.');
+            return const NotFoundException('Requested resource was not found.', code: 'NOT_FOUND');
           } else if (statusCode == 429) {
             return const RateLimitException('You\'re making requests a little too quickly. Please wait a moment.');
           } else if (statusCode == 503) {
             return const MaintenanceException('Astro Sushil is temporarily unavailable.');
           } else if (statusCode != null && statusCode >= 500) {
-            return ServerException('Astro Sushil is having trouble right now. Please try again in a moment ($statusCode).');
+            return const AstrologyCalculationException('We couldn\'t calculate your chart right now.', code: 'ASTROLOGY_CALCULATION_FAILED');
           }
 
           return ServerException('API request failed with status code ${response?.statusCode}');
@@ -89,10 +91,22 @@ class ApiExceptionHandler {
           return const NetworkException('Request was cancelled.');
 
         default:
-          return const NetworkException('Failed to connect to backend service. Please check your network.');
+          return const NetworkException('Unable to connect. Check your internet connection.');
       }
     }
 
-    return ServerException(error.toString());
+    if (error is FormatException || error is TypeError) {
+      return const ServerException('Something went wrong while loading your chart.', code: 'PARSING_ERROR');
+    }
+
+    final str = error.toString();
+    if (str.contains('SocketException') ||
+        str.contains('Connection refused') ||
+        str.contains('Network is unreachable') ||
+        str.contains('Failed host lookup')) {
+      return const NetworkException('Unable to connect. Check your internet connection.');
+    }
+
+    return ServerException(str);
   }
 }

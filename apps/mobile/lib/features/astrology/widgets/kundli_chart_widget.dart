@@ -217,27 +217,29 @@ class _NorthIndianKundliPainter extends CustomPainter {
 
   String _getPlanetAbbr(String planet, bool isRetrograde) {
     final suffix = isRetrograde ? '(R)' : '';
-    switch (planet.toUpperCase()) {
-      case 'SUN':
+    final clean = planet.replaceAll('(R)', '').trim().toUpperCase();
+    switch (clean) {
+      case 'SUN': case 'SURYA': case 'SOORYA':
         return 'Su$suffix';
-      case 'MOON':
+      case 'MOON': case 'CHANDRA':
         return 'Mo$suffix';
-      case 'MARS':
+      case 'MARS': case 'MANGAL': case 'KUJA':
         return 'Ma$suffix';
-      case 'MERCURY':
+      case 'MERCURY': case 'BUDHA':
         return 'Me$suffix';
-      case 'JUPITER':
+      case 'JUPITER': case 'GURU': case 'BRHASPATI':
         return 'Ju$suffix';
-      case 'VENUS':
+      case 'VENUS': case 'SHUKRA':
         return 'Ve$suffix';
-      case 'SATURN':
+      case 'SATURN': case 'SHANI':
         return 'Sa$suffix';
       case 'RAHU':
         return 'Ra$suffix';
       case 'KETU':
         return 'Ke$suffix';
       default:
-        return planet.substring(0, math.min(2, planet.length)) + suffix;
+        if (clean.isEmpty) return '';
+        return clean.substring(0, math.min(2, clean.length)) + suffix;
     }
   }
 

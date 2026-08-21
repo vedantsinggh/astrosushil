@@ -1,5 +1,23 @@
 /// Strongly typed models for AstroChart API response
 
+double _parseDouble(dynamic val, [double defaultValue = 0.0]) {
+  if (val == null) return defaultValue;
+  if (val is num) return val.toDouble();
+  if (val is String) {
+    return double.tryParse(val) ?? defaultValue;
+  }
+  return defaultValue;
+}
+
+int _parseInt(dynamic val, [int defaultValue = 1]) {
+  if (val == null) return defaultValue;
+  if (val is num) return val.toInt();
+  if (val is String) {
+    return int.tryParse(val) ?? defaultValue;
+  }
+  return defaultValue;
+}
+
 class NormalizedTimeModel {
   final String utcIsoString;
   final double julianDayUT;
@@ -13,9 +31,9 @@ class NormalizedTimeModel {
 
   factory NormalizedTimeModel.fromJson(Map<String, dynamic> json) {
     return NormalizedTimeModel(
-      utcIsoString: json['utcIsoString'] as String? ?? '',
-      julianDayUT: (json['julianDayUT'] as num?)?.toDouble() ?? 0.0,
-      timezoneOffsetMinutes: (json['timezoneOffsetMinutes'] as num?)?.toInt() ?? 0,
+      utcIsoString: json['utcIsoString'] as String? ?? json['utc_iso_string'] as String? ?? '',
+      julianDayUT: _parseDouble(json['julianDayUT'] ?? json['julian_day_ut']),
+      timezoneOffsetMinutes: _parseInt(json['timezoneOffsetMinutes'] ?? json['timezone_offset_minutes'], 0),
     );
   }
 
@@ -45,11 +63,11 @@ class ChartConfigModel {
 
   factory ChartConfigModel.fromJson(Map<String, dynamic> json) {
     return ChartConfigModel(
-      zodiacType: json['zodiacType'] as String? ?? 'SIDEREAL',
+      zodiacType: json['zodiacType'] as String? ?? json['zodiac_type'] as String? ?? 'SIDEREAL',
       ayanamsa: json['ayanamsa'] as String? ?? 'LAHIRI',
-      houseSystem: json['houseSystem'] as String? ?? 'WHOLE_SIGN',
-      nodeCalculation: json['nodeCalculation'] as String? ?? 'MEAN_NODE',
-      planetaryCalculationMode: json['planetaryCalculationMode'] as String? ?? 'GEOCENTRIC',
+      houseSystem: json['houseSystem'] as String? ?? json['house_system'] as String? ?? 'WHOLE_SIGN',
+      nodeCalculation: json['nodeCalculation'] as String? ?? json['node_calculation'] as String? ?? 'MEAN_NODE',
+      planetaryCalculationMode: json['planetaryCalculationMode'] as String? ?? json['planetary_calculation_mode'] as String? ?? 'GEOCENTRIC',
     );
   }
 
@@ -94,19 +112,104 @@ class PlanetModel {
   });
 
   factory PlanetModel.fromJson(Map<String, dynamic> json) {
+    final planetStr = json['planet'] as String? ??
+        json['name'] as String? ??
+        json['planetSymbol'] as String? ??
+        json['symbol'] as String? ??
+        json['id'] as String? ??
+        json['code'] as String? ??
+        json['planet_name'] as String? ??
+        json['planetName'] as String? ??
+        '';
+
+    final rashiStr = json['rashiName'] as String? ??
+        json['rashi'] as String? ??
+        json['rashi_name'] as String? ??
+        json['sign'] as String? ??
+        json['signName'] as String? ??
+        json['sign_name'] as String? ??
+        '';
+
+    final nakshatraStr = json['nakshatraName'] as String? ??
+        json['nakshatra'] as String? ??
+        json['nakshatra_name'] as String? ??
+        '';
+
+    final nakshatraLordStr = json['nakshatraLord'] as String? ??
+        json['nakshatra_lord'] as String? ??
+        json['lord'] as String? ??
+        '';
+
+    final parsedRashiIndex = _parseInt(
+      json['rashiIndex'] ?? json['rashi_index'] ?? json['rashi'] ?? json['signIndex'] ?? json['sign_index'],
+      1,
+    );
+
+    final parsedNakshatraIndex = _parseInt(
+      json['nakshatraIndex'] ?? json['nakshatra_index'] ?? json['nakshatra'],
+      1,
+    );
+
+    final parsedDegreeInRashi = _parseDouble(
+      json['degreeInRashi'] ?? json['degree_in_rashi'] ?? json['degreeInSign'] ?? json['degree_in_sign'] ?? json['degree'] ?? json['degrees'],
+      0.0,
+    );
+
+    const rashis = [
+      'Mesha', 'Vrishabha', 'Mithuna', 'Karka', 'Simha', 'Kanya',
+      'Tula', 'Vrischika', 'Dhanu', 'Makara', 'Kumbha', 'Meena'
+    ];
+
+    const nakshatras = [
+      'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',
+      'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni',
+      'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha', 'Jyeshtha',
+      'Moola', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishta', 'Shatabhisha',
+      'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
+    ];
+
+    const nakshatraLords = [
+      'Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'
+    ];
+
+    final effectiveRashiName = (rashiStr.isNotEmpty && rashiStr != 'N/A')
+        ? rashiStr
+        : (parsedRashiIndex >= 1 && parsedRashiIndex <= 12)
+            ? rashis[parsedRashiIndex - 1]
+            : 'N/A';
+
+    final effectiveNakshatraName = (nakshatraStr.isNotEmpty && nakshatraStr != 'N/A')
+        ? nakshatraStr
+        : (parsedNakshatraIndex >= 1 && parsedNakshatraIndex <= 27)
+            ? nakshatras[parsedNakshatraIndex - 1]
+            : 'N/A';
+
+    final effectiveNakshatraLord = (nakshatraLordStr.isNotEmpty && nakshatraLordStr != 'N/A')
+        ? nakshatraLordStr
+        : (parsedNakshatraIndex >= 1 && parsedNakshatraIndex <= 27)
+            ? nakshatraLords[(parsedNakshatraIndex - 1) % 9]
+            : 'N/A';
+
+    final isRetro = json['isRetrograde'] is bool
+        ? json['isRetrograde'] as bool
+        : json['is_retrograde'] is bool
+            ? json['is_retrograde'] as bool
+            : (json['isRetrograde']?.toString().toLowerCase() == 'true' ||
+                json['is_retrograde']?.toString().toLowerCase() == 'true');
+
     return PlanetModel(
-      planet: json['planet'] as String? ?? '',
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
-      speedLongitude: (json['speedLongitude'] as num?)?.toDouble() ?? 0.0,
-      isRetrograde: json['isRetrograde'] as bool? ?? false,
-      rashiIndex: (json['rashiIndex'] as num?)?.toInt() ?? 1,
-      rashiName: json['rashiName'] as String? ?? '',
-      degreeInRashi: (json['degreeInRashi'] as num?)?.toDouble() ?? 0.0,
-      nakshatraIndex: (json['nakshatraIndex'] as num?)?.toInt() ?? 1,
-      nakshatraName: json['nakshatraName'] as String? ?? '',
-      pada: (json['pada'] as num?)?.toInt() ?? 1,
-      nakshatraLord: json['nakshatraLord'] as String? ?? '',
+      planet: planetStr,
+      longitude: _parseDouble(json['longitude']),
+      latitude: _parseDouble(json['latitude']),
+      speedLongitude: _parseDouble(json['speedLongitude'] ?? json['speed_longitude']),
+      isRetrograde: isRetro,
+      rashiIndex: parsedRashiIndex,
+      rashiName: effectiveRashiName,
+      degreeInRashi: parsedDegreeInRashi,
+      nakshatraIndex: parsedNakshatraIndex,
+      nakshatraName: effectiveNakshatraName,
+      pada: _parseInt(json['pada'], 1),
+      nakshatraLord: effectiveNakshatraLord,
     );
   }
 
@@ -125,6 +228,29 @@ class PlanetModel {
       'pada': pada,
       'nakshatraLord': nakshatraLord,
     };
+  }
+
+  /// Format planet symbol to clean title-cased name
+  String get displayName {
+    final clean = planet.replaceAll('(R)', '').trim().toUpperCase();
+    switch (clean) {
+      case 'SUN': case 'SURYA': case 'SOORYA': return 'Sun';
+      case 'MOON': case 'CHANDRA': return 'Moon';
+      case 'MARS': case 'MANGAL': case 'KUJA': return 'Mars';
+      case 'MERCURY': case 'BUDHA': return 'Mercury';
+      case 'JUPITER': case 'GURU': case 'BRHASPATI': return 'Jupiter';
+      case 'VENUS': case 'SHUKRA': return 'Venus';
+      case 'SATURN': case 'SHANI': return 'Saturn';
+      case 'RAHU': return 'Rahu';
+      case 'KETU': return 'Ketu';
+      default:
+        if (clean.isEmpty) return 'Planet';
+        return clean[0] + clean.substring(1).toLowerCase();
+    }
+  }
+
+  String get displayNameWithRetro {
+    return displayName + (isRetrograde ? ' (R)' : '');
   }
 
   /// Calculates Whole Sign House placement (1..12) given the Ascendant Rashi Index (1..12)
@@ -155,15 +281,69 @@ class AscendantModel {
   });
 
   factory AscendantModel.fromJson(Map<String, dynamic> json) {
+    final parsedRashiIndex = _parseInt(
+      json['rashiIndex'] ?? json['rashi_index'] ?? json['rashi'] ?? json['signIndex'] ?? json['sign_index'],
+      1,
+    );
+
+    final parsedNakshatraIndex = _parseInt(
+      json['nakshatraIndex'] ?? json['nakshatra_index'] ?? json['nakshatra'],
+      1,
+    );
+
+    final parsedDegreeInRashi = _parseDouble(
+      json['degreeInRashi'] ?? json['degree_in_rashi'] ?? json['degreeInSign'] ?? json['degree_in_sign'] ?? json['degree'] ?? json['degrees'],
+      0.0,
+    );
+
+    final rashiStr = json['rashiName'] as String? ?? json['rashi'] as String? ?? json['rashi_name'] as String? ?? json['sign'] as String? ?? json['signName'] as String? ?? '';
+    final nakshatraStr = json['nakshatraName'] as String? ?? json['nakshatra'] as String? ?? json['nakshatra_name'] as String? ?? '';
+    final nakshatraLordStr = json['nakshatraLord'] as String? ?? json['nakshatra_lord'] as String? ?? json['lord'] as String? ?? '';
+
+    const rashis = [
+      'Mesha', 'Vrishabha', 'Mithuna', 'Karka', 'Simha', 'Kanya',
+      'Tula', 'Vrischika', 'Dhanu', 'Makara', 'Kumbha', 'Meena'
+    ];
+
+    const nakshatras = [
+      'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',
+      'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni',
+      'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha', 'Jyeshtha',
+      'Moola', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishta', 'Shatabhisha',
+      'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
+    ];
+
+    const nakshatraLords = [
+      'Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'
+    ];
+
+    final effectiveRashiName = (rashiStr.isNotEmpty && rashiStr != 'N/A')
+        ? rashiStr
+        : (parsedRashiIndex >= 1 && parsedRashiIndex <= 12)
+            ? rashis[parsedRashiIndex - 1]
+            : 'N/A';
+
+    final effectiveNakshatraName = (nakshatraStr.isNotEmpty && nakshatraStr != 'N/A')
+        ? nakshatraStr
+        : (parsedNakshatraIndex >= 1 && parsedNakshatraIndex <= 27)
+            ? nakshatras[parsedNakshatraIndex - 1]
+            : 'N/A';
+
+    final effectiveNakshatraLord = (nakshatraLordStr.isNotEmpty && nakshatraLordStr != 'N/A')
+        ? nakshatraLordStr
+        : (parsedNakshatraIndex >= 1 && parsedNakshatraIndex <= 27)
+            ? nakshatraLords[(parsedNakshatraIndex - 1) % 9]
+            : 'N/A';
+
     return AscendantModel(
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      rashiIndex: (json['rashiIndex'] as num?)?.toInt() ?? 1,
-      rashiName: json['rashiName'] as String? ?? '',
-      degreeInRashi: (json['degreeInRashi'] as num?)?.toDouble() ?? 0.0,
-      nakshatraIndex: (json['nakshatraIndex'] as num?)?.toInt() ?? 1,
-      nakshatraName: json['nakshatraName'] as String? ?? '',
-      pada: (json['pada'] as num?)?.toInt() ?? 1,
-      nakshatraLord: json['nakshatraLord'] as String? ?? '',
+      longitude: _parseDouble(json['longitude']),
+      rashiIndex: parsedRashiIndex,
+      rashiName: effectiveRashiName,
+      degreeInRashi: parsedDegreeInRashi,
+      nakshatraIndex: parsedNakshatraIndex,
+      nakshatraName: effectiveNakshatraName,
+      pada: _parseInt(json['pada'], 1),
+      nakshatraLord: effectiveNakshatraLord,
     );
   }
 
@@ -198,11 +378,11 @@ class HouseModel {
 
   factory HouseModel.fromJson(Map<String, dynamic> json) {
     return HouseModel(
-      houseNumber: (json['houseNumber'] as num?)?.toInt() ?? 1,
-      startLongitude: (json['startLongitude'] as num?)?.toDouble() ?? 0.0,
-      cuspLongitude: (json['cuspLongitude'] as num?)?.toDouble() ?? 0.0,
-      endLongitude: (json['endLongitude'] as num?)?.toDouble() ?? 0.0,
-      rashiName: json['rashiName'] as String? ?? '',
+      houseNumber: _parseInt(json['houseNumber'] ?? json['house_number'] ?? json['house'], 1),
+      startLongitude: _parseDouble(json['startLongitude'] ?? json['start_longitude']),
+      cuspLongitude: _parseDouble(json['cuspLongitude'] ?? json['cusp_longitude']),
+      endLongitude: _parseDouble(json['endLongitude'] ?? json['end_longitude']),
+      rashiName: json['rashiName'] as String? ?? json['rashi'] as String? ?? json['rashi_name'] as String? ?? '',
     );
   }
 
@@ -239,34 +419,102 @@ class AstroChartModel {
   });
 
   factory AstroChartModel.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> chartMap = (json['data'] is Map)
-        ? Map<String, dynamic>.from(json['data'] as Map)
-        : (json['chart'] is Map)
-            ? Map<String, dynamic>.from(json['chart'] as Map)
+    final Map<String, dynamic> chartMap = (json['chart'] is Map)
+        ? Map<String, dynamic>.from(json['chart'] as Map)
+        : (json['data'] is Map)
+            ? Map<String, dynamic>.from(json['data'] as Map)
             : json;
 
+    final Map<String, dynamic> metadataMap = (chartMap['metadata'] is Map)
+        ? Map<String, dynamic>.from(chartMap['metadata'] as Map)
+        : (json['metadata'] is Map)
+            ? Map<String, dynamic>.from(json['metadata'] as Map)
+            : (json['data'] is Map && (json['data'] as Map)['metadata'] is Map)
+                ? Map<String, dynamic>.from((json['data'] as Map)['metadata'] as Map)
+                : {};
+
+    List<dynamic> extractList(String key) {
+      dynamic val;
+      if (chartMap[key] != null) {
+        val = chartMap[key];
+      } else if (json['data'] is Map && (json['data'] as Map)[key] != null) {
+        val = (json['data'] as Map)[key];
+      } else if (json['chart'] is Map && (json['chart'] as Map)[key] != null) {
+        val = (json['chart'] as Map)[key];
+      } else if (json[key] != null) {
+        val = json[key];
+      }
+
+      if (val is List && val.isNotEmpty) {
+        return val;
+      }
+
+      if (val is Map && val.isNotEmpty) {
+        return val.entries.map((e) {
+          if (e.value is Map) {
+            final mapVal = Map<String, dynamic>.from(e.value as Map);
+            mapVal['planet'] ??= e.key.toString();
+            mapVal['name'] ??= e.key.toString();
+            return mapVal;
+          }
+          return e.value;
+        }).toList();
+      }
+
+      return [];
+    }
+
+    final planetsList = extractList('planets');
+    final housesList = extractList('houses');
+
+    Map<String, dynamic>? extractAscendant() {
+      if (chartMap['ascendant'] is Map) {
+        return Map<String, dynamic>.from(chartMap['ascendant'] as Map);
+      }
+      if (json['data'] is Map && (json['data'] as Map)['ascendant'] is Map) {
+        return Map<String, dynamic>.from((json['data'] as Map)['ascendant'] as Map);
+      }
+      if (json['chart'] is Map && (json['chart'] as Map)['ascendant'] is Map) {
+        return Map<String, dynamic>.from((json['chart'] as Map)['ascendant'] as Map);
+      }
+      if (json['ascendant'] is Map) {
+        return Map<String, dynamic>.from(json['ascendant'] as Map);
+      }
+      return null;
+    }
+
+    final rawAscendant = extractAscendant();
+
     return AstroChartModel(
-      calculationVersion: chartMap['calculationVersion'] as String? ?? '0.1.0',
-      providerName: chartMap['providerName'] as String? ?? '',
-      providerVersion: chartMap['providerVersion'] as String? ?? '',
+      calculationVersion: chartMap['calculationVersion'] as String? ??
+          metadataMap['calculationVersion'] as String? ??
+          '0.1.0',
+      providerName: chartMap['providerName'] as String? ??
+          metadataMap['providerName'] as String? ??
+          '',
+      providerVersion: chartMap['providerVersion'] as String? ??
+          metadataMap['providerVersion'] as String? ??
+          '',
       normalizedTime: NormalizedTimeModel.fromJson(
         chartMap['normalizedTime'] is Map
             ? Map<String, dynamic>.from(chartMap['normalizedTime'] as Map)
-            : {},
+            : metadataMap['normalizedTime'] is Map
+                ? Map<String, dynamic>.from(metadataMap['normalizedTime'] as Map)
+                : {},
       ),
       config: ChartConfigModel.fromJson(
         chartMap['config'] is Map
             ? Map<String, dynamic>.from(chartMap['config'] as Map)
-            : {},
+            : metadataMap['config'] is Map
+                ? Map<String, dynamic>.from(metadataMap['config'] as Map)
+                : {},
       ),
-      ascendant: chartMap['ascendant'] is Map
-          ? AscendantModel.fromJson(Map<String, dynamic>.from(chartMap['ascendant'] as Map))
-          : null,
-      planets: (chartMap['planets'] as List? ?? [])
+      ascendant: rawAscendant != null ? AscendantModel.fromJson(rawAscendant) : null,
+      planets: planetsList
           .whereType<Map>()
           .map((p) => PlanetModel.fromJson(Map<String, dynamic>.from(p)))
           .toList(),
-      houses: (chartMap['houses'] as List? ?? [])
+      houses: housesList
           .whereType<Map>()
           .map((h) => HouseModel.fromJson(Map<String, dynamic>.from(h)))
           .toList(),
@@ -286,3 +534,4 @@ class AstroChartModel {
     };
   }
 }
+
