@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../data/auth_repository.dart';
 import '../models/user_model.dart';
@@ -17,12 +18,14 @@ class AuthState {
   final AuthStatus status;
   final UserModel? user;
   final String? errorMessage;
+  final String? pendingVerificationEmail;
 
   const AuthState({
     this.isLoading = false,
     this.status = AuthStatus.unauthenticated,
     this.user,
     this.errorMessage,
+    this.pendingVerificationEmail,
   });
 
   bool get isGuest => status == AuthStatus.guest;
@@ -30,8 +33,8 @@ class AuthState {
   bool get isGuestOrAuthenticated => status == AuthStatus.authenticated || status == AuthStatus.guest;
 
   factory AuthState.initial() => const AuthState(isLoading: true);
-  factory AuthState.unauthenticated({String? error}) =>
-      AuthState(status: AuthStatus.unauthenticated, errorMessage: error);
+  factory AuthState.unauthenticated({String? error, String? pendingEmail}) =>
+      AuthState(status: AuthStatus.unauthenticated, errorMessage: error, pendingVerificationEmail: pendingEmail);
   factory AuthState.guest() =>
       const AuthState(status: AuthStatus.guest);
   factory AuthState.authenticated(UserModel user) =>
@@ -43,12 +46,14 @@ class AuthState {
     AuthStatus? status,
     UserModel? user,
     String? errorMessage,
+    String? pendingVerificationEmail,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       status: status ?? this.status,
       user: user ?? this.user,
       errorMessage: errorMessage,
+      pendingVerificationEmail: pendingVerificationEmail ?? this.pendingVerificationEmail,
     );
   }
 }
@@ -113,7 +118,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
           // Token exists, treat as authenticated offline session
           state = AuthState.authenticated(
-            const UserModel(id: 'offline', email: 'Offline User', role: 'USER'),
+            UserModel(
+              id: 'offline',
+              email: 'Offline User',
+              role: 'USER',
+              createdAt: DateTime(2026, 1, 1),
+            ),
           );
           return;
         }
@@ -136,6 +146,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Map raw exceptions to user-friendly messages adhering to requirements
+  String _mapUserFriendlyError(dynamic e) {
+    if (e is AuthenticationException) {
+      return e.message.isNotEmpty ? e.message : 'Email or password is incorrect.';
+    }
+    if (e is NetworkException) {
+      return 'You\'re offline. Check your connection and try again.';
+    }
+    if (e is TimeoutException) {
+      return 'Your connection seems slow.';
+    }
+    if (e is ValidationException) {
+      return e.message;
+    }
+    final errorStr = e.toString().toLowerCase();
+    if (errorStr.contains('socketexception') || errorStr.contains('network') || errorStr.contains('offline')) {
+      return 'You\'re offline. Check your connection and try again.';
+    }
+    if (errorStr.contains('timeoutexception') || errorStr.contains('timeout')) {
+      return 'Your connection seems slow.';
+    }
+    if (errorStr.contains('401') || errorStr.contains('invalid credentials') || errorStr.contains('authentication')) {
+      return 'Email or password is incorrect.';
+    }
+    return 'We couldn\'t process your request right now.';
+  }
+
   /// Enter Guest Mode
   Future<void> continueAsGuest() async {
     await _storage.write(key: StorageKeys.isGuestMode, value: 'true');
@@ -148,30 +185,117 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthState.unauthenticated();
   }
 
-  /// Register user
-  Future<bool> register(String email, String password) async {
+  /// Register user with optional birth profile
+  Future<AuthRegistrationResult?> register(
+    String email,
+    String password, {
+    String? fullName,
+    String? phoneNumber,
+    Map<String, dynamic>? birthProfile,
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final authResult = await _repository.register(email: email, password: password);
+      final result = await _repository.register(
+        email: email,
+        password: password,
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+        birthProfile: birthProfile,
+      );
+
+      if (result.requiresEmailVerification) {
+        state = state.copyWith(
+          isLoading: false,
+          pendingVerificationEmail: email,
+        );
+        return result;
+      }
+
+      if (result.authData != null) {
+        await _storage.delete(key: StorageKeys.isGuestMode);
+        state = AuthState.authenticated(result.authData!.user);
+      }
+      return result;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return null;
+    }
+  }
+
+  /// Verify email OTP
+  Future<bool> verifyEmail(String email, String otp) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final authResult = await _repository.verifyEmail(email: email, otp: otp);
       await _storage.delete(key: StorageKeys.isGuestMode);
       state = AuthState.authenticated(authResult.user);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
       return false;
     }
   }
 
   /// Login user
-  Future<bool> login(String email, String password) async {
+  Future<AuthRegistrationResult?> login(String email, String password) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final authResult = await _repository.login(email: email, password: password);
-      await _storage.delete(key: StorageKeys.isGuestMode);
-      state = AuthState.authenticated(authResult.user);
+      final result = await _repository.login(email: email, password: password);
+
+      if (result.requiresEmailVerification) {
+        state = state.copyWith(
+          isLoading: false,
+          pendingVerificationEmail: email,
+        );
+        return result;
+      }
+
+      if (result.authData != null) {
+        await _storage.delete(key: StorageKeys.isGuestMode);
+        state = AuthState.authenticated(result.authData!.user);
+      }
+      return result;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return null;
+    }
+  }
+
+  /// Resend verification OTP code
+  Future<String?> resendVerification(String email) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final msg = await _repository.resendVerification(email: email);
+      state = state.copyWith(isLoading: false);
+      return msg;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return null;
+    }
+  }
+
+  /// Request password reset code
+  Future<String?> forgotPassword(String email) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final msg = await _repository.forgotPassword(email: email);
+      state = state.copyWith(isLoading: false);
+      return msg;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return null;
+    }
+  }
+
+  /// Reset password using OTP code
+  Future<bool> resetPassword(String email, String otp, String newPassword) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.resetPassword(email: email, otp: otp, newPassword: newPassword);
+      state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
       return false;
     }
   }

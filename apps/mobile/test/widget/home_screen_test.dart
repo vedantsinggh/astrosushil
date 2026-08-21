@@ -193,6 +193,16 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   }
 
   @override
+  Future<void> continueAsGuest() async {
+    state = AuthState.guest();
+  }
+
+  @override
+  Future<void> exitGuestMode() async {
+    state = AuthState.unauthenticated();
+  }
+
+  @override
   void clearError() {}
 }
 

@@ -13,6 +13,20 @@ const configSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long for security'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+
+  // Development Master OTP Configuration
+  DEV_MASTER_OTP: z.string().optional().default('4444'),
+  ALLOW_DEV_MASTER_OTP: z
+    .string()
+    .optional()
+    .transform((val) => val === 'true' || val === '1'),
+
+  // Email Transport Configuration
+  EMAIL_HOST: z.string().optional(),
+  EMAIL_PORT: z.coerce.number().int().optional(),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_FROM: z.string().default('Astro Sushil <noreply@astrosushil.com>'),
 });
 
 export type Config = z.infer<typeof configSchema>;

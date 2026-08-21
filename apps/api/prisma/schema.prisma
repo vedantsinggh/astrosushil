@@ -35,19 +35,28 @@ enum ReportStatus {
   FAILED
 }
 
-model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
 
-  birthProfiles BirthProfile[]
-  refreshTokens RefreshToken[]
-  orders        Order[]
-  reports       Report[]
-  deviceTokens  DeviceToken[]
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  passwordHash    String
+  fullName        String?
+  phoneNumber     String?
+  emailVerifiedAt DateTime?
+  role            Role           @default(USER)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  birthProfiles    BirthProfile[]
+  refreshTokens   RefreshToken[]
+  otpVerifications OtpVerification[]
+  orders          Order[]
+  reports         Report[]
+  deviceTokens    DeviceToken[]
 
   @@index([email])
   @@map("users")
@@ -67,6 +76,23 @@ model RefreshToken {
   @@index([userId])
   @@index([tokenHash])
   @@map("refresh_tokens")
+}
+
+model OtpVerification {
+  id        String              @id @default(uuid())
+  userId    String
+  codeHash  String
+  purpose   VerificationPurpose
+  expiresAt DateTime
+  attempts  Int                 @default(0)
+  usedAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, purpose])
+  @@map("otp_verifications")
 }
 
 model BirthProfile {
@@ -141,4 +167,3 @@ model DeviceToken {
   @@index([userId])
   @@map("device_tokens")
 }
-
