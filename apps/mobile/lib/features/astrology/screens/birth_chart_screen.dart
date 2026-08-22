@@ -494,7 +494,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                 ),
                 error: (err, stack) {
                   final String errorMessage;
-                  if (err is NetworkException) {
+                  if (err is AppException) {
                     errorMessage = err.message;
                   } else if (err.toString().contains('offline') || err.toString().contains('reach')) {
                     errorMessage = 'Unable to reach Astro Sushil servers. You appear to be offline.';
@@ -507,7 +507,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     child: ErrorBanner(
                       message: errorMessage,
-                      onRetry: () => ref.refresh(astrologyChartProvider(profile.id)),
+                      onRetry: () => ref.refresh(astrologyChartForProfileProvider(profile)),
                     ),
                   );
                 },
@@ -674,8 +674,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     final ascDegreeStr = chart.ascendant != null ? _formatDegree(chart.ascendant!.degreeInRashi) : 'N/A';
 
     final moonPlanet = chart.planets.firstWhere(
-      (p) => p.planet.toUpperCase() == 'MOON',
-      orElse: () => chart.planets.isNotEmpty ? chart.planets.first : const PlanetModel(
+      (p) => p.planet.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA' || p.displayName.toUpperCase() == 'MOON',
+      orElse: () => const PlanetModel(
         planet: 'MOON',
         longitude: 0,
         latitude: 0,
@@ -692,8 +692,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     );
 
     final sunPlanet = chart.planets.firstWhere(
-      (p) => p.planet.toUpperCase() == 'SUN',
-      orElse: () => chart.planets.isNotEmpty ? chart.planets.first : const PlanetModel(
+      (p) => p.planet.toUpperCase() == 'SUN' || p.planet.toUpperCase() == 'SURYA' || p.displayName.toUpperCase() == 'SUN',
+      orElse: () => const PlanetModel(
         planet: 'SUN',
         longitude: 0,
         latitude: 0,
@@ -824,44 +824,44 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     BirthProfileModel profile,
     AstroChartModel chart,
   ) {
-    final ascendantSign = chart.ascendant?.rashiName ?? 'Leo';
-    final ascendantDegree = chart.ascendant?.degreeInRashi != null
+    final ascendantSign = chart.ascendant?.rashiName ?? 'N/A';
+    final ascendantDegree = chart.ascendant != null
         ? _formatDegree(chart.ascendant!.degreeInRashi)
-        : '12°34\'';
+        : '0°00\'';
 
     final sunPlanet = chart.planets.firstWhere(
-      (p) => p.planet.toUpperCase() == 'SUN',
+      (p) => p.planet.toUpperCase() == 'SUN' || p.planet.toUpperCase() == 'SURYA',
       orElse: () => const PlanetModel(
         planet: 'SUN',
         longitude: 0,
         latitude: 0,
         speedLongitude: 0,
         isRetrograde: false,
-        rashiIndex: 10,
-        rashiName: 'Makara',
-        degreeInRashi: 26.05,
+        rashiIndex: 1,
+        rashiName: 'N/A',
+        degreeInRashi: 0,
         nakshatraIndex: 1,
-        nakshatraName: '',
+        nakshatraName: 'N/A',
         pada: 1,
-        nakshatraLord: '',
+        nakshatraLord: 'N/A',
       ),
     );
 
     final moonPlanet = chart.planets.firstWhere(
-      (p) => p.planet.toUpperCase() == 'MOON',
+      (p) => p.planet.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA',
       orElse: () => const PlanetModel(
         planet: 'MOON',
         longitude: 0,
         latitude: 0,
         speedLongitude: 0,
         isRetrograde: false,
-        rashiIndex: 8,
-        rashiName: 'Vrischika',
-        degreeInRashi: 28.53,
+        rashiIndex: 1,
+        rashiName: 'N/A',
+        degreeInRashi: 0,
         nakshatraIndex: 1,
-        nakshatraName: '',
+        nakshatraName: 'N/A',
         pada: 1,
-        nakshatraLord: '',
+        nakshatraLord: 'N/A',
       ),
     );
 
@@ -1039,7 +1039,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   Widget _buildPlanetRow(BuildContext context, PlanetModel p, int ascRashiIndex) {
     final houseNum = p.calculateHouseNumber(ascRashiIndex);
     final degreeStr = _formatDegree(p.degreeInRashi);
-    final cleanName = p.planet.replaceAll('(R)', '').trim();
+    final cleanName = p.displayName;
     final assetPath = AppAssets.getPlanetAsset(cleanName);
 
     return Padding(
@@ -1299,7 +1299,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      p.planet + (p.isRetrograde ? ' (R)' : ''),
+                                      p.displayNameWithRetro,
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
@@ -1334,7 +1334,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   // ==========================================
   Widget _buildNakshatraTabContent(BuildContext context, AstroChartModel chart) {
     final moonPlanet = chart.planets.firstWhere(
-      (p) => p.planet.toUpperCase() == 'MOON',
+      (p) => p.planet.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA',
       orElse: () => chart.planets.isNotEmpty ? chart.planets.first : const PlanetModel(
         planet: 'MOON',
         longitude: 0,

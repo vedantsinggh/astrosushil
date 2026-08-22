@@ -9,15 +9,29 @@ class LocalGuestBirthProfileService {
 
   LocalGuestBirthProfileService(this._storage);
 
-  /// Fetch local guest birth profile if saved
+  static final BirthProfileModel defaultGuestProfile = BirthProfileModel(
+    id: guestProfileId,
+    userId: 'guest',
+    name: 'Guest User',
+    dateOfBirth: '1995-01-01',
+    timeOfBirth: '12:00:00',
+    latitude: 28.6139,
+    longitude: 77.2090,
+    timezone: 'Asia/Kolkata',
+    placeName: 'New Delhi, India',
+    createdAt: DateTime(1995, 1, 1),
+    updatedAt: DateTime(1995, 1, 1),
+  );
+
+  /// Fetch local guest birth profile if saved, or return default profile
   Future<BirthProfileModel?> getGuestProfile() async {
     final raw = await _storage.read(key: StorageKeys.guestBirthProfile);
-    if (raw == null || raw.isEmpty) return null;
+    if (raw == null || raw.isEmpty) return defaultGuestProfile;
     try {
       final jsonMap = jsonDecode(raw) as Map<String, dynamic>;
       return BirthProfileModel.fromJson(jsonMap);
     } catch (_) {
-      return null;
+      return defaultGuestProfile;
     }
   }
 

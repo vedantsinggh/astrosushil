@@ -76,18 +76,22 @@ class PlanetsScreen extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12.0),
                     child: ErrorBanner(
-                      message: chartAsync.error is NetworkException
-                          ? (chartAsync.error as NetworkException).message
-                          : 'Unable to connect to server. Showing default positions.',
+                      message: chartAsync.error is AppException
+                          ? (chartAsync.error as AppException).message
+                          : 'Something went wrong while loading your chart.',
                       onRetry: activeProfile != null
-                          ? () => ref.refresh(astrologyChartProvider(activeProfile.id))
+                          ? () => ref.refresh(astrologyChartForProfileProvider(activeProfile))
                           : null,
                     ),
                   )
                 else if (chartAsync != null &&
                     chartAsync.valueOrNull != null &&
                     chartAsync.valueOrNull!.planets.isNotEmpty)
-                  ...chartAsync.valueOrNull!.planets.map((planet) => _buildPlanetRow(context, planet))
+                  ...chartAsync.valueOrNull!.planets.map((planet) => _buildPlanetRow(
+                        context,
+                        planet,
+                        chartAsync.valueOrNull?.ascendant?.rashiIndex ?? 1,
+                      ))
                 else
                   ..._buildMockPlanetRows(context),
               ],
@@ -98,8 +102,7 @@ class PlanetsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlanetRow(BuildContext context, PlanetModel planet) {
-    final ascRashiIndex = 3; // Default Gemini for Whole Sign house calculation
+  Widget _buildPlanetRow(BuildContext context, PlanetModel planet, [int ascRashiIndex = 1]) {
     final houseNum = planet.calculateHouseNumber(ascRashiIndex);
     final degreeStr =
         '${planet.degreeInRashi.toStringAsFixed(0)}°${((planet.degreeInRashi % 1) * 60).round()}\'';
@@ -112,7 +115,7 @@ class PlanetsScreen extends ConsumerWidget {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => PlanetDetailScreen(
-                planetName: planet.planet + (planet.isRetrograde ? ' (R)' : ''),
+                planetName: planet.displayNameWithRetro,
                 signName: planet.rashiName,
                 degree: degreeStr,
                 houseNumber: houseNum,
@@ -124,14 +127,14 @@ class PlanetsScreen extends ConsumerWidget {
         },
         child: Row(
           children: [
-            _buildPlanetVisualIdentifier(planet.planet),
+            _buildPlanetVisualIdentifier(planet.displayName),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    planet.planet + (planet.isRetrograde ? ' (R)' : ''),
+                    planet.displayNameWithRetro,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,

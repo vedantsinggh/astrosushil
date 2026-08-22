@@ -77,7 +77,7 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${widget.signName} • ${widget.degree}',
+                  '${widget.signName.isNotEmpty ? widget.signName : 'N/A'} • ${widget.degree}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -244,7 +244,7 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        widget.signName.substring(0, 1),
+                        widget.signName.isNotEmpty ? widget.signName.substring(0, 1) : '?',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -255,7 +255,7 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    '$planet in ${widget.signName}',
+                    '$planet in ${widget.signName.isNotEmpty ? widget.signName : 'Sign'}',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,

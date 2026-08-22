@@ -67,21 +67,17 @@ export class AstrologyService {
   public async calculateChartForDirectInput(
     input: DirectBirthDetailsInput
   ): Promise<AstroChartResponseDto> {
-    const timeParts = input.timeOfBirth.split(':');
-    const hours = parseInt(timeParts[0], 10);
-    const minutes = parseInt(timeParts[1], 10);
-    const seconds = timeParts.length > 2 ? parseInt(timeParts[2], 10) : 0;
-
     let birthDetails: BirthDetails;
     try {
-      birthDetails = BirthDetails.create({
+      birthDetails = mapBirthProfileToBirthDetails({
+        id: 'ephemeral',
         name: input.name,
         dateOfBirth: input.dateOfBirth,
-        timeOfBirth: { hours, minutes, seconds },
+        timeOfBirth: input.timeOfBirth,
         latitude: input.latitude,
         longitude: input.longitude,
         timezone: input.timezone,
-        placeName: input.placeName || 'Unknown Location',
+        placeName: input.placeName,
       });
     } catch (err: any) {
       throw new ValidationError(`Invalid birth details input: ${err.message}`);

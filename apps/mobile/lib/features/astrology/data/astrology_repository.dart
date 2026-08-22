@@ -1,3 +1,4 @@
+import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/local_cache_service.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -8,7 +9,7 @@ class AstrologyRepository {
   final ApiClient _apiClient;
   final LocalCacheService? _cacheService;
 
-  static const String engineVersion = '1.0.0';
+  static const String engineVersion = '1.1.0';
 
   AstrologyRepository({
     required ApiClient apiClient,
@@ -46,18 +47,21 @@ class AstrologyRepository {
 
     // 2. Fetch fresh calculation from network
     try {
-      final isGuestProfile = profile.id.isEmpty || profile.id == 'guest_profile_local';
+      final isGuestProfile = profile.id.isEmpty ||
+          profile.id == 'guest_profile_local' ||
+          profile.userId == 'guest';
+
       final Map<String, dynamic> payload;
 
       if (isGuestProfile) {
         payload = {
           'birthDetails': {
-            'name': profile.name,
+            'name': profile.name.isNotEmpty ? profile.name : 'Guest User',
             'dateOfBirth': profile.dateOfBirth,
             'timeOfBirth': profile.timeOfBirth,
             'latitude': profile.latitude,
             'longitude': profile.longitude,
-            'timezone': profile.timezone,
+            'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
             'placeName': profile.placeName,
           },
         };
@@ -65,11 +69,39 @@ class AstrologyRepository {
         payload = {'birthProfileId': profile.id};
       }
 
-      final response = await _apiClient.post(
-        '/astrology/chart',
-        data: payload,
-        timeout: const Duration(seconds: 30),
-      );
+      Map<String, dynamic> response;
+      try {
+        response = await _apiClient.post(
+          '/astrology/chart',
+          data: payload,
+          timeout: const Duration(seconds: 30),
+        );
+      } catch (e) {
+        // Fall back to guest calculation using local details if auth/profile fails
+        if ((e is AuthenticationException || e is NotFoundException) &&
+            profile.dateOfBirth.isNotEmpty &&
+            profile.timeOfBirth.isNotEmpty) {
+          final fallbackPayload = {
+            'birthDetails': {
+              'name': profile.name.isNotEmpty ? profile.name : 'Guest User',
+              'dateOfBirth': profile.dateOfBirth,
+              'timeOfBirth': profile.timeOfBirth,
+              'latitude': profile.latitude,
+              'longitude': profile.longitude,
+              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'placeName': profile.placeName,
+            },
+          };
+          response = await _apiClient.post(
+            '/astrology/chart',
+            data: fallbackPayload,
+            timeout: const Duration(seconds: 30),
+          );
+        } else {
+          rethrow;
+        }
+      }
+
       final chart = AstroChartModel.fromJson(response);
 
       // Save to cache
