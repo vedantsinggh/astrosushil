@@ -88,6 +88,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SecureStorageService _storage;
 
   AuthNotifier(this._repository, this._storage) : super(AuthState.initial()) {
+    _repository.setOnUnauthenticatedCallback(handleSessionExpired);
     checkSession();
   }
 
@@ -306,6 +307,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _repository.logout();
     await _storage.delete(key: StorageKeys.isGuestMode);
     state = AuthState.unauthenticated();
+  }
+
+  /// Handle session expiration when refresh fails
+  Future<void> handleSessionExpired() async {
+    await _storage.delete(key: StorageKeys.accessToken);
+    await _storage.delete(key: StorageKeys.refreshToken);
+    await _storage.delete(key: StorageKeys.userProfile);
+    await _storage.delete(key: StorageKeys.isGuestMode);
+    state = AuthState.unauthenticated(error: 'Session expired. Please sign in again.');
   }
 
   /// Clear error message

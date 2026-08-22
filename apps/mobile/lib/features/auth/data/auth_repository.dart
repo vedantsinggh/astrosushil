@@ -30,6 +30,11 @@ class AuthRepository {
   })  : _apiClient = apiClient,
         _storageService = storageService;
 
+  /// Set callback when refresh token authentication fails
+  void setOnUnauthenticatedCallback(void Function()? callback) {
+    _apiClient.setOnUnauthenticatedCallback(callback);
+  }
+
   /// Register a new user with email, password, and optional birth profile
   Future<AuthRegistrationResult> register({
     required String email,

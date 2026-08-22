@@ -14,6 +14,7 @@ class ApiClient {
     Dio? dio,
     required SecureStorageService storageService,
     String? baseUrl,
+    VoidCallback? onUnauthenticated,
   }) : _dio = dio ??
             Dio(
               BaseOptions(
@@ -26,11 +27,26 @@ class ApiClient {
                 },
               ),
             ) {
-    _dio.interceptors.add(AuthInterceptor(storageService));
+    _dio.interceptors.add(
+      AuthInterceptor(
+        storageService,
+        baseUrl: baseUrl ?? AppConfig.baseUrl,
+        onUnauthenticated: onUnauthenticated,
+      ),
+    );
   }
 
   /// Expose base URL for testing / verification
   String get baseUrl => _dio.options.baseUrl;
+
+  /// Set callback when refresh token authentication fails
+  void setOnUnauthenticatedCallback(VoidCallback? callback) {
+    for (final interceptor in _dio.interceptors) {
+      if (interceptor is AuthInterceptor) {
+        interceptor.onUnauthenticated = callback;
+      }
+    }
+  }
 
   /// Helper to execute requests with controlled exponential backoff retry for idempotent requests
   Future<T> _retry<T>(
