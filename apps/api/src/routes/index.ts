@@ -13,6 +13,7 @@ import { webhooksRoutes } from '../modules/webhooks/webhooks.routes';
 import { reportsRoutes } from '../modules/reports/reports.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
 import { notificationsRoutes } from '../modules/notifications/notifications.routes';
+import { jyotiRoutes } from '../modules/jyoti/jyoti.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -35,6 +36,7 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(reportsRoutes, { prefix: '/reports' });
       await v1.register(adminRoutes, { prefix: '/admin' });
       await v1.register(notificationsRoutes, { prefix: '/notifications' });
+      await v1.register(jyotiRoutes, { prefix: '/jyoti' });
     },
     { prefix: '/api/v1' }
   );

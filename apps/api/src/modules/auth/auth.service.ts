@@ -349,6 +349,8 @@ export class AuthService {
     const accessToken = signJwt({ sub: user.id, role: user.role });
 
     return {
+      accessToken,
+      refreshToken: newRawRefreshToken,
       tokens: {
         accessToken,
         refreshToken: newRawRefreshToken,

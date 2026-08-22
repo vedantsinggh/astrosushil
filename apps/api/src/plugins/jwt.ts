@@ -14,6 +14,22 @@ export async function registerJwt(app: FastifyInstance) {
   // Authentication Decorator
   app.decorate('authenticate', async (request: FastifyRequest, _reply: FastifyReply) => {
     try {
+      const authHeader = request.headers.authorization;
+      const tokenPresent = Boolean(authHeader && authHeader.trim().length > 0);
+      let rawToken = '';
+      if (authHeader) {
+        const trimmed = authHeader.trim();
+        rawToken = trimmed.toLowerCase().startsWith('bearer ') ? trimmed.slice(7).trim() : trimmed;
+      }
+      const parts = rawToken ? rawToken.split('.') : [];
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[AUTH TRACE] tokenPresent = ${tokenPresent}`);
+        console.log(`[AUTH TRACE] tokenParts = ${parts.length}`);
+        console.log(`[AUTH TRACE] tokenLength = ${rawToken.length}`);
+        console.log(`[AUTH TRACE] tokenPrefix = ${rawToken.slice(0, 10)}...`);
+      }
+
       await request.jwtVerify();
       // Map 'sub' claim to 'id' property on request.user
       const decoded = request.user as unknown as { sub: string; role: 'USER' | 'ADMIN' };
@@ -25,6 +41,9 @@ export async function registerJwt(app: FastifyInstance) {
         role: decoded.role,
       };
     } catch (err: any) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(`[AUTH TRACE ERROR] Verification failed: ${err?.message || err}`);
+      }
       if (err instanceof AuthenticationError) {
         throw err;
       }

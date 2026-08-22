@@ -9,6 +9,9 @@ import '../../features/astrology/screens/vastu_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
+import '../../features/jyoti/screens/jyoti_chat_screen.dart';
+import '../../features/jyoti/widgets/home_jyoti_card.dart';
+import '../../features/jyoti/widgets/jyoti_floating_button.dart';
 import '../../shared/theme/app_colors.dart';
 import '../providers/home_provider.dart';
 import '../widgets/celestial_background_painter.dart';
@@ -48,6 +51,23 @@ class HomeScreen extends ConsumerWidget {
           ref.read(homeTabControllerProvider.notifier).state = index;
         },
       ),
+      floatingActionButton: currentTabIndex == 0
+          ? JyotiFloatingButton(
+              onTap: () {
+                AuthRequiredGate.checkAndProceed(
+                  context: context,
+                  ref: ref,
+                  feature: AppFeature.jyoti,
+                  featureTitle: 'Jyoti AI Assistant',
+                  onAllowed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const JyotiChatScreen()),
+                    );
+                  },
+                );
+              },
+            )
+          : null,
     );
   }
 }
@@ -89,6 +109,20 @@ class _HomeTabContentView extends ConsumerWidget {
   void _navigateToVastu(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const VastuScreen()),
+    );
+  }
+
+  void _navigateToJyoti(BuildContext context, WidgetRef ref) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.jyoti,
+      featureTitle: 'Jyoti AI Assistant',
+      onAllowed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const JyotiChatScreen()),
+        );
+      },
     );
   }
 
@@ -212,6 +246,13 @@ class _HomeTabContentView extends ConsumerWidget {
             HeroAstrologyCard(
               hasBirthProfile: hasProfile,
               onViewChartTap: () => _navigateToBirthChart(context, hasProfile),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 2.5 ASK JYOTI AI ASSISTANT ENTRY CARD
+            HomeJyotiCard(
+              onTap: () => _navigateToJyoti(context, ref),
             ),
 
             const SizedBox(height: 26),

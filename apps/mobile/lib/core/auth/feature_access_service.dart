@@ -8,6 +8,7 @@ enum AppFeature {
   rashiBhavishya,
   vastu,
   birthProfileLocal,
+  jyoti,
   // Paid / Gated Features:
   premiumReportMarriage,
   premiumReportCareer,
@@ -31,6 +32,7 @@ class FeatureAccessService {
       case AppFeature.birthProfileLocal:
         return false;
 
+      case AppFeature.jyoti:
       case AppFeature.premiumReportMarriage:
       case AppFeature.premiumReportCareer:
       case AppFeature.premiumReportChildbirth:

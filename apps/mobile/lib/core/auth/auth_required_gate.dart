@@ -4,6 +4,7 @@ import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../shared/theme/app_colors.dart';
+import 'auth_required_sheet.dart';
 import 'feature_access_service.dart';
 
 class AuthRequiredGate {
@@ -20,6 +21,20 @@ class AuthRequiredGate {
 
     if (FeatureAccessService.canAccessFeature(feature, authState)) {
       onAllowed();
+      return;
+    }
+
+    if (feature == AppFeature.jyoti) {
+      AuthRequiredSheet.show(
+        context: context,
+        title: 'Meet Jyoti',
+        subtitle: 'Your personal astrology guide',
+        description: 'Ask questions about your birth chart, planets, houses and more.',
+        primaryButtonText: 'Login to use Jyoti',
+        secondaryButtonText: 'Create an Account',
+        cancelButtonText: 'Maybe Later',
+        onAuthenticated: onAllowed,
+      );
       return;
     }
 
