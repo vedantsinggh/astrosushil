@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/auth/auth_required_gate.dart';
+import '../../core/auth/feature_access_service.dart';
+import '../../features/astrology/screens/birth_chart_screen.dart';
+import '../../features/astrology/screens/planets_screen.dart';
+import '../../features/astrology/screens/rashi_bhavishya_screen.dart';
+import '../../features/astrology/screens/vastu_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
-import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
+import '../../features/jyoti/screens/jyoti_chat_screen.dart';
+import '../../features/jyoti/widgets/home_jyoti_card.dart';
+import '../../features/jyoti/widgets/jyoti_floating_button.dart';
 import '../../shared/theme/app_colors.dart';
 import '../providers/home_provider.dart';
 import '../widgets/celestial_background_painter.dart';
@@ -43,6 +51,23 @@ class HomeScreen extends ConsumerWidget {
           ref.read(homeTabControllerProvider.notifier).state = index;
         },
       ),
+      floatingActionButton: currentTabIndex == 0
+          ? JyotiFloatingButton(
+              onTap: () {
+                AuthRequiredGate.checkAndProceed(
+                  context: context,
+                  ref: ref,
+                  feature: AppFeature.jyoti,
+                  featureTitle: 'Jyoti AI Assistant',
+                  onAllowed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const JyotiChatScreen()),
+                    );
+                  },
+                );
+              },
+            )
+          : null,
     );
   }
 }
@@ -51,20 +76,54 @@ class HomeScreen extends ConsumerWidget {
 class _HomeTabContentView extends ConsumerWidget {
   const _HomeTabContentView();
 
-  void _navigateToKundli(BuildContext context, bool hasProfile) {
+  void _navigateToBirthChart(BuildContext context, bool hasProfile) {
     if (hasProfile) {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const BirthProfileListScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const BirthChartScreen()),
       );
     } else {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const CreateBirthProfileScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
       );
     }
+  }
+
+  void _navigateToPlanets(BuildContext context, bool hasProfile) {
+    if (hasProfile) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const PlanetsScreen()),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+      );
+    }
+  }
+
+  void _navigateToRashiBhavishya(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const RashiBhavishyaScreen()),
+    );
+  }
+
+  void _navigateToVastu(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const VastuScreen()),
+    );
+  }
+
+  void _navigateToJyoti(BuildContext context, WidgetRef ref) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.jyoti,
+      featureTitle: 'Jyoti AI Assistant',
+      onAllowed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const JyotiChatScreen()),
+        );
+      },
+    );
   }
 
   void _showGuptaNadiModal(BuildContext context, bool hasProfile) {
@@ -134,7 +193,7 @@ class _HomeTabContentView extends ConsumerWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                _navigateToKundli(context, hasProfile);
+                _navigateToBirthChart(context, hasProfile);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.premiumAccent,
@@ -152,15 +211,6 @@ class _HomeTabContentView extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showFeatureNotice(BuildContext context, String title, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$title: $message'),
-        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -195,25 +245,24 @@ class _HomeTabContentView extends ConsumerWidget {
             // 2. HERO CARD ("Your Cosmic Journey" / "Create Your Birth Profile")
             HeroAstrologyCard(
               hasBirthProfile: hasProfile,
-              onViewChartTap: () => _navigateToKundli(context, hasProfile),
+              onViewChartTap: () => _navigateToBirthChart(context, hasProfile),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 2.5 ASK JYOTI AI ASSISTANT ENTRY CARD
+            HomeJyotiCard(
+              onTap: () => _navigateToJyoti(context, ref),
             ),
 
             const SizedBox(height: 26),
 
             // 3. QUICK ACCESS (Birth Chart, Planets, Rashi Bhavishya, Vastu)
             QuickAccessSection(
-              onKundliTap: () => _navigateToKundli(context, hasProfile),
-              onPlanetsTap: () => _navigateToKundli(context, hasProfile),
-              onPredictionTap: () => _showFeatureNotice(
-                context,
-                'Rashi Bhavishya',
-                'Daily forecast detailed breakdown',
-              ),
-              onVastuTap: () => _showFeatureNotice(
-                context,
-                'Vastu',
-                'Vastu spatial orientation guide',
-              ),
+              onKundliTap: () => _navigateToBirthChart(context, hasProfile),
+              onPlanetsTap: () => _navigateToPlanets(context, hasProfile),
+              onPredictionTap: () => _navigateToRashiBhavishya(context),
+              onVastuTap: () => _navigateToVastu(context),
             ),
 
             const SizedBox(height: 26),
@@ -221,11 +270,7 @@ class _HomeTabContentView extends ConsumerWidget {
             // 4. TODAY'S RASHI BHAVISHYA PREVIEW
             RashiBhavishyaSection(
               preview: prediction,
-              onReadTap: () => _showFeatureNotice(
-                context,
-                'Rashi Bhavishya',
-                'Full prediction report',
-              ),
+              onReadTap: () => _navigateToRashiBhavishya(context),
             ),
 
             const SizedBox(height: 26),
@@ -234,7 +279,15 @@ class _HomeTabContentView extends ConsumerWidget {
             ReportsSection(
               reports: reports,
               onReportTap: (report) {
-                ref.read(homeTabControllerProvider.notifier).state = 1;
+                AuthRequiredGate.checkAndProceed(
+                  context: context,
+                  ref: ref,
+                  feature: AppFeature.premiumReportMarriage,
+                  featureTitle: report.title,
+                  onAllowed: () {
+                    ref.read(homeTabControllerProvider.notifier).state = 1;
+                  },
+                );
               },
             ),
 
@@ -242,7 +295,15 @@ class _HomeTabContentView extends ConsumerWidget {
 
             // 6. GUPTA NADI FLAGSHIP FEATURE
             GuptaNadiCard(
-              onExploreTap: () => _showGuptaNadiModal(context, hasProfile),
+              onExploreTap: () {
+                AuthRequiredGate.checkAndProceed(
+                  context: context,
+                  ref: ref,
+                  feature: AppFeature.guptaNadi,
+                  featureTitle: 'Gupta Nadi Analysis',
+                  onAllowed: () => _showGuptaNadiModal(context, hasProfile),
+                );
+              },
             ),
 
             const SizedBox(height: 24),

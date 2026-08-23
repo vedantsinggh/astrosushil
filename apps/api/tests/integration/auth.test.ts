@@ -199,9 +199,11 @@ describe('Auth API Endpoints (Integration)', () => {
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.payload);
+    expect(body.accessToken).toBeDefined();
+    expect(body.refreshToken).toBeDefined();
     expect(body.tokens.accessToken).toBeDefined();
     expect(body.tokens.refreshToken).toBeDefined();
-    expect(body.tokens.refreshToken).not.toBe(registeredRefreshToken);
+    expect(body.refreshToken).not.toBe(registeredRefreshToken);
 
     // Update reference token
     registeredRefreshToken = body.tokens.refreshToken;

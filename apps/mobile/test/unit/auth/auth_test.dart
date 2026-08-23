@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/auth/models/auth_tokens_model.dart';
+import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
 
 void main() {
   group('Auth Models Unit Tests', () {
@@ -35,24 +36,27 @@ void main() {
       expect(tokens.expiresIn, equals('15m'));
     });
 
-    test('AuthResponseDto.fromJson parses user and tokens', () {
-      final json = {
-        'user': {
-          'id': 'user-1',
-          'email': 'user1@example.com',
-          'role': 'USER',
-          'createdAt': '2026-08-15T08:33:00.000Z',
-        },
-        'tokens': {
-          'accessToken': 'token_1',
-          'refreshToken': 'token_2',
-        },
-      };
+    test('AuthState calculates guest and authenticated statuses correctly', () {
+      final guestState = AuthState.guest();
+      expect(guestState.isGuest, isTrue);
+      expect(guestState.isAuthenticated, isFalse);
+      expect(guestState.isGuestOrAuthenticated, isTrue);
 
-      final response = AuthResponseDto.fromJson(json);
+      final user = UserModel(
+        id: '1',
+        email: 'test@example.com',
+        role: 'USER',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final authState = AuthState.authenticated(user);
+      expect(authState.isGuest, isFalse);
+      expect(authState.isAuthenticated, isTrue);
+      expect(authState.isGuestOrAuthenticated, isTrue);
 
-      expect(response.user.email, equals('user1@example.com'));
-      expect(response.tokens.accessToken, equals('token_1'));
+      final unauthState = AuthState.unauthenticated();
+      expect(unauthState.isGuest, isFalse);
+      expect(unauthState.isAuthenticated, isFalse);
+      expect(unauthState.isGuestOrAuthenticated, isFalse);
     });
   });
 }

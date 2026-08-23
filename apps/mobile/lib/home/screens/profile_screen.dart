@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/signup_screen.dart';
 import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
@@ -13,16 +15,17 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
+    final isGuest = authState.isGuest;
     final user = authState.user;
 
-    final email = user?.email ?? 'Authenticated User';
-    final role = user?.role ?? 'USER';
-    final initial = email.isNotEmpty ? email[0].toUpperCase() : 'U';
+    final email = isGuest ? 'Guest User' : (user?.email ?? 'Authenticated User');
+    final role = isGuest ? 'GUEST MODE' : ('ROLE: ${user?.role ?? 'USER'}');
+    final initial = isGuest ? 'G' : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: Text(isGuest ? 'Guest Profile' : 'My Profile'),
         backgroundColor: AppColors.lightSurface,
         foregroundColor: AppColors.lightTextPrimary,
         elevation: 0,
@@ -55,7 +58,7 @@ class ProfileScreen extends ConsumerWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: isGuest ? AppColors.tertiary : AppColors.primary,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: AppColors.premiumAccent,
@@ -92,15 +95,15 @@ class ProfileScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
+                        color: isGuest ? AppColors.premiumAccent.withOpacity(0.2) : AppColors.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'ROLE: $role',
-                        style: const TextStyle(
+                        role,
+                        style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: isGuest ? AppColors.primary : AppColors.primary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -108,6 +111,88 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+
+              if (isGuest) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.star_rounded, color: AppColors.premiumAccent, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Unlock Full Astro Sushil',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Create an account to back up your local profile, access paid reports, and sync details across devices.',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const SignupScreen()),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.premiumAccent,
+                                foregroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text('Create Account', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                );
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white54),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 24),
 
@@ -127,8 +212,8 @@ class ProfileScreen extends ConsumerWidget {
 
               _ProfileTile(
                 icon: Icons.person_search_outlined,
-                title: 'My Birth Profiles',
-                subtitle: 'Manage saved birth details for chart calculation',
+                title: isGuest ? 'Local Birth Profile' : 'My Birth Profiles',
+                subtitle: isGuest ? 'View or edit your local birth profile' : 'Manage saved birth details for chart calculation',
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -142,8 +227,8 @@ class ProfileScreen extends ConsumerWidget {
 
               _ProfileTile(
                 icon: Icons.add_circle_outline_rounded,
-                title: 'Add New Birth Profile',
-                subtitle: 'Create a new birth profile for friends or family',
+                title: isGuest ? 'Edit Local Profile' : 'Add New Birth Profile',
+                subtitle: isGuest ? 'Update your birth details' : 'Create a new birth profile for friends or family',
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -162,7 +247,7 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Astro Platform enforces end-to-end privacy.'),
+                      content: Text('Astro Sushil enforces end-to-end privacy. Guest profiles remain strictly on device.'),
                       duration: Duration(seconds: 2),
                     ),
                   );
@@ -171,12 +256,16 @@ class ProfileScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Logout Button
+              // Action Button (Logout or Exit Guest Mode)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    await ref.read(authStateProvider.notifier).logout();
+                    if (isGuest) {
+                      await ref.read(authStateProvider.notifier).exitGuestMode();
+                    } else {
+                      await ref.read(authStateProvider.notifier).logout();
+                    }
                     if (context.mounted) {
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
@@ -192,10 +281,10 @@ class ProfileScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  icon: const Icon(Icons.logout_rounded, size: 20),
-                  label: const Text(
-                    'Logout',
-                    style: TextStyle(
+                  icon: Icon(isGuest ? Icons.exit_to_app_rounded : Icons.logout_rounded, size: 20),
+                  label: Text(
+                    isGuest ? 'Exit Guest Mode' : 'Logout',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),

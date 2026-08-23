@@ -13,6 +13,9 @@ class StorageKeys {
   static const String accessToken = 'access_token';
   static const String refreshToken = 'refresh_token';
   static const String onboardingCompleted = 'onboarding_completed';
+  static const String userProfile = 'user_profile';
+  static const String isGuestMode = 'is_guest_mode';
+  static const String guestBirthProfile = 'guest_birth_profile';
 }
 
 /// Production implementation using FlutterSecureStorage

@@ -4,27 +4,42 @@ import { config } from '../config';
 import { checkDatabaseHealth } from '../services/prisma.service';
 
 export async function healthRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
-  // GET /health and /api/v1/health
-  const handler = async (_request: any, reply: any) => {
-    const isDbConnected = await checkDatabaseHealth();
-
-    const payload: HealthStatusResponse & { database?: string } = {
-      status: isDbConnected ? 'ok' : 'degraded',
-      timestamp: new Date().toISOString(),
-      service: 'astro-api',
-      environment: config.NODE_ENV,
-      database: isDbConnected ? 'connected' : 'disconnected',
-    };
-
-    const statusCode = isDbConnected ? 200 : 503;
-    return reply.status(statusCode).send(payload);
-  };
-
+  // Liveness endpoint GET /health (Fast non-blocking probe)
   fastify.get('/health', {
     schema: {
       tags: ['Health'],
-      summary: 'Get service health status with database connectivity check',
+      summary: 'Liveness probe for server uptime',
     },
-    handler,
+    handler: async (_request, reply) => {
+      const payload: HealthStatusResponse = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'astro-api',
+        environment: config.NODE_ENV,
+      };
+      return reply.status(200).send(payload);
+    },
+  });
+
+  // Readiness endpoint GET /ready (Dependency readiness check including DB)
+  fastify.get('/ready', {
+    schema: {
+      tags: ['Health'],
+      summary: 'Readiness probe checking database connectivity',
+    },
+    handler: async (_request, reply) => {
+      const isDbConnected = await checkDatabaseHealth();
+
+      const payload: HealthStatusResponse & { database: string } = {
+        status: isDbConnected ? 'ok' : 'degraded',
+        timestamp: new Date().toISOString(),
+        service: 'astro-api',
+        environment: config.NODE_ENV,
+        database: isDbConnected ? 'connected' : 'disconnected',
+      };
+
+      const statusCode = isDbConnected ? 200 : 503;
+      return reply.status(statusCode).send(payload);
+    },
   });
 }

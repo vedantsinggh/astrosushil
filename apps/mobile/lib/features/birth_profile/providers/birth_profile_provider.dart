@@ -1,12 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/network_state_manager.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/birth_profile_repository.dart';
+import '../data/local_guest_birth_profile_service.dart';
 import '../models/birth_profile_model.dart';
+
+/// Provider for LocalGuestBirthProfileService
+final localGuestBirthProfileServiceProvider = Provider<LocalGuestBirthProfileService>((ref) {
+  final storage = ref.watch(secureStorageProvider);
+  return LocalGuestBirthProfileService(storage);
+});
 
 /// Provider for BirthProfileRepository
 final birthProfileRepositoryProvider = Provider<BirthProfileRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
-  return BirthProfileRepository(apiClient: apiClient);
+  final cacheService = ref.watch(localCacheServiceProvider);
+  final guestService = ref.watch(localGuestBirthProfileServiceProvider);
+  return BirthProfileRepository(
+    apiClient: apiClient,
+    cacheService: cacheService,
+    guestService: guestService,
+  );
 });
 
 /// State model for birth profiles list
@@ -34,25 +48,35 @@ class BirthProfilesState {
   }
 }
 
-/// Provider managing list of birth profiles for the current user
+/// Provider managing list of birth profiles for the current user or guest
 final birthProfilesListNotifierProvider =
     StateNotifierProvider<BirthProfilesNotifier, BirthProfilesState>((ref) {
   final repository = ref.watch(birthProfileRepositoryProvider);
-  return BirthProfilesNotifier(repository);
+  final authState = ref.watch(authStateProvider);
+  return BirthProfilesNotifier(repository, authState);
 });
 
 class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
   final BirthProfileRepository _repository;
+  final AuthState _authState;
 
-  BirthProfilesNotifier(this._repository) : super(const BirthProfilesState()) {
+  BirthProfilesNotifier(this._repository, this._authState) : super(const BirthProfilesState()) {
     fetchProfiles();
   }
 
   Future<void> fetchProfiles() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final profiles = await _repository.getProfiles();
-      state = state.copyWith(isLoading: false, profiles: profiles);
+      if (_authState.isGuest) {
+        final guestProfile = await _repository.getGuestProfile();
+        state = state.copyWith(
+          isLoading: false,
+          profiles: guestProfile != null ? [guestProfile] : [],
+        );
+      } else {
+        final profiles = await _repository.getProfiles();
+        state = state.copyWith(isLoading: false, profiles: profiles);
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
@@ -61,10 +85,29 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
   Future<BirthProfileModel?> createProfile(CreateBirthProfileDto dto) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final newProfile = await _repository.createProfile(dto);
-      final updatedList = [newProfile, ...state.profiles];
-      state = state.copyWith(isLoading: false, profiles: updatedList);
-      return newProfile;
+      if (_authState.isGuest) {
+        final newProfile = await _repository.saveGuestProfile(dto);
+        state = state.copyWith(isLoading: false, profiles: [newProfile]);
+        return newProfile;
+      } else {
+        final newProfile = await _repository.createProfile(dto);
+        final updatedList = [newProfile, ...state.profiles];
+        state = state.copyWith(isLoading: false, profiles: updatedList);
+        return newProfile;
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return null;
+    }
+  }
+
+  /// Migrate guest profile to user account
+  Future<BirthProfileModel?> migrateGuestProfile(CreateBirthProfileDto dto) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final migrated = await _repository.migrateGuestProfile(dto);
+      await fetchProfiles();
+      return migrated;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return null;
@@ -76,5 +119,9 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
 final singleBirthProfileProvider =
     FutureProvider.family<BirthProfileModel, String>((ref, id) async {
   final repository = ref.watch(birthProfileRepositoryProvider);
+  if (id == LocalGuestBirthProfileService.guestProfileId) {
+    final guest = await repository.getGuestProfile();
+    if (guest != null) return guest;
+  }
   return await repository.getProfileById(id);
 });

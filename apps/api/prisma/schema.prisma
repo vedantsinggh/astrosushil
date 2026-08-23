@@ -14,16 +14,49 @@ enum Role {
   ADMIN
 }
 
-model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
 
-  birthProfiles BirthProfile[]
-  refreshTokens RefreshToken[]
+enum ReportType {
+  MARRIAGE_COMPATIBILITY
+  CAREER_PROSITY
+  CHILDBIRTH_FAMILY
+  GUPTA_NADI_DOSSIER
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  passwordHash    String
+  fullName        String?
+  phoneNumber     String?
+  emailVerifiedAt DateTime?
+  role            Role           @default(USER)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  birthProfiles    BirthProfile[]
+  refreshTokens   RefreshToken[]
+  otpVerifications OtpVerification[]
+  orders          Order[]
+  reports         Report[]
+  deviceTokens    DeviceToken[]
 
   @@index([email])
   @@map("users")
@@ -45,6 +78,23 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model OtpVerification {
+  id        String              @id @default(uuid())
+  userId    String
+  codeHash  String
+  purpose   VerificationPurpose
+  expiresAt DateTime
+  attempts  Int                 @default(0)
+  usedAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, purpose])
+  @@map("otp_verifications")
+}
+
 model BirthProfile {
   id          String   @id @default(uuid())
   userId      String
@@ -58,8 +108,62 @@ model BirthProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports Report[]
 
   @@index([userId])
   @@map("birth_profiles")
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  userId            String
+  razorpayOrderId   String      @unique
+  razorpayPaymentId String?     @unique
+  amount            Int         // Amount in paise
+  currency          String      @default("INR")
+  status            OrderStatus @default(PENDING)
+  reportType        ReportType
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports Report[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model Report {
+  id             String       @id @default(uuid())
+  userId         String
+  birthProfileId String
+  orderId        String?
+  reportType     ReportType
+  status         ReportStatus @default(PENDING)
+  s3Url          String?
+  errorMessage   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birthProfile BirthProfile @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
+  order        Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([birthProfileId])
+  @@map("reports")
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid())
+  userId     String
+  fcmToken   String   @unique
+  deviceType String   // "ANDROID" | "IOS" | "WEB"
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }

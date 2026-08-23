@@ -11,8 +11,28 @@ const configSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid connection string'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long for security'),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default(process.env.ACCESS_TOKEN_EXPIRES_IN || process.env.JWT_ACCESS_EXPIRES_IN || '30m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default(process.env.REFRESH_TOKEN_EXPIRES_IN || process.env.JWT_REFRESH_EXPIRES_IN || '60d'),
+
+  // Development Master OTP Configuration
+  DEV_MASTER_OTP: z.string().optional().default('4444'),
+  ALLOW_DEV_MASTER_OTP: z
+    .string()
+    .optional()
+    .transform((val) => val === 'true' || val === '1'),
+
+  // Email Transport Configuration
+  EMAIL_HOST: z.string().optional(),
+  EMAIL_PORT: z.coerce.number().int().optional(),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_FROM: z.string().default('Astro Sushil <noreply@astrosushil.com>'),
+
+  // Gemini & Jyoti AI Assistant Configuration
+  GEMINI_API_KEY: z.string().optional().default(''),
+  GEMINI_MODEL: z.string().default('gemini-3.6-flash'),
+  JYOTI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
+  JYOTI_DAILY_LIMIT: z.coerce.number().int().positive().default(200),
 });
 
 export type Config = z.infer<typeof configSchema>;

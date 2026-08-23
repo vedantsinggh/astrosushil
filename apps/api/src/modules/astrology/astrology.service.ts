@@ -3,19 +3,13 @@ import {
   AstrologyConfig,
   UnconfirmedMethodologyError,
   BirthDetailsValidationError,
+  BirthDetails,
 } from '@astro/astrology-engine';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError, AppError, ValidationError } from '../../errors/app-error';
 import { mapBirthProfileToBirthDetails } from './birth-details.mapper';
 import { mapAstroChartToResponse, AstroChartResponseDto } from './astrology-response.mapper';
-
-export interface ChartCalculationResult extends AstroChartResponseDto {
-  executionMetrics: {
-    durationMs: number;
-    engineVersion: string;
-    methodologyVersion: string;
-  };
-}
+import { DirectBirthDetailsInput } from './astrology.schemas';
 
 export class AstrologyService {
   private readonly calculator: ChartCalculator;
@@ -24,35 +18,8 @@ export class AstrologyService {
     this.calculator = calculator || new ChartCalculator();
   }
 
-  /**
-   * Calculates an AstroChart for an authenticated user's birth profile.
-   * Enforces server-side ownership authorization.
-   */
-  public async calculateChartForProfile(
-    birthProfileId: string,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
-  ): Promise<ChartCalculationResult> {
-    // 1. Fetch birth profile from PostgreSQL
-    const profile = await prisma.birthProfile.findUnique({
-      where: { id: birthProfileId },
-    });
-
-    // 2. Authorization & Privacy Guard: Enforce strict server-side ownership isolation.
-    // Return 404 NotFound if profile does not exist or belongs to another user.
-    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
-      throw new NotFoundError('Birth profile not found');
-    }
-
-    // 3. Map Prisma BirthProfile to domain BirthDetails
-    let birthDetails;
-    try {
-      birthDetails = mapBirthProfileToBirthDetails(profile);
-    } catch (err: any) {
-      throw new ValidationError(`Invalid birth profile data: ${err.message}`);
-    }
-
-    // 4. Define current active engine configuration
-    const activeConfig: AstrologyConfig = {
+  private getActiveConfig(): AstrologyConfig {
+    return {
       zodiacType: 'SIDEREAL',
       ayanamsa: 'LAHIRI',
       houseSystem: 'WHOLE_SIGN',
@@ -62,25 +29,69 @@ export class AstrologyService {
       roundingRule: 'NEAREST',
       dashaSystem: 'VIMSHOTTARI',
     };
+  }
 
-    // 5. Execute local deterministic astrology engine calculation with performance measurement
-    const startTime = performance.now();
+  /**
+   * Calculates an AstroChart for an authenticated user's birth profile.
+   * Enforces server-side ownership authorization.
+   */
+  public async calculateChartForProfile(
+    birthProfileId: string,
+    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+  ): Promise<AstroChartResponseDto> {
+    // 1. Fetch birth profile from PostgreSQL
+    const profile = await prisma.birthProfile.findUnique({
+      where: { id: birthProfileId },
+    });
+
+    // 2. Authorization & Privacy Guard: Enforce strict server-side ownership isolation.
+    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+      throw new NotFoundError('Birth profile not found');
+    }
+
+    // 3. Map Prisma BirthProfile to domain BirthDetails
+    let birthDetails: BirthDetails;
+    try {
+      birthDetails = mapBirthProfileToBirthDetails(profile);
+    } catch (err: any) {
+      throw new ValidationError(`Invalid birth profile data: ${err.message}`);
+    }
+
+    return this.executeCalculation(birthDetails);
+  }
+
+  /**
+   * Calculates an AstroChart directly from provided birth details (Guest Mode / ephemeral calculation).
+   * Does NOT touch or persist anything to PostgreSQL.
+   */
+  public async calculateChartForDirectInput(
+    input: DirectBirthDetailsInput
+  ): Promise<AstroChartResponseDto> {
+    let birthDetails: BirthDetails;
+    try {
+      birthDetails = mapBirthProfileToBirthDetails({
+        id: 'ephemeral',
+        name: input.name,
+        dateOfBirth: input.dateOfBirth,
+        timeOfBirth: input.timeOfBirth,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        timezone: input.timezone,
+        placeName: input.placeName,
+      });
+    } catch (err: any) {
+      throw new ValidationError(`Invalid birth details input: ${err.message}`);
+    }
+
+    return this.executeCalculation(birthDetails);
+  }
+
+  private async executeCalculation(birthDetails: BirthDetails): Promise<AstroChartResponseDto> {
+    const activeConfig = this.getActiveConfig();
+
     try {
       const astroChart = await this.calculator.calculateChart(birthDetails, activeConfig);
-      const endTime = performance.now();
-      const durationMs = Number((endTime - startTime).toFixed(3));
-
-      // 6. Map domain AstroChart output to public API response DTO
-      const mappedResponse = mapAstroChartToResponse(astroChart);
-
-      return {
-        ...mappedResponse,
-        executionMetrics: {
-          durationMs,
-          engineVersion: astroChart.metadata.engineVersion,
-          methodologyVersion: `${activeConfig.zodiacType}_${activeConfig.ayanamsa}_${activeConfig.nodeCalculation}`,
-        },
-      };
+      return mapAstroChartToResponse(astroChart);
     } catch (err: any) {
       if (err instanceof UnconfirmedMethodologyError) {
         throw new AppError(
@@ -96,7 +107,6 @@ export class AstrologyService {
         );
       }
 
-      // Catch-all calculation error preventing unhandled stack trace leaks
       throw new AppError('Unable to calculate astrology chart', 500, 'ASTROLOGY_CALCULATION_FAILED');
     }
   }
