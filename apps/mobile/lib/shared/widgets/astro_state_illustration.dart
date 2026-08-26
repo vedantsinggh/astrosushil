@@ -275,7 +275,7 @@ class _AstroStateVectorPainter extends CustomPainter {
     c.drawCircle(center, r * 0.08, _navyFill);
 
     // Warning triangle — subtle gold, small
-    final tri = center + const Offset(0, r * 0.15);
+    final tri = center + Offset(0, r * 0.15);
     final triPath = Path()
       ..moveTo(tri.dx, tri.dy - r * 0.22)
       ..lineTo(tri.dx - r * 0.18, tri.dy + r * 0.08)
