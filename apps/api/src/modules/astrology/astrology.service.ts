@@ -1,21 +1,41 @@
 import {
   ChartCalculator,
+  DashaCalculator,
+  VargaCalculator,
+  PanchangCalculator,
+  MatchmakingCalculator,
   AstrologyConfig,
   UnconfirmedMethodologyError,
   BirthDetailsValidationError,
   BirthDetails,
+  PlanetSymbol,
+  VargaType,
 } from '@astro/astrology-engine';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError, AppError, ValidationError } from '../../errors/app-error';
 import { mapBirthProfileToBirthDetails } from './birth-details.mapper';
 import { mapAstroChartToResponse, AstroChartResponseDto } from './astrology-response.mapper';
-import { DirectBirthDetailsInput } from './astrology.schemas';
+import {
+  DirectBirthDetailsInput,
+  DashaRequestInput,
+  PanchangRequestInput,
+  VargasRequestInput,
+  MatchmakingRequestInput,
+} from './astrology.schemas';
 
 export class AstrologyService {
   private readonly calculator: ChartCalculator;
+  private readonly dashaCalculator: DashaCalculator;
+  private readonly vargaCalculator: VargaCalculator;
+  private readonly panchangCalculator: PanchangCalculator;
+  private readonly matchmakingCalculator: MatchmakingCalculator;
 
   constructor(calculator?: ChartCalculator) {
     this.calculator = calculator || new ChartCalculator();
+    this.dashaCalculator = new DashaCalculator();
+    this.vargaCalculator = new VargaCalculator();
+    this.panchangCalculator = new PanchangCalculator();
+    this.matchmakingCalculator = new MatchmakingCalculator();
   }
 
   private getActiveConfig(): AstrologyConfig {
@@ -32,58 +52,156 @@ export class AstrologyService {
   }
 
   /**
+   * Helper to resolve BirthDetails from either birthProfileId or direct input.
+   */
+  private async resolveBirthDetails(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput },
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ): Promise<BirthDetails> {
+    if (input.birthProfileId) {
+      if (!requestingUser) {
+        throw new NotFoundError('Birth profile requires authenticated user');
+      }
+      const profile = await prisma.birthProfile.findUnique({
+        where: { id: input.birthProfileId },
+      });
+      if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+        throw new NotFoundError('Birth profile not found');
+      }
+      return mapBirthProfileToBirthDetails(profile);
+    } else if (input.birthDetails) {
+      return mapBirthProfileToBirthDetails({
+        id: 'ephemeral',
+        name: input.birthDetails.name,
+        dateOfBirth: input.birthDetails.dateOfBirth,
+        timeOfBirth: input.birthDetails.timeOfBirth,
+        latitude: input.birthDetails.latitude,
+        longitude: input.birthDetails.longitude,
+        timezone: input.birthDetails.timezone,
+        placeName: input.birthDetails.placeName,
+      });
+    }
+    throw new ValidationError('Either birthProfileId or birthDetails must be provided');
+  }
+
+  /**
    * Calculates an AstroChart for an authenticated user's birth profile.
-   * Enforces server-side ownership authorization.
    */
   public async calculateChartForProfile(
     birthProfileId: string,
     requestingUser: { id: string; role: 'USER' | 'ADMIN' }
   ): Promise<AstroChartResponseDto> {
-    // 1. Fetch birth profile from PostgreSQL
-    const profile = await prisma.birthProfile.findUnique({
-      where: { id: birthProfileId },
-    });
-
-    // 2. Authorization & Privacy Guard: Enforce strict server-side ownership isolation.
-    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
-      throw new NotFoundError('Birth profile not found');
-    }
-
-    // 3. Map Prisma BirthProfile to domain BirthDetails
-    let birthDetails: BirthDetails;
-    try {
-      birthDetails = mapBirthProfileToBirthDetails(profile);
-    } catch (err: any) {
-      throw new ValidationError(`Invalid birth profile data: ${err.message}`);
-    }
-
+    const birthDetails = await this.resolveBirthDetails({ birthProfileId }, requestingUser);
     return this.executeCalculation(birthDetails);
   }
 
   /**
-   * Calculates an AstroChart directly from provided birth details (Guest Mode / ephemeral calculation).
-   * Does NOT touch or persist anything to PostgreSQL.
+   * Calculates an AstroChart directly from provided birth details (Guest Mode).
    */
   public async calculateChartForDirectInput(
     input: DirectBirthDetailsInput
   ): Promise<AstroChartResponseDto> {
-    let birthDetails: BirthDetails;
-    try {
-      birthDetails = mapBirthProfileToBirthDetails({
-        id: 'ephemeral',
-        name: input.name,
-        dateOfBirth: input.dateOfBirth,
-        timeOfBirth: input.timeOfBirth,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        timezone: input.timezone,
-        placeName: input.placeName,
-      });
-    } catch (err: any) {
-      throw new ValidationError(`Invalid birth details input: ${err.message}`);
-    }
-
+    const birthDetails = await this.resolveBirthDetails({ birthDetails: input });
     return this.executeCalculation(birthDetails);
+  }
+
+  /**
+   * Calculates Vimshottari Dasha timeline up to Level 3.
+   */
+  public async calculateDasha(
+    input: DashaRequestInput,
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ) {
+    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
+    const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
+    const moonLongitude = chart.planets[PlanetSymbol.MOON].longitude;
+    const birthDateUtc = new Date(chart.metadata.normalizedTime.utcIsoString);
+
+    const dashaTree = this.dashaCalculator.calculateVimshottariDasha(
+      moonLongitude,
+      birthDateUtc,
+      input.maxLevel || 3
+    );
+
+    return {
+      birthDetails,
+      dashaTree,
+    };
+  }
+
+  /**
+   * Calculates Panchang elements (Tithi, Vara, Nakshatra, Yoga, Karana).
+   */
+  public async calculatePanchang(input: PanchangRequestInput) {
+    const dateTimeStr = `${input.dateOfBirth}T${input.timeOfBirth}Z`;
+    const birthDateUtc = new Date(dateTimeStr);
+
+    const ephemeralDetails = mapBirthProfileToBirthDetails({
+      id: 'ephemeral',
+      name: 'Panchang Query',
+      dateOfBirth: input.dateOfBirth,
+      timeOfBirth: input.timeOfBirth,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      timezone: input.timezone || 'UTC',
+    });
+
+    const chart = await this.calculator.calculateChart(ephemeralDetails, this.getActiveConfig());
+    const sunLong = chart.planets[PlanetSymbol.SUN].longitude;
+    const moonLong = chart.planets[PlanetSymbol.MOON].longitude;
+
+    const panchang = this.panchangCalculator.calculatePanchang(sunLong, moonLong, birthDateUtc);
+
+    return {
+      query: input,
+      panchang,
+    };
+  }
+
+  /**
+   * Calculates Divisional Charts (Vargas).
+   */
+  public async calculateVargas(
+    input: VargasRequestInput,
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ) {
+    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
+    const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
+
+    const defaultVargas: VargaType[] = ['D1', 'D2', 'D3', 'D4', 'D7', 'D9', 'D10', 'D12', 'D30'];
+    const vargaTypes = input.vargaTypes && input.vargaTypes.length > 0 ? input.vargaTypes : defaultVargas;
+
+    const vargaCharts = vargaTypes.map((vType) =>
+      this.vargaCalculator.calculateVarga(chart, vType as VargaType)
+    );
+
+    return {
+      birthDetails,
+      vargas: vargaCharts,
+    };
+  }
+
+  /**
+   * Calculates Matchmaking compatibility & Manglik status between Boy and Girl.
+   */
+  public async calculateMatchmaking(
+    input: MatchmakingRequestInput,
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ) {
+    const boyDetails = await this.resolveBirthDetails(input.boy, requestingUser);
+    const girlDetails = await this.resolveBirthDetails(input.girl, requestingUser);
+
+    const activeConfig = this.getActiveConfig();
+    const boyChart = await this.calculator.calculateChart(boyDetails, activeConfig);
+    const girlChart = await this.calculator.calculateChart(girlDetails, activeConfig);
+
+    const result = this.matchmakingCalculator.evaluateCompatibility(boyChart, girlChart);
+
+    return {
+      boy: { name: boyDetails.name, dateOfBirth: boyDetails.dateOfBirth },
+      girl: { name: girlDetails.name, dateOfBirth: girlDetails.dateOfBirth },
+      compatibility: result,
+    };
   }
 
   private async executeCalculation(birthDetails: BirthDetails): Promise<AstroChartResponseDto> {

@@ -10,4 +10,6 @@ export * from './houses';
 export * from './nakshatra';
 export * from './dasha';
 export * from './varga';
+export * from './panchang';
+export * from './matchmaking';
 export * from './chart';

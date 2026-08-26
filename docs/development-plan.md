@@ -60,10 +60,11 @@ The development team consists of two developers working concurrently across spec
 
 ### Phase 2: Core Engine Development
 - **Primary Developer**:
-  - Scaffold monorepo packages (`astrology-engine`, `gupta-nadi-engine`, `prediction-engine`, `shared`).
-  - Implement planetary longitudes, Ascendant, house division, Vargas, Vimshottari Dasha, and Panchang in `astrology-engine`.
-  - Build BNN rule matcher matrix, planetary trine math, and transit overlay logic in `gupta-nadi-engine`.
-  - Write comprehensive unit tests against benchmark reference charts.
+  - [x] Scaffold monorepo packages (`astrology-engine`, `gupta-nadi-engine`, `prediction-engine`, `shared`).
+  - [x] Implement planetary longitudes, Ascendant, house division, Vargas, Vimshottari Dasha, Panchang, and Ashtakoota Matchmaking in `astrology-engine`.
+  - [ ] Build BNN rule matcher matrix, planetary trine math, and transit overlay logic in `gupta-nadi-engine` (Pending client confirmation for BNN rules).
+  - [x] Write comprehensive unit tests for core astrology math modules.
 - **Second Developer**:
-  - Flutter app UI scaffolding (Theme, Navigation, Custom Painter for Kundli chart drawing).
-  - Next.js Admin portal project layout and design system.
+  - [ ] Flutter app UI scaffolding (Theme, Navigation, Custom Painter for Kundli chart drawing).
+  - [ ] Next.js Admin portal project layout and design system.
+
