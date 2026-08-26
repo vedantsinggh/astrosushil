@@ -1,9 +1,10 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
+import fp from 'fastify-plugin';
 import { config } from '../config';
 import { AuthenticationError, AuthorizationError } from '../errors/app-error';
 
-export async function registerJwt(app: FastifyInstance) {
+async function jwtPlugin(app: FastifyInstance) {
   await app.register(fastifyJwt, {
     secret: config.JWT_SECRET,
     sign: {
@@ -83,6 +84,8 @@ export async function registerJwt(app: FastifyInstance) {
     };
   });
 }
+
+export const registerJwt = fp(jwtPlugin);
 
 declare module 'fastify' {
   interface FastifyInstance {

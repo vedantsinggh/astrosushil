@@ -84,10 +84,11 @@ describe('Reference Astrology Test Fixture Framework', () => {
       it(`[APPROVED] ${testCase.id}: ${testCase.description}`, async () => {
         const chart = await calculator.calculateChart(testCase.birthDetails, testCase.config);
         expect(chart).toBeDefined();
-        expect(chart.planets.length).toBeGreaterThan(0);
+        const planetKeys = Object.keys(chart.planets);
+        expect(planetKeys.length).toBeGreaterThan(0);
 
         if (testCase.expected?.sunRashiIndex !== undefined) {
-          const sun = chart.planets.find((p) => p.planet === 'SUN');
+          const sun = chart.planets['SUN' as any];
           expect(sun).toBeDefined();
           expect(sun?.rashiIndex).toBe(testCase.expected.sunRashiIndex);
         }
