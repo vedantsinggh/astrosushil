@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
+import '@fastify/jwt';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 
@@ -10,7 +11,7 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
   const profilesDb = new Map<string, any>();
 
   beforeAll(async () => {
-    vi.spyOn(prisma.birthProfile, 'create').mockImplementation(async ({ data }: any) => {
+    (vi.spyOn(prisma.birthProfile, 'create') as any).mockImplementation(async ({ data }: any) => {
       const id = `profile-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const profile = {
         id,
@@ -29,15 +30,15 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
       return profile;
     });
 
-    vi.spyOn(prisma.birthProfile, 'findMany').mockImplementation(async ({ where }: any) => {
+    (vi.spyOn(prisma.birthProfile, 'findMany') as any).mockImplementation(async ({ where }: any) => {
       return Array.from(profilesDb.values()).filter((p) => p.userId === where.userId);
     });
 
-    vi.spyOn(prisma.birthProfile, 'findUnique').mockImplementation(async ({ where }: any) => {
+    (vi.spyOn(prisma.birthProfile, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
       return profilesDb.get(where.id) || null;
     });
 
-    vi.spyOn(prisma.birthProfile, 'update').mockImplementation(async ({ where, data }: any) => {
+    (vi.spyOn(prisma.birthProfile, 'update') as any).mockImplementation(async ({ where, data }: any) => {
       const existing = profilesDb.get(where.id);
       if (!existing) throw new Error('Not found');
       const updated = { ...existing, ...data, updatedAt: new Date() };
@@ -45,7 +46,7 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
       return updated;
     });
 
-    vi.spyOn(prisma.birthProfile, 'delete').mockImplementation(async ({ where }: any) => {
+    (vi.spyOn(prisma.birthProfile, 'delete') as any).mockImplementation(async ({ where }: any) => {
       const existing = profilesDb.get(where.id);
       if (!existing) throw new Error('Not found');
       profilesDb.delete(where.id);
@@ -70,8 +71,8 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
   let createdProfileId: string;
 
   beforeAll(async () => {
-    user1Token = app.jwt.sign({ sub: user1Id, role: 'USER' });
-    user2Token = app.jwt.sign({ sub: user2Id, role: 'USER' });
+    user1Token = (app as any).jwt.sign({ sub: user1Id, role: 'USER' });
+    user2Token = (app as any).jwt.sign({ sub: user2Id, role: 'USER' });
   });
 
   it('POST /api/v1/birth-profiles should create a valid profile for User 1', async () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
+import '@fastify/jwt';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 
@@ -47,15 +48,15 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
       updatedAt: new Date(),
     });
 
-    vi.spyOn(prisma.birthProfile, 'findUnique').mockImplementation((({ where }: any) => {
-      return Promise.resolve(profilesDb.get(where.id) || null);
-    }) as any);
+    (vi.spyOn(prisma.birthProfile, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
+      return profilesDb.get(where.id) || null;
+    });
 
     app = buildApp();
     await app.ready();
 
-    user1Token = app.jwt.sign({ sub: user1Id, role: 'USER' });
-    user2Token = app.jwt.sign({ sub: user2Id, role: 'USER' });
+    user1Token = (app as any).jwt.sign({ sub: user1Id, role: 'USER' });
+    user2Token = (app as any).jwt.sign({ sub: user2Id, role: 'USER' });
   });
 
   afterAll(async () => {
