@@ -192,4 +192,25 @@ class ApiClient {
       throw ApiExceptionHandler.handle(e);
     }
   }
+
+  /// Perform HTTP GET request returning raw Uint8List bytes (for PDF download)
+  Future<Uint8List> getBytes(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    return _retry(() async {
+      try {
+        final response = await _dio.get<List<int>>(
+          path,
+          queryParameters: queryParameters,
+          cancelToken: cancelToken,
+          options: Options(responseType: ResponseType.bytes),
+        );
+        return Uint8List.fromList(response.data ?? []);
+      } catch (e) {
+        throw ApiExceptionHandler.handle(e);
+      }
+    });
+  }
 }
