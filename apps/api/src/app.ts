@@ -54,15 +54,13 @@ export function buildApp(): FastifyInstance {
   // Register Global Error Handler
   app.setErrorHandler(globalErrorHandler);
 
-  // Register Plugins asynchronously in setup
-  app.register(async (instance) => {
-    await registerCors(instance);
-    await registerHelmet(instance);
-    await registerJwt(instance);
-    await registerRateLimit(instance);
-    await registerSwagger(instance);
-    await registerRoutes(instance);
-  });
+  // Register Plugins cleanly at root scope
+  app.register(registerCors);
+  app.register(registerHelmet);
+  app.register(registerJwt);
+  app.register(registerRateLimit);
+  app.register(registerSwagger);
+  app.register(registerRoutes);
 
   return app;
 }

@@ -171,4 +171,117 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
     expect(sun.pada).toBeGreaterThanOrEqual(1);
     expect(sun.pada).toBeLessThanOrEqual(4);
   });
+
+  // 4. DASHA ENDPOINT TEST
+  it('POST /api/v1/astrology/dasha should calculate Vimshottari Dasha tree', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/dasha',
+      payload: {
+        birthDetails: {
+          name: 'Aarav',
+          dateOfBirth: '1995-08-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.2090,
+          timezone: 'Asia/Kolkata',
+        },
+        maxLevel: 2,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.dashaTree).toBeDefined();
+    expect(body.data.dashaTree.mahadashas).toHaveLength(9);
+    expect(body.data.dashaTree.mahadashas[0].subPeriods).toHaveLength(9);
+  });
+
+  // 5. PANCHANG ENDPOINT TEST
+  it('POST /api/v1/astrology/panchang should calculate daily Panchang elements', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/panchang',
+      payload: {
+        dateOfBirth: '2026-08-24',
+        timeOfBirth: '12:00:00',
+        latitude: 28.6139,
+        longitude: 77.2090,
+        timezone: 'Asia/Kolkata',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.panchang).toBeDefined();
+    expect(body.data.panchang.tithi).toBeDefined();
+    expect(body.data.panchang.vara).toBeDefined();
+    expect(body.data.panchang.nakshatra).toBeDefined();
+    expect(body.data.panchang.yoga).toBeDefined();
+    expect(body.data.panchang.karana).toBeDefined();
+  });
+
+  // 6. VARGAS ENDPOINT TEST
+  it('POST /api/v1/astrology/vargas should calculate Divisional Charts', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/vargas',
+      payload: {
+        birthDetails: {
+          name: 'Aarav',
+          dateOfBirth: '1995-08-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.2090,
+          timezone: 'Asia/Kolkata',
+        },
+        vargaTypes: ['D1', 'D9', 'D10'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.vargas).toHaveLength(3);
+    expect(body.data.vargas[0].vargaType).toBe('D1');
+    expect(body.data.vargas[1].vargaType).toBe('D9');
+    expect(body.data.vargas[2].vargaType).toBe('D10');
+  });
+
+  // 7. MATCHMAKING ENDPOINT TEST
+  it('POST /api/v1/astrology/matchmaking should evaluate Ashtakoota score and Manglik status', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/matchmaking',
+      payload: {
+        boy: {
+          birthDetails: {
+            name: 'Boy',
+            dateOfBirth: '1992-05-10',
+            timeOfBirth: '10:00:00',
+            latitude: 28.6139,
+            longitude: 77.2090,
+            timezone: 'Asia/Kolkata',
+          },
+        },
+        girl: {
+          birthDetails: {
+            name: 'Girl',
+            dateOfBirth: '1994-08-20',
+            timeOfBirth: '18:30:00',
+            latitude: 19.0760,
+            longitude: 72.8777,
+            timezone: 'Asia/Kolkata',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.compatibility).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.totalMaxPoints).toBe(36);
+    expect(body.data.compatibility.boyManglik).toBeDefined();
+    expect(body.data.compatibility.girlManglik).toBeDefined();
+  });
 });
+
