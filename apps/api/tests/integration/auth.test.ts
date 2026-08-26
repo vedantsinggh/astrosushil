@@ -12,7 +12,7 @@ describe('Auth API Endpoints (Integration)', () => {
 
   beforeAll(async () => {
     // Mock Prisma methods for isolated testing environment
-    vi.spyOn(prisma.user, 'findUnique').mockImplementation(async ({ where }: any) => {
+    (vi.spyOn(prisma.user, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
       if (where.email) {
         return Array.from(usersDb.values()).find((u) => u.email === where.email) || null;
       }
@@ -22,7 +22,7 @@ describe('Auth API Endpoints (Integration)', () => {
       return null;
     });
 
-    vi.spyOn(prisma.user, 'create').mockImplementation(async ({ data }: any) => {
+    (vi.spyOn(prisma.user, 'create') as any).mockImplementation(async ({ data }: any) => {
       const id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const newUser = {
         id,
@@ -36,7 +36,7 @@ describe('Auth API Endpoints (Integration)', () => {
       return newUser;
     });
 
-    vi.spyOn(prisma.refreshToken, 'create').mockImplementation(async ({ data }: any) => {
+    (vi.spyOn(prisma.refreshToken, 'create') as any).mockImplementation(async ({ data }: any) => {
       const id = `token-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const newToken = {
         id,
@@ -51,14 +51,14 @@ describe('Auth API Endpoints (Integration)', () => {
       return newToken;
     });
 
-    vi.spyOn(prisma.refreshToken, 'findUnique').mockImplementation(async ({ where }: any) => {
+    (vi.spyOn(prisma.refreshToken, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
       if (where.tokenHash) {
         return refreshTokensDb.get(where.tokenHash) || null;
       }
       return null;
     });
 
-    vi.spyOn(prisma.refreshToken, 'update').mockImplementation(async ({ where, data }: any) => {
+    (vi.spyOn(prisma.refreshToken, 'update') as any).mockImplementation(async ({ where, data }: any) => {
       for (const [key, tokenRecord] of refreshTokensDb.entries()) {
         if (tokenRecord.id === where.id) {
           const updated = { ...tokenRecord, ...data };
