@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ReportType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
+import { storageService } from '../../services/storage.service';
 import { NotFoundError, ForbiddenError, AuthorizationError, AppError } from '../../errors/app-error';
 import { CreateReportInput } from './reports.schemas';
 import { astrologyService } from '../astrology/astrology.service';
@@ -228,6 +229,47 @@ export class ReportsService {
     };
   }
 
+  /**
+   * Secure access endpoint: Returns a short-lived signed URL for report download
+   */
+  public async getReportAccessUrl(
+    reportId: string,
+    user: { id: string; role: 'USER' | 'ADMIN' }
+  ): Promise<{ reportId: string; accessUrl: string; expiresAt: string; fileName: string }> {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.userId !== user.id && user.role !== 'ADMIN') {
+      throw new ForbiddenError('You do not have access to this report');
+    }
+
+    if (report.status !== 'COMPLETED') {
+      throw new AppError(
+        `Report status is ${report.status}. Download is only available for COMPLETED reports.`,
+        400,
+        'REPORT_NOT_READY'
+      );
+    }
+
+    const storageKey = report.storageKey || `reports/${report.userId}/${report.id}.pdf`;
+    const expiresInSeconds = 900; // 15 minutes
+    const accessUrl = await storageService.getSignedDownloadUrl(storageKey, expiresInSeconds);
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+    const fileName = report.fileName || `career-report-${report.id.substring(0, 8)}.pdf`;
+
+    return {
+      reportId: report.id,
+      accessUrl,
+      expiresAt,
+      fileName,
+    };
+  }
+
   public async getUserReports(user: { id: string }) {
     return prisma.report.findMany({
       where: { userId: user.id },
@@ -249,14 +291,14 @@ export class ReportsService {
       throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
     }
 
-    // 1. Try reading generated PDF from disk storage
-    const storageDir = path.resolve('/tmp/astro-sushil/storage/reports/career', report.userId, reportId);
-    if (fs.existsSync(storageDir)) {
-      const files = fs.readdirSync(storageDir).filter((f) => f.endsWith('.pdf'));
-      if (files.length > 0) {
-        const filePath = path.join(storageDir, files[0]);
-        const pdfBuffer = fs.readFileSync(filePath);
-        return { buffer: pdfBuffer, report };
+    // 1. Try reading generated PDF from Object Storage (Cloudflare R2 or local storage)
+    const rawReport = await prisma.report.findUnique({ where: { id: reportId } });
+    if (rawReport?.storageKey) {
+      try {
+        const buffer = await storageService.downloadBuffer(rawReport.storageKey);
+        return { buffer, report };
+      } catch (err: any) {
+        console.error(`[PDF_DOWNLOAD] Object storage read failed for key ${rawReport.storageKey}: ${err?.message}`);
       }
     }
 

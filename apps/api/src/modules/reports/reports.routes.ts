@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import path from 'path';
 import { reportsService } from './reports.service';
+import { storageService } from '../../services/storage.service';
 import { createReportSchema } from './reports.schemas';
 
 export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
@@ -148,6 +150,48 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
     );
     return reply.send(buffer);
   };
+
+  // GET /api/v1/reports/:id/access
+  fastify.get('/:id/access', {
+    schema: {
+      tags: ['Reports'],
+      summary: 'Get short-lived secure signed URL for report PDF download',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      setNoCacheHeaders(reply);
+      const { id } = request.params as { id: string };
+      const accessInfo = await reportsService.getReportAccessUrl(id, request.user);
+      return reply.status(200).send(accessInfo);
+    },
+  });
+
+  // GET /api/v1/reports/download-secure (Tokenized download URL for local fallback)
+  fastify.get('/download-secure', {
+    onRequest: [],
+    handler: async (request, reply) => {
+      const { key, expires, token } = request.query as { key: string; expires: string; token: string };
+      if (!key || !expires || !token) {
+        return reply.status(400).send({ error: 'Missing signature parameters' });
+      }
+      const expiresMs = parseInt(expires, 10);
+      const isValid = storageService.verifyLocalSignedUrl(key, expiresMs, token);
+      if (!isValid) {
+        return reply.status(403).send({ error: 'Invalid or expired download signature' });
+      }
+      const buffer = await storageService.downloadBuffer(key);
+      const filename = path.basename(key);
+      reply.header('Content-Type', 'application/pdf');
+      reply.header('Content-Disposition', `inline; filename="${filename}"`);
+      return reply.send(buffer);
+    },
+  });
 
   // GET /api/v1/reports/:id/pdf
   fastify.get('/:id/pdf', { schema: pdfSchema, handler: handlePdfDownload });

@@ -270,7 +270,7 @@ class CareerReportNotifier extends StateNotifier<CareerReportState>
 
     try {
       final bytes = await _service.downloadReportPdfBytes(reportId);
-      final cacheDir = await getApplicationDocumentsDirectory();
+      final cacheDir = await getTemporaryDirectory();
       final localFile = File('${cacheDir.path}/career_report_$reportId.pdf');
       await localFile.writeAsBytes(bytes);
 
@@ -282,8 +282,8 @@ class CareerReportNotifier extends StateNotifier<CareerReportState>
       );
       return bytes;
     } on SocketException catch (_) {
-      // Check if cached file exists locally
-      final cacheDir = await getApplicationDocumentsDirectory();
+      // Check if temporary file exists locally
+      final cacheDir = await getTemporaryDirectory();
       final localFile = File('${cacheDir.path}/career_report_$reportId.pdf');
       if (await localFile.exists()) {
         final cachedBytes = await localFile.readAsBytes();
@@ -319,13 +319,16 @@ class CareerReportNotifier extends StateNotifier<CareerReportState>
   /// Clears all locally cached Career Report PDF files and resets Riverpod state
   Future<void> clearAllLocalReportCache() async {
     try {
-      final cacheDir = await getApplicationDocumentsDirectory();
-      if (await cacheDir.exists()) {
-        final entities = cacheDir.listSync();
-        for (final entity in entities) {
-          if (entity is File && entity.path.contains('career_report_')) {
-            await entity.delete();
-            debugPrint('[CAREER_REPORT_CACHE] Deleted local cached PDF file: ${entity.path}');
+      final tempDir = await getTemporaryDirectory();
+      final docsDir = await getApplicationDocumentsDirectory();
+      for (final dir in [tempDir, docsDir]) {
+        if (await dir.exists()) {
+          final entities = dir.listSync();
+          for (final entity in entities) {
+            if (entity is File && entity.path.contains('career_report_')) {
+              await entity.delete();
+              debugPrint('[CAREER_REPORT_CACHE] Deleted local temp PDF file: ${entity.path}');
+            }
           }
         }
       }

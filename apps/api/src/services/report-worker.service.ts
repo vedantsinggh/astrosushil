@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { prisma } from './prisma.service';
+import { storageService } from './storage.service';
 import { astrologyService } from '../modules/astrology/astrology.service';
 import { notificationService } from '../modules/notifications/notification.service';
 import { logger } from '../utils/logger';
@@ -173,18 +174,30 @@ export class CareerReportWorker {
         return;
       }
 
+
       // --- STAGE 6: UPLOADING (95%) ---
       await this.updateJobStatus(reportId, 'UPLOADING', 95, 'UPLOADING');
 
-      const storageDir = path.resolve('/tmp/astro-sushil/storage/reports/career', report.userId, reportId);
-      fs.mkdirSync(storageDir, { recursive: true });
-
+      const storageKey = `reports/${report.userId}/${reportId}.pdf`;
       const fileName = `career-report-${report.birthProfile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
-      const pdfFilePath = path.join(storageDir, fileName);
-      fs.writeFileSync(pdfFilePath, compilationResult.pdfBuffer);
 
-      const storageKey = `reports/career/${report.userId}/${reportId}/${fileName}`;
-      const s3Url = `/api/v1/reports/${reportId}/download-file`;
+      let uploadResult;
+      try {
+        uploadResult = await storageService.upload({
+          key: storageKey,
+          body: compilationResult.pdfBuffer,
+          contentType: 'application/pdf',
+          metadata: {
+            userId: report.userId,
+            reportId,
+            birthProfileId: report.birthProfileId,
+          },
+        });
+      } catch (uploadErr: any) {
+        logger.error({ reportId, err: uploadErr.message }, '[CareerReportWorker] Object storage upload failed');
+        await this.failJob(reportId, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr.message || 'Object storage upload failed.');
+        return;
+      }
 
       // --- STAGE 7: COMPLETED (100%) ---
       const now = new Date();
@@ -194,10 +207,10 @@ export class CareerReportWorker {
           status: 'COMPLETED',
           stage: 'COMPLETED',
           progress: 100,
-          s3Url,
+          s3Url: null,
           storageKey,
           fileName,
-          fileSize: compilationResult.fileSize,
+          fileSize: uploadResult.fileSize,
           pageCount: compilationResult.pageCount,
           completedAt: now,
           updatedAt: now,
