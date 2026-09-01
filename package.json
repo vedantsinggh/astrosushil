@@ -14,6 +14,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:worker": "npm run dev:worker --workspace=apps/api",
+    "start:api": "npm run start --workspace=apps/api",
+    "start:worker": "npm run start:worker --workspace=apps/api",
     "build:api": "npm run build --workspace=apps/api",
     "build:admin": "npm run build --workspace=apps/admin",
     "build:packages": "npm run build --workspace=packages/shared --workspace=packages/astrology-engine --workspace=packages/gupta-nadi-engine --workspace=packages/prediction-engine --workspace=packages/report-engine"

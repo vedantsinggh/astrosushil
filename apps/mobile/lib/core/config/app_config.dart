@@ -29,6 +29,11 @@ class AppConfig {
       return _baseUrlOverride!;
     }
 
+    const String envApiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: String.fromEnvironment('TEST_API_URL', defaultValue: ''));
+    if (envApiUrl.isNotEmpty) {
+      return envApiUrl.endsWith('/') ? '${envApiUrl}api/v1' : '$envApiUrl/api/v1';
+    }
+
     try {
       if (Platform.isAndroid) {
         return 'http://10.0.2.2:$apiPort$apiPrefix';

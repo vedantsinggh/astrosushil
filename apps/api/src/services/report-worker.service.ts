@@ -27,6 +27,8 @@ export type ReportJobStage =
   | 'COMPLETED'
   | 'FAILED';
 
+import { redisQueueService } from './redis-queue.service';
+
 export interface ReportJobProgress {
   stage: ReportJobStage;
   progress: number;
@@ -41,12 +43,22 @@ export class CareerReportWorker {
    * Enqueues a report generation job by ID and kicks off worker processing loop.
    */
   public enqueueReportJob(reportId: string): void {
-    if (!this.jobQueue.includes(reportId)) {
-      this.jobQueue.push(reportId);
-    }
-    // Asynchronously process jobs without blocking call stack
-    setImmediate(() => {
-      this.processQueue();
+    redisQueueService.enqueueJob(reportId).then((enqueued) => {
+      if (!enqueued) {
+        if (!this.jobQueue.includes(reportId)) {
+          this.jobQueue.push(reportId);
+        }
+        setImmediate(() => {
+          this.processQueue();
+        });
+      }
+    }).catch(() => {
+      if (!this.jobQueue.includes(reportId)) {
+        this.jobQueue.push(reportId);
+      }
+      setImmediate(() => {
+        this.processQueue();
+      });
     });
   }
 

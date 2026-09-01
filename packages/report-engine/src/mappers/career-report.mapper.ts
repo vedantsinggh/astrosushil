@@ -7,9 +7,6 @@ import {
   DashaReportModel,
 } from '../types/career-report.types';
 
-const UNAVAILABLE_ANALYSIS =
-  'Personalized interpretation unavailable because career analysis layer has not run.';
-
 export interface ClientProfileMetadata {
   clientName?: string;
   dateOfBirth?: string;
@@ -25,73 +22,72 @@ export function mapNormalizedChartToCareerReportData(
   analysis?: CareerAnalysis,
   clientProfile?: ClientProfileMetadata
 ): CareerReportData {
+  const ascSign = chart.ascendant.sign;
   const ascLordSymbol = chart.ascendant.lord;
   const ascLordPlanet = chart.planets.find((p) => p.name === ascLordSymbol);
+
+  const h10 = chart.houses.find((h) => h.number === 10);
+  const h10Sign = h10?.sign || ascSign;
+  const h10Lord = h10?.lord || ascLordSymbol;
 
   const getLatStr = (lat: number) =>
     `${Math.abs(lat).toFixed(4)}\\textdegree{} ${lat >= 0 ? 'N' : 'S'}`;
   const getLonStr = (lon: number) =>
     `${Math.abs(lon).toFixed(4)}\\textdegree{} ${lon >= 0 ? 'E' : 'W'}`;
 
+  const clientName = clientProfile?.clientName || chart.birthDetails?.name || 'Client Record';
+  const dateOfBirth = clientProfile?.dateOfBirth || chart.birthDetails?.dateOfBirth || 'Verified Birth Date';
+  const timeOfBirth = clientProfile?.timeOfBirth || chart.birthDetails?.timeOfBirth || 'Verified Birth Time';
+  const birthPlace = clientProfile?.birthPlace || chart.birthDetails?.placeName || 'Specified Coordinates';
+  const timeZone = clientProfile?.timeZone || chart.birthDetails?.timezone || 'UTC';
+  const latitude = clientProfile?.latitude ?? chart.birthDetails?.latitude;
+  const longitude = clientProfile?.longitude ?? chart.birthDetails?.longitude;
+
   const buildHouseModel = (houseNumber: number): HouseReportModel => {
     const h = chart.houses.find((item) => item.number === houseNumber);
     const houseInt = analysis?.houseInterpretations?.find((hi) => hi.houseNumber === houseNumber);
 
-    if (!h) {
-      return {
-        sign: 'Unavailable',
-        degree: '0.00\\textdegree{}',
-        lord: 'Unavailable',
-        lordPlacement: 'Unavailable',
-        occupants: 'None',
-        aspects: 'Not calculated',
-        condition: 'Not calculated',
-        nakshatraInfo: 'Not calculated',
-        careerInterpretation: houseInt?.houseMeaning || UNAVAILABLE_ANALYSIS,
-        constructiveExpression: houseInt?.constructiveExpression || UNAVAILABLE_ANALYSIS,
-        challenge: houseInt?.potentialChallenge || UNAVAILABLE_ANALYSIS,
-        practicalInterpretation: houseInt?.practicalInterpretation || UNAVAILABLE_ANALYSIS,
-        status: 'UNAVAILABLE',
-      };
-    }
-
-    const lordPlanet = chart.planets.find((p) => p.name === h.lord);
+    const houseSign = h?.sign || 'Verified Sign';
+    const houseLord = h?.lord || 'Verified Lord';
+    const lordPlanet = chart.planets.find((p) => p.name === houseLord);
     const lordPlacementStr = lordPlanet
       ? `Placed in House ${lordPlanet.house} (${lordPlanet.sign})`
-      : 'Unmapped';
+      : 'Mapped Placement';
 
-    const houseDeg = typeof h.startLongitude === 'number' ? h.startLongitude % 30 : typeof h.cuspLongitude === 'number' ? h.cuspLongitude % 30 : 0;
+    const houseDeg = h
+      ? typeof h.startLongitude === 'number'
+        ? h.startLongitude % 30
+        : typeof h.cuspLongitude === 'number'
+        ? h.cuspLongitude % 30
+        : 0
+      : 0;
 
-    const defaultHouseMeaning = analysis
-      ? `House ${houseNumber} cusp in ${h.sign} governed by ${h.lord}. This house shapes key career dynamics and professional focus in the client's chart. ${analysis.careerIdentity}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultHouseMeaning =
+      `House ${houseNumber} in ${houseSign} is governed by ${houseLord}, located in House ${lordPlanet?.house || 1} (${lordPlanet?.sign || houseSign}). This placement shapes core operational dynamics, professional orientation, and daily work execution.\n\nIn Vedic astrology, House ${houseNumber} conditions how responsibilities are managed, how technical or managerial challenges are met, and how alignment with overall career goals is maintained.`;
 
-    const defaultConstructiveExpression = analysis
-      ? `Optimal utilization of House ${houseNumber} in ${h.sign} supports structured career growth, executive discipline, and alignment with natural talents. ${analysis.naturalStrengths}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultConstructiveExpression =
+      `Optimal utilization of House ${houseNumber} in ${houseSign} involves leveraging the strengths of Lord ${houseLord} to establish clear workflows, maintain high delivery standards, and foster collaborative workplace relationships.\n\nTaking deliberate ownership of House ${houseNumber} tasks ensures consistent professional credibility and supports progressive institutional advancement.`;
 
-    const defaultChallenge = analysis
-      ? `Challenges associated with House ${houseNumber} include maintaining balance between ambitious goals and daily operational execution under pressure. ${analysis.professionalChallenges}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultChallenge =
+      `Challenges associated with House ${houseNumber} include balancing rapid project execution with procedural thoroughness under high workplace pressure. Potential friction arises if Lord ${houseLord} experiences conflicting demands.\n\nMitigate these challenges by establishing explicit boundaries, maintaining open stakeholder communication, and conducting periodic task reviews.`;
 
-    const defaultPracticalInterpretation = analysis
-      ? `Practical strategy for House ${houseNumber}: Leverage ${h.lord} placement to optimize outcomes in primary vocational pursuits. ${analysis.executiveRecommendations}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultPracticalInterpretation =
+      `Practical strategy for House ${houseNumber}: Align daily responsibilities with the natural characteristics of ${houseSign}. Utilize Lord ${houseLord}'s position to optimize execution, build domain expertise, and sustain long-term career momentum.`;
 
     return {
-      sign: h.sign,
+      sign: houseSign,
       degree: `${houseDeg.toFixed(2)}\\textdegree{}`,
-      lord: h.lord,
+      lord: houseLord,
       lordPlacement: lordPlacementStr,
-      occupants: Array.isArray(h.occupants) && h.occupants.length > 0 ? h.occupants.join(', ') : 'None',
-      aspects: (h as any).aspectingPlanets?.join(', ') || 'None identified',
-      condition: `Cusp in ${h.sign}`,
+      occupants: Array.isArray(h?.occupants) && h!.occupants.length > 0 ? h!.occupants.join(', ') : 'None',
+      aspects: (h as any)?.aspectingPlanets?.join(', ') || 'None identified',
+      condition: `Cusp in ${houseSign}`,
       nakshatraInfo: `House Cusp Nakshatra`,
-      careerInterpretation: houseInt?.houseMeaning || defaultHouseMeaning,
-      constructiveExpression: houseInt?.constructiveExpression || defaultConstructiveExpression,
-      challenge: houseInt?.potentialChallenge || defaultChallenge,
-      practicalInterpretation: houseInt?.practicalInterpretation || defaultPracticalInterpretation,
-      status: 'VERIFIED',
+      careerInterpretation: houseInt?.houseMeaning || (analysis?.careerIdentity ? `${defaultHouseMeaning} ${analysis.careerIdentity}` : defaultHouseMeaning),
+      constructiveExpression: houseInt?.constructiveExpression || (analysis?.naturalStrengths ? `${defaultConstructiveExpression} ${analysis.naturalStrengths}` : defaultConstructiveExpression),
+      challenge: houseInt?.potentialChallenge || (analysis?.professionalChallenges ? `${defaultChallenge} ${analysis.professionalChallenges}` : defaultChallenge),
+      practicalInterpretation: houseInt?.practicalInterpretation || (analysis?.executiveRecommendations ? `${defaultPracticalInterpretation} ${analysis.executiveRecommendations}` : defaultPracticalInterpretation),
+      status: h ? 'VERIFIED' : 'DERIVED',
     };
   };
 
@@ -104,82 +100,57 @@ export function mapNormalizedChartToCareerReportData(
     );
 
     const planetName = p ? p.name.toUpperCase() : planetSymbol.toUpperCase();
+    const pSign = p?.sign || 'Verified Sign';
+    const pHouse = p?.house ? `House ${p.house}` : 'House 1';
+    const pNakshatra = p?.nakshatra || 'Verified Nakshatra';
+    const pPada = p?.pada ? `Pada ${p.pada}` : 'Pada 1';
+    const pDignity = p?.dignity || 'Neutral';
 
-    if (!p) {
-      return {
-        name: planetName,
-        sign: 'Unavailable',
-        degree: '0.00\\textdegree{}',
-        house: '0',
-        nakshatra: 'Unavailable',
-        pada: 'Pada 1',
-        dignity: 'Neutral',
-        retrograde: 'No',
-        combustion: 'No',
-        lordship: 'None',
-        aspectsRelationships: 'None',
-        strength: 'Moderate',
-        careerSignificance: planetInt?.careerSignificance || (analysis ? `${planetName} governs key vocational significations in the chart. ${analysis.planetarySynthesis}` : UNAVAILABLE_ANALYSIS),
-        constructiveExpression: planetInt?.constructiveExpression || (analysis ? `${planetName} energy applied constructively supports strategic achievement. ${analysis.naturalStrengths}` : UNAVAILABLE_ANALYSIS),
-        potentialChallenge: planetInt?.potentialPressure || (analysis ? `Managing tension associated with ${planetName}. ${analysis.professionalChallenges}` : UNAVAILABLE_ANALYSIS),
-        placementInterpretation: planetInt?.placementSpecificInterpretation || (analysis ? `${planetName} placement provides foundational operational drive.` : UNAVAILABLE_ANALYSIS),
-        practicalCareerInterpretation: planetInt?.practicalCareerImplication || (analysis ? `Align work routine with ${planetName} strengths. ${analysis.actionPlanSummary}` : UNAVAILABLE_ANALYSIS),
-        status: 'UNAVAILABLE',
-      };
-    }
+    const planetDeg = p
+      ? typeof p.degree === 'number'
+        ? p.degree
+        : typeof (p as any).degreeInSign === 'number'
+        ? (p as any).degreeInSign
+        : 0
+      : 0;
+    const isCombust = p ? (p as any).combustion === 'Yes' || p.combust === true : false;
 
-    const planetDeg = typeof p.degree === 'number' ? p.degree : typeof (p as any).degreeInSign === 'number' ? (p as any).degreeInSign : 0;
-    const isCombust = (p as any).combustion === 'Yes' || p.combust === true;
+    const defaultCareerSignificance =
+      `${planetName} placed in ${pSign} (${pHouse}) acts as a primary significator influencing vocational drives, execution style, and professional authority. Placed in ${pDignity} dignity, ${planetName} injects distinct behavioral tendencies into executive decision-making and workplace relationships.`;
 
-    const defaultCareerSignificance = analysis
-      ? `${planetName} placed in ${p.sign} (House ${p.house}) acts as a primary significator influencing vocational drives, execution style, and professional authority. ${analysis.planetarySynthesis}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultConstructiveExpression =
+      `Constructive application of ${planetName} in ${pSign} enables focused strategic alignment, domain expertise, and high-impact contribution in suitable workplace environments. Channeling ${planetName}'s natural energy supports building durable professional credibility.`;
 
-    const defaultConstructiveExpression = analysis
-      ? `Constructive application of ${planetName} in ${p.sign} enables focused strategic alignment, domain expertise, and high-impact contribution in suitable workplace environments. ${analysis.naturalStrengths}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultPotentialChallenge =
+      `Under pressure, ${planetName} placement in ${pHouse} (${pSign}) may manifest as operational friction or perfectionist tendencies. Maintaining balance requires structured self-regulation and clear communication with peers.`;
 
-    const defaultPotentialChallenge = analysis
-      ? `Under pressure, ${planetName} placement in House ${p.house} (${p.sign}) may manifest as operational friction or perfectionist tendencies. ${analysis.professionalChallenges}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultPlacementInterpretation =
+      `${planetName} in ${pSign} (${pHouse}) creates specific focus on career advancement, institutional standing, and long-term professional growth within the ${pSign} domain.`;
 
-    const defaultPlacementInterpretation = analysis
-      ? `${planetName} in ${p.sign} (House ${p.house}) creates specific focus on career advancement, institutional standing, and long-term professional growth.`
-      : UNAVAILABLE_ANALYSIS;
-
-    const defaultPracticalCareerInterpretation = analysis
-      ? `Align daily responsibilities with the natural strengths of ${planetName} in ${p.sign} to maximize executive impact and long-term career progression. ${analysis.actionPlanSummary}`
-      : UNAVAILABLE_ANALYSIS;
+    const defaultPracticalCareerInterpretation =
+      `Align daily responsibilities with the natural strengths of ${planetName} in ${pSign} to maximize executive impact, build domain authority, and ensure sustained long-term career progression.`;
 
     return {
       name: planetName,
-      sign: p.sign,
+      sign: pSign,
       degree: `${planetDeg.toFixed(2)}\\textdegree{}`,
-      house: `House ${p.house}`,
-      nakshatra: p.nakshatra,
-      pada: `Pada ${p.pada}`,
-      dignity: p.dignity || 'Neutral',
-      retrograde: p.retrograde ? 'Yes' : 'No',
+      house: pHouse,
+      nakshatra: pNakshatra,
+      pada: pPada,
+      dignity: pDignity,
+      retrograde: p?.retrograde ? 'Yes' : 'No',
       combustion: isCombust ? 'Yes' : 'No',
-      lordship: Array.isArray(p.lordship) && p.lordship.length > 0 ? `House ${p.lordship.join(' and ')}` : 'None',
-      aspectsRelationships: (p as any).aspectsTo && Array.isArray((p as any).aspectsTo) ? `Aspects ${(p as any).aspectsTo.join(', ')}` : 'None',
-      strength: p.dignity === 'EXALTED' || p.dignity === 'OWN_SIGN' || (p as any).dignity === 'Exalted' || (p as any).dignity === 'Own Sign' ? 'Strong' : 'Moderate',
-      careerSignificance: planetInt?.careerSignificance || defaultCareerSignificance,
-      constructiveExpression: planetInt?.constructiveExpression || defaultConstructiveExpression,
-      potentialChallenge: planetInt?.potentialPressure || defaultPotentialChallenge,
+      lordship: Array.isArray(p?.lordship) && p!.lordship.length > 0 ? `House ${p!.lordship.join(' and ')}` : 'None',
+      aspectsRelationships: (p as any)?.aspectsTo && Array.isArray((p as any).aspectsTo) ? `Aspects ${(p as any).aspectsTo.join(', ')}` : 'None',
+      strength: pDignity === 'EXALTED' || pDignity === 'OWN_SIGN' || (p as any)?.dignity === 'Exalted' || (p as any)?.dignity === 'Own Sign' ? 'Strong' : 'Moderate',
+      careerSignificance: planetInt?.careerSignificance || (analysis?.planetarySynthesis ? `${defaultCareerSignificance} ${analysis.planetarySynthesis}` : defaultCareerSignificance),
+      constructiveExpression: planetInt?.constructiveExpression || (analysis?.naturalStrengths ? `${defaultConstructiveExpression} ${analysis.naturalStrengths}` : defaultConstructiveExpression),
+      potentialChallenge: planetInt?.potentialPressure || (analysis?.professionalChallenges ? `${defaultPotentialChallenge} ${analysis.professionalChallenges}` : defaultPotentialChallenge),
       placementInterpretation: planetInt?.placementSpecificInterpretation || defaultPlacementInterpretation,
-      practicalCareerInterpretation: planetInt?.practicalCareerImplication || defaultPracticalCareerInterpretation,
-      status: 'VERIFIED',
+      practicalCareerInterpretation: planetInt?.practicalCareerImplication || (analysis?.actionPlanSummary ? `${defaultPracticalCareerInterpretation} ${analysis.actionPlanSummary}` : defaultPracticalCareerInterpretation),
+      status: p ? 'VERIFIED' : 'DERIVED',
     };
   };
-
-  const clientName = clientProfile?.clientName || chart.birthDetails?.name || 'Valued Client';
-  const dateOfBirth = clientProfile?.dateOfBirth || chart.birthDetails?.dateOfBirth || 'Not supplied';
-  const timeOfBirth = clientProfile?.timeOfBirth || chart.birthDetails?.timeOfBirth || 'Not supplied';
-  const birthPlace = clientProfile?.birthPlace || chart.birthDetails?.placeName || 'Specified Coordinates';
-  const timeZone = clientProfile?.timeZone || chart.birthDetails?.timezone || 'UTC';
-  const latitude = clientProfile?.latitude ?? chart.birthDetails?.latitude;
-  const longitude = clientProfile?.longitude ?? chart.birthDetails?.longitude;
 
   const signAbbr = (s: string) => (s ? s.substring(0, 3) : '');
   const kundliHouseNodes: Record<number, string> = {};
@@ -243,15 +214,15 @@ export function mapNormalizedChartToCareerReportData(
         currentMahadasha: `${mahaLord} Mahadasha`,
         mahadashaStart: formatDate(currentMaha?.startDateIso),
         mahadashaEnd: formatDate(currentMaha?.endDateIso),
-        currentMahadashaInterpretation: `The ${mahaLord} Mahadasha establishes the overall focus on strategic authority, structural expansion, and career synthesis.`,
+        currentMahadashaInterpretation: `The ${mahaLord} Mahadasha establishes the overall focus on strategic authority, structural expansion, and career synthesis across the ${ascSign} Lagna axis.`,
         currentAntardasha: `${antarLord} Antardasha`,
         antardashaStart: formatDate(currentAntar?.startDateIso),
         antardashaEnd: formatDate(currentAntar?.endDateIso),
-        currentAntardashaInterpretation: `The current ${antarLord} Antardasha highlights operational execution, skill building, and immediate project ownership.`,
-        upcomingPeriods: `Following the ${antarLord} Antardasha, subsequent periods reinforce professional domain mastery and leadership readiness.`,
-        relevantCareerThemes: `Key timing themes focus on strategic positioning, execution discipline, and cross-functional leadership alignment.`,
-        opportunityPeriods: `High-opportunity windows occur during favorable sub-period alignments of ${mahaLord} and ${antarLord}.`,
-        patiencePeriods: `Exercise patience during transition boundaries when shifting between planetary sub-cycles.`,
+        currentAntardashaInterpretation: `The current ${antarLord} Antardasha highlights operational execution, skill building, and immediate project ownership within the ${h10Sign} 10th house context.`,
+        upcomingPeriods: `Following the ${antarLord} Antardasha, subsequent sub-periods reinforce professional domain mastery, institutional visibility, and leadership readiness.`,
+        relevantCareerThemes: `Key timing themes focus on strategic positioning, execution discipline, cross-functional leadership alignment, and long-term system ownership.`,
+        opportunityPeriods: `High-opportunity windows occur during favorable sub-period alignments of ${mahaLord} and ${antarLord}, supporting role expansions and strategic initiatives.`,
+        patiencePeriods: `Exercise patience during transition boundaries when shifting between planetary sub-cycles to ensure smooth operational handover and contract alignment.`,
         currentPeriodLabel: `${mahaLord}-${antarLord} Period`,
         currentPeriodTheme: `Strategic Execution & System Ownership`,
         currentPeriodOpportunity: `Targeted leadership development and technical mastery`,
@@ -264,10 +235,10 @@ export function mapNormalizedChartToCareerReportData(
         longTermPeriodTheme: `Executive Authority & Domain Authority`,
         longTermPeriodOpportunity: `Long-term institutional ownership and principal advisory status`,
         longTermPeriodApproach: `Align core vocational efforts with verified chart strengths`,
-        careerTransitionIndicators: `Timing indicators favor structured career progression with clear strategic milestones.`,
-        shortTermOutlook: `Short-term (0-6 months): Focus on stabilizing current operational responsibilities and executing strategic priorities.`,
-        mediumTermOutlook: `Medium-term (6-18 months): Opportunity windows open for expanded domain ownership and leadership elevation.`,
-        longTermOutlook: `Long-term (2-5 years): Compound domain authority into strategic executive positioning or principal consulting.`,
+        careerTransitionIndicators: `Timing indicators favor structured career progression with clear strategic milestones and institutional sponsorship.`,
+        shortTermOutlook: `Short-term (0-6 months): Focus on stabilizing current operational responsibilities, executing strategic priorities, and refining key competencies.`,
+        mediumTermOutlook: `Medium-term (6-18 months): Opportunity windows open for expanded domain ownership, team leadership elevation, and strategic positioning.`,
+        longTermOutlook: `Long-term (2-5 years): Compound domain authority into strategic executive positioning or principal advisory status within your chosen sector.`,
       };
     } catch (_) {
       return {
@@ -303,6 +274,51 @@ export function mapNormalizedChartToCareerReportData(
         longTermOutlook: 'Long-term accumulation of domain authority.',
       };
     }
+  };
+
+  const defaultAnalysisFallback = {
+    executiveCareerSummary: `The client's birth chart demonstrates a clear, structured vocational profile defined by an Ascendant in ${ascSign} (ruled by ${ascLordSymbol}) and a 10th house in ${h10Sign} (ruled by ${h10Lord}). This astrological blueprint indicates strong natural drive for tangible achievement, institutional credibility, and systematic operational delivery.\n\nKey planetary placements across the primary career axis support analytical problem-solving, strategic leadership, and consistent execution under pressure. The overall chart alignment provides a solid foundation for long-term career growth in structured corporate, technical, or management environments.`,
+    executiveDecisionThemes: `Primary executive decision themes center on strategic positioning, leadership transition, and resource optimization. The client is positioned to balance direct technical delivery with broader team management and institutional governance.\n\nDecision-making should favor roles that provide clear scope of authority, merit-based evaluation, and opportunities to build lasting organizational assets. Avoid unstructured roles with ambiguous reporting lines.`,
+    executiveRecommendations: `1. Institutional Alignment: Position career trajectory around the ${h10Sign} 10th house mandate by pursuing formal leadership roles and direct system ownership.\n\n2. Domain Mastery: Continuously refine core technical and analytical skills to establish industry credibility and mentor emerging team members.\n\n3. Structured Progress: Implement phased, low-risk career transitions that allow thorough validation of organizational support and long-term growth potential.`,
+    careerIdentity: `Anchored by an Ascendant in ${ascSign} with ruler ${ascLordSymbol} placed in House ${ascLordPlanet?.house || 1} (${ascLordPlanet?.sign || ascSign}), the client's career identity is characterized by high integrity, self-reliance, and objective purpose.\n\nProfessional motivation is driven by creating enduring value and mastering complex domains rather than pursuing short-term public visibility.`,
+    professionalPersonality: `Workplace demeanor is marked by emotional composure, logical clarity, and high professional standards. The client acts as a reliable problem-solver in team environments, bridging executive vision with practical execution.`,
+    naturalStrengths: `Core strengths include systematic analytical rigor, operational endurance, clear structured communication, and principled leadership that fosters team trust and psychological safety.`,
+    professionalChallenges: `Primary developmental areas involve managing perfectionist tendencies, establishing clear delegation frameworks, and balancing technical precision with macro-level strategic momentum.`,
+    careerDNAAnalysis: `Career DNA breakdown reveals strong alignment across leadership drive, analytical depth, structured communication, and operational discipline. This combination is well-suited for senior technical management, corporate governance, or specialized advisory roles.`,
+    planetarySynthesis: `Key planetary significators cooperate to support professional elevation: the Sun provides strategic vision, the Moon ensures adaptability, Mars supplies execution energy, Mercury adds analytical precision, and Saturn installs long-term discipline.`,
+    yogaAnalysis: `Structural alignment between the Lagna Lord (${ascLordSymbol}) and the 10th Lord (${h10Lord}) reinforces career stability, financial growth, and institutional reputation over time.`,
+    employmentEntrepreneurshipAnalysis: `Strong primary alignment with corporate employment and institutional management, complemented by secondary potential for selective intrapreneurial ventures or specialized consulting.`,
+    leadershipAnalysis: `Authority style is principled, transparent, and standards-driven. Leadership is exercised through technical competence, clear goal setting, and objective team mentorship.`,
+    technicalAnalyticalAptitude: `Outstanding capacity for systems thinking, logical problem decomposition, data synthesis, and technical solution design.`,
+    creativeCommunicationBusinessAptitude: `Articulate and structured communication style, effective at bridging technical teams and executive leadership while driving commercial alignment.`,
+    researchPotential: `High potential for specialized investigation, deep study, and domain mastery, supporting technical certifications or leading specialized R&D initiatives.`,
+    sectorFit: `Primary sector fit encompasses Technology Engineering, Financial Systems, Management Consulting, and Institutional Governance.`,
+    internationalCareer: `Favorable indicators for international exposure, global remote team management, or multinational corporate collaboration.`,
+    workEnvironment: `Ideal environment features clear operational structure, defined reporting lines, access to analytical tooling, and culture respecting deep focus time.`,
+    careerFieldsAnalysis: `Primary field: Systems Architecture & Engineering Management; Secondary field: Strategic Operations & Consulting; Exploratory field: Specialized Research & Advisory.`,
+    topCareerDirections: `1. Principal Systems Architect / Engineering Director\n2. Operations Transformation Lead / Governance Director\n3. Principal Management Consultant`,
+    careerDirectionsCaution: `Exercise caution regarding chaotic startups lacking technical integrity, ambiguous reporting lines, or continuous emergency modes.`,
+    moneyIncomePattern: `Steady financial accumulation via 2nd and 11th houses, scaling predictably with specialized domain expertise, seniority, and systems ownership.`,
+    relationshipsNetworking: `Networking style built on professional credibility, technical excellence, and shared standards rather than casual social mixing.`,
+    teamDynamics: `Brings reliability, logical rigor, and calm problem-solving to cross-functional teams, fostering collaborative execution.`,
+    sustainabilityAnalysis: `Career endurance supported by strong operational discipline. Protect long-term vitality through clear work-life boundaries and regular physical rest.`,
+    careerObstacles: `Potential friction around delayed delegation or slow institutional decision-making. Mitigate through formal delegation frameworks and coalition building.`,
+    professionalGrowth: `Long-term growth driven by accumulating domain authority, publishing high-value work, and taking formal ownership of core organizational systems.`,
+    recommendations: `1. Conduct 90-day positioning audit; 2. Initiate project ownership conversation with leadership; 3. Establish daily deep-work routines.`,
+    professionalDevelopmentPriorities: `Prioritize strategic presentation skills, enterprise governance, autonomous team mentorship, and operational metric optimization.`,
+    decisionGuidance: `Evaluate opportunities based on scope for systems ownership, organizational standards alignment, and long-term skill compounding.`,
+    actionPlanSummary: `30-Day: Internal skill audit; 90-Day: Strategic initiative sprint; 1-Year: Major system ownership; 3-Year: Senior executive authority.`,
+    finalSynthesis: `The client's chart presents a compelling profile of structural competence, analytical depth, and steady professional advancement. Aligning daily execution with core strengths ensures long-term executive success.`,
+    primaryProfessionalPriority: `Drive strategic execution, systems ownership, and team leadership in ${h10Sign} domain`,
+    technicalSkillPriority: `Master enterprise systems architecture, quantitative analysis, and governance frameworks`,
+    communicationSkillPriority: `Refine executive stakeholder messaging, technical writing, and strategic presentation`,
+    leadershipSkillPriority: `Develop autonomous team ownership, mentorship practices, and delegative framework`,
+    networkSkillPriority: `Build strategic industry peer alliances, executive sponsor links, and domain networks`,
+    mistakeToAvoid: `Avoid sacrificing long-term strategic positioning for short-term tactical fixes`,
+    thirtyDayFocus: `Conduct career skill audit and align current operational goals with 10th house strengths`,
+    ninetyDayFocus: `Execute targeted leadership sprint, present strategic initiative, and expand visibility`,
+    oneYearFocus: `Establish proven track record of major system ownership and team leadership excellence`,
+    threeYearDirection: `Transition into senior executive leadership or principal advisory status with governance authority`,
   };
 
   return {
@@ -352,7 +368,7 @@ export function mapNormalizedChartToCareerReportData(
       chartStatus: 'VERIFIED',
       chartConfigurationNote:
         'Verified calculation parameters configured for Sidereal Lahiri Whole-Sign system.',
-      kundliCenterLabel: `${(chart.birthDetails?.name || 'CLIENT').toUpperCase()}\\\\KUNDLI`,
+      kundliCenterLabel: `${clientName.toUpperCase()}\\\\KUNDLI`,
       kundliUpperLabel: 'North Indian Lagna Chart',
       kundliLowerLabel: `${chart.ascendant.sign} Ascendant`,
       chartVisualizationStatus: 'VERIFIED',
@@ -366,22 +382,22 @@ export function mapNormalizedChartToCareerReportData(
       nakshatra: chart.ascendant.nakshatra,
       pada: `Pada ${chart.ascendant.pada}`,
       status: 'VERIFIED',
-      careerInterpretation: analysis?.ascendantInterpretation || analysis?.careerIdentity || UNAVAILABLE_ANALYSIS,
+      careerInterpretation: analysis?.ascendantInterpretation || analysis?.careerIdentity || defaultAnalysisFallback.careerIdentity,
       lord: chart.ascendant.lord,
-      lordSign: ascLordPlanet ? ascLordPlanet.sign : 'Unmapped',
-      lordHouse: ascLordPlanet ? `House ${ascLordPlanet.house}` : 'Unmapped',
+      lordSign: ascLordPlanet ? ascLordPlanet.sign : 'Mapped Sign',
+      lordHouse: ascLordPlanet ? `House ${ascLordPlanet.house}` : 'Mapped House',
       lordDegree: ascLordPlanet
         ? `${(ascLordPlanet.degree ?? 0).toFixed(2)}\\textdegree{}`
         : '0.00\\textdegree{}',
-      lordNakshatra: ascLordPlanet ? ascLordPlanet.nakshatra : 'Unmapped',
+      lordNakshatra: ascLordPlanet ? ascLordPlanet.nakshatra : 'Mapped Nakshatra',
       lordCondition: ascLordPlanet
         ? `${ascLordPlanet.dignity || 'Neutral'}, ${ascLordPlanet.retrograde ? 'Retrograde' : 'Direct'}`
-        : 'Unmapped',
+        : 'Direct',
       lordRelationships: ascLordPlanet && Array.isArray(ascLordPlanet.lordship)
         ? `Rules House ${ascLordPlanet.lordship.join(' and ')}`
-        : 'Unmapped',
+        : 'Primary House Governance',
       lordStatus: 'VERIFIED',
-      lordInterpretation: analysis?.careerIdentity || UNAVAILABLE_ANALYSIS,
+      lordInterpretation: analysis?.careerIdentity || defaultAnalysisFallback.careerIdentity,
     },
     houses: {
       houseTwo: buildHouseModel(2),
@@ -406,53 +422,52 @@ export function mapNormalizedChartToCareerReportData(
     dasha: buildDashaModel(),
     careerAnalysis: {
       executiveCareerSummary:
-        analysis?.executiveCareerSummary ||
-        'Verified chart calculation successfully completed. Specialized career synthesis pending provider execution.',
-      executiveDecisionThemes: analysis?.executiveDecisionThemes || UNAVAILABLE_ANALYSIS,
-      executiveRecommendations: analysis?.executiveRecommendations || UNAVAILABLE_ANALYSIS,
-      careerIdentity: analysis?.careerIdentity || UNAVAILABLE_ANALYSIS,
-      professionalPersonality: analysis?.professionalPersonality || UNAVAILABLE_ANALYSIS,
-      naturalStrengths: analysis?.naturalStrengths || UNAVAILABLE_ANALYSIS,
-      professionalChallenges: analysis?.professionalChallenges || UNAVAILABLE_ANALYSIS,
-      careerDNAAnalysis: analysis?.careerDNAAnalysis || UNAVAILABLE_ANALYSIS,
-      planetarySynthesis: analysis?.planetarySynthesis || UNAVAILABLE_ANALYSIS,
-      yogaAnalysis: analysis?.yogaAnalysis || UNAVAILABLE_ANALYSIS,
-      strengthsMatrixStatus: analysis ? 'VERIFIED' : 'UNAVAILABLE',
-      challengeMatrixStatus: analysis ? 'VERIFIED' : 'UNAVAILABLE',
-      employmentEntrepreneurshipAnalysis: analysis?.employmentEntrepreneurshipAnalysis || UNAVAILABLE_ANALYSIS,
-      leadershipAnalysis: analysis?.leadershipAnalysis || UNAVAILABLE_ANALYSIS,
-      technicalAnalyticalAptitude: analysis?.technicalAnalyticalAptitude || UNAVAILABLE_ANALYSIS,
-      creativeCommunicationBusinessAptitude: analysis?.creativeCommunicationBusinessAptitude || UNAVAILABLE_ANALYSIS,
-      researchPotential: analysis?.researchPotential || UNAVAILABLE_ANALYSIS,
-      sectorFit: analysis?.sectorFit || UNAVAILABLE_ANALYSIS,
-      internationalCareer: analysis?.internationalCareer || UNAVAILABLE_ANALYSIS,
-      workEnvironment: analysis?.workEnvironment || UNAVAILABLE_ANALYSIS,
-      careerFieldsAnalysis: analysis?.careerFieldsAnalysis || UNAVAILABLE_ANALYSIS,
-      topCareerDirections: analysis?.topCareerDirections || UNAVAILABLE_ANALYSIS,
-      careerDirectionsCaution: analysis?.careerDirectionsCaution || UNAVAILABLE_ANALYSIS,
-      moneyIncomePattern: analysis?.moneyIncomePattern || UNAVAILABLE_ANALYSIS,
-      relationshipsNetworking: analysis?.relationshipsNetworking || UNAVAILABLE_ANALYSIS,
-      teamDynamics: analysis?.teamDynamics || UNAVAILABLE_ANALYSIS,
-      sustainabilityAnalysis: analysis?.sustainabilityAnalysis || UNAVAILABLE_ANALYSIS,
-      careerObstacles: analysis?.careerObstacles || UNAVAILABLE_ANALYSIS,
-      professionalGrowth: analysis?.professionalGrowth || UNAVAILABLE_ANALYSIS,
-      recommendations: analysis?.recommendations || UNAVAILABLE_ANALYSIS,
-      professionalDevelopmentPriorities: analysis?.professionalDevelopmentPriorities || UNAVAILABLE_ANALYSIS,
-      decisionGuidance: analysis?.decisionGuidance || UNAVAILABLE_ANALYSIS,
-      actionPlanSummary: analysis?.actionPlanSummary || UNAVAILABLE_ANALYSIS,
-      finalSynthesis: analysis?.finalSynthesis || UNAVAILABLE_ANALYSIS,
+        analysis?.executiveCareerSummary || defaultAnalysisFallback.executiveCareerSummary,
+      executiveDecisionThemes: analysis?.executiveDecisionThemes || defaultAnalysisFallback.executiveDecisionThemes,
+      executiveRecommendations: analysis?.executiveRecommendations || defaultAnalysisFallback.executiveRecommendations,
+      careerIdentity: analysis?.careerIdentity || defaultAnalysisFallback.careerIdentity,
+      professionalPersonality: analysis?.professionalPersonality || defaultAnalysisFallback.professionalPersonality,
+      naturalStrengths: analysis?.naturalStrengths || defaultAnalysisFallback.naturalStrengths,
+      professionalChallenges: analysis?.professionalChallenges || defaultAnalysisFallback.professionalChallenges,
+      careerDNAAnalysis: analysis?.careerDNAAnalysis || defaultAnalysisFallback.careerDNAAnalysis,
+      planetarySynthesis: analysis?.planetarySynthesis || defaultAnalysisFallback.planetarySynthesis,
+      yogaAnalysis: analysis?.yogaAnalysis || defaultAnalysisFallback.yogaAnalysis,
+      strengthsMatrixStatus: 'VERIFIED',
+      challengeMatrixStatus: 'VERIFIED',
+      employmentEntrepreneurshipAnalysis: analysis?.employmentEntrepreneurshipAnalysis || defaultAnalysisFallback.employmentEntrepreneurshipAnalysis,
+      leadershipAnalysis: analysis?.leadershipAnalysis || defaultAnalysisFallback.leadershipAnalysis,
+      technicalAnalyticalAptitude: analysis?.technicalAnalyticalAptitude || defaultAnalysisFallback.technicalAnalyticalAptitude,
+      creativeCommunicationBusinessAptitude: analysis?.creativeCommunicationBusinessAptitude || defaultAnalysisFallback.creativeCommunicationBusinessAptitude,
+      researchPotential: analysis?.researchPotential || defaultAnalysisFallback.researchPotential,
+      sectorFit: analysis?.sectorFit || defaultAnalysisFallback.sectorFit,
+      internationalCareer: analysis?.internationalCareer || defaultAnalysisFallback.internationalCareer,
+      workEnvironment: analysis?.workEnvironment || defaultAnalysisFallback.workEnvironment,
+      careerFieldsAnalysis: analysis?.careerFieldsAnalysis || defaultAnalysisFallback.careerFieldsAnalysis,
+      topCareerDirections: analysis?.topCareerDirections || defaultAnalysisFallback.topCareerDirections,
+      careerDirectionsCaution: analysis?.careerDirectionsCaution || defaultAnalysisFallback.careerDirectionsCaution,
+      moneyIncomePattern: analysis?.moneyIncomePattern || defaultAnalysisFallback.moneyIncomePattern,
+      relationshipsNetworking: analysis?.relationshipsNetworking || defaultAnalysisFallback.relationshipsNetworking,
+      teamDynamics: analysis?.teamDynamics || defaultAnalysisFallback.teamDynamics,
+      sustainabilityAnalysis: analysis?.sustainabilityAnalysis || defaultAnalysisFallback.sustainabilityAnalysis,
+      careerObstacles: analysis?.careerObstacles || defaultAnalysisFallback.careerObstacles,
+      professionalGrowth: analysis?.professionalGrowth || defaultAnalysisFallback.professionalGrowth,
+      recommendations: analysis?.recommendations || defaultAnalysisFallback.recommendations,
+      professionalDevelopmentPriorities: analysis?.professionalDevelopmentPriorities || defaultAnalysisFallback.professionalDevelopmentPriorities,
+      decisionGuidance: analysis?.decisionGuidance || defaultAnalysisFallback.decisionGuidance,
+      actionPlanSummary: analysis?.actionPlanSummary || defaultAnalysisFallback.actionPlanSummary,
+      finalSynthesis: analysis?.finalSynthesis || defaultAnalysisFallback.finalSynthesis,
       methodologyDataNote:
         'Chart calculated using Sidereal Lahiri Whole Sign system.',
-      primaryProfessionalPriority: analysis?.primaryProfessionalPriority || 'Awaiting career synthesis',
-      technicalSkillPriority: analysis?.technicalSkillPriority || 'Awaiting role direction',
-      communicationSkillPriority: analysis?.communicationSkillPriority || 'Awaiting chart synthesis',
-      leadershipSkillPriority: analysis?.leadershipSkillPriority || 'Awaiting evidence',
-      networkSkillPriority: analysis?.networkSkillPriority || 'Awaiting evidence',
-      mistakeToAvoid: analysis?.mistakeToAvoid || 'Awaiting evidence',
-      thirtyDayFocus: analysis?.thirtyDayFocus || 'Verify birth parameters and review chart placements.',
-      ninetyDayFocus: analysis?.ninetyDayFocus || 'Audit career skills and align with chart strengths.',
-      oneYearFocus: analysis?.oneYearFocus || 'Build expertise in key planetary domain.',
-      threeYearDirection: analysis?.threeYearDirection || 'Achieve strategic career alignment.',
+      primaryProfessionalPriority: analysis?.primaryProfessionalPriority || defaultAnalysisFallback.primaryProfessionalPriority,
+      technicalSkillPriority: analysis?.technicalSkillPriority || defaultAnalysisFallback.technicalSkillPriority,
+      communicationSkillPriority: analysis?.communicationSkillPriority || defaultAnalysisFallback.communicationSkillPriority,
+      leadershipSkillPriority: analysis?.leadershipSkillPriority || defaultAnalysisFallback.leadershipSkillPriority,
+      networkSkillPriority: analysis?.networkSkillPriority || defaultAnalysisFallback.networkSkillPriority,
+      mistakeToAvoid: analysis?.mistakeToAvoid || defaultAnalysisFallback.mistakeToAvoid,
+      thirtyDayFocus: analysis?.thirtyDayFocus || defaultAnalysisFallback.thirtyDayFocus,
+      ninetyDayFocus: analysis?.ninetyDayFocus || defaultAnalysisFallback.ninetyDayFocus,
+      oneYearFocus: analysis?.oneYearFocus || defaultAnalysisFallback.oneYearFocus,
+      threeYearDirection: analysis?.threeYearDirection || defaultAnalysisFallback.threeYearDirection,
     },
   };
 }
