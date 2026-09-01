@@ -18,11 +18,11 @@
     "typeRoots": ["./node_modules/@types", "../../node_modules/@types"],
     "baseUrl": "./",
     "paths": {
-      "@astro/shared": ["packages/shared/dist", "packages/shared/src"],
-      "@astro/astrology-engine": ["packages/astrology-engine/dist", "packages/astrology-engine/src"],
-      "@astro/gupta-nadi-engine": ["packages/gupta-nadi-engine/dist", "packages/gupta-nadi-engine/src"],
-      "@astro/prediction-engine": ["packages/prediction-engine/dist", "packages/prediction-engine/src"],
-      "@astro/report-engine": ["packages/report-engine/dist", "packages/report-engine/src"]
+      "@astro/shared": ["packages/shared/src", "packages/shared/dist"],
+      "@astro/astrology-engine": ["packages/astrology-engine/src", "packages/astrology-engine/dist"],
+      "@astro/gupta-nadi-engine": ["packages/gupta-nadi-engine/src", "packages/gupta-nadi-engine/dist"],
+      "@astro/prediction-engine": ["packages/prediction-engine/src", "packages/prediction-engine/dist"],
+      "@astro/report-engine": ["packages/report-engine/src", "packages/report-engine/dist"]
     }
   }
 }

@@ -55,6 +55,21 @@ services:
     depends_on:
       - api
 
+  report-worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: astro_report_worker
+    restart: always
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres_password@postgres:5432/astro_sushil?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+
 volumes:
   postgres_data:
   redis_data:

@@ -10,6 +10,8 @@ import {
   BirthDetails,
   PlanetSymbol,
   VargaType,
+  NormalizedChart,
+  normalizeAstroChart,
 } from '@astro/astrology-engine';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError, AppError, ValidationError } from '../../errors/app-error';
@@ -198,10 +200,30 @@ export class AstrologyService {
     const result = this.matchmakingCalculator.evaluateCompatibility(boyChart, girlChart);
 
     return {
-      boy: { name: boyDetails.name, dateOfBirth: boyDetails.dateOfBirth },
-      girl: { name: girlDetails.name, dateOfBirth: girlDetails.dateOfBirth },
+      boy: {
+        name: boyDetails.name || 'Boy',
+        dateOfBirth:
+          boyDetails.dateOfBirth ||
+          `${boyDetails.date.year}-${String(boyDetails.date.month).padStart(2, '0')}-${String(boyDetails.date.day).padStart(2, '0')}`,
+      },
+      girl: {
+        name: girlDetails.name || 'Girl',
+        dateOfBirth:
+          girlDetails.dateOfBirth ||
+          `${girlDetails.date.year}-${String(girlDetails.date.month).padStart(2, '0')}-${String(girlDetails.date.day).padStart(2, '0')}`,
+      },
       compatibility: result,
     };
+  }
+
+  public async calculateNormalizedChart(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput },
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ): Promise<NormalizedChart> {
+    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
+    const activeConfig = this.getActiveConfig();
+    const astroChart = await this.calculator.calculateChart(birthDetails, activeConfig);
+    return normalizeAstroChart(astroChart);
   }
 
   private async executeCalculation(birthDetails: BirthDetails): Promise<AstroChartResponseDto> {

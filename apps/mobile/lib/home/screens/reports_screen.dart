@@ -5,6 +5,10 @@ import '../../core/auth/feature_access_service.dart';
 import '../../features/birth_profile/models/birth_profile_model.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
+import '../../features/reports/providers/career_report_provider.dart';
+import '../../features/reports/screens/career_report_generation_screen.dart';
+import '../../features/reports/screens/career_report_overview_screen.dart';
+import '../../features/reports/screens/career_report_pdf_screen.dart';
 import '../../features/reports/screens/report_view_screen.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/widgets/subtle_celestial_background.dart';
@@ -40,6 +44,77 @@ class ReportsScreen extends ConsumerWidget {
     );
   }
 
+  void _onCareerReportAction({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BirthProfileModel profile,
+  }) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.premiumReportCareer,
+      featureTitle: 'Career & Professional Life Report',
+      onAllowed: () async {
+        final careerState = ref.read(careerReportNotifierProvider);
+        final isSameProfile = careerState.detail?.birthProfileId == profile.id;
+
+        if (isSameProfile &&
+            careerState.status != null &&
+            careerState.status!.isCompleted &&
+            careerState.activeReportId != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CareerReportOverviewScreen(
+                reportId: careerState.activeReportId!,
+                profile: profile,
+              ),
+            ),
+          );
+        } else if (isSameProfile &&
+            careerState.status != null &&
+            careerState.status!.isProcessing &&
+            careerState.activeReportId != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CareerReportGenerationScreen(
+                reportId: careerState.activeReportId!,
+                profile: profile,
+              ),
+            ),
+          );
+        } else {
+          final reportId = await ref
+              .read(careerReportNotifierProvider.notifier)
+              .createCareerReport(birthProfileId: profile.id);
+
+          if (reportId != null && context.mounted) {
+            final updatedState = ref.read(careerReportNotifierProvider);
+            if (updatedState.status != null &&
+                updatedState.status!.isCompleted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CareerReportOverviewScreen(
+                    reportId: reportId,
+                    profile: profile,
+                  ),
+                ),
+              );
+            } else {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CareerReportGenerationScreen(
+                    reportId: reportId,
+                    profile: profile,
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
@@ -65,6 +140,11 @@ class ReportsScreen extends ConsumerWidget {
               updatedAt: DateTime(2026, 1, 1),
             ),
     );
+
+    final careerState = ref.watch(careerReportNotifierProvider);
+    final isMatchingProfile = careerState.detail?.birthProfileId == activeProfile.id;
+    final isCareerCompleted = isMatchingProfile && (careerState.status?.isCompleted ?? false);
+    final isCareerProcessing = isMatchingProfile && (careerState.status?.isProcessing ?? false);
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -239,7 +319,6 @@ class ReportsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                 ] else ...[
-                  // Empty Profile Gate
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -332,7 +411,51 @@ class ReportsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // 4. KUNDLI REPORT CARD
+                // 4. CAREER & PROFESSIONAL LIFE REPORT CARD (PRIMARY FEATURED)
+                _ReportCard(
+                  title: 'Career & Professional Life',
+                  tagline: '10TH HOUSE & VOCATIONAL DNA',
+                  description:
+                      'A deeper look at your professional strengths, career patterns and opportunities.',
+                  icon: Icons.work_outline_rounded,
+                  accentColor: Colors.teal,
+                  isAvailable: true,
+                  badgeText: 'PREMIUM PDF',
+                  primaryActionText: isCareerCompleted
+                      ? 'View Report'
+                      : isCareerProcessing
+                          ? 'In Progress (${careerState.status?.progress ?? 0}%)'
+                          : 'Generate Report',
+                  onViewTap: () => _onCareerReportAction(
+                    context: context,
+                    ref: ref,
+                    profile: activeProfile,
+                  ),
+                  onDownloadTap: isCareerCompleted && careerState.activeReportId != null
+                      ? () {
+                          AuthRequiredGate.checkAndProceed(
+                            context: context,
+                            ref: ref,
+                            feature: AppFeature.premiumReportCareer,
+                            featureTitle: 'Career Report PDF',
+                            onAllowed: () {
+                              ref
+                                  .read(careerReportNotifierProvider.notifier)
+                                  .downloadAndCachePdf(careerState.activeReportId!);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Career PDF downloaded and cached.'),
+                                ),
+                              );
+                            },
+                          );
+                        }
+                      : null,
+                ),
+
+                const SizedBox(height: 16),
+
+                // 5. KUNDLI REPORT CARD
                 _ReportCard(
                   title: 'Birth Chart & Kundli',
                   tagline: 'YOUR COSMIC BLUEPRINT',
@@ -359,7 +482,7 @@ class ReportsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 16),
 
-                // 5. PLANETARY REPORT CARD
+                // 6. PLANETARY REPORT CARD
                 _ReportCard(
                   title: 'Planetary Summary',
                   tagline: 'PLANETARY DYNAMICS',
@@ -386,7 +509,7 @@ class ReportsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // 6. FUTURE COMING SOON REPORTS
+                // 7. UPCOMING REPORTS
                 Text(
                   'UPCOMING REPORTS',
                   style: TextStyle(
@@ -409,19 +532,6 @@ class ReportsScreen extends ConsumerWidget {
                   badgeText: 'COMING SOON',
                 ),
 
-                const SizedBox(height: 12),
-
-                _ReportCard(
-                  title: 'Career & Wealth Report',
-                  tagline: '10TH HOUSE & ARTHA DYNAMICS',
-                  description:
-                      'Discover your vocational strengths and planetary wealth indicators.',
-                  icon: Icons.work_outline_rounded,
-                  accentColor: Colors.teal,
-                  isAvailable: false,
-                  badgeText: 'COMING SOON',
-                ),
-
                 const SizedBox(height: 24),
               ],
             ),
@@ -440,6 +550,7 @@ class _ReportCard extends StatelessWidget {
   final Color accentColor;
   final bool isAvailable;
   final String? badgeText;
+  final String? primaryActionText;
   final VoidCallback? onViewTap;
   final VoidCallback? onDownloadTap;
 
@@ -451,6 +562,7 @@ class _ReportCard extends StatelessWidget {
     required this.accentColor,
     this.isAvailable = true,
     this.badgeText,
+    this.primaryActionText,
     this.onViewTap,
     this.onDownloadTap,
   });
@@ -517,20 +629,24 @@ class _ReportCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (!isAvailable)
+                if (!isAvailable || badgeText != null)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.lightBorder,
+                      color: isAvailable
+                          ? accentColor.withOpacity(0.15)
+                          : AppColors.lightBorder,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       badgeText ?? 'LOCKED',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextMuted,
+                        color: isAvailable
+                            ? accentColor
+                            : AppColors.lightTextMuted,
                       ),
                     ),
                   ),
@@ -563,31 +679,33 @@ class _ReportCard extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.remove_red_eye_outlined, size: 18),
+                      label: Text(
+                        primaryActionText ?? 'View Report',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  if (onDownloadTap != null) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton.icon(
+                      onPressed: onDownloadTap,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(
+                            color: AppColors.primary, width: 1.2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: const Text(
-                        'View Report',
+                        'PDF',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  OutlinedButton.icon(
-                    onPressed: onDownloadTap,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(
-                          color: AppColors.primary, width: 1.2),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                    label: const Text(
-                      'PDF',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ],

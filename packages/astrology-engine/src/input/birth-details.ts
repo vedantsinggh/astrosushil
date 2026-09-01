@@ -11,6 +11,9 @@ export interface LocalTimeInput {
 }
 
 export interface BirthDetails {
+  name?: string;          // Optional person or profile name
+  dateOfBirth?: string;   // Optional date of birth string (YYYY-MM-DD)
+  timeOfBirth?: string;   // Optional time of birth string (HH:mm:ss)
   date: LocalDateInput;
   time: LocalTimeInput;
   timezone: string;       // IANA Timezone string, e.g. "Asia/Kolkata"

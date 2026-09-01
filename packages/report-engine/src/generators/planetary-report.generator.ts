@@ -86,7 +86,7 @@ export async function generatePlanetaryReport(
   const nakshatra: ReportNakshatraDto = {
     birthNakshatra: moonPlanet.nakshatra,
     pada: moonPlanet.pada,
-    rulingPlanet: moonPlanet.nakshatraLord || 'Moon',
+    rulingPlanet: (moonPlanet as any).nakshatraLord || 'Moon',
     associatedInfo: `Janma Nakshatra: ${moonPlanet.nakshatra} (Pada ${moonPlanet.pada}).`,
   };
 

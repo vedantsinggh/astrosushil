@@ -1,8 +1,208 @@
 import { StructuredReportModel, ReportType } from '../types/report.types';
+import { CareerReportData } from '../types/career-report.types';
 import { validateAstrologyDataForReport } from '../validation/report-data.validator';
 import { PdfWriter, PdfColors } from './pdf-writer';
 
 export class ReportPdfService {
+  /**
+   * Generates a rich, vector-rendered Career Report PDF from CareerReportData.
+   */
+  public async generateCareerReportPdf(careerData: CareerReportData): Promise<Buffer> {
+    const pdf = new PdfWriter();
+
+    // PAGE 1: Executive Overview & Client Profile
+    pdf.drawHeader('Vedic Career Intelligence Report');
+
+    // Main Cover Banner Box
+    pdf.setFillColor(PdfColors.NAVY);
+    pdf.setStrokeColor(PdfColors.GOLD);
+    pdf.setLineWidth(2);
+    pdf.drawRect(pdf.marginLeft, 690, pdf.contentWidth, 90, true, true);
+
+    pdf.drawText('ASTRO SUSHIL', pdf.marginLeft + 20, 755, 20, true, PdfColors.GOLD);
+    pdf.drawText('CAREER INTELLIGENCE DOSSIER', pdf.marginLeft + 20, 735, 14, true, PdfColors.WHITE);
+    pdf.drawText(
+      `Client: ${careerData.client?.clientName || 'Valued Client'}  |  Date: ${careerData.client?.reportDate || '2026'}`,
+      pdf.marginLeft + 20,
+      712,
+      9,
+      false,
+      PdfColors.LIGHT_BG
+    );
+
+    // Profile Metadata Card
+    pdf.setFillColor(PdfColors.LIGHT_BG);
+    pdf.setStrokeColor(PdfColors.BORDER_GREY);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 570, pdf.contentWidth, 105, true, true);
+
+    pdf.drawText('CLIENT & CALCULATION METADATA', pdf.marginLeft + 15, 655, 11, true, PdfColors.INDIGO);
+    pdf.drawText(`Name: ${careerData.client?.clientName || 'Client'}`, pdf.marginLeft + 15, 635, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Date of Birth: ${careerData.client?.dateOfBirth || ''} ${careerData.client?.timeOfBirth || ''}`, pdf.marginLeft + 15, 618, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Birth Place: ${careerData.client?.birthPlace || ''}`, pdf.marginLeft + 15, 601, 10, false, PdfColors.DARK_TEXT);
+
+    pdf.drawText(`Zodiac System: ${careerData.calculation?.zodiacSystem || 'Sidereal'}`, pdf.marginLeft + 280, 635, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Ayanamsa: ${careerData.calculation?.ayanamsa || 'Lahiri'}`, pdf.marginLeft + 280, 618, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`House System: ${careerData.calculation?.houseSystem || 'Placidus'}`, pdf.marginLeft + 280, 601, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Engine Version: ${careerData.calculation?.calculationVersion || '1.0.0'}`, pdf.marginLeft + 280, 584, 10, false, PdfColors.DARK_TEXT);
+
+    // Executive Summary Box
+    pdf.setFillColor(PdfColors.WHITE);
+    pdf.setStrokeColor(PdfColors.PURPLE);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 320, pdf.contentWidth, 235, true, true);
+
+    pdf.drawText('1. EXECUTIVE CAREER SUMMARY', pdf.marginLeft + 15, 535, 12, true, PdfColors.NAVY);
+    const summaryText = careerData.careerAnalysis?.executiveCareerSummary || 'Executive career summary analysis based on Vedic Career Axis.';
+    this.drawWrappedText(pdf, summaryText, pdf.marginLeft + 15, 510, pdf.contentWidth - 30, 9.5, 14);
+
+    // Decision Themes Box
+    pdf.setFillColor(PdfColors.LIGHT_BG);
+    pdf.setStrokeColor(PdfColors.GOLD);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 245, true, true);
+
+    pdf.drawText('2. EXECUTIVE DECISION THEMES & RECOMMENDATIONS', pdf.marginLeft + 15, 285, 12, true, PdfColors.NAVY);
+    const themesText = careerData.careerAnalysis?.executiveDecisionThemes || 'Strategic decision themes for career direction.';
+    this.drawWrappedText(pdf, themesText, pdf.marginLeft + 15, 260, pdf.contentWidth - 30, 9.5, 14);
+
+    // PAGE 2: Career Identity & Planetary Synthesis
+    pdf.addPage();
+    pdf.drawHeader('Career DNA & Planetary Analysis');
+
+    pdf.setFillColor(PdfColors.WHITE);
+    pdf.setStrokeColor(PdfColors.INDIGO);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 520, pdf.contentWidth, 260, true, true);
+
+    pdf.drawText('3. CAREER IDENTITY & PROFESSIONAL PERSONALITY', pdf.marginLeft + 15, 760, 12, true, PdfColors.NAVY);
+    const identityText = careerData.careerAnalysis?.careerIdentity || 'Core career identity derived from 10th house and Ascendant lord.';
+    this.drawWrappedText(pdf, identityText, pdf.marginLeft + 15, 735, pdf.contentWidth - 30, 9.5, 14);
+
+    pdf.setFillColor(PdfColors.LIGHT_BG);
+    pdf.setStrokeColor(PdfColors.PURPLE);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 440, true, true);
+
+    pdf.drawText('4. PLANETARY SYNTHESIS & SPECIAL COMBINATIONS (YOGAS)', pdf.marginLeft + 15, 480, 12, true, PdfColors.NAVY);
+    const synthesisText = careerData.careerAnalysis?.planetarySynthesis || 'Synthesis of primary career-influencing planets.';
+    this.drawWrappedText(pdf, synthesisText, pdf.marginLeft + 15, 455, pdf.contentWidth - 30, 9.5, 14);
+
+    // PAGE 3: Planetary Table & Aptitudes
+    pdf.addPage();
+    pdf.drawHeader('Planetary Positions & Aptitudes');
+
+    pdf.drawText('5. PLANETARY POSITIONS IN CAREER HOUSES', pdf.marginLeft, 765, 12, true, PdfColors.NAVY);
+
+    const colX = [pdf.marginLeft, pdf.marginLeft + 70, pdf.marginLeft + 140, pdf.marginLeft + 210, pdf.marginLeft + 310, pdf.marginLeft + 400];
+    pdf.setFillColor(PdfColors.INDIGO);
+    pdf.drawRect(pdf.marginLeft, 735, pdf.contentWidth, 22, true, false);
+
+    pdf.drawText('Planet', colX[0] + 5, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Sign', colX[1] + 5, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('House', colX[2] + 5, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Nakshatra', colX[3] + 5, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Dignity', colX[4] + 5, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Career Role', colX[5] + 5, 742, 9, true, PdfColors.WHITE);
+
+    const planetList = Object.values(careerData.planets || {});
+    let tableY = 715;
+    for (let i = 0; i < planetList.length; i++) {
+      const p = planetList[i] as any;
+      if (!p || typeof p !== 'object') continue;
+      const bg = i % 2 === 0 ? PdfColors.WHITE : PdfColors.LIGHT_BG;
+      pdf.setFillColor(bg);
+      pdf.setStrokeColor(PdfColors.BORDER_GREY);
+      pdf.setLineWidth(0.5);
+      pdf.drawRect(pdf.marginLeft, tableY - 5, pdf.contentWidth, 20, true, true);
+
+      pdf.drawText(p.name || 'Planet', colX[0] + 5, tableY, 8.5, true, PdfColors.DARK_TEXT);
+      pdf.drawText(p.sign || '-', colX[1] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.house || '-', colX[2] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.nakshatra || '-', colX[3] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.dignity || '-', colX[4] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.careerSignificance || 'Influence', colX[5] + 5, tableY, 8, false, PdfColors.DARK_TEXT);
+
+      tableY -= 20;
+    }
+
+    pdf.setFillColor(PdfColors.WHITE);
+    pdf.setStrokeColor(PdfColors.GOLD);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 440, true, true);
+
+    pdf.drawText('6. APTITUDES & SECTOR FIT ANALYSIS', pdf.marginLeft + 15, 480, 12, true, PdfColors.NAVY);
+    const sectorText = careerData.careerAnalysis?.sectorFit || 'Sector fit and career fields analysis.';
+    this.drawWrappedText(pdf, sectorText, pdf.marginLeft + 15, 455, pdf.contentWidth - 30, 9.5, 14);
+
+    // PAGE 4: Action Plan & Final Synthesis
+    pdf.addPage();
+    pdf.drawHeader('Strategic Action Plan & Synthesis');
+
+    pdf.setFillColor(PdfColors.LIGHT_BG);
+    pdf.setStrokeColor(PdfColors.INDIGO);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 460, pdf.contentWidth, 320, true, true);
+
+    pdf.drawText('7. STRATEGIC ACTION PLAN', pdf.marginLeft + 15, 760, 12, true, PdfColors.NAVY);
+    const actionPlanText = careerData.careerAnalysis?.actionPlanSummary || 'Step-by-step career action plan.';
+    this.drawWrappedText(pdf, actionPlanText, pdf.marginLeft + 15, 735, pdf.contentWidth - 30, 9.5, 14);
+
+    pdf.setFillColor(PdfColors.WHITE);
+    pdf.setStrokeColor(PdfColors.PURPLE);
+    pdf.setLineWidth(1);
+    pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 380, true, true);
+
+    pdf.drawText('8. FINAL SYNTHESIS & DEVELOPMENT PRIORITIES', pdf.marginLeft + 15, 420, 12, true, PdfColors.NAVY);
+    const finalSynthText = careerData.careerAnalysis?.finalSynthesis || 'Final synthesis and professional development priorities.';
+    this.drawWrappedText(pdf, finalSynthText, pdf.marginLeft + 15, 395, pdf.contentWidth - 30, 9.5, 14);
+
+    return pdf.buildPdfBuffer();
+  }
+
+  private drawWrappedText(
+    pdf: PdfWriter,
+    text: string,
+    x: number,
+    startY: number,
+    maxWidth: number,
+    fontSize: number = 9.5,
+    lineHeight: number = 14
+  ): number {
+    const paragraphs = text.split('\n');
+    let currentY = startY;
+
+    for (const para of paragraphs) {
+      if (!para.trim()) {
+        currentY -= lineHeight * 0.6;
+        continue;
+      }
+
+      const words = para.split(' ');
+      let currentLine = '';
+
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const approxWidth = testLine.length * fontSize * 0.52;
+
+        if (approxWidth > maxWidth && currentLine) {
+          pdf.drawText(currentLine, x, currentY, fontSize, false, PdfColors.DARK_TEXT);
+          currentY -= lineHeight;
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+
+      if (currentLine) {
+        pdf.drawText(currentLine, x, currentY, fontSize, false, PdfColors.DARK_TEXT);
+        currentY -= lineHeight;
+      }
+    }
+
+    return currentY;
+  }
+
   /**
    * Generates a downloadable PDF buffer from a validated StructuredReportModel.
    * Does NOT perform any astrology calculations. Uses exact structured report JSON.
@@ -98,7 +298,7 @@ export class ReportPdfService {
 
     pdf.drawText(`Ascendant (Lagna):`, pdf.marginLeft + 15, curY - 46, 10, true, PdfColors.DARK_TEXT);
     pdf.drawText(
-      `${report.ascendant.sign} (${report.ascendant.degree.toFixed(2)} deg)`,
+      `${report.ascendant.sign} (${(typeof report.ascendant.degree === 'number' ? report.ascendant.degree : 0).toFixed(2)} deg)`,
       pdf.marginLeft + 140,
       curY - 46,
       10,
@@ -173,7 +373,7 @@ export class ReportPdfService {
 
       pdf.drawText(p.planet, cols[0].x, curY - 12, 9, true, PdfColors.DARK_TEXT);
       pdf.drawText(p.sign, cols[1].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(`${p.degree.toFixed(2)} deg`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(`${(typeof p.degree === 'number' ? p.degree : 0).toFixed(2)} deg`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(`House ${p.house}`, cols[3].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(p.nakshatra, cols[4].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(String(p.pada), cols[5].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
@@ -305,7 +505,7 @@ export class ReportPdfService {
 
       pdf.drawText(p.planet, cols[0].x, curY - 12, 9, true, PdfColors.DARK_TEXT);
       pdf.drawText(p.sign, cols[1].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(`${p.degree.toFixed(2)} deg`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(`${(typeof p.degree === 'number' ? p.degree : 0).toFixed(2)} deg`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(`House ${p.house}`, cols[3].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(p.nakshatra, cols[4].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(String(p.pada), cols[5].x, curY - 12, 9, false, PdfColors.DARK_TEXT);

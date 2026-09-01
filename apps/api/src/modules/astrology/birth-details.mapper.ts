@@ -34,7 +34,10 @@ export function mapBirthProfileToBirthDetails(profile: PrismaBirthProfileInput):
   const minute = parseInt(timeParts[1], 10);
   const second = timeParts.length > 2 ? parseInt(timeParts[2], 10) : 0;
 
-  return {
+  const details: BirthDetails = {
+    name: profile.name,
+    dateOfBirth: profile.dateOfBirth,
+    timeOfBirth: profile.timeOfBirth,
     date: { year, month, day },
     time: { hour, minute, second },
     timezone: profile.timezone,
@@ -42,4 +45,6 @@ export function mapBirthProfileToBirthDetails(profile: PrismaBirthProfileInput):
     longitude: profile.longitude,
     placeName: profile.placeName || undefined,
   };
+
+  return details;
 }

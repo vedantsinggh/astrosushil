@@ -25,6 +25,7 @@ enum ReportType {
   KUNDLI
   PLANETARY_SUMMARY
   MARRIAGE_COMPATIBILITY
+  CAREER
   CAREER_PROSITY
   CHILDBIRTH_FAMILY
   GUPTA_NADI_DOSSIER
@@ -32,6 +33,12 @@ enum ReportType {
 
 enum ReportStatus {
   PENDING
+  QUEUED
+  CALCULATING
+  ANALYZING
+  RENDERING
+  COMPILING
+  UPLOADING
   PROCESSING
   COMPLETED
   FAILED
@@ -137,16 +144,27 @@ model Order {
 }
 
 model Report {
-  id             String       @id @default(uuid())
-  userId         String
-  birthProfileId String
-  orderId        String?
-  reportType     ReportType
-  status         ReportStatus @default(PENDING)
-  s3Url          String?
-  errorMessage   String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                 String       @id @default(uuid())
+  userId             String
+  birthProfileId     String
+  orderId            String?
+  reportType         ReportType
+  status             ReportStatus @default(QUEUED)
+  stage              String?      @default("QUEUED")
+  progress           Int          @default(0)
+  reportVersion      String       @default("1.0.0")
+  calculationVersion String       @default("1.0.0")
+  s3Url              String?
+  storageKey         String?
+  fileName           String?
+  fileSize           Int?
+  pageCount          Int?
+  errorCode          String?
+  errorMessage       String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  completedAt        DateTime?
+  failedAt           DateTime?
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   birthProfile BirthProfile @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)

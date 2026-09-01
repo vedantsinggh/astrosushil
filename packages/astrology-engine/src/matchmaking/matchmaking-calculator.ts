@@ -108,7 +108,7 @@ export class MatchmakingCalculator {
       return { isManglik: false, manglikHouses: [], severity: 'NONE' };
     }
 
-    const ascRashi = chart.ascendant.rashiIndex;
+    const ascRashi = chart.ascendant?.rashiIndex ?? 1;
     const marsRashi = marsPos.rashiIndex;
 
     // Calculate house number of Mars relative to Ascendant (1 to 12)
@@ -253,12 +253,11 @@ export class MatchmakingCalculator {
   }
 
   private calcBhakoot(boyRashi: number, girlRashi: number): number {
-    const diff = Math.abs(boyRashi - girlRashi);
-    // 2/12, 5/9, 6/8 are Doshas (0 points), others are 7 points
-    if (diff === 1 || diff === 11 || diff === 4 || diff === 8 || diff === 5 || diff === 7) {
-      if (diff === 6) return 0; // 6/8
-      if (diff === 5) return 0; // 5/9
-      if (diff === 1) return 0; // 2/12
+    const rawDiff = Math.abs(boyRashi - girlRashi);
+    const diff = rawDiff > 6 ? 12 - rawDiff : rawDiff;
+    // 2/12 (diff=1), 5/9 (diff=4), 6/8 (diff=5 or 6) -> 0 points (Dosha)
+    if (diff === 1 || diff === 4 || diff === 5 || diff === 6) {
+      return 0;
     }
     return 7;
   }
