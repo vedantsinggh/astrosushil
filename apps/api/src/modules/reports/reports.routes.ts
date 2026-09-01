@@ -199,6 +199,27 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
   // GET /api/v1/reports/:id/download-file
   fastify.get('/:id/download-file', { schema: pdfSchema, handler: handlePdfDownload });
 
+  // DELETE /api/v1/reports/:id
+  fastify.delete('/:id', {
+    schema: {
+      tags: ['Reports'],
+      summary: 'Delete report metadata and private object storage PDF',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      setNoCacheHeaders(reply);
+      const { id } = request.params as { id: string };
+      const result = await reportsService.deleteReport(id, request.user);
+      return reply.status(200).send(result);
+    },
+  });
+
   // 5. Catch-all single-segment GET route (MUST BE LAST)
   // GET /api/v1/reports/:id
   fastify.get('/:id', {

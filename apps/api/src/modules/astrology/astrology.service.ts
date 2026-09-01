@@ -58,7 +58,7 @@ export class AstrologyService {
    */
   private async resolveBirthDetails(
     input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput },
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ): Promise<BirthDetails> {
     if (input.birthProfileId) {
       if (!requestingUser) {
@@ -67,7 +67,8 @@ export class AstrologyService {
       const profile = await prisma.birthProfile.findUnique({
         where: { id: input.birthProfileId },
       });
-      if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+      const isAdmin = requestingUser.role === 'ADMIN' || requestingUser.role === 'SUPER_ADMIN' || requestingUser.role === 'SUPPORT';
+      if (!profile || (profile.userId !== requestingUser.id && !isAdmin)) {
         throw new NotFoundError('Birth profile not found');
       }
       return mapBirthProfileToBirthDetails(profile);
@@ -91,7 +92,7 @@ export class AstrologyService {
    */
   public async calculateChartForProfile(
     birthProfileId: string,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role?: string }
   ): Promise<AstroChartResponseDto> {
     const birthDetails = await this.resolveBirthDetails({ birthProfileId }, requestingUser);
     return this.executeCalculation(birthDetails);
@@ -112,7 +113,7 @@ export class AstrologyService {
    */
   public async calculateDasha(
     input: DashaRequestInput,
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const birthDetails = await this.resolveBirthDetails(input, requestingUser);
     const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
@@ -165,7 +166,7 @@ export class AstrologyService {
    */
   public async calculateVargas(
     input: VargasRequestInput,
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const birthDetails = await this.resolveBirthDetails(input, requestingUser);
     const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
@@ -188,7 +189,7 @@ export class AstrologyService {
    */
   public async calculateMatchmaking(
     input: MatchmakingRequestInput,
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const boyDetails = await this.resolveBirthDetails(input.boy, requestingUser);
     const girlDetails = await this.resolveBirthDetails(input.girl, requestingUser);
@@ -218,7 +219,7 @@ export class AstrologyService {
 
   public async calculateNormalizedChart(
     input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput },
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ): Promise<NormalizedChart> {
     const birthDetails = await this.resolveBirthDetails(input, requestingUser);
     const activeConfig = this.getActiveConfig();
@@ -256,7 +257,7 @@ export class AstrologyService {
    */
   public async getDomainEvidence(
     input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput; domain?: string },
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const { AstrologyEvidenceEngine } = await import('@astro/prediction-engine');
     const normalizedChart = await this.calculateNormalizedChart(input, requestingUser);
@@ -278,7 +279,7 @@ export class AstrologyService {
    */
   public async getPredictions(
     input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput; category?: string },
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const { DeterministicPredictionEngine } = await import('@astro/prediction-engine');
     const normalizedChart = await this.calculateNormalizedChart(input, requestingUser);

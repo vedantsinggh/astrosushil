@@ -370,6 +370,81 @@ export class StorageService {
     return this.getSignedDownloadUrl(`reports/career/${reportId}/career-report.pdf`, 900);
   }
 
+  /**
+   * Lists object storage keys under local fallback directory or R2 bucket
+   */
+  public async listKeys(prefix = 'reports'): Promise<string[]> {
+    const config = this.r2Config;
+    if (config) {
+      const url = `https://${config.host}/?list-type=2&prefix=${encodeURIComponent(prefix)}`;
+      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+      const dateStamp = dateIso.slice(0, 8);
+      const payloadHash = crypto.createHash('sha256').update('').digest('hex');
+
+      const headers: Record<string, string> = {
+        'host': config.host,
+        'x-amz-date': dateIso,
+        'x-amz-content-sha256': payloadHash,
+      };
+
+      const authorization = this.computeS3V4Signature({
+        method: 'GET',
+        path: '/',
+        headers,
+        payloadHash,
+        dateIso,
+        dateStamp,
+        config,
+      });
+
+      headers['Authorization'] = authorization;
+      const res = await fetch(url, { method: 'GET', headers });
+      if (!res.ok) return [];
+
+      const xml = await res.text().catch(() => '');
+      const keyMatches = xml.match(/<Key>(.*?)<\/Key>/g) || [];
+      return keyMatches.map((k) => k.replace(/<\/?Key>/g, ''));
+    }
+
+    const baseDir = path.join(this.localFallbackDir, prefix);
+    if (!fs.existsSync(baseDir)) return [];
+
+    const keys: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(fullPath);
+        } else {
+          const relKey = path.relative(this.localFallbackDir, fullPath);
+          keys.push(relKey);
+        }
+      }
+    };
+    walk(baseDir);
+    return keys;
+  }
+
+  /**
+   * Safely cleans up orphaned object keys that are not registered in PostgreSQL
+   */
+  public async cleanupOrphanedObjects(validKeysSet: Set<string>): Promise<{ deletedCount: number; deletedKeys: string[] }> {
+    const allKeys = await this.listKeys('reports');
+    const orphanedKeys = allKeys.filter((k) => !validKeysSet.has(k));
+    const deletedKeys: string[] = [];
+
+    for (const key of orphanedKeys) {
+      try {
+        await this.delete(key);
+        deletedKeys.push(key);
+      } catch (err: any) {
+        console.error(`[STORAGE_CLEANUP] Failed to delete orphaned key ${key}: ${err?.message}`);
+      }
+    }
+
+    return { deletedCount: deletedKeys.length, deletedKeys };
+  }
+
   private computeS3V4Signature(params: {
     method: string;
     path: string;

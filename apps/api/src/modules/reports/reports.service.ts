@@ -18,18 +18,24 @@ import {
   reportPdfService,
 } from '@astro/report-engine';
 
+export type UserContext = { id: string; role?: string; [key: string]: any };
+
 export const CURRENT_REPORT_VERSION = '1.0.0';
 export const CURRENT_CALCULATION_VERSION = '1.0.0';
 
 export class ReportsService {
   private readonly interpretationProvider = new DeterministicInterpretationProvider();
 
+  private isAdminUser(user: UserContext): boolean {
+    return user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'SUPPORT';
+  }
+
   /**
    * Initiates an async Career Report generation job.
    */
   public async createCareerReportJob(
     input: { birthProfileId: string; forceRegenerate?: boolean },
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ) {
     // 1. Validate birth profile ownership
     const profile = await prisma.birthProfile.findUnique({
@@ -40,7 +46,7 @@ export class ReportsService {
       throw new NotFoundError('Birth profile not found');
     }
 
-    if (profile.userId !== user.id && user.role !== 'ADMIN') {
+    if (profile.userId !== user.id && !this.isAdminUser(user)) {
       throw new ForbiddenError('You do not have access to this birth profile');
     }
 
@@ -135,7 +141,7 @@ export class ReportsService {
    */
   public async regenerateCareerReport(
     reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ) {
     const existingReport = await prisma.report.findUnique({
       where: { id: reportId },
@@ -145,7 +151,7 @@ export class ReportsService {
       throw new NotFoundError('Report not found');
     }
 
-    if (existingReport.userId !== user.id && user.role !== 'ADMIN') {
+    if (existingReport.userId !== user.id && !this.isAdminUser(user)) {
       throw new ForbiddenError('You do not have access to this report');
     }
 
@@ -160,7 +166,7 @@ export class ReportsService {
    */
   public async getReportStatusOnly(
     reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ) {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
@@ -170,7 +176,7 @@ export class ReportsService {
       throw new NotFoundError('Report not found');
     }
 
-    if (report.userId !== user.id && user.role !== 'ADMIN') {
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
       throw new ForbiddenError('You do not have access to this report');
     }
 
@@ -190,7 +196,7 @@ export class ReportsService {
    */
   public async getReportStatus(
     reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ) {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
@@ -201,7 +207,7 @@ export class ReportsService {
       throw new NotFoundError('Report not found');
     }
 
-    if (report.userId !== user.id && user.role !== 'ADMIN') {
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
       throw new ForbiddenError('You do not have access to this report');
     }
 
@@ -234,7 +240,7 @@ export class ReportsService {
    */
   public async getReportAccessUrl(
     reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ): Promise<{ reportId: string; accessUrl: string; expiresAt: string; fileName: string }> {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
@@ -244,7 +250,7 @@ export class ReportsService {
       throw new NotFoundError('Report not found');
     }
 
-    if (report.userId !== user.id && user.role !== 'ADMIN') {
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
       throw new ForbiddenError('You do not have access to this report');
     }
 
@@ -270,6 +276,42 @@ export class ReportsService {
     };
   }
 
+  /**
+   * Deletes a report DB record and removes its PDF object from private storage
+   */
+  public async deleteReport(
+    reportId: string,
+    user: UserContext
+  ): Promise<{ success: boolean; reportId: string }> {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to delete this report');
+    }
+
+    // 1. Delete binary from private object storage if key exists
+    const storageKey = report.storageKey || `reports/${report.userId}/${report.id}.pdf`;
+    try {
+      await storageService.delete(storageKey);
+    } catch (err: any) {
+      console.error(`[REPORT_DELETE] Storage object deletion warning for ${storageKey}: ${err?.message}`);
+    }
+
+    // 2. Delete DB record
+    await prisma.report.delete({
+      where: { id: reportId },
+    });
+
+    console.log(`[REPORT_DELETED] Report ${reportId} deleted by user ${user.id} (role: ${user.role}).`);
+    return { success: true, reportId };
+  }
+
   public async getUserReports(user: { id: string }) {
     return prisma.report.findMany({
       where: { userId: user.id },
@@ -283,7 +325,7 @@ export class ReportsService {
    */
   public async generateReportPdfBuffer(
     reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ): Promise<{ buffer: Buffer; report: any }> {
     const report = await this.getReportStatus(reportId, user);
 
@@ -328,7 +370,7 @@ export class ReportsService {
    */
   public async createReportJob(
     input: CreateReportInput,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ) {
     if (input.reportType === ((ReportType as any).CAREER || 'CAREER')) {
       return this.createCareerReportJob({ birthProfileId: input.birthProfileId }, user);
@@ -338,7 +380,7 @@ export class ReportsService {
       where: { id: input.birthProfileId },
     });
 
-    if (!profile || (profile.userId !== user.id && user.role !== 'ADMIN')) {
+    if (!profile || (profile.userId !== user.id && !this.isAdminUser(user))) {
       throw new NotFoundError('Birth profile not found');
     }
 

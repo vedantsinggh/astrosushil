@@ -175,6 +175,19 @@ export class CareerReportWorker {
       }
 
 
+      // --- STAGE 5.5: VALIDATING / QA (85%) ---
+      await this.updateJobStatus(reportId, 'VALIDATING', 85, 'VALIDATING');
+      const validation = validateReportPdf(
+        compilationResult.pdfBuffer,
+        compilationResult.pageCount,
+        reportDataTex
+      );
+      if (!validation.valid) {
+        logger.error({ reportId, reason: validation.reason }, '[CareerReportWorker] PDF Validation QA failed');
+        await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', validation.reason || 'PDF failed quality verification.');
+        return;
+      }
+
       // --- STAGE 6: UPLOADING (95%) ---
       await this.updateJobStatus(reportId, 'UPLOADING', 95, 'UPLOADING');
 
@@ -277,6 +290,48 @@ export class CareerReportWorker {
       } as any,
     });
   }
+}
+
+export function validateReportPdf(
+  pdfBuffer: Buffer,
+  pageCount: number,
+  textContent: string
+): { valid: boolean; reason?: string } {
+  if (!pdfBuffer || pdfBuffer.length < 1000) {
+    return { valid: false, reason: 'PDF buffer is missing or suspiciously small (<1KB).' };
+  }
+
+  const header = pdfBuffer.slice(0, 10).toString('utf-8');
+  if (!header.startsWith('%PDF-1.')) {
+    return { valid: false, reason: 'PDF binary header validation failed (invalid %PDF header).' };
+  }
+
+  const footer = pdfBuffer.slice(Math.max(0, pdfBuffer.length - 200)).toString('utf-8');
+  if (!footer.includes('%%EOF')) {
+    return { valid: false, reason: 'PDF binary footer validation failed (missing %%EOF marker).' };
+  }
+
+  if (pageCount < 1) {
+    return { valid: false, reason: 'PDF has invalid page count (less than 1 page).' };
+  }
+
+  const forbiddenPlaceholders = [
+    'Valued Client',
+    'Not supplied',
+    'TODO',
+    'Lorem ipsum',
+    'Personalized interpretation unavailable',
+    'undefined',
+    'null',
+  ];
+
+  for (const placeholder of forbiddenPlaceholders) {
+    if (textContent.includes(placeholder)) {
+      return { valid: false, reason: `PDF content failed QA: detected unrendered placeholder "${placeholder}".` };
+    }
+  }
+
+  return { valid: true };
 }
 
 export const careerReportWorker = new CareerReportWorker();
