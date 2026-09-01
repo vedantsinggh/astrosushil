@@ -62,7 +62,7 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
             Icon(Icons.mic_rounded, color: AppColors.premiumAccent, size: 20),
             SizedBox(width: 10),
             Text(
-              'Voice input coming soon',
+              'Voice input is currently disabled',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ],

@@ -21,25 +21,36 @@ export async function healthRoutes(fastify: FastifyInstance, _options: FastifyPl
     },
   });
 
+  const readinessHandler = async (_request: any, reply: any) => {
+    const isDbConnected = await checkDatabaseHealth();
+
+    const payload: HealthStatusResponse & { database: string } = {
+      status: isDbConnected ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      service: 'astro-api',
+      environment: config.NODE_ENV,
+      database: isDbConnected ? 'connected' : 'disconnected',
+    };
+
+    const statusCode = isDbConnected ? 200 : 503;
+    return reply.status(statusCode).send(payload);
+  };
+
   // Readiness endpoint GET /ready (Dependency readiness check including DB)
   fastify.get('/ready', {
     schema: {
       tags: ['Health'],
       summary: 'Readiness probe checking database connectivity',
     },
-    handler: async (_request, reply) => {
-      const isDbConnected = await checkDatabaseHealth();
+    handler: readinessHandler,
+  });
 
-      const payload: HealthStatusResponse & { database: string } = {
-        status: isDbConnected ? 'ok' : 'degraded',
-        timestamp: new Date().toISOString(),
-        service: 'astro-api',
-        environment: config.NODE_ENV,
-        database: isDbConnected ? 'connected' : 'disconnected',
-      };
-
-      const statusCode = isDbConnected ? 200 : 503;
-      return reply.status(statusCode).send(payload);
+  // Readiness endpoint GET /health/ready (Standard Kubernetes readiness probe path)
+  fastify.get('/health/ready', {
+    schema: {
+      tags: ['Health'],
+      summary: 'Readiness probe checking database connectivity (Kubernetes alias)',
     },
+    handler: readinessHandler,
   });
 }

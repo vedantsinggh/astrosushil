@@ -11,3 +11,5 @@ export * from './services/career-report.service';
 export * from './pdf/pdf-writer';
 export * from './pdf/report-pdf.service';
 export * from './pdf/xelatex-compiler';
+export * from './validation/pdf-qa.validator';
+

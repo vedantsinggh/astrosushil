@@ -1,9 +1,11 @@
 import React from 'react';
 import './globals.css';
+import { AuthProvider } from '../lib/auth-context';
+import { AdminGuard } from '../components/AdminGuard';
 
 export const metadata = {
-  title: 'Astro Sushil Admin Portal',
-  description: 'Management Portal for Astro Sushil Platform',
+  title: 'Astro Sushil Admin Panel',
+  description: 'Operations & Management Dashboard for Astro Sushil Platform',
 };
 
 export default function RootLayout({
@@ -14,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <AuthProvider>
+          <AdminGuard>{children}</AdminGuard>
+        </AuthProvider>
       </body>
     </html>
   );

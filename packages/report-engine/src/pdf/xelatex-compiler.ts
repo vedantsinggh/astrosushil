@@ -3,6 +3,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { reportPdfService } from './report-pdf.service';
+import { pdfQaValidator } from '../validation/pdf-qa.validator';
 
 const execFileAsync = promisify(execFile);
 
@@ -111,12 +112,20 @@ export class XeLatexCompiler {
       const pdfBuffer = fs.readFileSync(generatedPdfPath);
       this.validatePdfBuffer(pdfBuffer);
 
-      const pageCount = this.estimatePdfPageCount(pdfBuffer);
-      if (pageCount <= 4) {
+      const qaResult = pdfQaValidator.validatePdf({
+        pdfBuffer,
+        reportDataTex: options.reportDataTex,
+        expectedClientName: options.careerReportData?.client?.clientName,
+        minPageCount: 5,
+      });
+
+      if (!qaResult.isValid) {
         throw new Error(
-          `PDF_PAGE_COUNT_TOO_LOW: Compiled PDF page count is ${pageCount}, expected > 4 pages for main.tex Career Report.`
+          `AUTOMATED_PDF_QA_FAILED: Generated PDF failed quality assurance check:\n- ${qaResult.errors.join('\n- ')}`
         );
       }
+
+      const pageCount = qaResult.pageCount;
 
       console.log(
         `[XeLatexCompiler] Successfully compiled reportId ${reportId} (career-report-template-version: 1.0.0, ${pageCount} pages, ${pdfBuffer.length} bytes).`

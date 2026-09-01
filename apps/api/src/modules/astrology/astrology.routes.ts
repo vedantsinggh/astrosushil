@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { z } from 'zod';
 import { astrologyService } from './astrology.service';
 import {
   calculateChartSchema,
@@ -124,4 +125,36 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
       return reply.status(200).send({ data: result });
     },
   });
+
+  // POST /api/v1/astrology/evidence
+  fastify.post('/evidence', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      tags: ['Astrology'],
+      summary: 'Get deterministic domain evidence',
+      description: 'Extracts structured evidence facts for CAREER, MONEY, EDUCATION, RELATIONSHIPS, HEALTH_GENERAL, PERSONALITY, or TIMING.',
+    },
+    handler: async (request: any, reply: any) => {
+      const input = calculateChartSchema.extend({ domain: z.string().optional() } as any).parse(request.body);
+      const result = await astrologyService.getDomainEvidence(input, request.user);
+      return reply.status(200).send({ data: result });
+    },
+  });
+
+  // POST /api/v1/astrology/predictions
+  fastify.post('/predictions', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      tags: ['Astrology'],
+      summary: 'Get deterministic rule-based predictions',
+      description: 'Generates rule-based predictions with underlying evidence and confidence metrics.',
+    },
+    handler: async (request: any, reply: any) => {
+      const input = calculateChartSchema.extend({ category: z.string().optional() } as any).parse(request.body);
+      const result = await astrologyService.getPredictions(input, request.user);
+      return reply.status(200).send({ data: result });
+    },
+  });
 }
+
+

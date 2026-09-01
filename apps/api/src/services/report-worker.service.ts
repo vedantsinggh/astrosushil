@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { prisma } from './prisma.service';
 import { astrologyService } from '../modules/astrology/astrology.service';
+import { notificationService } from '../modules/notifications/notification.service';
+import { logger } from '../utils/logger';
 import {
   careerEvidenceEngine,
   GeminiCareerAnalysisProvider,
@@ -58,7 +60,7 @@ export class CareerReportWorker {
     try {
       await this.executeReportPipeline(reportId);
     } catch (err: any) {
-      console.error(`[CareerReportWorker] Unhandled pipeline exception for reportId ${reportId}:`, err?.message || err);
+      logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Unhandled pipeline exception');
     } finally {
       this.isProcessing = false;
       if (this.jobQueue.length > 0) {
@@ -80,12 +82,12 @@ export class CareerReportWorker {
     });
 
     if (!report) {
-      console.error(`[CareerReportWorker] Report record ${reportId} not found.`);
+      logger.error({ reportId }, '[CareerReportWorker] Report record not found');
       return;
     }
 
     if (report.status === 'COMPLETED') {
-      console.log(`[CareerReportWorker] Report ${reportId} is already COMPLETED. Skipping.`);
+      logger.info({ reportId }, '[CareerReportWorker] Report is already COMPLETED. Skipping.');
       return;
     }
 
@@ -145,7 +147,7 @@ export class CareerReportWorker {
           },
         });
       } catch (analysisErr: any) {
-        console.error(`[CareerReportWorker] Career analysis failed for reportId ${reportId}:`, analysisErr.message);
+        logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Career analysis failed');
         await this.failJob(reportId, 'CAREER_ANALYSIS_FAILED', analysisErr.message || 'LLM Career Analysis failed.');
         return;
       }
@@ -166,7 +168,7 @@ export class CareerReportWorker {
           timeoutMs: 60000,
         });
       } catch (compileErr: any) {
-        console.error(`[CareerReportWorker] LaTeX compilation failed for reportId ${reportId}:`, compileErr.message);
+        logger.error({ reportId, err: compileErr.message }, '[CareerReportWorker] LaTeX compilation failed');
         await this.failJob(reportId, 'LATEX_COMPILE_FAILED', compileErr.message || 'LaTeX PDF compilation failed.');
         return;
       }
@@ -203,9 +205,28 @@ export class CareerReportWorker {
       });
 
       const durationMs = Date.now() - startTime;
-      console.log(`[CareerReportWorker] Report ${reportId} successfully completed in ${durationMs}ms (${compilationResult.pageCount} pages, ${compilationResult.fileSize} bytes).`);
+      logger.info(
+        { reportId, durationMs, pageCount: compilationResult.pageCount, fileSize: compilationResult.fileSize },
+        '[CareerReportWorker] Report completed successfully'
+      );
+
+      // Async notification dispatch (non-blocking)
+      try {
+        await notificationService.sendNotification({
+          userId: report.userId,
+          type: 'REPORT_READY',
+          entityId: report.id,
+          route: 'OPEN_REPORT',
+          templateData: {
+            reportName: report.reportType || 'Career Intelligence Report',
+            reportId: report.id,
+          },
+        });
+      } catch (notifErr) {
+        logger.error({ reportId, notifErr }, '[CareerReportWorker] Failed to dispatch report completion notification');
+      }
     } catch (err: any) {
-      console.error(`[CareerReportWorker] Pipeline error for reportId ${reportId}:`, err);
+      logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Pipeline error occurred');
       await this.failJob(reportId, 'PIPELINE_ERROR', err?.message || 'An unexpected worker error occurred.');
     }
   }
@@ -229,6 +250,7 @@ export class CareerReportWorker {
 
   private async failJob(reportId: string, errorCode: string, errorMessage: string): Promise<void> {
     const now = new Date();
+    logger.warn({ reportId, errorCode, errorMessage }, '[CareerReportWorker] Job marked as FAILED');
     await prisma.report.update({
       where: { id: reportId },
       data: {

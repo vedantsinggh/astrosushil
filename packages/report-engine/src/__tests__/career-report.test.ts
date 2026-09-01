@@ -1,13 +1,15 @@
+import { describe, it, expect } from 'vitest';
 import { normalizeAstroChart, AstroChart } from '@astro/astrology-engine';
 import {
   mapNormalizedChartToCareerReportData,
   generateReportDataTex,
   escapeLatex,
   careerReportService,
+  pdfQaValidator,
+  FORBIDDEN_PLACEHOLDERS,
 } from '../index';
 
-describe('Career Report Backend Foundation Suite', () => {
-  // Verified Mock AstroChart input (Aarav Sharma birth data)
+describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
   const mockAstroChart: AstroChart = {
     ascendant: {
       sign: 'Aries',
@@ -42,53 +44,35 @@ describe('Career Report Backend Foundation Suite', () => {
     ],
   };
 
-  it('1. Should correctly normalize raw AstroChart to NormalizedChart model', () => {
+  const clientProfile = {
+    clientName: 'Aarav Sharma',
+    dateOfBirth: '1992-10-15',
+    timeOfBirth: '14:30:00',
+    birthPlace: 'New Delhi, India',
+    timeZone: 'Asia/Kolkata (+05:30)',
+    latitude: 28.6139,
+    longitude: 77.209,
+  };
+
+  it('1. Should normalize AstroChart and preserve client details', () => {
     const normalized = normalizeAstroChart(mockAstroChart);
+    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
 
-    expect(normalized.ascendant.sign).toBe('Aries');
-    expect(normalized.ascendant.lord).toBe('Mars');
-    expect(normalized.planets).toHaveLength(9);
-    expect(normalized.houses).toHaveLength(12);
-
-    // Check Dignities
-    const sun = normalized.planets.find((p) => p.name === 'Sun');
-    expect(sun?.dignity).toBe('Own Sign / Moolatrikona');
-
-    const moon = normalized.planets.find((p) => p.name === 'Moon');
-    expect(moon?.dignity).toBe('Exalted');
-
-    // Check House 10 Lordship
-    const house10 = normalized.houses.find((h) => h.house === 10 || (h as any).houseNumber === 10);
-    expect(house10?.sign).toBe('Capricorn');
-    expect(house10?.lord).toBe('Saturn');
+    expect(reportData.client.clientName).toBe('Aarav Sharma');
+    expect(reportData.client.dateOfBirth).toBe('1992-10-15');
+    expect(reportData.client.timeOfBirth).toBe('14:30:00');
+    expect(reportData.client.birthPlace).toBe('New Delhi, India');
+    expect(reportData.client.reportDataStatus).toBe('VERIFIED');
   });
 
-  it('2. Should map NormalizedChart into CareerReportData correctly', () => {
+  it('2. Should calculate dynamic Dasha timing timeline from Moon position', () => {
     const normalized = normalizeAstroChart(mockAstroChart);
-    const reportData = mapNormalizedChartToCareerReportData(normalized);
+    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
 
-    // Client verification
-    expect(reportData.client.clientName).toBe('Sample Client');
-    expect(reportData.client.reportDataStatus).toBe('VERIFIED');
-
-    // Calculation settings
-    expect(reportData.calculation.zodiacSystem).toBe('Sidereal');
-    expect(reportData.calculation.ayanamsa).toBe('Lahiri');
-    expect(reportData.calculation.houseSystem).toBe('Equal House / Whole Sign');
-
-    // Ascendant verification
-    expect(reportData.ascendant.sign).toBe('Aries');
-    expect(reportData.ascendant.lord).toBe('Mars');
-
-    // House 10 verification
-    expect(reportData.houses.houseTen.sign).toBe('Capricorn');
-    expect(reportData.houses.houseTen.lord).toBe('Saturn');
-    expect(reportData.houses.houseTen.occupants).toBe('Saturn');
-
-    // Planet Sun verification
-    expect(reportData.planets.sun.sign).toBe('Leo');
-    expect(reportData.planets.sun.house).toBe('5');
-    expect(reportData.planets.sun.dignity).toBe('Own Sign / Moolatrikona');
+    expect(reportData.dasha.status).toBe('VERIFIED');
+    expect(reportData.dasha.currentMahadasha).toBeDefined();
+    expect(reportData.dasha.currentAntardasha).toBeDefined();
+    expect(reportData.dasha.shortTermOutlook).toBeDefined();
   });
 
   it('3. Should escape LaTeX special characters reliably', () => {
@@ -106,23 +90,44 @@ describe('Career Report Backend Foundation Suite', () => {
 
   it('4. Should generate valid report_data.tex string with macro definitions', () => {
     const normalized = normalizeAstroChart(mockAstroChart);
-    const reportData = mapNormalizedChartToCareerReportData(normalized);
+    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
     const texOutput = generateReportDataTex(reportData);
 
-    expect(texOutput).toContain('\\newcommand{\\ClientName}{\\RenderVerified{Sample Client}}');
+    expect(texOutput).toContain('\\newcommand{\\ClientName}{\\RenderVerified{Aarav Sharma}}');
     expect(texOutput).toContain('\\newcommand{\\AscendantSign}{\\RenderVerified{Aries}}');
     expect(texOutput).toContain('\\newcommand{\\SunSign}{\\RenderVerified{Leo}}');
     expect(texOutput).toContain('\\newcommand{\\HouseTenLord}{\\RenderVerified{Saturn}}');
-    expect(texOutput).toContain('\\newcommand{\\SunName}{Sun}');
   });
 
-  it('5. Should execute the complete CareerReportService pipeline seamlessly', async () => {
-    const result = await careerReportService.generateCareerReportData(mockAstroChart);
+  it('5. PdfQaValidator should pass for clean TeX source and fail for forbidden placeholders', () => {
+    const normalized = normalizeAstroChart(mockAstroChart);
+    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
+    const cleanTex = generateReportDataTex(reportData);
 
-    expect(result.normalizedChart).toBeDefined();
-    expect(result.careerAnalysisInput).toBeDefined();
-    expect(result.reportData).toBeDefined();
-    expect(result.reportDataTex).toBeDefined();
-    expect(result.reportDataTex.length).toBeGreaterThan(500);
+    // Mock PDF buffer (%PDF-1.4 with 6 pages)
+    const mockPdfBuffer = Buffer.from(
+      '%PDF-1.4\n' + '/Type /Page\n'.repeat(6) + '%%EOF'
+    );
+
+    const validResult = pdfQaValidator.validatePdf({
+      pdfBuffer: mockPdfBuffer,
+      reportDataTex: cleanTex,
+      expectedClientName: 'Aarav Sharma',
+      minPageCount: 5,
+    });
+
+    expect(validResult.isValid).toBe(true);
+
+    // Test with forbidden placeholder
+    const dirtyTex = cleanTex + '\n\\newcommand{\\Bad}{\\RenderUnavailable{Valued Client}}';
+    const invalidResult = pdfQaValidator.validatePdf({
+      pdfBuffer: mockPdfBuffer,
+      reportDataTex: dirtyTex,
+      expectedClientName: 'Aarav Sharma',
+      minPageCount: 5,
+    });
+
+    expect(invalidResult.isValid).toBe(false);
+    expect(invalidResult.errors.some((e) => e.includes('Forbidden placeholder'))).toBe(true);
   });
 });

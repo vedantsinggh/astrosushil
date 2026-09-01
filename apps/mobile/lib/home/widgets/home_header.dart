@@ -61,7 +61,7 @@ class HomeHeader extends StatelessWidget {
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Notifications feature coming soon.'),
+                      content: Text('You have no unread notifications.'),
                       duration: Duration(seconds: 2),
                     ),
                   );

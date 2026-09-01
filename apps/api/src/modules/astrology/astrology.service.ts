@@ -250,6 +250,43 @@ export class AstrologyService {
       throw new AppError('Unable to calculate astrology chart', 500, 'ASTROLOGY_CALCULATION_FAILED');
     }
   }
+
+  /**
+   * Generates deterministic domain evidence (CAREER, MONEY, EDUCATION, RELATIONSHIPS, HEALTH_GENERAL, PERSONALITY, TIMING).
+   */
+  public async getDomainEvidence(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput; domain?: string },
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ) {
+    const { AstrologyEvidenceEngine } = await import('@astro/prediction-engine');
+    const normalizedChart = await this.calculateNormalizedChart(input, requestingUser);
+    const engine = new AstrologyEvidenceEngine();
+    const domainCategory = (input.domain?.toUpperCase() as any) || 'CAREER';
+    const snapshot = engine.createSnapshot(normalizedChart);
+    const evidence = engine.extractDomainEvidence(normalizedChart, domainCategory);
+
+    return {
+      snapshotVersion: snapshot.version,
+      domain: domainCategory,
+      evidence,
+      snapshot,
+    };
+  }
+
+  /**
+   * Generates deterministic predictions based on chart evidence and rules.
+   */
+  public async getPredictions(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput; category?: string },
+    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+  ) {
+    const { DeterministicPredictionEngine } = await import('@astro/prediction-engine');
+    const normalizedChart = await this.calculateNormalizedChart(input, requestingUser);
+    const engine = new DeterministicPredictionEngine();
+    const domainCategory = (input.category?.toUpperCase() as any) || 'CAREER';
+    return engine.generatePredictions(normalizedChart, domainCategory);
+  }
 }
 
 export const astrologyService = new AstrologyService();
+

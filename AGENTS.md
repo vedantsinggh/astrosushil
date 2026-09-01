@@ -82,3 +82,41 @@ astro-platform/
 - Follow Fastify and TypeScript best practices (clean modular architecture, plugins, routes, services, schemas).
 - Flutter code must follow standard Dart style guidelines and state management patterns (Provider/Bloc/Riverpod as specified).
 - Write descriptive commit messages following Conventional Commits format (e.g. `feat(astrology): add dasha calculation engine`).
+
+---
+
+## 5. Security & Observability Directives
+
+1. **Structured Logging & Redaction**:
+   - Use `logger` (`apps/api/src/utils/logger.ts`) for backend logging.
+   - **NEVER** log passwords, OTPs, JWT tokens, API keys, or payment secrets.
+
+2. **Request ID Correlation**:
+   - Pass `x-request-id` header across HTTP endpoints.
+   - Sanitize all user-provided request IDs (`/^[a-zA-Z0-9_-]{8,64}$/`).
+
+3. **Standardized Machine-Readable Error Responses**:
+   - All API error responses must strictly follow the format: `{ "error": { "code": "...", "message": "...", "requestId": "..." } }`.
+   - Never leak stack traces, raw SQL queries, or internal filesystem paths in production responses.
+
+4. **Production Development Master OTP Prohibition**:
+   - Development master OTP logic must be explicitly disabled when `NODE_ENV === 'production'`.
+
+---
+
+## 6. Admin Panel Scope Freeze & Directives
+
+1. **Admin Panel Scope Freeze**:
+   - The Admin Panel (`apps/admin`) is **FEATURE COMPLETE** as of Phase 12.
+   - Do **NOT** propose or build new Admin features in future phases unless required by a security issue, critical bug, or explicit human product specification.
+
+2. **Mandatory Server-Side RBAC**:
+   - Frontend UI visibility checks (`hasPermission`) are strictly for UX.
+   - All Admin routes must enforce `preHandler: [checkPermission('permission:name')]` on the Fastify backend.
+
+3. **Audit Logging Requirement**:
+   - Every state-changing administrative action (suspend/activate user, revoke session, reset password, grant/revoke entitlement, force report regeneration) MUST log an entry via `adminService.logAction`.
+
+4. **No Destructive Operations**:
+   - Permanent hard-deletion of Users, Birth Profiles, or Reports via the Admin UI is prohibited. State changes must use soft flags (`SUSPENDED`, `CANCELLED`, `FAILED`).
+
