@@ -8,12 +8,13 @@ import { registerSwagger } from './plugins/swagger';
 import { registerRoutes } from './routes';
 import { globalErrorHandler } from './errors/error-handler';
 import { config } from './config';
+import { LOG_REDACT_KEYS } from './utils/logger';
 
 export function buildApp(): FastifyInstance {
   const app = Fastify({
     logger: {
-      level: config.NODE_ENV === 'test' ? 'silent' : 'info',
-      redact: ['req.headers.authorization', 'body.password', 'body.refreshToken', 'headers.cookie'],
+      level: config.NODE_ENV === 'test' ? 'silent' : config.NODE_ENV === 'production' ? 'info' : 'debug',
+      redact: LOG_REDACT_KEYS,
     },
     ajv: {
       customOptions: {
@@ -22,12 +23,20 @@ export function buildApp(): FastifyInstance {
     },
     genReqId: (req) => {
       const existingReqId = req.headers['x-request-id'];
-      if (existingReqId && typeof existingReqId === 'string') {
+      // Validate user-provided request ID to prevent injection/log tampering
+      if (
+        existingReqId &&
+        typeof existingReqId === 'string' &&
+        /^[a-zA-Z0-9_-]{8,64}$/.test(existingReqId)
+      ) {
         return existingReqId;
       }
       return crypto.randomUUID();
     },
   });
+
+  // Register CORS Plugin first so preflight and headers apply to all hooks & errors
+  app.register(registerCors);
 
   // Attach request ID to response header
   app.addHook('onSend', async (request, reply, payload) => {
@@ -38,7 +47,11 @@ export function buildApp(): FastifyInstance {
   // Maintenance mode check hook
   app.addHook('onRequest', async (request, reply) => {
     const isMaintenance = process.env.MAINTENANCE_MODE === 'true';
-    const isHealthEndpoint = request.url === '/health' || request.url === '/ready' || request.url.startsWith('/documentation');
+    const isHealthEndpoint =
+      request.url === '/health' ||
+      request.url === '/ready' ||
+      request.url === '/health/ready' ||
+      request.url.startsWith('/documentation');
 
     if (isMaintenance && !isHealthEndpoint) {
       return reply.status(503).send({
@@ -54,8 +67,7 @@ export function buildApp(): FastifyInstance {
   // Register Global Error Handler
   app.setErrorHandler(globalErrorHandler);
 
-  // Register Plugins cleanly at root scope
-  app.register(registerCors);
+  // Register remaining Plugins
   app.register(registerHelmet);
   app.register(registerJwt);
   app.register(registerRateLimit);

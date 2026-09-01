@@ -1,8 +1,13 @@
 import crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import { ReportType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
-import { NotFoundError, AppError } from '../../errors/app-error';
+import { storageService } from '../../services/storage.service';
+import { NotFoundError, ForbiddenError, AuthorizationError, AppError } from '../../errors/app-error';
 import { CreateReportInput } from './reports.schemas';
 import { astrologyService } from '../astrology/astrology.service';
+import { careerReportWorker } from '../../services/report-worker.service';
 import {
   generateKundliReport,
   generatePlanetaryReport,
@@ -13,191 +18,402 @@ import {
   reportPdfService,
 } from '@astro/report-engine';
 
+export type UserContext = { id: string; role?: string; [key: string]: any };
+
+export const CURRENT_REPORT_VERSION = '1.0.0';
+export const CURRENT_CALCULATION_VERSION = '1.0.0';
+
 export class ReportsService {
   private readonly interpretationProvider = new DeterministicInterpretationProvider();
 
-  private async ensureReportTypeEnumValues(): Promise<void> {
-    try {
-      await prisma.$executeRawUnsafe(`ALTER TYPE "ReportType" ADD VALUE IF NOT EXISTS 'KUNDLI';`);
-      await prisma.$executeRawUnsafe(`ALTER TYPE "ReportType" ADD VALUE IF NOT EXISTS 'PLANETARY_SUMMARY';`);
-    } catch (_) {
-      // Ignore if DB does not support ADD VALUE IF NOT EXISTS or if already altered
-    }
+  private isAdminUser(user: UserContext): boolean {
+    return user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'SUPPORT';
   }
 
-  public async createReportJob(
-    input: CreateReportInput,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+  /**
+   * Initiates an async Career Report generation job.
+   */
+  public async createCareerReportJob(
+    input: { birthProfileId: string; forceRegenerate?: boolean },
+    user: UserContext
   ) {
-    // 1. Verify birth profile ownership
+    // 1. Validate birth profile ownership
     const profile = await prisma.birthProfile.findUnique({
       where: { id: input.birthProfileId },
     });
 
-    if (!profile || (profile.userId !== user.id && user.role !== 'ADMIN')) {
+    if (!profile) {
       throw new NotFoundError('Birth profile not found');
     }
 
-    // 2. Calculate astrology chart data
-    const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+    if (profile.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to this birth profile');
+    }
 
-    // 3. Validate complete astrology data (prevent empty ascendant/planets/houses or N/A strings)
-    try {
-      validateAstrologyDataForReport(chartResponse);
-    } catch (err: any) {
-      if (err instanceof IncompleteAstrologyDataError) {
-        console.error(`[REPORTS_ENGINE_ERROR] Developer Diagnostic: ${err.developerMessage}`);
-        throw new AppError(err.message, 422, 'INCOMPLETE_ASTROLOGY_DATA');
+    // 2. Check for active (in-progress) report first to prevent double-clicks
+    const activeReport = await prisma.report.findFirst({
+      where: {
+        userId: user.id,
+        birthProfileId: input.birthProfileId,
+        reportType: ((ReportType as any).CAREER || 'CAREER') as any,
+        status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'] as any[] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (activeReport && !input.forceRegenerate) {
+      const active = activeReport as any;
+      console.log(`[CAREER_REPORT_JOB_REQUEST] Active job in progress found for user ${user.id}. Reusing active reportId ${active.id} (status: ${active.status}, progress: ${active.progress}%).`);
+      return {
+        reportId: active.id,
+        status: active.status,
+        stage: active.stage || active.status,
+        progress: active.progress ?? 0,
+        reused: true,
+        active: true,
+        message: 'Active report generation in progress.',
+      };
+    }
+
+    // 3. Duplicate Check: Reuse existing completed report ONLY IF forceRegenerate is false AND birth profile has NOT been modified since report creation
+    if (!input.forceRegenerate) {
+      const existingReport = await prisma.report.findFirst({
+        where: {
+          userId: user.id,
+          birthProfileId: input.birthProfileId,
+          reportType: ((ReportType as any).CAREER || 'CAREER') as any,
+          status: 'COMPLETED',
+          reportVersion: CURRENT_REPORT_VERSION,
+          calculationVersion: CURRENT_CALCULATION_VERSION,
+        } as any,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existingReport && profile.updatedAt <= existingReport.createdAt) {
+        console.log(`[CAREER_REPORT_JOB_REQUEST] Reusing completed reportId ${existingReport.id} (profile.updatedAt ${profile.updatedAt.toISOString()} <= report.createdAt ${existingReport.createdAt.toISOString()}).`);
+        return {
+          reportId: existingReport.id,
+          status: 'COMPLETED',
+          reused: true,
+          message: 'Existing completed career report retrieved.',
+        };
+      } else if (existingReport) {
+        console.log(`[CAREER_REPORT_JOB_REQUEST] Stale report ${existingReport.id} ignored because profile was updated (profile.updatedAt ${profile.updatedAt.toISOString()} > report.createdAt ${existingReport.createdAt.toISOString()}). Generating new report.`);
       }
-      throw err;
     }
 
-    // 4. Generate structured report model deterministically
-    let structuredReport: StructuredReportModel;
-    const profileInput = {
-      name: profile.name,
-      dateOfBirth: profile.dateOfBirth,
-      timeOfBirth: profile.timeOfBirth,
-      placeName: profile.placeName,
-      timezone: profile.timezone,
-    };
-
-    if ((input.reportType as string) === 'KUNDLI') {
-      structuredReport = await generateKundliReport(
-        profileInput,
-        chartResponse,
-        this.interpretationProvider
-      );
-    } else if ((input.reportType as string) === 'PLANETARY_SUMMARY') {
-      structuredReport = await generatePlanetaryReport(
-        profileInput,
-        chartResponse,
-        this.interpretationProvider
-      );
-    } else {
-      throw new AppError(`Report type '${input.reportType}' is not currently supported in MVP.`, 400, 'UNSUPPORTED_REPORT_TYPE');
-    }
-
-    // 5. Persist Report DB Record via Raw SQL to bypass outdated Prisma JS client enum validation
-    await this.ensureReportTypeEnumValues();
-
+    // 4. Create new Report DB Record with QUEUED status
     const reportId = crypto.randomUUID();
     const now = new Date();
 
-    try {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "reports" ("id", "userId", "birthProfileId", "orderId", "reportType", "status", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5::"ReportType", $6::"ReportStatus", $7, $8)`,
-        reportId,
-        user.id,
-        input.birthProfileId,
-        input.orderId || null,
-        input.reportType,
-        'COMPLETED',
-        now,
-        now
-      );
-    } catch (_) {
-      // Fallback: If enum type casting fails, insert as text
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "reports" ("id", "userId", "birthProfileId", "orderId", "reportType", "status", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        reportId,
-        user.id,
-        input.birthProfileId,
-        input.orderId || null,
-        input.reportType,
-        'COMPLETED',
-        now,
-        now
-      );
-    }
+    const newReport = await prisma.report.create({
+      data: {
+        id: reportId,
+        userId: user.id,
+        birthProfileId: input.birthProfileId,
+        reportType: ((ReportType as any).CAREER || 'CAREER') as any,
+        status: 'QUEUED',
+        stage: 'QUEUED',
+        progress: 0,
+        reportVersion: CURRENT_REPORT_VERSION,
+        calculationVersion: CURRENT_CALCULATION_VERSION,
+        createdAt: now,
+        updatedAt: now,
+      } as any,
+    });
+
+    console.log(`[CAREER_REPORT_JOB_CREATED] Created new reportId ${reportId} for user ${user.id}, profile ${input.birthProfileId} (forceRegenerate: ${!!input.forceRegenerate}).`);
+
+    // 5. Enqueue Job in Worker
+    careerReportWorker.enqueueReportJob(reportId);
 
     return {
-      id: reportId,
-      userId: user.id,
-      birthProfileId: input.birthProfileId,
-      reportType: input.reportType,
-      status: 'COMPLETED',
-      version: structuredReport.version,
-      createdAt: now,
-      report: structuredReport,
+      reportId: newReport.id,
+      status: 'QUEUED',
+      stage: 'QUEUED',
+      progress: 0,
+      reused: false,
     };
   }
 
-  public async getReportStatus(
+  /**
+   * Regenerates a career report by creating a new version.
+   */
+  public async regenerateCareerReport(
     reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
+    user: UserContext
   ) {
-    const rawReports: any[] = await prisma.$queryRawUnsafe(
-      `SELECT r.*, row_to_json(bp.*) as "birthProfile"
-       FROM "reports" r
-       JOIN "birth_profiles" bp ON bp."id" = r."birthProfileId"
-       WHERE r."id" = $1 LIMIT 1`,
-      reportId
-    );
+    const existingReport = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
 
-    const report = rawReports[0];
-
-    if (!report || (report.userId !== user.id && user.role !== 'ADMIN')) {
+    if (!existingReport) {
       throw new NotFoundError('Report not found');
     }
 
-    // Re-generate structured report payload on-demand
-    const profile = typeof report.birthProfile === 'string'
-        ? JSON.parse(report.birthProfile)
-        : report.birthProfile;
+    if (existingReport.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to this report');
+    }
 
-    const chartResponse = await astrologyService.calculateChartForProfile(profile.id, user);
+    return this.createCareerReportJob(
+      { birthProfileId: existingReport.birthProfileId, forceRegenerate: true },
+      user
+    );
+  }
 
+  /**
+   * Status API for polling report progress
+   */
+  public async getReportStatusOnly(
+    reportId: string,
+    user: UserContext
+  ) {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to this report');
+    }
+
+    const r = report as any;
+    return {
+      id: r.id,
+      status: r.status,
+      stage: r.stage || r.status,
+      progress: r.progress ?? 0,
+      errorCode: r.errorCode ?? null,
+      errorMessage: r.errorMessage ?? null,
+    };
+  }
+
+  /**
+   * Full Report details lookup API
+   */
+  public async getReportStatus(
+    reportId: string,
+    user: UserContext
+  ) {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      include: { birthProfile: true },
+    });
+
+    if (!report) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to this report');
+    }
+
+    const downloadUrl = `/api/v1/reports/${report.id}/download-file`;
+    const r = report as any;
+
+    return {
+      id: r.id,
+      userId: r.userId,
+      birthProfileId: r.birthProfileId,
+      reportType: r.reportType,
+      status: r.status,
+      stage: r.stage || r.status,
+      progress: r.progress ?? 0,
+      reportVersion: r.reportVersion ?? '1.0.0',
+      calculationVersion: r.calculationVersion ?? '1.0.0',
+      pageCount: r.pageCount ?? null,
+      fileSize: r.fileSize ?? null,
+      errorCode: r.errorCode ?? null,
+      errorMessage: r.errorMessage ?? null,
+      createdAt: r.createdAt,
+      completedAt: r.completedAt ?? null,
+      downloadUrl: r.status === 'COMPLETED' ? downloadUrl : null,
+      birthProfile: r.birthProfile,
+    };
+  }
+
+  /**
+   * Secure access endpoint: Returns a short-lived signed URL for report download
+   */
+  public async getReportAccessUrl(
+    reportId: string,
+    user: UserContext
+  ): Promise<{ reportId: string; accessUrl: string; expiresAt: string; fileName: string }> {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to this report');
+    }
+
+    if (report.status !== 'COMPLETED') {
+      throw new AppError(
+        `Report status is ${report.status}. Download is only available for COMPLETED reports.`,
+        400,
+        'REPORT_NOT_READY'
+      );
+    }
+
+    const storageKey = report.storageKey || `reports/${report.userId}/${report.id}.pdf`;
+    const expiresInSeconds = 900; // 15 minutes
+    const accessUrl = await storageService.getSignedDownloadUrl(storageKey, expiresInSeconds);
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+    const fileName = report.fileName || `career-report-${report.id.substring(0, 8)}.pdf`;
+
+    return {
+      reportId: report.id,
+      accessUrl,
+      expiresAt,
+      fileName,
+    };
+  }
+
+  /**
+   * Deletes a report DB record and removes its PDF object from private storage
+   */
+  public async deleteReport(
+    reportId: string,
+    user: UserContext
+  ): Promise<{ success: boolean; reportId: string }> {
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to delete this report');
+    }
+
+    // 1. Delete binary from private object storage if key exists
+    const storageKey = report.storageKey || `reports/${report.userId}/${report.id}.pdf`;
+    try {
+      await storageService.delete(storageKey);
+    } catch (err: any) {
+      console.error(`[REPORT_DELETE] Storage object deletion warning for ${storageKey}: ${err?.message}`);
+    }
+
+    // 2. Delete DB record
+    await prisma.report.delete({
+      where: { id: reportId },
+    });
+
+    console.log(`[REPORT_DELETED] Report ${reportId} deleted by user ${user.id} (role: ${user.role}).`);
+    return { success: true, reportId };
+  }
+
+  public async getUserReports(user: { id: string }) {
+    return prisma.report.findMany({
+      where: { userId: user.id },
+      include: { birthProfile: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * PDF Download API: Returns buffer for completed report
+   */
+  public async generateReportPdfBuffer(
+    reportId: string,
+    user: UserContext
+  ): Promise<{ buffer: Buffer; report: any }> {
+    const report = await this.getReportStatus(reportId, user);
+
+    if (report.status !== 'COMPLETED') {
+      throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
+    }
+
+    // 1. Try reading generated PDF from Object Storage (Cloudflare R2 or local storage)
+    const rawReport = await prisma.report.findUnique({ where: { id: reportId } });
+    if (rawReport?.storageKey) {
+      try {
+        const buffer = await storageService.downloadBuffer(rawReport.storageKey);
+        return { buffer, report };
+      } catch (err: any) {
+        console.error(`[PDF_DOWNLOAD] Object storage read failed for key ${rawReport.storageKey}: ${err?.message}`);
+      }
+    }
+
+    // 2. Fallback for legacy MVP Kundli / Planetary summary reports
+    const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
     let structuredReport: StructuredReportModel;
     const profileInput = {
-      name: profile.name,
-      dateOfBirth: profile.dateOfBirth,
-      timeOfBirth: profile.timeOfBirth,
-      placeName: profile.placeName,
-      timezone: profile.timezone,
+      name: report.birthProfile.name,
+      dateOfBirth: report.birthProfile.dateOfBirth,
+      timeOfBirth: report.birthProfile.timeOfBirth,
+      placeName: report.birthProfile.placeName,
+      timezone: report.birthProfile.timezone,
     };
 
-    if ((report.reportType as string) === 'KUNDLI') {
+    if (report.reportType === 'KUNDLI') {
       structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
     } else {
       structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
     }
 
-    return {
-      ...report,
-      report: structuredReport,
-    };
+    const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
+    return { buffer: pdfBuffer, report };
   }
 
-  public async getUserReports(user: { id: string }) {
-    return prisma.$queryRawUnsafe(
-      `SELECT r.*, row_to_json(bp.*) as "birthProfile"
-       FROM "reports" r
-       JOIN "birth_profiles" bp ON bp."id" = r."birthProfileId"
-       WHERE r."userId" = $1
-       ORDER BY r."createdAt" DESC`,
-      user.id
-    );
-  }
-
-  public async generateReportPdfBuffer(
-    reportId: string,
-    user: { id: string; role: 'USER' | 'ADMIN' }
-  ): Promise<{ buffer: Buffer; report: any }> {
-    const reportData = await this.getReportStatus(reportId, user);
-
-    try {
-      const pdfBuffer = await reportPdfService.generateReportPdf(reportData.report);
-      return { buffer: pdfBuffer, report: reportData };
-    } catch (err: any) {
-      if (err instanceof IncompleteAstrologyDataError) {
-        console.error(`[REPORTS_PDF_ERROR] Developer Diagnostic: ${err.developerMessage}`);
-        throw new AppError(err.message, 422, 'INCOMPLETE_ASTROLOGY_DATA');
-      }
-      throw err;
+  /**
+   * Legacy MVP synchronous report job creator
+   */
+  public async createReportJob(
+    input: CreateReportInput,
+    user: UserContext
+  ) {
+    if (input.reportType === ((ReportType as any).CAREER || 'CAREER')) {
+      return this.createCareerReportJob({ birthProfileId: input.birthProfileId }, user);
     }
+
+    const profile = await prisma.birthProfile.findUnique({
+      where: { id: input.birthProfileId },
+    });
+
+    if (!profile || (profile.userId !== user.id && !this.isAdminUser(user))) {
+      throw new NotFoundError('Birth profile not found');
+    }
+
+    const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+
+    validateAstrologyDataForReport(chartResponse);
+
+    const reportId = crypto.randomUUID();
+    const now = new Date();
+
+    const report = await prisma.report.create({
+      data: {
+        id: reportId,
+        userId: user.id,
+        birthProfileId: input.birthProfileId,
+        reportType: input.reportType as any,
+        status: 'COMPLETED',
+        stage: 'COMPLETED',
+        progress: 100,
+        createdAt: now,
+        updatedAt: now,
+        completedAt: now,
+      } as any,
+    });
+
+    return {
+      id: report.id,
+      userId: user.id,
+      birthProfileId: input.birthProfileId,
+      reportType: input.reportType,
+      status: 'COMPLETED',
+      createdAt: now,
+    };
   }
 }
 

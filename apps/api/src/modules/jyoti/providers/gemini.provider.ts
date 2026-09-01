@@ -1,6 +1,7 @@
 import { config } from '../../../config';
 import { JYOTI_SYSTEM_PROMPT } from '../prompts/jyoti.prompt';
 import { LLMProvider, LLMProviderOptions, LLMResponse } from './llm.provider';
+import { logger } from '../../../utils/logger';
 
 export class GeminiProvider implements LLMProvider {
   private readonly apiKey: string;
@@ -12,15 +13,10 @@ export class GeminiProvider implements LLMProvider {
   }
 
   public async generateResponse(prompt: string, options?: LLMProviderOptions): Promise<LLMResponse> {
-    console.log('[JYOTI TRACE 6] Gemini provider entered');
     const isApiKeyConfigured = Boolean(this.apiKey && this.apiKey.trim().length > 0 && this.apiKey !== 'mock-key-dev');
 
-    console.log(`[JYOTI TRACE] GEMINI_API_KEY configured = ${isApiKeyConfigured}`);
-    console.log(`[JYOTI TRACE] GEMINI_MODEL = ${this.model}`);
-    console.log(`[JYOTI TRACE] systemPromptLoaded = true`);
-
     if (!isApiKeyConfigured) {
-      console.warn('[JYOTI TRACE] GEMINI_API_KEY is not configured or is set to mock.');
+      logger.warn('[GeminiProvider] GEMINI_API_KEY is not configured or is set to mock.');
       throw new Error('GEMINI_API_KEY is not configured');
     }
 
@@ -48,7 +44,6 @@ export class GeminiProvider implements LLMProvider {
         },
       };
 
-      console.log('[JYOTI TRACE 7] Gemini request sent');
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,29 +52,28 @@ export class GeminiProvider implements LLMProvider {
       });
 
       clearTimeout(timeoutId);
-      console.log('[JYOTI TRACE 8] Gemini response received');
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[JYOTI DEBUG] Gemini API returned HTTP status ${response.status}: ${errText}`);
-        throw new Error(`Gemini API error ${response.status}: ${errText}`);
+        const rawErr = await response.text();
+        const redactedErr = this.apiKey ? rawErr.replaceAll(this.apiKey, '[REDACTED]') : rawErr;
+        logger.error({ status: response.status, err: redactedErr }, '[GeminiProvider] Gemini API error response');
+        throw new Error(`Gemini API error ${response.status}: ${redactedErr}`);
       }
 
       const json: any = await response.json();
       const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawText) {
-        console.warn('[JYOTI DEBUG] Empty response candidate received from Gemini:', JSON.stringify(json));
+        logger.warn('[GeminiProvider] Empty response candidate received from Gemini');
         throw new Error('Empty response candidate from Gemini');
       }
 
-      const parsed = this.parseJsonResponse(rawText);
-      console.log('[JYOTI TRACE 9] Response parsed');
-
-      return parsed;
+      return this.parseJsonResponse(rawText);
     } catch (err: any) {
-      console.error('[JYOTI TRACE EXCEPTION] Exception in Gemini provider:', err?.message || err);
-      throw err;
+      const errMsg = err?.message || String(err);
+      const redactedMsg = this.apiKey ? errMsg.replaceAll(this.apiKey, '[REDACTED]') : errMsg;
+      logger.error({ err: redactedMsg }, '[GeminiProvider] Exception during Gemini response generation');
+      throw new Error(redactedMsg);
     }
   }
 

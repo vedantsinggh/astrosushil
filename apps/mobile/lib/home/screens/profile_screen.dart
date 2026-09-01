@@ -6,11 +6,66 @@ import '../../features/auth/screens/signup_screen.dart';
 import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/reports/providers/career_report_provider.dart';
 import '../../shared/theme/app_colors.dart';
 
 /// Screen shell for Profile tab in Bottom Navigation
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
+
+  void _showDeleteCacheConfirmation(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Delete cached reports?',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.lightTextPrimary,
+          ),
+        ),
+        content: const Text(
+          'This will remove locally cached Career Report PDFs and report metadata from this device. It will not delete your account or birth profile.',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.lightTextSecondary,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await ref
+                  .read(careerReportNotifierProvider.notifier)
+                  .clearAllLocalReportCache();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Locally cached report files and metadata removed.'),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -240,6 +295,8 @@ class ProfileScreen extends ConsumerWidget {
 
               const SizedBox(height: 10),
 
+              const SizedBox(height: 10),
+
               _ProfileTile(
                 icon: Icons.shield_outlined,
                 title: 'Privacy & Security',
@@ -252,6 +309,30 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   );
                 },
+              ),
+
+              const SizedBox(height: 24),
+
+              // Developer Tools / Diagnostics Section
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.0),
+                child: Text(
+                  'Developer & Diagnostics',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.lightTextMuted,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              _ProfileTile(
+                icon: Icons.cleaning_services_outlined,
+                title: 'Delete Cached Reports',
+                subtitle: 'Removes locally stored report PDFs and metadata',
+                onTap: () => _showDeleteCacheConfirmation(context, ref),
               ),
 
               const SizedBox(height: 24),

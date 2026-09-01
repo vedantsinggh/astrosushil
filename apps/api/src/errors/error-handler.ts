@@ -5,6 +5,14 @@ import { AppError, ErrorDetail, DatabaseUnavailableError } from './app-error';
 export function globalErrorHandler(error: FastifyError | AppError | Error, request: FastifyRequest, reply: FastifyReply) {
   const requestId = (request.id as string) || undefined;
 
+  // Ensure CORS headers are attached on error responses
+  if (request.headers.origin) {
+    reply.header('Access-Control-Allow-Origin', request.headers.origin);
+    reply.header('Access-Control-Allow-Credentials', 'true');
+  } else {
+    reply.header('Access-Control-Allow-Origin', '*');
+  }
+
   // Handle application custom errors
   if (error instanceof AppError) {
     request.log.warn({ err: error, requestId }, `AppError: ${error.message}`);

@@ -19,7 +19,7 @@ declare module 'fastify' {
     jwtVerify(): Promise<any>;
     user: {
       id: string;
-      role: 'USER' | 'ADMIN';
+      role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT';
     };
   }
 }
@@ -28,11 +28,11 @@ declare module '@fastify/jwt' {
   interface FastifyJWT {
     payload: {
       sub: string;
-      role: 'USER' | 'ADMIN';
+      role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT';
     };
     user: {
       id: string;
-      role: 'USER' | 'ADMIN';
+      role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT';
     };
   }
 }

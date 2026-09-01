@@ -12,6 +12,22 @@ RUN npm install
 RUN npm run build:packages
 RUN npm run build:api
 
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Install XeLaTeX and LaTeX packages for PDF report compilation
+RUN apk add --no-cache \
+    texlive-xetex \
+    texlive-latex-extra \
+    font-open-sans \
+    font-tex-gyre \
+    fontconfig \
+    ghostscript
+
+COPY --from=builder /app ./
+
 EXPOSE 3000
 
 CMD ["npm", "run", "start:prod", "--workspace=apps/api"]
+

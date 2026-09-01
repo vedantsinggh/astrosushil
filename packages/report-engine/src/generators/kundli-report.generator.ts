@@ -87,7 +87,7 @@ export async function generateKundliReport(
     birthNakshatra: moonPlanet.nakshatra,
     pada: moonPlanet.pada,
     rulingPlanet: moonPlanet.planet === 'MOON' ? 'Ketu' : 'Moon', // Default ruler info
-    associatedInfo: `Moon placed in ${moonPlanet.sign} (${moonPlanet.degree.toFixed(2)}°) in ${moonPlanet.nakshatra} Pada ${moonPlanet.pada}.`,
+    associatedInfo: `Moon placed in ${moonPlanet.sign} (${(typeof moonPlanet.degree === 'number' ? moonPlanet.degree : 0).toFixed(2)}°) in ${moonPlanet.nakshatra} Pada ${moonPlanet.pada}.`,
   };
 
   // 8. Generate Interpretations

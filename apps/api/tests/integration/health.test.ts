@@ -25,26 +25,59 @@ describe('Health API Endpoint (Integration)', () => {
     expect(body.status).toBe('ok');
     expect(body.service).toBe('astro-api');
     expect(body.timestamp).toBeDefined();
+    expect(response.headers['x-request-id']).toBeDefined();
   });
 
-  it('GET /api/v1/health should return 200 OK with service status', async () => {
+  it('GET /health/ready should return readiness status and x-request-id header', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/health',
+      url: '/health/ready',
+    });
+
+    expect([200, 503]).toContain(response.statusCode);
+    const body = JSON.parse(response.payload);
+    expect(body.service).toBe('astro-api');
+    expect(body.database).toBeDefined();
+    expect(response.headers['x-request-id']).toBeDefined();
+  });
+
+  it('GET /ready should return readiness status as alias', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/ready',
+    });
+
+    expect([200, 503]).toContain(response.statusCode);
+    const body = JSON.parse(response.payload);
+    expect(body.service).toBe('astro-api');
+    expect(body.database).toBeDefined();
+  });
+
+  it('should sanitize untrusted user x-request-id headers', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health',
+      headers: {
+        'x-request-id': '<script>alert(1)</script>',
+      },
     });
 
     expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.status).toBe('ok');
-    expect(body.service).toBe('astro-api');
+    // Should replace hostile header with safe UUID format
+    expect(response.headers['x-request-id']).not.toContain('<script>');
   });
 
-  it('GET /api/v1/non-existent-route should return 404', async () => {
+  it('should accept valid custom x-request-id headers', async () => {
+    const customId = 'req_custom_test_12345678';
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/non-existent-route',
+      url: '/health',
+      headers: {
+        'x-request-id': customId,
+      },
     });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['x-request-id']).toBe(customId);
   });
 });

@@ -10,6 +10,7 @@ import '../../astrology/screens/vastu_screen.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/birth_profile_list_screen.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
+import '../../../home/screens/reports_screen.dart';
 import '../data/jyoti_mock_data.dart';
 import '../models/jyoti_message.dart';
 import '../providers/jyoti_controller.dart';
@@ -61,7 +62,7 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
             Icon(Icons.mic_rounded, color: AppColors.premiumAccent, size: 20),
             SizedBox(width: 10),
             Text(
-              'Voice input coming soon',
+              'Voice input is currently disabled',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
@@ -106,6 +107,9 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
         break;
       case JyotiActionType.generateKundli:
         targetScreen = const CreateBirthProfileScreen();
+        break;
+      case JyotiActionType.openCareerReport:
+        targetScreen = const ReportsScreen();
         break;
     }
 

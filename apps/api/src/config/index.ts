@@ -28,6 +28,12 @@ const configSchema = z.object({
   EMAIL_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().default('Astro Sushil <noreply@astrosushil.com>'),
 
+  // Firebase Cloud Messaging (FCM) Push Notifications
+  FCM_SERVER_KEY: z.string().optional(),
+  FIREBASE_PROJECT_ID: z.string().optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z.string().optional(),
+
   // Gemini & Jyoti AI Assistant Configuration
   GEMINI_API_KEY: z.string().optional().default(''),
   GEMINI_MODEL: z.string().default('gemini-3.6-flash'),

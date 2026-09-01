@@ -10,6 +10,8 @@ import {
   BirthDetails,
   PlanetSymbol,
   VargaType,
+  NormalizedChart,
+  normalizeAstroChart,
 } from '@astro/astrology-engine';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError, AppError, ValidationError } from '../../errors/app-error';
@@ -56,7 +58,7 @@ export class AstrologyService {
    */
   private async resolveBirthDetails(
     input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput },
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ): Promise<BirthDetails> {
     if (input.birthProfileId) {
       if (!requestingUser) {
@@ -65,7 +67,8 @@ export class AstrologyService {
       const profile = await prisma.birthProfile.findUnique({
         where: { id: input.birthProfileId },
       });
-      if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+      const isAdmin = requestingUser.role === 'ADMIN' || requestingUser.role === 'SUPER_ADMIN' || requestingUser.role === 'SUPPORT';
+      if (!profile || (profile.userId !== requestingUser.id && !isAdmin)) {
         throw new NotFoundError('Birth profile not found');
       }
       return mapBirthProfileToBirthDetails(profile);
@@ -89,7 +92,7 @@ export class AstrologyService {
    */
   public async calculateChartForProfile(
     birthProfileId: string,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role?: string }
   ): Promise<AstroChartResponseDto> {
     const birthDetails = await this.resolveBirthDetails({ birthProfileId }, requestingUser);
     return this.executeCalculation(birthDetails);
@@ -110,7 +113,7 @@ export class AstrologyService {
    */
   public async calculateDasha(
     input: DashaRequestInput,
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const birthDetails = await this.resolveBirthDetails(input, requestingUser);
     const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
@@ -163,7 +166,7 @@ export class AstrologyService {
    */
   public async calculateVargas(
     input: VargasRequestInput,
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const birthDetails = await this.resolveBirthDetails(input, requestingUser);
     const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
@@ -186,7 +189,7 @@ export class AstrologyService {
    */
   public async calculateMatchmaking(
     input: MatchmakingRequestInput,
-    requestingUser?: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser?: { id: string; role?: string }
   ) {
     const boyDetails = await this.resolveBirthDetails(input.boy, requestingUser);
     const girlDetails = await this.resolveBirthDetails(input.girl, requestingUser);
@@ -198,10 +201,30 @@ export class AstrologyService {
     const result = this.matchmakingCalculator.evaluateCompatibility(boyChart, girlChart);
 
     return {
-      boy: { name: boyDetails.name, dateOfBirth: boyDetails.dateOfBirth },
-      girl: { name: girlDetails.name, dateOfBirth: girlDetails.dateOfBirth },
+      boy: {
+        name: boyDetails.name || 'Boy',
+        dateOfBirth:
+          boyDetails.dateOfBirth ||
+          `${boyDetails.date.year}-${String(boyDetails.date.month).padStart(2, '0')}-${String(boyDetails.date.day).padStart(2, '0')}`,
+      },
+      girl: {
+        name: girlDetails.name || 'Girl',
+        dateOfBirth:
+          girlDetails.dateOfBirth ||
+          `${girlDetails.date.year}-${String(girlDetails.date.month).padStart(2, '0')}-${String(girlDetails.date.day).padStart(2, '0')}`,
+      },
       compatibility: result,
     };
+  }
+
+  public async calculateNormalizedChart(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput },
+    requestingUser?: { id: string; role?: string }
+  ): Promise<NormalizedChart> {
+    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
+    const activeConfig = this.getActiveConfig();
+    const astroChart = await this.calculator.calculateChart(birthDetails, activeConfig);
+    return normalizeAstroChart(astroChart);
   }
 
   private async executeCalculation(birthDetails: BirthDetails): Promise<AstroChartResponseDto> {
@@ -228,6 +251,43 @@ export class AstrologyService {
       throw new AppError('Unable to calculate astrology chart', 500, 'ASTROLOGY_CALCULATION_FAILED');
     }
   }
+
+  /**
+   * Generates deterministic domain evidence (CAREER, MONEY, EDUCATION, RELATIONSHIPS, HEALTH_GENERAL, PERSONALITY, TIMING).
+   */
+  public async getDomainEvidence(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput; domain?: string },
+    requestingUser?: { id: string; role?: string }
+  ) {
+    const { AstrologyEvidenceEngine } = await import('@astro/prediction-engine');
+    const normalizedChart = await this.calculateNormalizedChart(input, requestingUser);
+    const engine = new AstrologyEvidenceEngine();
+    const domainCategory = (input.domain?.toUpperCase() as any) || 'CAREER';
+    const snapshot = engine.createSnapshot(normalizedChart);
+    const evidence = engine.extractDomainEvidence(normalizedChart, domainCategory);
+
+    return {
+      snapshotVersion: snapshot.version,
+      domain: domainCategory,
+      evidence,
+      snapshot,
+    };
+  }
+
+  /**
+   * Generates deterministic predictions based on chart evidence and rules.
+   */
+  public async getPredictions(
+    input: { birthProfileId?: string; birthDetails?: DirectBirthDetailsInput; category?: string },
+    requestingUser?: { id: string; role?: string }
+  ) {
+    const { DeterministicPredictionEngine } = await import('@astro/prediction-engine');
+    const normalizedChart = await this.calculateNormalizedChart(input, requestingUser);
+    const engine = new DeterministicPredictionEngine();
+    const domainCategory = (input.category?.toUpperCase() as any) || 'CAREER';
+    return engine.generatePredictions(normalizedChart, domainCategory);
+  }
 }
 
 export const astrologyService = new AstrologyService();
+

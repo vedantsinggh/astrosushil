@@ -36,6 +36,7 @@ export class AuthorizationError extends AppError {
     super(message, 403, 'AUTHORIZATION_ERROR');
   }
 }
+export { AuthorizationError as ForbiddenError };
 
 export class NotFoundError extends AppError {
   constructor(message: string = 'Resource not found') {

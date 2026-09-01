@@ -10,6 +10,7 @@ enum JyotiActionType {
   openVastu,
   openProfile,
   generateKundli,
+  openCareerReport,
 }
 
 extension JyotiActionTypeExtension on JyotiActionType {
@@ -38,6 +39,9 @@ extension JyotiActionTypeExtension on JyotiActionType {
       case 'OPEN_PROFILE':
       case 'OPENPROFILE':
         return JyotiActionType.openProfile;
+      case 'OPEN_CAREER_REPORT':
+      case 'OPENCAREERREPORT':
+        return JyotiActionType.openCareerReport;
       default:
         return JyotiActionType.openBirthChart;
     }

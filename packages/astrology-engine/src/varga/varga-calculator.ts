@@ -12,7 +12,8 @@ export class VargaCalculator {
     const placements: Record<string, VargaPlacement> = {};
 
     // Ascendant placement in Varga
-    const ascVargaRashi = this.calculateLongitudeVarga(chart.ascendant.longitude, vargaType);
+    const ascLongitude = chart.ascendant?.longitude ?? 0;
+    const ascVargaRashi = this.calculateLongitudeVarga(ascLongitude, vargaType);
     const ascRashiDef = RASHIS[ascVargaRashi - 1];
 
     placements['Ascendant'] = {

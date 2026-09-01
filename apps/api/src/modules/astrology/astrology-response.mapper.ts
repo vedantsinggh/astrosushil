@@ -1,7 +1,24 @@
-import { AstroChart, RASHIS, NAKSHATRAS } from '@astro/astrology-engine';
+import {
+  AstroChart,
+  NormalizedChart,
+  normalizeAstroChart,
+  RASHIS,
+  NAKSHATRAS,
+} from '@astro/astrology-engine';
+import { AppError } from '../../errors/app-error';
 
 export interface PlanetResponseDto {
+  name?: string;
   planet: string;
+  sign?: string;
+  degree?: number;
+  house?: number;
+  nakshatra?: string;
+  pada?: number;
+  retrograde?: boolean;
+  combust?: boolean;
+  dignity?: string;
+  lordship?: number[];
   longitude: number;
   latitude: number;
   speedLongitude: number;
@@ -11,8 +28,22 @@ export interface PlanetResponseDto {
   degreeInRashi: number;
   nakshatraIndex: number;
   nakshatraName: string;
-  pada: number;
   nakshatraLord: string;
+  status?: string;
+}
+
+export interface HouseResponseDto {
+  number: number;
+  houseNumber: number;
+  sign: string;
+  lord: string;
+  occupants: string[];
+  cuspLongitude: number;
+  startLongitude: number;
+  endLongitude: number;
+  rashiIndex: number;
+  rashiName: string;
+  status: string;
 }
 
 export interface RashiSummaryDto {
@@ -23,6 +54,7 @@ export interface RashiSummaryDto {
   element: string;
   modality: string;
   planetsPresent: string[];
+  houseNumber?: number;
 }
 
 export interface NakshatraSummaryDto {
@@ -30,6 +62,8 @@ export interface NakshatraSummaryDto {
   name: string;
   lord: string;
   planetsPresent: string[];
+  startDegree?: number;
+  endDegree?: number;
 }
 
 export interface AstroChartDataDto {
@@ -51,8 +85,8 @@ export interface AstroChartDataDto {
       planetaryCalculationMode: string;
     };
   };
-  ascendant: any | null;
-  houses: any[];
+  ascendant: any;
+  houses: HouseResponseDto[];
   planets: PlanetResponseDto[];
   rashis: RashiSummaryDto[];
   nakshatras: NakshatraSummaryDto[];
@@ -60,7 +94,6 @@ export interface AstroChartDataDto {
 
 export interface AstroChartResponseDto {
   data: AstroChartDataDto;
-  // Included for backward compatibility with root-level chart readers
   chart: {
     calculationVersion: string;
     providerName: string;
@@ -77,117 +110,140 @@ export interface AstroChartResponseDto {
       nodeCalculation: string;
       planetaryCalculationMode: string;
     };
-    ascendant: any | null;
+    ascendant: any;
     planets: PlanetResponseDto[];
-    houses: any[];
+    houses: HouseResponseDto[];
     rashis: RashiSummaryDto[];
     nakshatras: NakshatraSummaryDto[];
   };
+  normalizedChart?: NormalizedChart;
 }
 
 /**
- * Maps the internal domain AstroChart object into a sanitized public API response DTO.
- * Excludes internal ephemeris implementation details and raw data structures.
+ * Maps the domain chart object into a sanitized, validated public API response DTO.
+ * Guarantees no empty {} objects for ascendant, planets, or houses.
  */
-export function mapAstroChartToResponse(chart: AstroChart): AstroChartResponseDto {
-  const planetsList: PlanetResponseDto[] = Object.values(chart.planets).map((p) => ({
-    planet: p.planet,
-    longitude: p.longitude,
-    latitude: p.latitude,
-    speedLongitude: p.speedLongitude,
-    isRetrograde: p.isRetrograde,
-    rashiIndex: p.rashiIndex,
-    rashiName: p.rashiName,
-    degreeInRashi: p.degreeInRashi,
-    nakshatraIndex: p.nakshatraIndex,
-    nakshatraName: p.nakshatraName,
+export function mapAstroChartToResponse(chart: AstroChart | NormalizedChart): AstroChartResponseDto {
+  const normalized: NormalizedChart =
+    'ascendant' in chart && 'planets' in chart && Array.isArray(chart.planets)
+      ? (chart as NormalizedChart)
+      : normalizeAstroChart(chart as AstroChart);
+
+  // Strict Validation to ensure no empty {} objects
+  if (!normalized.ascendant || typeof normalized.ascendant !== 'object' || !normalized.ascendant.sign) {
+    throw new AppError('Astrology chart ascendant calculation failed or returned empty data', 500, 'ASTROLOGY_CALCULATION_INVALID');
+  }
+
+  if (!Array.isArray(normalized.planets) || normalized.planets.length < 9) {
+    throw new AppError('Astrology chart planets calculation failed or returned incomplete data', 500, 'ASTROLOGY_CALCULATION_INVALID');
+  }
+
+  if (!Array.isArray(normalized.houses) || normalized.houses.length < 12) {
+    throw new AppError('Astrology chart houses calculation failed or returned incomplete data', 500, 'ASTROLOGY_CALCULATION_INVALID');
+  }
+
+  const planetsList: PlanetResponseDto[] = normalized.planets.map((p) => ({
+    name: p.name,
+    planet: p.name,
+    sign: p.sign,
+    degree: p.degree,
+    house: p.house,
+    nakshatra: p.nakshatra,
     pada: p.pada,
+    retrograde: p.retrograde,
+    combust: p.combust,
+    dignity: p.dignity,
+    lordship: p.lordship,
+    longitude: p.absoluteDegree,
+    latitude: 0,
+    speedLongitude: 0,
+    isRetrograde: p.retrograde,
+    rashiIndex: p.rashiIndex,
+    rashiName: p.sign,
+    degreeInRashi: p.degree,
+    nakshatraIndex: p.nakshatraIndex,
+    nakshatraName: p.nakshatra,
     nakshatraLord: p.nakshatraLord,
+    status: p.status,
   }));
 
-  // Build Rashi summaries (1 to 12) with planet placements
-  const rashisList: RashiSummaryDto[] = RASHIS.map((rashi) => {
-    const planetsInRashi = planetsList
-      .filter((p) => p.rashiIndex === rashi.index)
-      .map((p) => p.planet);
+  const housesList: HouseResponseDto[] = normalized.houses.map((h) => ({
+    number: h.number,
+    houseNumber: h.number,
+    sign: h.sign,
+    lord: h.lord,
+    occupants: h.occupants,
+    cuspLongitude: h.cuspLongitude,
+    startLongitude: h.startLongitude,
+    endLongitude: h.endLongitude,
+    rashiIndex: h.rashiIndex,
+    rashiName: h.sign,
+    status: h.status,
+  }));
 
-    return {
-      index: rashi.index,
-      name: rashi.sanskritName,
-      englishName: rashi.englishName,
-      lord: rashi.ruler,
-      element: rashi.element,
-      modality: rashi.modality,
-      planetsPresent: planetsInRashi,
-    };
-  });
+  const ascendantDto = {
+    sign: normalized.ascendant.sign,
+    degree: normalized.ascendant.degree,
+    absoluteDegree: normalized.ascendant.absoluteDegree,
+    nakshatra: normalized.ascendant.nakshatra,
+    pada: normalized.ascendant.pada,
+    house: normalized.ascendant.house,
+    lord: normalized.ascendant.lord,
+    name: 'Ascendant',
+    longitude: normalized.ascendant.absoluteDegree,
+    rashiIndex: normalized.ascendant.rashiIndex,
+    rashiName: normalized.ascendant.sign,
+    degreeInRashi: normalized.ascendant.degree,
+    nakshatraIndex: normalized.ascendant.nakshatraIndex,
+    nakshatraName: normalized.ascendant.nakshatra,
+  };
 
-  // Build Nakshatra summaries (1 to 27) with planet placements
-  const nakshatrasList: NakshatraSummaryDto[] = NAKSHATRAS.map((nakshatra) => {
-    const planetsInNakshatra = planetsList
-      .filter((p) => p.nakshatraIndex === nakshatra.index)
-      .map((p) => p.planet);
+  const rashisList: RashiSummaryDto[] = normalized.rashis.map((r) => ({
+    index: r.index,
+    name: r.name,
+    englishName: r.englishName,
+    lord: r.lord,
+    element: r.element,
+    modality: r.modality,
+    houseNumber: r.houseNumber,
+    planetsPresent: r.occupants,
+  }));
 
-    return {
-      index: nakshatra.index,
-      name: nakshatra.name,
-      lord: nakshatra.lord,
-      planetsPresent: planetsInNakshatra,
-    };
-  });
+  const nakshatrasList: NakshatraSummaryDto[] = normalized.nakshatras.map((n) => ({
+    index: n.index,
+    name: n.name,
+    lord: n.lord,
+    startDegree: n.startDegree,
+    endDegree: n.endDegree,
+    planetsPresent: n.occupants,
+  }));
+
+  const metadataPayload = {
+    engineVersion: normalized.calculation.calculationVersion,
+    providerName: normalized.calculation.providerName,
+    providerVersion: normalized.calculation.providerVersion,
+    calculationVersion: normalized.calculation.calculationVersion,
+    normalizedTime: normalized.calculation.normalizedTime,
+    config: normalized.calculation.config,
+  };
 
   const chartPayload = {
-    calculationVersion: chart.metadata.engineVersion,
-    providerName: chart.metadata.providerName,
-    providerVersion: chart.metadata.providerVersion,
-    normalizedTime: {
-      utcIsoString: chart.metadata.normalizedTime.utcIsoString,
-      julianDayUT: chart.metadata.normalizedTime.julianDayUT,
-      timezoneOffsetMinutes: chart.metadata.normalizedTime.timezoneOffsetMinutes,
-    },
-    config: {
-      zodiacType: String(chart.metadata.config.zodiacType),
-      ayanamsa: String(chart.metadata.config.ayanamsa),
-      houseSystem: String(chart.metadata.config.houseSystem),
-      nodeCalculation: String(chart.metadata.config.nodeCalculation),
-      planetaryCalculationMode: String(chart.metadata.config.planetaryCalculationMode),
-    },
-    ascendant: chart.ascendant ? {
-      ...chart.ascendant,
-      rashiName: RASHIS[chart.ascendant.rashiIndex - 1]?.sanskritName ?? '',
-      nakshatraName: NAKSHATRAS[chart.ascendant.nakshatraIndex - 1]?.name ?? '',
-    } : null,
+    calculationVersion: normalized.calculation.calculationVersion,
+    providerName: normalized.calculation.providerName,
+    providerVersion: normalized.calculation.providerVersion,
+    normalizedTime: normalized.calculation.normalizedTime,
+    config: normalized.calculation.config,
+    ascendant: ascendantDto,
     planets: planetsList,
-    houses: chart.houses ? [...chart.houses] : [],
+    houses: housesList,
     rashis: rashisList,
     nakshatras: nakshatrasList,
   };
 
   const dataPayload: AstroChartDataDto = {
-    metadata: {
-      engineVersion: chart.metadata.engineVersion,
-      providerName: chart.metadata.providerName,
-      providerVersion: chart.metadata.providerVersion,
-      calculationVersion: chart.metadata.engineVersion,
-      normalizedTime: {
-        utcIsoString: chart.metadata.normalizedTime.utcIsoString,
-        julianDayUT: chart.metadata.normalizedTime.julianDayUT,
-        timezoneOffsetMinutes: chart.metadata.normalizedTime.timezoneOffsetMinutes,
-      },
-      config: {
-        zodiacType: String(chart.metadata.config.zodiacType),
-        ayanamsa: String(chart.metadata.config.ayanamsa),
-        houseSystem: String(chart.metadata.config.houseSystem),
-        nodeCalculation: String(chart.metadata.config.nodeCalculation),
-        planetaryCalculationMode: String(chart.metadata.config.planetaryCalculationMode),
-      },
-    },
-    ascendant: chart.ascendant ? {
-      ...chart.ascendant,
-      rashiName: RASHIS[chart.ascendant.rashiIndex - 1]?.sanskritName ?? '',
-      nakshatraName: NAKSHATRAS[chart.ascendant.nakshatraIndex - 1]?.name ?? '',
-    } : null,
-    houses: chart.houses ? [...chart.houses] : [],
+    metadata: metadataPayload,
+    ascendant: ascendantDto,
+    houses: housesList,
     planets: planetsList,
     rashis: rashisList,
     nakshatras: nakshatrasList,
@@ -196,5 +252,6 @@ export function mapAstroChartToResponse(chart: AstroChart): AstroChartResponseDt
   return {
     data: dataPayload,
     chart: chartPayload,
+    normalizedChart: normalized,
   };
 }
