@@ -66,6 +66,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres_password@postgres:5432/astro_sushil?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      LATEX_COMPILER: ${LATEX_COMPILER:-latexto}
     depends_on:
       - postgres
       - redis

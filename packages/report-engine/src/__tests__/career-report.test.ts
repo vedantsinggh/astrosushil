@@ -5,6 +5,7 @@ import {
   generateReportDataTex,
   escapeLatex,
   careerReportService,
+  latexCompiler,
   pdfQaValidator,
   FORBIDDEN_PLACEHOLDERS,
 } from '../index';
@@ -130,4 +131,33 @@ describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
     expect(invalidResult.isValid).toBe(false);
     expect(invalidResult.errors.some((e) => e.includes('Forbidden placeholder'))).toBe(true);
   });
+
+  it('6. Should compile actual career report containing Unicode text (CO₂, subscript numbers, etc.) via production XeLaTeX compiler', async () => {
+    const normalized = normalizeAstroChart(mockAstroChart);
+    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
+    
+    // Inject representative Unicode content into report data
+    reportData.careerAnalysis.executiveCareerSummary =
+      'Analysis for CO₂ and H₂O environmental tech projects: X₁ Y₃ Z₄ levels under 15° 30\' orientation — ‘focused’ & “strategic” × 50% growth rate…';
+
+    const texOutput = generateReportDataTex(reportData);
+
+    try {
+      const compilationResult = await latexCompiler.compileReport({
+        reportId: 'unicode-compilation-test-aarav',
+        reportDataTex: texOutput,
+        minPageCount: 1,
+        timeoutMs: 60000,
+      });
+
+      expect(compilationResult.pdfBuffer).toBeDefined();
+      expect(compilationResult.pdfBuffer.length).toBeGreaterThan(100);
+      expect(compilationResult.pdfBuffer.toString('utf-8', 0, 5)).toBe('%PDF-');
+      expect(compilationResult.pageCount).toBeGreaterThanOrEqual(1);
+    } catch (err: any) {
+      console.error('=== ACTUAL XELATEX COMPILATION ERROR ===\n', err.message);
+      throw err;
+    }
+  }, 60000);
 });
+

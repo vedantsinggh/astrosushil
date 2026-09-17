@@ -22,14 +22,22 @@ interface DashboardData {
   }>;
 }
 
+interface ServiceHealthItem {
+  status: string;
+  latencyMs?: number;
+  provider?: string;
+  type?: string;
+}
+
 interface HealthData {
   timestamp: string;
   services: {
-    api: { status: string; latencyMs: number };
-    database: { status: string; latencyMs: number };
-    astrologyEngine: { status: string; latencyMs: number };
-    gemini: { status: string; provider: string; latencyMs: number };
-    storage: { status: string; type: string };
+    api?: ServiceHealthItem;
+    database?: ServiceHealthItem;
+    astrologyEngine?: ServiceHealthItem;
+    gemini?: ServiceHealthItem;
+    openrouter?: ServiceHealthItem;
+    storage?: ServiceHealthItem;
   };
 }
 
@@ -136,39 +144,41 @@ export default function DashboardPage() {
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>API Server</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.api.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.api.latencyMs || 1}ms</span>
+              <StatusBadge status={health?.services?.api?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.api?.latencyMs || 1}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Database (PostgreSQL)</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.database.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.database.latencyMs || 0}ms</span>
+              <StatusBadge status={health?.services?.database?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.database?.latencyMs || 0}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Astrology Engine</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.astrologyEngine.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.astrologyEngine.latencyMs || 0}ms</span>
+              <StatusBadge status={health?.services?.astrologyEngine?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.astrologyEngine?.latencyMs || 0}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Gemini AI</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              {health?.services?.openrouter ? 'OpenRouter AI' : 'Gemini AI'}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.gemini.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.gemini.latencyMs || 0}ms</span>
+              <StatusBadge status={(health?.services?.openrouter || health?.services?.gemini)?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{(health?.services?.openrouter || health?.services?.gemini)?.latencyMs || 0}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Report Storage</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.storage.status || 'UNKNOWN'} />
+              <StatusBadge status={health?.services?.storage?.status || 'UNKNOWN'} />
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Active</span>
             </div>
           </div>

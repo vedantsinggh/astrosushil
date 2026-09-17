@@ -307,6 +307,7 @@ export interface TimingEvidence {
 }
 
 export interface CareerAnalysisInput {
+  reportId?: string;
   confidence: DataConfidence;
   chartSummary: ChartFactSummary;
   careerAxis: CareerAxisEvidence;

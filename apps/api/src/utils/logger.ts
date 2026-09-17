@@ -23,6 +23,8 @@ export const LOG_REDACT_KEYS = [
   'apiKey',
   'razorpayKeySecret',
   'razorpaySignature',
+  'openrouterApiKey',
+  'OPENROUTER_API_KEY',
   'geminiApiKey',
   'cookie',
 ];

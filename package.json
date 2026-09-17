@@ -15,6 +15,7 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:admin": "npm run dev --workspace=apps/admin",
     "dev:worker": "npm run dev:worker --workspace=apps/api",
+    "dev:test": "docker-compose up -d postgres redis && npm run dev:api",
     "start:api": "npm run start --workspace=apps/api",
     "start:worker": "npm run start:worker --workspace=apps/api",
     "build:api": "npm run build --workspace=apps/api",

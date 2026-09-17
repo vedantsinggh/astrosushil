@@ -48,3 +48,35 @@ export function mapBirthProfileToBirthDetails(profile: PrismaBirthProfileInput):
 
   return details;
 }
+
+export function mapDirectBirthDetailsToBirthDetails(input: {
+  name: string;
+  dateOfBirth: string;
+  timeOfBirth: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  placeName?: string | null;
+}): BirthDetails {
+  const dateParts = input.dateOfBirth.split('-');
+  const year = parseInt(dateParts[0], 10);
+  const month = parseInt(dateParts[1], 10);
+  const day = parseInt(dateParts[2], 10);
+
+  const timeParts = input.timeOfBirth.split(':');
+  const hour = parseInt(timeParts[0], 10);
+  const minute = parseInt(timeParts[1], 10);
+  const second = timeParts.length > 2 ? parseInt(timeParts[2], 10) : 0;
+
+  return {
+    name: input.name,
+    dateOfBirth: input.dateOfBirth,
+    timeOfBirth: input.timeOfBirth,
+    date: { year, month, day },
+    time: { hour, minute, second },
+    timezone: input.timezone,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    placeName: input.placeName || undefined,
+  };
+}

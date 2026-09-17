@@ -26,12 +26,22 @@ class AppConfig {
   /// - Default / Physical Device / Other: http://localhost:3000/api/v1
   static String get baseUrl {
     if (_baseUrlOverride != null && _baseUrlOverride!.isNotEmpty) {
-      return _baseUrlOverride!;
+      final cleanOverride = _baseUrlOverride!.endsWith('/')
+          ? _baseUrlOverride!.substring(0, _baseUrlOverride!.length - 1)
+          : _baseUrlOverride!;
+      if (cleanOverride.endsWith('/api/v1')) {
+        return cleanOverride;
+      }
+      return '$cleanOverride$apiPrefix';
     }
 
     const String envApiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: String.fromEnvironment('TEST_API_URL', defaultValue: ''));
     if (envApiUrl.isNotEmpty) {
-      return envApiUrl.endsWith('/') ? '${envApiUrl}api/v1' : '$envApiUrl/api/v1';
+      final cleanUrl = envApiUrl.endsWith('/') ? envApiUrl.substring(0, envApiUrl.length - 1) : envApiUrl;
+      if (cleanUrl.endsWith('/api/v1')) {
+        return cleanUrl;
+      }
+      return '$cleanUrl$apiPrefix';
     }
 
     try {

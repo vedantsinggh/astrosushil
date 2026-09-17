@@ -1,6 +1,7 @@
 \documentclass[10pt,oneside]{article}
 
 \usepackage[a4paper,top=21mm,bottom=20mm,left=18mm,right=18mm,headheight=19pt,footskip=11mm]{geometry}
+\usepackage{fancyhdr}
 \usepackage{iftex}
 \ifPDFTeX
   % TeX-native fallbacks allow the report to compile with pdfLaTeX.
@@ -15,7 +16,11 @@
   \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
   \setmainfont{TeX Gyre Pagella}
   \setsansfont{Open Sans}
-  \newfontfamily\displayfont{Libre Bodoni}
+  \IfFontExistsTF{Libre Bodoni}{
+    \newfontfamily\displayfont{Libre Bodoni}
+  }{
+    \newfontfamily\displayfont{TeX Gyre Pagella}
+  }
 \fi
 
 \usepackage{xcolor}
@@ -38,8 +43,38 @@
 \usepackage{tabularx,booktabs,array,colortbl}
 \usepackage{multicol}
 \usepackage{enumitem}
-\usepackage{fancyhdr}
-\usepackage{microtype}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\microtypesetup{verbose=silent}
+\ifXeTeX
+  \renewcommand{\textls}[2][100]{#2}
+\fi
+\usepackage{newunicodechar}
+\newunicodechar{₂}{\textsubscript{2}}
+\newunicodechar{₁}{\textsubscript{1}}
+\newunicodechar{₃}{\textsubscript{3}}
+\newunicodechar{₄}{\textsubscript{4}}
+\newunicodechar{₅}{\textsubscript{5}}
+\newunicodechar{₆}{\textsubscript{6}}
+\newunicodechar{₇}{\textsubscript{7}}
+\newunicodechar{₈}{\textsubscript{8}}
+\newunicodechar{₉}{\textsubscript{9}}
+\newunicodechar{₀}{\textsubscript{0}}
+\newunicodechar{²}{\textsuperscript{2}}
+\newunicodechar{¹}{\textsuperscript{1}}
+\newunicodechar{³}{\textsuperscript{3}}
+\newunicodechar{×}{\ensuremath{\times}}
+\newunicodechar{−}{\ensuremath{-}}
+\newunicodechar{–}{--}
+\newunicodechar{—}{---}
+\newunicodechar{’}{'}
+\newunicodechar{‘}{`}
+\newunicodechar{“}{``}
+\newunicodechar{”}{''}
+\newunicodechar{…}{\dots}
+\newunicodechar{•}{\textbullet}
+\newunicodechar{°}{\textdegree{}}
+\newunicodechar{ }{~}
+\newunicodechar{©}{\textcopyright{}}
 \usepackage{ragged2e}
 \usepackage{setspace}
 \usepackage{lastpage}

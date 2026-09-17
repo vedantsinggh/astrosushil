@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@astro/shared": "*",
-    "@astro/prediction-engine": "*"
+    "@astro/prediction-engine": "*",
+    "latexto": "^0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 /// Supported action types that Jyoti can suggest or perform.
 enum JyotiActionType {
+  openHome,
   openBirthChart,
   openPlanets,
   openHouses,
@@ -9,14 +10,30 @@ enum JyotiActionType {
   openRashiBhavishya,
   openVastu,
   openProfile,
-  generateKundli,
+  openSettings,
+  openReports,
   openCareerReport,
+  generateCareerReport,
+  openSubscription,
+  openPayment,
+  openNotifications,
+  openNotificationSettings,
+  openAccount,
+  openBirthProfile,
+  openJyoti,
+  openHelp,
+  openAbout,
+  openLogin,
+  confirmLogout,
 }
 
 extension JyotiActionTypeExtension on JyotiActionType {
   static JyotiActionType fromString(String typeStr) {
     final clean = typeStr.toUpperCase().replaceAll('JYOTIACTIONTYPE.', '');
     switch (clean) {
+      case 'OPEN_HOME':
+      case 'OPENHOME':
+        return JyotiActionType.openHome;
       case 'OPEN_BIRTH_CHART':
       case 'OPENBIRTHCHART':
       case 'GENERATEKUNDLI':
@@ -39,9 +56,51 @@ extension JyotiActionTypeExtension on JyotiActionType {
       case 'OPEN_PROFILE':
       case 'OPENPROFILE':
         return JyotiActionType.openProfile;
+      case 'OPEN_SETTINGS':
+      case 'OPENSETTINGS':
+        return JyotiActionType.openSettings;
+      case 'OPEN_REPORTS':
+      case 'OPENREPORTS':
+        return JyotiActionType.openReports;
       case 'OPEN_CAREER_REPORT':
       case 'OPENCAREERREPORT':
         return JyotiActionType.openCareerReport;
+      case 'GENERATE_CAREER_REPORT':
+      case 'GENERATECAREERREPORT':
+        return JyotiActionType.generateCareerReport;
+      case 'OPEN_SUBSCRIPTION':
+      case 'OPENSUBSCRIPTION':
+        return JyotiActionType.openSubscription;
+      case 'OPEN_PAYMENT':
+      case 'OPENPAYMENT':
+        return JyotiActionType.openPayment;
+      case 'OPEN_NOTIFICATIONS':
+      case 'OPENNOTIFICATIONS':
+        return JyotiActionType.openNotifications;
+      case 'OPEN_NOTIFICATION_SETTINGS':
+      case 'OPENNOTIFICATIONSETTINGS':
+        return JyotiActionType.openNotificationSettings;
+      case 'OPEN_ACCOUNT':
+      case 'OPENACCOUNT':
+        return JyotiActionType.openAccount;
+      case 'OPEN_BIRTH_PROFILE':
+      case 'OPENBIRTHPROFILE':
+        return JyotiActionType.openBirthProfile;
+      case 'OPEN_JYOTI':
+      case 'OPENJYOTI':
+        return JyotiActionType.openJyoti;
+      case 'OPEN_HELP':
+      case 'OPENHELP':
+        return JyotiActionType.openHelp;
+      case 'OPEN_ABOUT':
+      case 'OPENABOUT':
+        return JyotiActionType.openAbout;
+      case 'OPEN_LOGIN':
+      case 'OPENLOGIN':
+        return JyotiActionType.openLogin;
+      case 'CONFIRM_LOGOUT':
+      case 'CONFIRMLOGOUT':
+        return JyotiActionType.confirmLogout;
       default:
         return JyotiActionType.openBirthChart;
     }

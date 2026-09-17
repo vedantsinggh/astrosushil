@@ -19,7 +19,17 @@ export type HouseSystem =
 export type NodeCalculationMethod = 'MEAN_NODE' | 'TRUE_NODE' | ClientConfirmationRequired;
 export type PlanetaryCalculationMode = 'GEOCENTRIC' | 'TOPOCENTRIC' | ClientConfirmationRequired;
 export type RoundingRule = 'NEAREST' | 'TRUNCATE' | 'NONE';
-export type DashaSystem = 'VIMSHOTTARI' | ClientConfirmationRequired;
+export type DashaSystem =
+  | 'VIMSHOTTARI'
+  | 'ASHTOTTARI'
+  | 'STHIRA'
+  | 'SHOOLA'
+  | 'DWISAPTATI_SAMA'
+  | 'SHATABDIKA'
+  | 'CHATURASEETI_SAMA'
+  | 'DWADASHOTTARI'
+  | 'PANCHOTTARI'
+  | ClientConfirmationRequired;
 
 export interface AstrologyConfig {
   zodiacType: ZodiacType;
@@ -31,6 +41,17 @@ export interface AstrologyConfig {
   roundingRule: RoundingRule;
   dashaSystem: DashaSystem;
 }
+
+export const DEFAULT_ASTROLOGY_CONFIG: AstrologyConfig = {
+  zodiacType: 'SIDEREAL',
+  ayanamsa: 'LAHIRI',
+  houseSystem: 'WHOLE_SIGN',
+  nodeCalculation: 'MEAN_NODE',
+  planetaryCalculationMode: 'GEOCENTRIC',
+  precisionDegrees: 0.0001,
+  roundingRule: 'NEAREST',
+  dashaSystem: 'VIMSHOTTARI',
+};
 
 /**
  * Creates an initial default configuration with explicit CLIENT_CONFIRMATION_REQUIRED flags.

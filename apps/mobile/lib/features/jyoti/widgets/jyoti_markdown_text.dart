@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/theme/app_colors.dart';
 
 /// Lightweight Markdown and newline renderer for Jyoti AI chat messages.
-/// Supports **bold**, *italic*, bullet points, and clean paragraph breaks.
+/// Supports **bold**, *italic*, bullet points (-/*), headers (#/##), and clean paragraph breaks.
 class JyotiMarkdownText extends StatelessWidget {
   final String text;
   final TextStyle? style;
@@ -26,24 +26,69 @@ class JyotiMarkdownText extends StatelessWidget {
     // Sanitize any literal '\n' string representations into actual newline characters
     final sanitizedText = text.replaceAll(r'\n', '\n');
 
-    final spans = _parseMarkdownSpans(sanitizedText, baseStyle);
+    final spans = _parseMarkdown(sanitizedText, baseStyle);
 
     return SelectableText.rich(
       TextSpan(children: spans, style: baseStyle),
     );
   }
 
-  List<InlineSpan> _parseMarkdownSpans(String content, TextStyle baseStyle) {
+  List<InlineSpan> _parseMarkdown(String content, TextStyle baseStyle) {
     final List<InlineSpan> spans = [];
+    final lines = content.split('\n');
 
-    // Regex matching **bold** and *italic* tags
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+
+      // Handle Markdown Headers
+      if (line.startsWith('# ')) {
+        spans.addAll(_parseLineFormatting(
+          line.substring(2),
+          baseStyle.copyWith(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.primary),
+        ));
+      } else if (line.startsWith('## ')) {
+        spans.addAll(_parseLineFormatting(
+          line.substring(3),
+          baseStyle.copyWith(fontSize: 15.5, fontWeight: FontWeight.bold, color: AppColors.primary),
+        ));
+      } else if (line.startsWith('### ')) {
+        spans.addAll(_parseLineFormatting(
+          line.substring(4),
+          baseStyle.copyWith(fontSize: 14.5, fontWeight: FontWeight.bold, color: AppColors.secondary),
+        ));
+      }
+      // Handle Bullet Points
+      else if (line.trimLeft().startsWith('- ') || line.trimLeft().startsWith('* ')) {
+        final bulletText = line.trimLeft().substring(2);
+        spans.add(TextSpan(
+          text: '  •  ',
+          style: baseStyle.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary),
+        ));
+        spans.addAll(_parseLineFormatting(bulletText, baseStyle));
+      }
+      // Standard Line
+      else {
+        spans.addAll(_parseLineFormatting(line, baseStyle));
+      }
+
+      // Add newline if not the last line
+      if (i < lines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+
+    return spans;
+  }
+
+  List<InlineSpan> _parseLineFormatting(String lineContent, TextStyle baseStyle) {
+    final List<InlineSpan> spans = [];
     final regex = RegExp(r'(\*\*(.*?)\*\*|\*(.*?)\*)', dotAll: true);
     int lastMatchEnd = 0;
 
-    for (final match in regex.allMatches(content)) {
+    for (final match in regex.allMatches(lineContent)) {
       if (match.start > lastMatchEnd) {
         spans.add(TextSpan(
-          text: content.substring(lastMatchEnd, match.start),
+          text: lineContent.substring(lastMatchEnd, match.start),
           style: baseStyle,
         ));
       }
@@ -66,9 +111,9 @@ class JyotiMarkdownText extends StatelessWidget {
       lastMatchEnd = match.end;
     }
 
-    if (lastMatchEnd < content.length) {
+    if (lastMatchEnd < lineContent.length) {
       spans.add(TextSpan(
-        text: content.substring(lastMatchEnd),
+        text: lineContent.substring(lastMatchEnd),
         style: baseStyle,
       ));
     }
@@ -76,3 +121,4 @@ class JyotiMarkdownText extends StatelessWidget {
     return spans;
   }
 }
+

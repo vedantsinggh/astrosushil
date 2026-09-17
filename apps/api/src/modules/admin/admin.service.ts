@@ -1831,7 +1831,7 @@ export class AdminService {
       stats: {
         totalConversations,
         totalMessages,
-        geminiModel: 'gemini-2.5-flash',
+        llmModel: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3:free',
         status: 'OPERATIONAL',
       },
       recentConversations: recentConversationsRaw.map((c: any) => ({
@@ -1891,11 +1891,12 @@ export class AdminService {
       astroLatencyMs = Date.now() - astroStart;
     }
 
-    const geminiKeyConfigured = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0);
-    const geminiHealth = {
-      status: geminiKeyConfigured ? 'HEALTHY' : 'CONFIGURATION_ERROR',
-      provider: 'Google Gemini AI',
-      latencyMs: geminiKeyConfigured ? 45 : 0,
+    const openrouterKeyConfigured = Boolean(process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim().length > 0);
+    const openrouterHealth = {
+      status: openrouterKeyConfigured ? 'HEALTHY' : 'CONFIGURATION_ERROR',
+      provider: 'OpenRouter AI',
+      model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3:free',
+      latencyMs: openrouterKeyConfigured ? 45 : 0,
     };
 
     const storageHealth = {
@@ -1919,7 +1920,7 @@ export class AdminService {
         api: { status: 'HEALTHY', latencyMs: 12 },
         database: { status: dbStatus, latencyMs: dbLatencyMs },
         astrologyEngine: { status: astroStatus, latencyMs: astroLatencyMs },
-        gemini: geminiHealth,
+        openrouter: openrouterHealth,
         storage: storageHealth,
       },
     };

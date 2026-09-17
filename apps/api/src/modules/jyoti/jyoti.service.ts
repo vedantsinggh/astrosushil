@@ -1,9 +1,10 @@
 import { config } from '../../config';
 import { AppError } from '../../errors/app-error';
+import { logger } from '../../utils/logger';
 import { ActionRegistry } from './actions/action.registry';
 import { AstrologyContextBuilder } from './context/astrology-context.builder';
 import { JyotiChatRequestDto } from './jyoti.schemas';
-import { GeminiProvider } from './providers/gemini.provider';
+import { OpenRouterProvider } from './providers/openrouter.provider';
 import { LLMProvider, LLMResponse } from './providers/llm.provider';
 
 export class JyotiService {
@@ -13,7 +14,7 @@ export class JyotiService {
   private readonly rateLimits = new Map<string, { count: number; resetAt: number }>();
 
   constructor(llmProvider?: LLMProvider) {
-    this.llmProvider = llmProvider || new GeminiProvider();
+    this.llmProvider = llmProvider || new OpenRouterProvider();
   }
 
   /**
@@ -85,8 +86,19 @@ USER QUESTION:
 ${payload.message}
 `.trim();
 
-    // 4. Invoke LLM Provider
-    const rawResponse = await this.llmProvider.generateResponse(fullPrompt);
+    // 4. Invoke LLM Provider with error protection
+    let rawResponse: LLMResponse;
+    try {
+      rawResponse = await this.llmProvider.generateResponse(fullPrompt);
+    } catch (err: any) {
+      const apiKey = config.OPENROUTER_API_KEY || '';
+      const sanitizedErr = apiKey ? (err?.message || String(err)).replaceAll(apiKey, '[REDACTED]') : (err?.message || String(err));
+      logger.error({ err: sanitizedErr }, '[JyotiService] Exception invoking LLM Provider. Returning controlled fallback response.');
+      rawResponse = {
+        message: "Jyoti is currently experiencing connection difficulty. Please try asking again in a moment.",
+        actions: [],
+      };
+    }
 
     // 5. Validate & sanitize action allowlist
     const validatedActions = ActionRegistry.validateActions(rawResponse.actions);
@@ -97,7 +109,7 @@ ${payload.message}
 
     return {
       message: rawResponse.message,
-      actions: validatedActions.length > 0 ? validatedActions : undefined,
+      actions: validatedActions,
       explanation: rawResponse.explanation,
     };
   }

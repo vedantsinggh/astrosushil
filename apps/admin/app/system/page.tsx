@@ -4,14 +4,23 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../lib/api-client';
 import { StatusBadge } from '../../components/StatusBadge';
 
+interface ServiceHealthItem {
+  status: string;
+  latencyMs?: number;
+  provider?: string;
+  model?: string;
+  type?: string;
+}
+
 interface SystemHealthResponse {
   timestamp: string;
   services: {
-    api: { status: string; latencyMs: number };
-    database: { status: string; latencyMs: number };
-    astrologyEngine: { status: string; latencyMs: number };
-    gemini: { status: string; provider: string; latencyMs: number };
-    storage: { status: string; type: string };
+    api?: ServiceHealthItem;
+    database?: ServiceHealthItem;
+    astrologyEngine?: ServiceHealthItem;
+    gemini?: ServiceHealthItem;
+    openrouter?: ServiceHealthItem;
+    storage?: ServiceHealthItem;
   };
 }
 
@@ -36,6 +45,8 @@ export default function SystemHealthPage() {
   useEffect(() => {
     fetchHealth();
   }, []);
+
+  const aiHealth = health?.services?.openrouter || health?.services?.gemini;
 
   return (
     <div>
@@ -64,10 +75,10 @@ export default function SystemHealthPage() {
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Fastify API Backend</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Node.js Fastify Rest Server</p>
             </div>
-            <StatusBadge status={health?.services.api.status || 'UNKNOWN'} />
+            <StatusBadge status={health?.services?.api?.status || 'UNKNOWN'} />
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Measured Latency: <strong>{health?.services.api.latencyMs || 1} ms</strong>
+            Measured Latency: <strong>{health?.services?.api?.latencyMs || 1} ms</strong>
           </div>
         </div>
 
@@ -78,10 +89,10 @@ export default function SystemHealthPage() {
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>PostgreSQL Database</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Prisma ORM Connection Pool</p>
             </div>
-            <StatusBadge status={health?.services.database.status || 'UNKNOWN'} />
+            <StatusBadge status={health?.services?.database?.status || 'UNKNOWN'} />
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Query Latency: <strong>{health?.services.database.latencyMs || 0} ms</strong>
+            Query Latency: <strong>{health?.services?.database?.latencyMs || 0} ms</strong>
           </div>
         </div>
 
@@ -92,24 +103,28 @@ export default function SystemHealthPage() {
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Astrology Calculation Engine</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>@astro/astrology-engine (Sidereal/Lahiri)</p>
             </div>
-            <StatusBadge status={health?.services.astrologyEngine.status || 'UNKNOWN'} />
+            <StatusBadge status={health?.services?.astrologyEngine?.status || 'UNKNOWN'} />
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Execution Latency: <strong>{health?.services.astrologyEngine.latencyMs || 0} ms</strong>
+            Execution Latency: <strong>{health?.services?.astrologyEngine?.latencyMs || 0} ms</strong>
           </div>
         </div>
 
-        {/* GEMINI AI CARD */}
+        {/* AI PROVIDER CARD */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Gemini AI Provider</h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Google Gemini 1.5 Pro / Flash</p>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>
+                {health?.services?.openrouter ? 'OpenRouter AI Provider' : 'Gemini AI Provider'}
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {aiHealth?.provider || aiHealth?.model || (health?.services?.openrouter ? 'OpenRouter LLM' : 'Google Gemini AI')}
+              </p>
             </div>
-            <StatusBadge status={health?.services.gemini.status || 'UNKNOWN'} />
+            <StatusBadge status={aiHealth?.status || 'UNKNOWN'} />
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            API Status: <strong>{health?.services.gemini.status === 'HEALTHY' ? 'Key Configured & Active' : 'Configuration Check Failed'}</strong>
+            API Status: <strong>{aiHealth?.status === 'HEALTHY' ? 'Key Configured & Active' : 'Configuration Check Failed'}</strong>
           </div>
         </div>
 
@@ -120,10 +135,10 @@ export default function SystemHealthPage() {
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>PDF & Report Storage</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Local & AWS S3 PDF Bucket</p>
             </div>
-            <StatusBadge status={health?.services.storage.status || 'UNKNOWN'} />
+            <StatusBadge status={health?.services?.storage?.status || 'UNKNOWN'} />
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Storage Type: <strong>{health?.services.storage.type || 'Local/S3'}</strong>
+            Storage Type: <strong>{health?.services?.storage?.type || 'Local/S3'}</strong>
           </div>
         </div>
       </div>

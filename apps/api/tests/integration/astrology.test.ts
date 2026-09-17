@@ -194,7 +194,65 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
     const body = JSON.parse(response.payload);
     expect(body.data.dashaTree).toBeDefined();
     expect(body.data.dashaTree.mahadashas).toHaveLength(9);
-    expect(body.data.dashaTree.mahadashas[0].subPeriods).toHaveLength(9);
+    // Mahadasha 0 is birth Dasha (partially elapsed with remaining active subPeriods)
+    expect(body.data.dashaTree.mahadashas[0].subPeriods.length).toBeGreaterThan(0);
+    // Subsequent full Mahadasha has all 9 subPeriods
+    expect(body.data.dashaTree.mahadashas[1].subPeriods).toHaveLength(9);
+  });
+
+  it('POST /api/v1/astrology/dasha should calculate Ashtottari Dasha tree', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/dasha',
+      payload: {
+        birthDetails: {
+          name: 'Aarav',
+          dateOfBirth: '1995-08-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.2090,
+          timezone: 'Asia/Kolkata',
+        },
+        dashaSystem: 'ASHTOTTARI',
+        maxLevel: 2,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.dashaTree).toBeDefined();
+    expect(body.data.dashaTree.dashaSystem).toBe('ASHTOTTARI');
+    expect(body.data.dashaTree.eligibility).toBeDefined();
+    expect(typeof body.data.dashaTree.eligibility.isEligible).toBe('boolean');
+    if (body.data.dashaTree.eligibility.isEligible) {
+      expect(body.data.dashaTree.totalCycleYears).toBe(108);
+      expect(body.data.dashaTree.mahadashas).toHaveLength(8);
+    }
+  });
+
+  it('POST /api/v1/astrology/dashas should calculate Dasha periods via plural alias', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/dashas',
+      payload: {
+        birthDetails: {
+          name: 'Aarav',
+          dateOfBirth: '1995-08-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.2090,
+          timezone: 'Asia/Kolkata',
+        },
+        dashaSystem: 'VIMSHOTTARI',
+        maxLevel: 1,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.dashaTree).toBeDefined();
+    expect(body.data.dashaTree.dashaSystem).toBe('VIMSHOTTARI');
+    expect(body.data.dashaTree.mahadashas).toHaveLength(9);
   });
 
   // 5. PANCHANG ENDPOINT TEST
@@ -280,8 +338,333 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
     const body = JSON.parse(response.payload);
     expect(body.data.compatibility).toBeDefined();
     expect(body.data.compatibility.ashtakoota.totalMaxPoints).toBe(36);
-    expect(body.data.compatibility.boyManglik).toBeDefined();
-    expect(body.data.compatibility.girlManglik).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.varna).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.vashya).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.tara).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.yoni).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.grahaMaitri).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.gana).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.bhakoot).toBeDefined();
+    expect(body.data.compatibility.ashtakoota.kootas.nadi).toBeDefined();
+    expect(body.data.compatibility.manglikComparison).toBeDefined();
+  });
+
+  // 8. COMPATIBILITY ENDPOINT TEST
+  it('POST /api/v1/astrology/compatibility should evaluate deterministic compatibility with full Ashtakoota and Mangal comparison', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/compatibility',
+      payload: {
+        personA: {
+          birthDetails: {
+            name: 'Aarav (Person A)',
+            dateOfBirth: '1990-05-15',
+            timeOfBirth: '14:30:00',
+            latitude: 28.6139,
+            longitude: 77.2090,
+            timezone: 'Asia/Kolkata',
+          },
+        },
+        personB: {
+          birthDetails: {
+            name: 'Priya (Person B)',
+            dateOfBirth: '1992-08-20',
+            timeOfBirth: '09:15:00',
+            latitude: 19.0760,
+            longitude: 72.8777,
+            timezone: 'Asia/Kolkata',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data.personA).toBeDefined();
+    expect(body.data.personB).toBeDefined();
+    expect(body.data.compatibility).toBeDefined();
+    expect(body.data.compatibility.convention.name).toBe('Classical Parashari Ashtakoota Milan');
+    expect(body.data.compatibility.convention.totalMaxScore).toBe(36);
+    expect(body.data.compatibility.ashtakoota.totalMaxPoints).toBe(36);
+    expect(body.data.compatibility.ashtakoota.totalObtainedPoints).toBeGreaterThanOrEqual(0);
+    expect(body.data.compatibility.ashtakoota.totalObtainedPoints).toBeLessThanOrEqual(36);
+    expect(body.data.compatibility.manglikComparison).toBeDefined();
+  });
+
+  // 9. GOCHARA (TRANSIT SNAPSHOT) ENDPOINT TEST
+  it('POST /api/v1/astrology/gochara should return deterministic transit snapshot with houses, aspects, and natal relationships', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/gochara',
+      payload: {
+        timestamp: '2026-03-20T12:00:00Z',
+        timezone: 'Asia/Kolkata',
+        location: {
+          latitude: 28.6139,
+          longitude: 77.209,
+          placeName: 'New Delhi, India',
+        },
+        birthDetails: {
+          name: 'Natal Subject',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+        vargas: ['D1', 'D9'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.calculationVersion).toBeDefined();
+    expect(body.data.transitChart).toBeDefined();
+    expect(body.data.transitChart.ascendant).toBeDefined();
+    expect(body.data.transitChart.planets).toBeDefined();
+    expect(Object.keys(body.data.transitChart.planets).length).toBe(9);
+    expect(body.data.transitChart.houses).toHaveLength(12);
+    expect(body.data.transitToLagna).toBeDefined();
+    expect(body.data.transitToLagna.length).toBe(9);
+    expect(body.data.transitToMoon).toBeDefined();
+    expect(body.data.transitToMoon.length).toBe(9);
+    expect(body.data.ashtakavargaTransit).toBeDefined();
+  });
+
+  // 10. GOCHARA TIMELINE ENDPOINT TEST
+  it('POST /api/v1/astrology/gochara/timeline should calculate chronological transit events over date range', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/gochara/timeline',
+      payload: {
+        startDate: '2026-03-01',
+        endDate: '2026-04-15',
+        timezone: 'Asia/Kolkata',
+        planets: ['SUN', 'MARS'],
+        eventTypes: ['SIGN_INGRESS', 'NAKSHATRA_INGRESS'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.startDateIso).toBe('2026-03-01T00:00:00.000Z');
+    expect(body.data.endDateIso).toBe('2026-04-15T00:00:00.000Z');
+    expect(body.data.eventCount).toBeGreaterThan(0);
+    expect(Array.isArray(body.data.events)).toBe(true);
+    expect(body.data.events[0].planet).toBeDefined();
+    expect(body.data.events[0].eventType).toBeDefined();
+  });
+
+  // 11. YOGAS ENDPOINT TEST
+  it('POST /api/v1/astrology/yogas should evaluate deterministic classical Yogas with condition evidence', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/yogas',
+      payload: {
+        birthDetails: {
+          name: 'Yoga Integration Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+        varga: 'D1',
+        includeUndetected: true,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.calculationVersion).toBe('0.1.0');
+    expect(body.data.varga).toBe('D1');
+    expect(body.data.totalEvaluated).toBeGreaterThan(0);
+    expect(typeof body.data.detectedCount).toBe('number');
+    expect(Array.isArray(body.data.detectedYogas)).toBe(true);
+    expect(body.data.detectedYogas.length).toBe(body.data.detectedCount);
+  });
+
+  // 12. SPECIAL POINTS ENDPOINT TEST
+  it('POST /api/v1/astrology/special-points should calculate Upagrahas, Special Lagnas, and Arishta points', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/special-points',
+      payload: {
+        birthDetails: {
+          name: 'Special Points Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.upagrahas).toBeDefined();
+    expect(body.data.specialLagnas).toBeDefined();
+    expect(body.data.arishtaPoints).toBeDefined();
+    expect(body.data.yogiPoints).toBeDefined();
+    expect(body.data.mrityuBhaga).toBeDefined();
+  });
+
+  // 13. JAIMINI ENDPOINT TEST
+  it('POST /api/v1/astrology/jaimini should calculate Chara Karakas, Arudhas, and Karakamsha', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/jaimini',
+      payload: {
+        birthDetails: {
+          name: 'Jaimini Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+        scheme: 'SEVEN_KARAKA',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.charaKarakas).toHaveLength(7);
+    expect(body.data.arudhaPadas).toHaveLength(12);
+    expect(body.data.karakamsha).toBeDefined();
+  });
+
+  // 14. KP ENDPOINT TEST
+  it('POST /api/v1/astrology/kp should calculate KP Cusps, 4-tier lords, and Significators', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/kp',
+      payload: {
+        birthDetails: {
+          name: 'KP Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.cusps).toHaveLength(12);
+    expect(body.data.houseSignificators).toHaveLength(12);
+    expect(body.data.rulingPlanets).toBeDefined();
+    expect(body.data.parsFortuna).toBeDefined();
+  });
+
+  // 15. SADE SATI ENDPOINT TEST
+  it('POST /api/v1/astrology/sade-sati should evaluate Sade Sati and Dhaiyya status', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/sade-sati',
+      payload: {
+        birthDetails: {
+          name: 'Sade Sati Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+        transitSaturnLongitude: 310.0,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(typeof body.data.isSadeSatiActive).toBe('boolean');
+    expect(typeof body.data.phase).toBe('string');
+  });
+
+  // 16. CHART VARIANTS ENDPOINT TEST
+  it('POST /api/v1/astrology/chart-variants should calculate derived chart variants', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/chart-variants',
+      payload: {
+        birthDetails: {
+          name: 'Variants Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.rashi).toBeDefined();
+    expect(body.data.sunChart).toBeDefined();
+    expect(body.data.moonChart).toBeDefined();
+    expect(body.data.karakamshaChart).toBeDefined();
+  });
+
+  // 17. AVAKHADA ENDPOINT TEST
+  it('POST /api/v1/astrology/avakhada should calculate Avakhada, Ghat, and Tara Chakras', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/avakhada',
+      payload: {
+        birthDetails: {
+          name: 'Avakhada Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.avakhada).toBeDefined();
+    expect(body.data.ghat).toBeDefined();
+    expect(body.data.tara).toBeDefined();
+  });
+
+  // 18. VIMSHOPAKA ENDPOINT TEST
+  it('POST /api/v1/astrology/vimshopaka should calculate Vimshopaka Bala and Rashmis', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/astrology/vimshopaka',
+      payload: {
+        birthDetails: {
+          name: 'Vimshopaka Test',
+          dateOfBirth: '1990-05-15',
+          timeOfBirth: '14:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.data).toBeDefined();
+    expect(body.data.planets).toBeDefined();
+    expect(body.data.rashmis).toBeDefined();
+    expect(body.data.totalChartRays).toBeDefined();
   });
 });
 

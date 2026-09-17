@@ -34,6 +34,7 @@ export interface NormalizedAscendant {
 export type PlanetaryDignity =
   | 'EXALTED'
   | 'DEBILITATED'
+  | 'MOOLATRIKONA'
   | 'OWN_SIGN'
   | 'GREAT_FRIEND'
   | 'FRIEND'
@@ -56,6 +57,16 @@ export interface NormalizedPlanet {
   combust: boolean;
   dignity: PlanetaryDignity;
   lordship: number[];     // House numbers this planet rules
+  speedLongitude?: number;
+  latitude?: number;
+  avastha?: {
+    baladi: string;
+    baladiStrengthPercent: number;
+    jagratadi: string;
+  };
+  charaKaraka?: string;   // e.g. 'AK', 'AmK', 'BK', 'MK', 'PK', 'GK', 'DK'
+  aspectsReceived?: PlanetSymbol[];
+  aspectsCast?: number[]; // houses aspected
   status: 'VERIFIED';
 }
 

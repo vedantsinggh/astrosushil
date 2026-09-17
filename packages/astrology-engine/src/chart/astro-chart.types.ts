@@ -3,7 +3,7 @@ import { AstrologyConfig } from '../configuration/astrology-config';
 import { PlanetSymbol, PlanetPosition } from '../planets/planet.types';
 import { CalculatedPoint, HousePlacement } from '../houses/house.types';
 import { VargaType, VargaChart } from '../varga/varga.types';
-import { VimshottariDashaTree } from '../dasha/dasha.types';
+import { DashaTree } from '../dasha/dasha.types';
 
 export const ASTROLOGY_ENGINE_VERSION = '0.1.0';
 
@@ -23,5 +23,5 @@ export interface AstroChart {
   planets: Record<PlanetSymbol, PlanetPosition>;
   houses?: HousePlacement[];
   vargas?: Partial<Record<VargaType, VargaChart>>;
-  dashas?: VimshottariDashaTree;
+  dashas?: DashaTree;
 }
