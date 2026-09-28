@@ -156,8 +156,7 @@ export class CareerReportWorker {
         { id: report.userId, role: 'USER' }
       );
 
-      // Validate completeness of calculated chart (Ascendant, 9 planets, 12 houses)
-      if (!normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
+      if (!normalizedChart || !normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
         await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Ascendant data is missing from chart calculation.');
         return;
       }

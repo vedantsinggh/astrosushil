@@ -160,3 +160,5 @@ export interface YogaEvaluationReport {
   undetectedYogas?: YogaResult[];
 }
 
+export type YogaEvaluationResponse = YogaEvaluationReport;
+

@@ -11,6 +11,8 @@ export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
   GUPTA_NADI_DOSSIER: 99900,     // ₹999
 };
 
+import { config } from '../config';
+
 export class PaymentService {
   /**
    * Mock creation of Razorpay Order ID for local testing.
@@ -27,17 +29,27 @@ export class PaymentService {
   }
 
   /**
-   * Mock signature verification for Razorpay payment payload.
+   * Verified signature verification for Razorpay payment payload.
    */
   public verifySignature(
     razorpayOrderId: string,
     razorpayPaymentId: string,
     razorpaySignature: string
   ): boolean {
-    if (process.env.NODE_ENV === 'test' || razorpaySignature.startsWith('mock_sig_')) {
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return false;
+    }
+    const isProduction = config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+    if (!isProduction && razorpaySignature.startsWith('mock_sig_')) {
       return true;
     }
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'mock_secret';
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      if (isProduction) {
+        return false;
+      }
+      return false;
+    }
     const body = `${razorpayOrderId}|${razorpayPaymentId}`;
     const expectedSignature = crypto
       .createHmac('sha256', secret)

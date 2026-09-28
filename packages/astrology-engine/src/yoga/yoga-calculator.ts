@@ -10,6 +10,10 @@ import { YogaRegistry } from './yoga-registry';
 export class YogaCalculator {
   public static readonly VERSION = '0.1.0';
 
+  public calculateYogas(chart: any, options: any = {}): any {
+    return this.evaluateYogas(chart, options);
+  }
+
   /**
    * Evaluates all registered classical Yogas for a given AstroChart and options.
    */

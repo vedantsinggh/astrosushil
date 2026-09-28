@@ -41,6 +41,7 @@ import { NotFoundError, AppError, ValidationError } from '../../errors/app-error
 import { mapBirthProfileToBirthDetails, mapDirectBirthDetailsToBirthDetails } from './birth-details.mapper';
 import { mapAstroChartToResponse, AstroChartResponseDto } from './astrology-response.mapper';
 import {
+  CalculateChartInput,
   DirectBirthDetailsInput,
   DashaRequestInput,
   PanchangRequestInput,
@@ -148,6 +149,28 @@ export class AstrologyService {
     }
 
     throw new ValidationError('Either birthProfileId or birthDetails must be provided');
+  }
+
+  public async calculateChart(
+    input: CalculateChartInput,
+    requestingUser?: { id: string; role?: string }
+  ): Promise<AstroChartResponseDto> {
+    if (input.birthProfileId) {
+      return this.calculateChartForProfile(input.birthProfileId, requestingUser, (input.vargaType as any) || 'D1');
+    }
+    if (input.birthDetails) {
+      return this.calculateChartForDirectInput(input.birthDetails, (input.vargaType as any) || 'D1');
+    }
+    throw new ValidationError('Either birthProfileId or birthDetails must be provided');
+  }
+
+  public async calculateNormalizedChart(
+    input: CalculateChartInput,
+    requestingUser?: { id: string; role?: string }
+  ): Promise<NormalizedChart> {
+    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
+    const rawChart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
+    return normalizeAstroChart(rawChart);
   }
 
   public async calculateChartForProfile(
@@ -580,7 +603,7 @@ export class AstrologyService {
         this.getActiveConfig(),
         ['D1']
       );
-      const saturnTransit = transitSnapshot.transitPlanets.find((p) => p.planet === PlanetSymbol.SATURN);
+      const saturnTransit = transitSnapshot.transitChart.planets[PlanetSymbol.SATURN];
       transitSaturnLong = saturnTransit?.longitude ?? 0;
     }
 

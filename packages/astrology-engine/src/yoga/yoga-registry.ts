@@ -104,3 +104,5 @@ export class YogaRegistry {
   }
 }
 
+export const defaultYogaRegistry = YogaRegistry;
+
