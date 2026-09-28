@@ -10,14 +10,15 @@ import {
 export class PredictionsService {
   public async generateNatalPrediction(
     input: GenerateNatalPredictionInput,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | string }
   ) {
     // 1. Ownership authorization check
     const profile = await prisma.birthProfile.findUnique({
       where: { id: input.birthProfileId },
     });
 
-    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(requestingUser.role);
+    if (!profile || (profile.userId !== requestingUser.id && !isAdmin)) {
       throw new NotFoundError('Birth profile not found');
     }
 
@@ -69,7 +70,7 @@ export class PredictionsService {
 
   public async generateTransitPrediction(
     input: GenerateTransitPredictionInput,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | string }
   ) {
     const targetDate = input.targetDate || new Date().toISOString().split('T')[0];
 
@@ -77,7 +78,8 @@ export class PredictionsService {
       where: { id: input.birthProfileId },
     });
 
-    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(requestingUser.role);
+    if (!profile || (profile.userId !== requestingUser.id && !isAdmin)) {
       throw new NotFoundError('Birth profile not found');
     }
 

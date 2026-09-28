@@ -139,6 +139,13 @@ export default function BirthProfileDetailsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Link
+            href={`/live-sessions?userId=${profile.user?.id}&profileId=${profile.id}`}
+            className="btn btn-primary"
+            style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <span>🕒</span> Start Live Consultation
+          </Link>
           <Link href={`/users/${profile.user?.id}`} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
             👤 View User Details
           </Link>

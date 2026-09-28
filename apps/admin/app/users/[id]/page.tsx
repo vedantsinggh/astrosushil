@@ -336,6 +336,14 @@ export default function UserDetailsPage() {
 
           {/* ACTION BUTTONS (PERMISSION CHECKED) */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link
+              href={`/live-sessions?userId=${user.id}`}
+              className="btn btn-primary"
+              style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+            >
+              <span>🕒</span> Start Live Session
+            </Link>
+
             {hasPermission('users:suspend') && !user.isSuspended && user.id !== currentAdmin?.id && user.role !== 'SUPER_ADMIN' && (
               <button onClick={() => setActiveModal('suspend')} className="btn btn-secondary" style={{ color: 'var(--badge-danger-text)', fontSize: '0.8rem' }}>
                 🚫 Suspend User
@@ -807,7 +815,10 @@ export default function UserDetailsPage() {
                       <td>{p.timeOfBirth}</td>
                       <td style={{ color: 'var(--text-secondary)' }}>{p.placeName || 'Coordinates Only'}</td>
                       <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{new Date(p.createdAt).toLocaleDateString()}</td>
-                      <td>
+                      <td style={{ display: 'flex', gap: '0.4rem' }}>
+                        <Link href={`/live-sessions?userId=${user.id}&profileId=${p.id}`} className="btn btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>🕒</span> Live Session
+                        </Link>
                         <Link href={`/birth-profiles/${p.id}`} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
                           Inspect Chart →
                         </Link>

@@ -94,6 +94,12 @@ export interface AshtottariEligibility {
 
 export interface AshtottariDashaTree {
   dashaSystem: 'ASHTOTTARI';
+  system?: string;
+  totalYears?: number;
+  startingLord?: any;
+  isEligible?: boolean;
+  eligibilityReason?: string;
+  currentPeriod?: any;
   moonLongitude: number;
   moonNakshatraIndex: number;     // 1 to 27
   moonNakshatraName: string;      // e.g. "Magha"
@@ -237,6 +243,127 @@ export interface IneligibleDashaResult {
   eligibility: DashaEligibilityResult;
 }
 
+export interface CurrentDashaPeriod {
+  mahadasha: any;
+  antardasha?: any;
+  pratyantardasha?: any;
+  sookshma?: any;
+  prana?: any;
+  level?: number;
+  startDateIso?: string;
+  endDateIso?: string;
+  targetDateIso?: string;
+}
+
+export interface SignDashaPeriod {
+  sign?: string;
+  rashiIndex?: number;
+  signIndex?: number;
+  signName?: string;
+  sanskritName?: string;
+  lord?: any;
+  startDateIso: string;
+  endDateIso: string;
+  durationYears: number;
+  subPeriods?: SignDashaPeriod[];
+}
+
+export interface CharaDashaTree {
+  system?: string;
+  startingSign?: any;
+  startingSignName?: string;
+  direction?: string;
+  currentPeriod?: any;
+  lagnaRashiIndex?: number;
+  mahadashas?: SignDashaPeriod[];
+  periods?: SignDashaPeriod[];
+}
+
+export type ConditionalDashaType =
+  | 'CHATURSHITI_SAMA'
+  | 'SHATABDIKA'
+  | 'DVADASHOTTARI'
+  | 'DWISAPTATI_SAMA'
+  | 'SHAT_TRIMSHATSAMA'
+  | 'SHODASHOTTARI'
+  | 'PANCHOTTARI';
+
+export interface ConditionalDashaTree {
+  system?: string;
+  totalYears?: number;
+  isEligible?: boolean;
+  eligibilityReason?: string;
+  startingLord?: any;
+  balanceAtBirthYears?: number;
+  currentPeriod?: any;
+  dashaType?: ConditionalDashaType;
+  mahadashas?: DashaPeriod[];
+}
+
+export interface KalachakraDashaPeriod {
+  sign?: string;
+  rashiIndex?: number;
+  signIndex?: number;
+  signName?: string;
+  sanskritName?: string;
+  navamshaRashiIndex?: number;
+  lord: PlanetSymbol;
+  startDateIso: string;
+  endDateIso: string;
+  durationYears: number;
+  isDeha?: boolean;
+  isJeeva?: boolean;
+  movementType?: string;
+  subPeriods?: KalachakraDashaPeriod[];
+}
+
+export interface KalachakraDashaTree {
+  system?: string;
+  directionType?: string;
+  nakshatraIndex?: number;
+  nakshatraName?: string;
+  pada?: number;
+  totalPadaYears?: number;
+  dehaRashi?: any;
+  jeevaRashi?: any;
+  currentPeriod?: any;
+  moonLongitude?: number;
+  balanceAtBirthYears: number;
+  mahadashas: KalachakraDashaPeriod[];
+}
+
+export interface NarayanaDashaTree {
+  system?: string;
+  startingSign?: any;
+  startingSignName?: string;
+  direction?: string;
+  progressionType?: string;
+  currentPeriod?: any;
+  lagnaRashiIndex?: number;
+  mahadashas?: SignDashaPeriod[];
+  periods?: SignDashaPeriod[];
+}
+
+export interface YoginiDashaPeriod {
+  yoginiName: string;
+  lord: PlanetSymbol;
+  startDateIso: string;
+  endDateIso: string;
+  durationYears: number;
+  subPeriods?: YoginiDashaPeriod[];
+}
+
+export interface YoginiDashaTree {
+  system?: string;
+  totalCycleYears?: number;
+  startingYogini?: string;
+  startingLord?: any;
+  currentPeriod?: any;
+  moonNakshatraIndex: number;
+  balanceAtBirthYears: number;
+  mahadashas: YoginiDashaPeriod[];
+}
+
 export type DashaTree =
   | VimshottariDashaTree
   | AshtottariDashaTree
@@ -246,6 +373,11 @@ export type DashaTree =
   | ShatabdikaDashaTree
   | ChaturaseetiSamaDashaTree
   | DwadashottariDashaTree
-  | PanchottariDashaTree;
+  | PanchottariDashaTree
+  | CharaDashaTree
+  | ConditionalDashaTree
+  | KalachakraDashaTree
+  | NarayanaDashaTree
+  | YoginiDashaTree;
 
 export type DashaCalculationResult = DashaTree | IneligibleDashaResult;

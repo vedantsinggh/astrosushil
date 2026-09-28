@@ -109,6 +109,13 @@ export const strengthRequestSchema = z.object({
   message: 'Either birthProfileId or birthDetails must be provided',
 });
 
+export const evidenceRequestSchema = z.object({
+  birthProfileId: z.string().uuid().optional(),
+  birthDetails: directBirthDetailsSchema.optional(),
+  domain: z.string().optional(),
+}).refine(data => data.birthProfileId || data.birthDetails, {
+  message: 'Either birthProfileId or birthDetails must be provided',
+});
 export const ashtakavargaRequestSchema = z.object({
   birthProfileId: z.string().uuid().optional(),
   birthDetails: directBirthDetailsSchema.optional(),
@@ -266,11 +273,21 @@ export const vimshopakaRequestSchema = z.object({
   message: 'Either birthProfileId or birthDetails must be provided',
 });
 
+export const predictionsRequestSchema = z.object({
+  birthProfileId: z.string().uuid().optional(),
+  birthDetails: directBirthDetailsSchema.optional(),
+  category: z.string().optional(),
+}).refine(data => data.birthProfileId || data.birthDetails, {
+  message: 'Either birthProfileId or birthDetails must be provided',
+});
+
 export type DirectBirthDetailsInput = z.infer<typeof directBirthDetailsSchema>;
 export type CalculateChartInput = z.infer<typeof calculateChartSchema>;
 export type DashaRequestInput = z.infer<typeof dashaRequestSchema>;
 export type PanchangRequestInput = z.infer<typeof panchangRequestSchema>;
 export type VargasRequestInput = z.infer<typeof vargasRequestSchema>;
+export type EvidenceRequestInput = z.infer<typeof evidenceRequestSchema>;
+export type PredictionsRequestInput = z.infer<typeof predictionsRequestSchema>;
 export type MatchmakingRequestInput = z.infer<typeof matchmakingRequestSchema>;
 export type CompatibilityRequestInput = z.infer<typeof compatibilityRequestSchema>;
 export type StrengthRequestInput = z.infer<typeof strengthRequestSchema>;

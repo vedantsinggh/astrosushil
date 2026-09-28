@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
 import { StatusBadge } from '../../components/StatusBadge';
 
@@ -90,6 +91,63 @@ export default function DashboardPage() {
           {error}
         </div>
       )}
+
+      {/* LIVE SESSION HERO CALLOUT */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.3)',
+          borderRadius: 'var(--radius-lg, 12px)',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+            }}
+          >
+            🕒
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary, #F8FAFC)' }}>
+              Live Consultation Workspace
+            </h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-muted, #94A3B8)' }}>
+              Start or resume a real-time client astrology consultation with interactive Kundli charts, notes, history, and Jyoti AI.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/live-sessions"
+          className="btn btn-primary"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            textDecoration: 'none',
+            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+          }}
+        >
+          <span>✨</span> Open Live Session Console →
+        </Link>
+      </div>
 
       {/* METRIC CARDS */}
       <div className="card-grid">

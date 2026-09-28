@@ -116,14 +116,15 @@ export class BirthProfilesService {
    */
   public async getProfileById(
     profileId: string,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | string }
   ): Promise<BirthProfileWithDetailsResponseDto> {
     const profile = await prisma.birthProfile.findUnique({
       where: { id: profileId },
     });
 
     // Security Check: Enforce server-side ownership authorization
-    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(requestingUser.role);
+    if (!profile || (profile.userId !== requestingUser.id && !isAdmin)) {
       throw new NotFoundError('Birth profile not found');
     }
 
@@ -150,14 +151,15 @@ export class BirthProfilesService {
   public async updateProfile(
     profileId: string,
     input: UpdateBirthProfileInput,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | string }
   ): Promise<BirthProfileWithDetailsResponseDto> {
     const existing = await prisma.birthProfile.findUnique({
       where: { id: profileId },
     });
 
     // Security Check: Enforce server-side ownership authorization
-    if (!existing || (existing.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(requestingUser.role);
+    if (!existing || (existing.userId !== requestingUser.id && !isAdmin)) {
       throw new NotFoundError('Birth profile not found');
     }
 
@@ -209,14 +211,15 @@ export class BirthProfilesService {
    */
   public async deleteProfile(
     profileId: string,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | string }
   ): Promise<{ message: string }> {
     const existing = await prisma.birthProfile.findUnique({
       where: { id: profileId },
     });
 
     // Security Check: Enforce server-side ownership authorization
-    if (!existing || (existing.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(requestingUser.role);
+    if (!existing || (existing.userId !== requestingUser.id && !isAdmin)) {
       throw new NotFoundError('Birth profile not found');
     }
 

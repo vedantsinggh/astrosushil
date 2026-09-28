@@ -28,14 +28,15 @@ export interface NadiRuleEvaluationResult {
 export class GuptaNadiService {
   public async evaluateForProfile(
     input: EvaluateGuptaNadiInput,
-    requestingUser: { id: string; role: 'USER' | 'ADMIN' }
+    requestingUser: { id: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | string }
   ): Promise<NadiRuleEvaluationResult> {
     // 1. Enforce server-side ownership authorization for birth profile
     const profile = await prisma.birthProfile.findUnique({
       where: { id: input.birthProfileId },
     });
 
-    if (!profile || (profile.userId !== requestingUser.id && requestingUser.role !== 'ADMIN')) {
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(requestingUser.role);
+    if (!profile || (profile.userId !== requestingUser.id && !isAdmin)) {
       throw new NotFoundError('Birth profile not found');
     }
 

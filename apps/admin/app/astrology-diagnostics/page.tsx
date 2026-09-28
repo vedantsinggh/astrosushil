@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '../../lib/auth-context';
+import { apiFetch } from '../../lib/api-client';
 
 export default function AstrologyDiagnosticsPage() {
-  const { fetchWithAuth } = useAuth();
   const [profileId, setProfileId] = useState('');
   const [domain, setDomain] = useState('CAREER');
   const [loading, setLoading] = useState(false);
@@ -21,29 +20,21 @@ export default function AstrologyDiagnosticsPage() {
     setPredictionsData(null);
 
     try {
-      const [evRes, predRes] = await Promise.all([
-        fetchWithAuth('/api/v1/astrology/evidence', {
+      const [evJson, predJson] = await Promise.all([
+        apiFetch<any>('/api/v1/astrology/evidence', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ birthProfileId: profileId.trim(), domain }),
         }),
-        fetchWithAuth('/api/v1/astrology/predictions', {
+        apiFetch<any>('/api/v1/astrology/predictions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ birthProfileId: profileId.trim(), category: domain }),
         }),
       ]);
 
-      if (evRes.ok) {
-        const evJson = await evRes.json();
+      if (evJson?.data) {
         setEvidenceData(evJson.data);
-      } else {
-        const errJson = await evRes.json().catch(() => ({}));
-        setError(errJson.error?.message || 'Failed to fetch astrology evidence');
       }
-
-      if (predRes.ok) {
-        const predJson = await predRes.json();
+      if (predJson?.data) {
         setPredictionsData(predJson.data);
       }
     } catch (err: any) {

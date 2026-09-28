@@ -79,6 +79,9 @@ export class RashiBhavishyaService {
             houseSystem: 'WHOLE_SIGN',
             nodeCalculation: 'MEAN_NODE',
             planetaryCalculationMode: 'GEOCENTRIC',
+            precisionDegrees: 0.0001,
+            roundingRule: 'NEAREST',
+            dashaSystem: 'VIMSHOTTARI',
           };
           const chart = await this.calculator.calculateChart(birthDetails, activeConfig);
           // Moon Rashi is standard for Vedic Rashi Bhavishya daily horoscope

@@ -2,6 +2,9 @@ import crypto from 'crypto';
 import { ReportType } from '@prisma/client';
 
 export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
+  KUNDLI: 29900,                 // ₹299
+  PLANETARY_SUMMARY: 19900,      // ₹199
+  CAREER: 49900,                 // ₹499
   MARRIAGE_COMPATIBILITY: 49900, // ₹499
   CAREER_PROSITY: 69900,         // ₹699
   CHILDBIRTH_FAMILY: 49900,      // ₹499

@@ -129,7 +129,7 @@ export class FeatureAccessService {
     // 2. User existence & suspension verification
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, isEmailVerified: true, role: true },
+      select: { id: true, email: true, emailVerifiedAt: true, role: true },
     });
 
     if (!user) {
@@ -228,7 +228,7 @@ export class FeatureAccessService {
   }> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, isEmailVerified: true, createdAt: true },
+      select: { id: true, email: true, emailVerifiedAt: true, createdAt: true },
     });
 
     const isGuest = !user || user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest');

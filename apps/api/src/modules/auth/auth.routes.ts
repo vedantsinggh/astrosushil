@@ -65,7 +65,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = verifyEmailSchema.parse(request.body);
-      const signJwt = (payload: object) => fastify.jwt.sign(payload);
+      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await authService.verifyEmail(input, signJwt);
       return reply.status(200).send(result);
     },
@@ -88,7 +88,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = loginSchema.parse(request.body);
-      const signJwt = (payload: object) => fastify.jwt.sign(payload);
+      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await authService.login(input, signJwt);
       return reply.status(200).send(result);
     },
@@ -175,7 +175,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = refreshSchema.parse(request.body);
-      const signJwt = (payload: object) => fastify.jwt.sign(payload);
+      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await authService.refresh(input.refreshToken, signJwt);
       return reply.status(200).send(result);
     },
