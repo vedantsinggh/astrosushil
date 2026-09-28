@@ -45,7 +45,7 @@ export const APPROVED_ASTROLOGY_TEST_CASES: ReferenceAstrologyTestCase[] = [
       roundingRule: 'NEAREST',
     },
     expected: {
-      sunRashiIndex: 1, // Vrishabha (Taurus) - Sun in Taurus around May 15
+      sunRashiIndex: 2, // Vrishabha (Taurus) - 1-based index (1=Mesha, 2=Vrishabha)
       toleranceDegrees: 0.5,
     },
   },
@@ -89,6 +89,7 @@ describe('Reference Astrology Test Fixture Framework', () => {
 
         if (testCase.expected?.sunRashiIndex !== undefined) {
           const sun = chart.planets['SUN' as any];
+          console.log('DEBUG SUN:', JSON.stringify(sun), 'ayanamsaOffset:', chart.metadata?.config);
           expect(sun).toBeDefined();
           expect(sun?.rashiIndex).toBe(testCase.expected.sunRashiIndex);
         }

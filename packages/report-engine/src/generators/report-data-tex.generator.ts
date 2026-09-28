@@ -11,7 +11,9 @@ export function escapeLatex(text: string): string {
   const degreePlaceholder = 'DEGREEPLACEHOLDER';
   const backslashPlaceholder = 'BACKSLASHPLACEHOLDER';
 
-  let clean = text.replace(/\\textdegree\{\}/g, degreePlaceholder);
+  let clean = text;
+
+  clean = clean.replace(/\\textdegree\{\}/g, degreePlaceholder);
   clean = clean.replace(/\\/g, backslashPlaceholder);
 
   clean = clean
@@ -84,7 +86,7 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += renderCmd('UnavailableValue', '\\RenderUnavailable{\\UnavailableLabel}');
   tex += renderCmd(
     'UnavailableAnalysis',
-    '\\RenderUnavailable{Personalized interpretation unavailable because career analysis layer has not run.}'
+    '\\RenderUnavailable{Analysis unavailable because career analysis layer has not run.}'
   );
   tex += renderCmd('UnavailableStatus', '\\RenderUnavailableStatus');
   tex += renderCmd('VerifiedStatus', '\\RenderVerifiedStatus');

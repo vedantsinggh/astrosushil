@@ -44,7 +44,7 @@ export class AstrologyEvidenceEngine {
         timeOfBirth: chart.birthDetails?.timeOfBirth || 'Not supplied',
         latitude: chart.birthDetails?.latitude || 28.6139,
         longitude: chart.birthDetails?.longitude || 77.209,
-        timezone: chart.timezone || chart.birthDetails?.timezone || 'Asia/Kolkata',
+        timezone: (chart as any).timezone || chart.birthDetails?.timezone || 'Asia/Kolkata',
         placeName: chart.birthDetails?.placeName || 'New Delhi, India',
       },
       ascendant: chart.ascendant,

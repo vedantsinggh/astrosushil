@@ -8,7 +8,7 @@
     "types": ["node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["src/__tests__", "**/*.test.ts"],
+  "exclude": ["src/__tests__", "**/*.test.ts", "src/test-*.ts"],
   "references": [
     { "path": "../shared" },
     { "path": "../astrology-engine" },

@@ -64,6 +64,10 @@ export class ReportsService {
     if (activeReport && !input.forceRegenerate) {
       const active = activeReport as any;
       console.log(`[CAREER_REPORT_JOB_REQUEST] Active job in progress found for user ${user.id}. Reusing active reportId ${active.id} (status: ${active.status}, progress: ${active.progress}%).`);
+      
+      // Ensure worker queue receives job ID in case process was restarted
+      careerReportWorker.enqueueReportJob(active.id);
+
       return {
         reportId: active.id,
         status: active.status,

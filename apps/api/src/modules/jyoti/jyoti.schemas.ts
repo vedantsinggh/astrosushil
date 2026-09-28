@@ -16,4 +16,4 @@ export const JyotiChatRequestSchema = z.object({
     .optional(),
 });
 
-export type JyotiChatRequestDto = z.infer<typeof JyotiChatRequestSchema>;
+export type JyotiChatRequestDto = z.input<typeof JyotiChatRequestSchema>;

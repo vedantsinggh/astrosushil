@@ -61,7 +61,9 @@ export class AstronomyEngineAdapter implements EphemerisProvider {
     // If astronomy-engine library is present, compute via VSOP87/ELP2000 celestial mechanics
     if (this.astronomyLib) {
       try {
-        const astroTime = this.astronomyLib.MakeTime(julianDayUT);
+        // astronomy-engine MakeTime(number) expects days since J2000.0 (JD 2451545.0)
+        const daysFromJ2000 = julianDayUT - 2451545.0;
+        const astroTime = this.astronomyLib.MakeTime(daysFromJ2000);
 
         if (planet === PlanetSymbol.RAHU || planet === PlanetSymbol.KETU) {
           // Calculate Lunar Node (Mean Node)
@@ -89,7 +91,7 @@ export class AstronomyEngineAdapter implements EphemerisProvider {
         const ecliptic = this.astronomyLib.Ecliptic(geoVector);
 
         // Calculate velocity by evaluating position + 1 hour
-        const astroTimeNext = this.astronomyLib.MakeTime(julianDayUT + 1 / 24);
+        const astroTimeNext = this.astronomyLib.MakeTime(daysFromJ2000 + 1 / 24);
         const geoVectorNext = this.astronomyLib.GeoVector(bodyName, astroTimeNext, true);
         const eclipticNext = this.astronomyLib.Ecliptic(geoVectorNext);
 

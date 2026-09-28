@@ -1,20 +1,21 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { prisma } from './prisma.service';
+import { ReportStatus } from '@prisma/client';
 import { storageService } from './storage.service';
 import { astrologyService } from '../modules/astrology/astrology.service';
 import { notificationService } from '../modules/notifications/notification.service';
 import { logger } from '../utils/logger';
 import {
   careerEvidenceEngine,
-  GeminiCareerAnalysisProvider,
+  OpenRouterCareerAnalysisProvider,
   MockCareerAnalysisProvider,
   CareerAnalysisProvider,
-  getGeminiCareerConfig,
+  getOpenRouterCareerConfig,
 } from '@astro/prediction-engine';
 import {
   careerReportService,
-  xeLatexCompiler,
+  latexCompiler,
 } from '@astro/report-engine';
 
 export type ReportJobStage =
@@ -39,10 +40,21 @@ export class CareerReportWorker {
   private isProcessing = false;
   private readonly jobQueue: string[] = [];
 
+  constructor() {
+    const cfg = getOpenRouterCareerConfig();
+    const provider = (process.env.LLM_PROVIDER || 'openrouter').toLowerCase();
+    console.log('[LLM CONFIG]', {
+      provider,
+      model: cfg.model,
+      fallbackModels: cfg.fallbackModels,
+    });
+  }
+
   /**
    * Enqueues a report generation job by ID and kicks off worker processing loop.
    */
   public enqueueReportJob(reportId: string): void {
+    this.recoverStaleJobs().catch(() => {});
     redisQueueService.enqueueJob(reportId).then((enqueued) => {
       if (!enqueued) {
         if (!this.jobQueue.includes(reportId)) {
@@ -60,6 +72,23 @@ export class CareerReportWorker {
         this.processQueue();
       });
     });
+  }
+
+  public async recoverStaleJobs(): Promise<void> {
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const staleReports = await prisma.report.findMany({
+        where: {
+          status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'] as any[] },
+          updatedAt: { lt: fiveMinutesAgo },
+        },
+      });
+
+      for (const r of staleReports) {
+        logger.warn({ reportId: r.id, status: r.status }, '[CareerReportWorker] Recovering orphaned stale job');
+        await this.failJob(r.id, 'WORKER_TIMEOUT_RECOVERED', 'Report processing timed out or server restarted. Please try again.');
+      }
+    } catch (_) {}
   }
 
   private async processQueue(): Promise<void> {
@@ -104,6 +133,17 @@ export class CareerReportWorker {
       return;
     }
 
+    // Prevent duplicate worker executions if report is currently being processed by another active worker run
+    const activeStatuses = ['CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'];
+    const timeSinceLastUpdate = Date.now() - new Date(report.updatedAt).getTime();
+    if (activeStatuses.includes(report.status) && timeSinceLastUpdate < 120000) { // 2 minutes
+      logger.info(
+        { reportId, status: report.status, timeSinceLastUpdateMs: timeSinceLastUpdate },
+        '[CareerReportWorker] Report is already active in pipeline. Skipping duplicate execution.'
+      );
+      return;
+    }
+
     try {
       // --- STAGE 1: QUEUED (0%) ---
       await this.updateJobStatus(reportId, 'QUEUED', 0, 'QUEUED');
@@ -116,8 +156,7 @@ export class CareerReportWorker {
         { id: report.userId, role: 'USER' }
       );
 
-      // Validate completeness of calculated chart (Ascendant, 9 planets, 12 houses)
-      if (!normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
+      if (!normalizedChart || !normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
         await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Ascendant data is missing from chart calculation.');
         return;
       }
@@ -133,17 +172,24 @@ export class CareerReportWorker {
       // --- STAGE 3: ANALYZING (35%) ---
       await this.updateJobStatus(reportId, 'ANALYZING', 35, 'ANALYZING');
 
-      // Select LLM Provider: Use Gemini if API key is configured, else MockProvider for offline dev/test
-      const geminiConfig = getGeminiCareerConfig();
+      // Select LLM Provider: Check LLM_PROVIDER env var first, fallback to OpenRouter if API key present
+      const llmProviderEnv = (process.env.LLM_PROVIDER || '').toLowerCase().trim();
+      const openrouterConfig = getOpenRouterCareerConfig();
       const isApiKeyAvailable = Boolean(
-        geminiConfig.apiKey &&
-        geminiConfig.apiKey.trim().length > 0 &&
-        geminiConfig.apiKey !== 'mock-key-dev'
+        openrouterConfig.apiKey &&
+        openrouterConfig.apiKey.trim().length > 0 &&
+        openrouterConfig.apiKey !== 'mock-key-dev'
       );
 
-      const provider: CareerAnalysisProvider = isApiKeyAvailable
-        ? new GeminiCareerAnalysisProvider()
-        : new MockCareerAnalysisProvider();
+      const useMock = llmProviderEnv === 'mock' || (!isApiKeyAvailable && llmProviderEnv !== 'openrouter');
+      const provider: CareerAnalysisProvider = useMock
+        ? new MockCareerAnalysisProvider()
+        : new OpenRouterCareerAnalysisProvider();
+
+      logger.info(
+        { reportId, provider: useMock ? 'MOCK' : 'OPENROUTER', model: openrouterConfig.model },
+        '[CareerReportWorker] Initiating career analysis synthesis'
+      );
 
       let pipelineResult;
       try {
@@ -174,30 +220,40 @@ export class CareerReportWorker {
 
       let compilationResult;
       try {
-        compilationResult = await xeLatexCompiler.compileReport({
+        compilationResult = await latexCompiler.compileReport({
           reportId,
           reportDataTex,
           careerReportData: pipelineResult.reportData,
-          timeoutMs: 60000,
+          timeoutMs: 180000,
         });
       } catch (compileErr: any) {
-        logger.error({ reportId, err: compileErr.message }, '[CareerReportWorker] LaTeX compilation failed');
-        await this.failJob(reportId, 'LATEX_COMPILE_FAILED', compileErr.message || 'LaTeX PDF compilation failed.');
+        const cleanMsg = compileErr?.message ? compileErr.message.split('\n')[0] : 'LaTeX PDF compilation failed.';
+        await this.failJob(reportId, 'LATEX_COMPILE_FAILED', cleanMsg);
         return;
       }
 
 
       // --- STAGE 5.5: VALIDATING / QA (85%) ---
-      await this.updateJobStatus(reportId, 'VALIDATING', 85, 'VALIDATING');
+      await this.updateJobStatus(reportId, 'COMPILING', 85, 'VALIDATING');
+      const isQaEnabled = process.env.REPORT_PDF_QA_ENABLED?.toLowerCase().trim() !== 'false';
+
       const validation = validateReportPdf(
         compilationResult.pdfBuffer,
         compilationResult.pageCount,
         reportDataTex
       );
-      if (!validation.valid) {
-        logger.error({ reportId, reason: validation.reason }, '[CareerReportWorker] PDF Validation QA failed');
-        await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', validation.reason || 'PDF failed quality verification.');
-        return;
+
+      if (isQaEnabled) {
+        if (!validation.valid) {
+          logger.error({ reportId, reason: validation.reason }, '[CareerReportWorker] PDF Validation QA failed');
+          await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', validation.reason || 'PDF failed quality verification.');
+          return;
+        }
+      } else {
+        logger.info(
+          { reportId, pageCount: compilationResult.pageCount, valid: validation.valid, reason: validation.reason },
+          '[CareerReportWorker] PDF QA: SKIPPED (REPORT_PDF_QA_ENABLED=false)'
+        );
       }
 
       // --- STAGE 6: UPLOADING (95%) ---
@@ -271,7 +327,7 @@ export class CareerReportWorker {
 
   private async updateJobStatus(
     reportId: string,
-    status: any,
+    status: ReportStatus,
     progress: number,
     stage: string
   ): Promise<void> {

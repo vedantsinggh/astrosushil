@@ -10,13 +10,14 @@
 
 1. **Deterministic Calculations vs. Natural Language Formatting**:
    - All astrological calculations (planetary coordinates, house cusps, ascendant, nakshatras) are calculated **100% deterministically** by `@astro/astrology-engine` and Node.js services.
-   - The LLM (Gemini) acts **strictly as an explanation and natural language formatting engine**.
-   - Gemini is **NEVER** permitted to calculate or infer planetary positions or chart values.
+   - The LLM (OpenRouter - `poolside/laguna-s-2.1:free`) acts **strictly as an explanation and natural language formatting engine**.
+   - OpenRouter is **NEVER** permitted to calculate or infer planetary positions or chart values.
 
-2. **API Key Security**:
-   - The `GEMINI_API_KEY` is configured exclusively on the Node.js backend environment.
+2. **API Key Security & Data Privacy Notice**:
+   - The `OPENROUTER_API_KEY` is configured exclusively on the Node.js backend environment.
    - The Flutter mobile app communicates **only** with the Node.js API endpoint (`POST /api/v1/jyoti/chat`).
-   - `GEMINI_API_KEY` is never exposed to mobile clients, logs, or documentation.
+   - `OPENROUTER_API_KEY` is never exposed to mobile clients, logs, or documentation.
+   - Free OpenRouter models are used solely with anonymous structured astrological evidence (house placements, planetary signs, dasha names). Personal identifying information (full names, exact street addresses, phone numbers) is never transmitted to OpenRouter endpoints.
 
 3. **Client Access & Gating**:
    - Both guest and authenticated users can see Jyoti entry points (Ask Jyoti card and floating assistant orb).
@@ -42,7 +43,7 @@ src/modules/jyoti/
 │   └── jyoti-system.prompt.ts        # System instruction prompt for Jyoti
 ├── providers/
 │   ├── llm.provider.ts               # Abstract LLM provider interface
-│   └── gemini.provider.ts            # Official Gemini REST API provider (v1beta generateContent)
+│   └── openrouter.provider.ts        # OpenRouter Chat Completions REST API provider
 ├── jyoti.controller.ts               # Request handler
 ├── jyoti.routes.ts                   # Fastify route definitions (POST /api/v1/jyoti/chat)
 ├── jyoti.schemas.ts                  # Zod validation schemas
@@ -101,7 +102,7 @@ src/modules/jyoti/
 
 ## Action System Allowlist
 
-To prevent Gemini from returning arbitrary or dangerous commands, all generated actions are filtered through an strict allowlist in `ActionRegistry`:
+To prevent OpenRouter from returning arbitrary or dangerous commands, all generated actions are filtered through an strict allowlist in `ActionRegistry`:
 
 | Action Type | Flutter Destination Target |
 | :--- | :--- |
@@ -122,8 +123,9 @@ To prevent Gemini from returning arbitrary or dangerous commands, all generated 
 Configure the following variables in `apps/api/.env`:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-flash
+LLM_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=poolside/laguna-s-2.1:free
 JYOTI_RATE_LIMIT_PER_MINUTE=20
 JYOTI_DAILY_LIMIT=200
 ```

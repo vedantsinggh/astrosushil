@@ -1,12 +1,15 @@
 # Background Workers - Astro Sushil
 
-This directory will contain the background job processors and worker applications operating on BullMQ queues.
+> [!NOTE]
+> **Active Implementation Location**: The current operational background worker runs out of **`apps/api/src/worker.ts`** and is executed via `npm run dev:worker`.
+> This `/workers/` directory is an architectural placeholder for future standalone worker microservices (Phase 15+).
 
-## Responsibilities
-- **Report Generation Processing**: Executing PDF rendering jobs asynchronously.
-- **LLM Explanation Requests**: Calling LLM APIs to translate calculation predictions into prose without blocking the main HTTP API thread.
-- **Notification Services**: Dispatching push notifications via FCM and message payloads via Meta WhatsApp API.
-- **Async Batch Tasks**: Cleanup, caching updates, and daily horoscope pre-computations.
+## Current Active Worker Architecture
+- **Script Command**: `npm run dev:worker` (delegates to `apps/api/package.json` -> `tsx watch src/worker.ts`)
+- **Queue Engine**: `RedisQueueService` (`apps/api/src/services/redis-queue.service.ts`)
+- **Pipeline Implementation**: `CareerReportWorker` (`apps/api/src/services/report-worker.service.ts`)
+- **PDF Engine**: XeLaTeX compiler (`@astro/report-engine`)
+- **Storage**: Cloudflare R2 / Local fallback (`apps/api/src/services/storage.service.ts`)
 
-## Architecture
-Workers communicate via **Redis** and read/write transactional data to **PostgreSQL**.
+## Future Scope (Phase 15+)
+When background processing is decoupled from `@astro/api`, standalone BullMQ worker packages will be housed under this directory.

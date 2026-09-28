@@ -161,7 +161,7 @@ export default function ReportsPage() {
             <select className="input-control" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
               <option value="FAILED">🚨 FAILED (Errors Only)</option>
-              <option value="STUCK">⏳ STUCK (>5m Pending)</option>
+              <option value="STUCK">⏳ STUCK (&gt;5m Pending)</option>
               <option value="COMPLETED">COMPLETED</option>
               <option value="QUEUED">QUEUED</option>
               <option value="CALCULATING">CALCULATING</option>

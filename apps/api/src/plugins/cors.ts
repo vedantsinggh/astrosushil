@@ -5,12 +5,18 @@ import fp from 'fastify-plugin';
 export const registerCors = fp(async function registerCors(app: FastifyInstance) {
   await app.register(cors, {
     origin: (origin, cb) => {
-      // Allow non-browser clients (like curl, postman, mobile) or any localhost/127.0.0.1 origin in dev
-      if (!origin || process.env.NODE_ENV !== 'production' || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      // Allow non-browser clients (like curl, postman, mobile) or any localhost/127.0.0.1/trycloudflare origin in dev
+      if (
+        !origin ||
+        process.env.NODE_ENV !== 'production' ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.includes('trycloudflare.com')
+      ) {
         cb(null, true);
         return;
       }
-      if (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').includes(origin)) {
+      if (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').some((allowed) => origin.includes(allowed.trim()))) {
         cb(null, true);
         return;
       }

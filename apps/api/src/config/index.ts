@@ -34,11 +34,18 @@ const configSchema = z.object({
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
 
-  // Gemini & Jyoti AI Assistant Configuration
-  GEMINI_API_KEY: z.string().optional().default(''),
-  GEMINI_MODEL: z.string().default('gemini-3.6-flash'),
+  // OpenRouter & Jyoti AI Assistant Configuration
+  LLM_PROVIDER: z.string().default('openrouter'),
+  OPENROUTER_API_KEY: z.string().optional().default(''),
+  OPENROUTER_MODEL: z.string().default('minimax/minimax-m3:free'),
   JYOTI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
   JYOTI_DAILY_LIMIT: z.coerce.number().int().positive().default(200),
+
+  // Automated PDF Quality Assurance Gate Configuration (true by default in production, set false in dev)
+  REPORT_PDF_QA_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase().trim() !== 'false'),
 });
 
 export type Config = z.infer<typeof configSchema>;

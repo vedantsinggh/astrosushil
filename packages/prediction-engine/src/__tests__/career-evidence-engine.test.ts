@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { normalizeAstroChart, AstroChart } from '@astro/astrology-engine';
 import { careerEvidenceEngine, CareerEvidenceEngine } from '../services/career-evidence.engine';
 

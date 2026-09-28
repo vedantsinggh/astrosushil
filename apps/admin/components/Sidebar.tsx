@@ -11,6 +11,7 @@ export function Sidebar() {
 
   const navItems = [
     { label: 'Dashboard', href: '/dashboard', perm: 'dashboard:read', icon: '📊' },
+    { label: 'Live Session', href: '/live-sessions', perm: 'live_sessions:read', icon: '🕒' },
     { label: 'Analytics', href: '/analytics', perm: 'analytics:read', icon: '📈' },
     { label: 'Users', href: '/users', perm: 'users:read', icon: '👥' },
     { label: 'Birth Profiles', href: '/birth-profiles', perm: 'birth_profiles:read', icon: '🔮' },

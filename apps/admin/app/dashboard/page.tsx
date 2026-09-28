@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
 import { StatusBadge } from '../../components/StatusBadge';
 
@@ -22,14 +23,22 @@ interface DashboardData {
   }>;
 }
 
+interface ServiceHealthItem {
+  status: string;
+  latencyMs?: number;
+  provider?: string;
+  type?: string;
+}
+
 interface HealthData {
   timestamp: string;
   services: {
-    api: { status: string; latencyMs: number };
-    database: { status: string; latencyMs: number };
-    astrologyEngine: { status: string; latencyMs: number };
-    gemini: { status: string; provider: string; latencyMs: number };
-    storage: { status: string; type: string };
+    api?: ServiceHealthItem;
+    database?: ServiceHealthItem;
+    astrologyEngine?: ServiceHealthItem;
+    gemini?: ServiceHealthItem;
+    openrouter?: ServiceHealthItem;
+    storage?: ServiceHealthItem;
   };
 }
 
@@ -82,6 +91,63 @@ export default function DashboardPage() {
           {error}
         </div>
       )}
+
+      {/* LIVE SESSION HERO CALLOUT */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.3)',
+          borderRadius: 'var(--radius-lg, 12px)',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+            }}
+          >
+            🕒
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary, #F8FAFC)' }}>
+              Live Consultation Workspace
+            </h2>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-muted, #94A3B8)' }}>
+              Start or resume a real-time client astrology consultation with interactive Kundli charts, notes, history, and Jyoti AI.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/live-sessions"
+          className="btn btn-primary"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            textDecoration: 'none',
+            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
+          }}
+        >
+          <span>✨</span> Open Live Session Console →
+        </Link>
+      </div>
 
       {/* METRIC CARDS */}
       <div className="card-grid">
@@ -136,39 +202,41 @@ export default function DashboardPage() {
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>API Server</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.api.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.api.latencyMs || 1}ms</span>
+              <StatusBadge status={health?.services?.api?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.api?.latencyMs || 1}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Database (PostgreSQL)</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.database.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.database.latencyMs || 0}ms</span>
+              <StatusBadge status={health?.services?.database?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.database?.latencyMs || 0}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Astrology Engine</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.astrologyEngine.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.astrologyEngine.latencyMs || 0}ms</span>
+              <StatusBadge status={health?.services?.astrologyEngine?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.astrologyEngine?.latencyMs || 0}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Gemini AI</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              {health?.services?.openrouter ? 'OpenRouter AI' : 'Gemini AI'}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.gemini.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services.gemini.latencyMs || 0}ms</span>
+              <StatusBadge status={(health?.services?.openrouter || health?.services?.gemini)?.status || 'UNKNOWN'} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{(health?.services?.openrouter || health?.services?.gemini)?.latencyMs || 0}ms</span>
             </div>
           </div>
 
           <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Report Storage</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services.storage.status || 'UNKNOWN'} />
+              <StatusBadge status={health?.services?.storage?.status || 'UNKNOWN'} />
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Active</span>
             </div>
           </div>

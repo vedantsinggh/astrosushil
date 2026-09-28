@@ -13,4 +13,14 @@ export * from './varga/index';
 export * from './panchang/index';
 export * from './matchmaking/index';
 export * from './chart/index';
-
+export * from './strength/index';
+export * from './ashtakavarga/index';
+export * from './varshaphala/index';
+export * from './prashna/index';
+export * from './transit/index';
+export * from './yoga/index';
+export * from './special-points/index';
+export * from './jaimini/index';
+export * from './kp/index';
+export * from './metadata/index';
+export * from './evidence/index';

@@ -38,13 +38,15 @@ export async function jyotiRoutes(fastify: FastifyInstance, _options: FastifyPlu
       },
     },
     handler: async (request, reply) => {
-      console.log('[JYOTI TRACE 1] Request reached controller');
-      console.log('[JYOTI TRACE 2] Authentication passed');
       const payload = JyotiChatRequestSchema.parse(request.body);
-      console.log('[JYOTI TRACE 3] DTO validation passed');
       const result = await jyotiService.processChat(request.user.id, payload);
-      console.log('[JYOTI TRACE 10] Response returned to controller');
-      return reply.status(200).send({ data: result });
+      return reply.status(200).send({
+        data: {
+          message: result.message,
+          actions: result.actions ?? [],
+          explanation: result.explanation,
+        },
+      });
     },
   });
 }

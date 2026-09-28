@@ -2,38 +2,25 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { reportPdfService } from './report-pdf.service';
+import {
+  LatexCompiler,
+  LatexCompilationOptions,
+  LatexCompilationResult,
+} from './latex-compiler.interface';
 import { pdfQaValidator } from '../validation/pdf-qa.validator';
 
 const execFileAsync = promisify(execFile);
 
-export interface LatexCompilationOptions {
-  reportId: string;
-  templateDir?: string;
-  reportDataTex: string;
-  timeoutMs?: number;
-  structuredFallbackReport?: any;
-  careerReportData?: any;
-}
-
-export interface LatexCompilationResult {
-  pdfBuffer: Buffer;
-  pageCount: number;
-  fileSize: number;
-  compilationMethod: 'XELATEX' | 'FALLBACK';
-}
-
-export class XeLatexCompiler {
+export class LocalXeLatexCompiler implements LatexCompiler {
   private readonly defaultTemplateDir: string;
 
   constructor(customTemplateDir?: string) {
     this.defaultTemplateDir =
-      customTemplateDir ||
-      path.resolve(__dirname, '../../templates');
+      customTemplateDir || path.resolve(__dirname, '../../templates');
   }
 
   /**
-   * Compiles LaTeX report in an isolated per-job working directory.
+   * Compiles LaTeX report locally using XeLaTeX executable in an isolated per-job working directory.
    */
   public async compileReport(options: LatexCompilationOptions): Promise<LatexCompilationResult> {
     const reportId = options.reportId;
@@ -73,17 +60,19 @@ export class XeLatexCompiler {
       fs.writeFileSync(dstReportDataTex, options.reportDataTex, 'utf-8');
 
       // 4. Check if xelatex executable is available on system PATH
-      const isXeLatexInstalled = await this.checkXeLatexAvailable();
+      const xeLatexInfo = await this.checkXeLatexAvailable();
 
-      if (!isXeLatexInstalled) {
+      if (!xeLatexInfo.installed) {
         throw new Error(
-          'LATEX_ENGINE_UNAVAILABLE: XeLaTeX compiler binary is not installed on system PATH. ' +
-            'The production career report engine requires XeLaTeX to compile main.tex into multi-page PDF reports.'
+          'LATEX_ENGINE_UNAVAILABLE: XeLaTeX compiler binary (xelatex) is not installed on local system PATH. Please install TeX Live (texlive-xetex).'
         );
       }
 
+      // Check font availability on system
+      await this.verifySystemFonts();
+
       console.log(
-        `[XeLatexCompiler] Starting XeLaTeX compilation (career-report-template-version: 1.0.0) for reportId: ${reportId}`
+        `[REPORT][LATEX] Starting local XeLaTeX compilation for reportId: ${reportId} (Binary: ${xeLatexInfo.version || 'xelatex'})`
       );
 
       // Run XeLaTeX in isolated subprocess (Pass 1 & Pass 2 for page numbering)
@@ -96,9 +85,9 @@ export class XeLatexCompiler {
           );
         }
       } catch (execErr: any) {
-        const logError = this.extractLatexLogError(outputDir, execErr.message);
+        const logError = this.extractLatexLogError(outputDir, execErr);
         console.error(
-          `[XeLatexCompiler] XeLaTeX compilation failed for reportId ${reportId} (Exit Code: ${execErr.code}):\n${logError}`
+          `[REPORT][LATEX] Local XeLaTeX compilation failed for reportId ${reportId} (Exit Code: ${execErr.code ?? 'UNKNOWN'}):\n${logError}`
         );
         throw new Error(`XELATEX_COMPILATION_FAILED (Exit Code ${execErr?.code ?? 'UNKNOWN'}): ${logError}`);
       }
@@ -116,26 +105,39 @@ export class XeLatexCompiler {
         pdfBuffer,
         reportDataTex: options.reportDataTex,
         expectedClientName: options.careerReportData?.client?.clientName,
-        minPageCount: 5,
+        minPageCount: options.minPageCount !== undefined ? options.minPageCount : 5,
       });
 
-      if (!qaResult.isValid) {
-        throw new Error(
-          `AUTOMATED_PDF_QA_FAILED: Generated PDF failed quality assurance check:\n- ${qaResult.errors.join('\n- ')}`
+      const isQaEnabled = process.env.REPORT_PDF_QA_ENABLED?.toLowerCase().trim() !== 'false';
+
+      if (isQaEnabled) {
+        if (!qaResult.isValid) {
+          throw new Error(
+            `AUTOMATED_PDF_QA_FAILED: Generated PDF failed quality assurance check:\n- ${qaResult.errors.join('\n- ')}`
+          );
+        }
+      } else {
+        console.log(
+          `[REPORT][LATEX] PDF QA: SKIPPED (REPORT_PDF_QA_ENABLED=false) for reportId=${reportId}`
         );
+        if (!qaResult.isValid) {
+          console.warn(
+            `[REPORT][LATEX] PDF QA warnings ignored (REPORT_PDF_QA_ENABLED=false):\n- ${qaResult.errors.join('\n- ')}`
+          );
+        }
       }
 
       const pageCount = qaResult.pageCount;
 
       console.log(
-        `[XeLatexCompiler] Successfully compiled reportId ${reportId} (career-report-template-version: 1.0.0, ${pageCount} pages, ${pdfBuffer.length} bytes).`
+        `[REPORT][LATEX] compiler=local engine=xelatex reportId=${reportId} status=COMPLETED pageCount=${pageCount}`
       );
 
       return {
         pdfBuffer,
         pageCount,
         fileSize: pdfBuffer.length,
-        compilationMethod: 'XELATEX',
+        compilationMethod: 'LOCAL',
       };
     } finally {
       // 5. Cleanup temporary directory
@@ -147,7 +149,22 @@ export class XeLatexCompiler {
     }
   }
 
-  private extractLatexLogError(outputDir: string, rawErrorMessage?: string): string {
+  private async verifySystemFonts(): Promise<void> {
+    const requiredFonts = ['TeX Gyre Pagella', 'Open Sans', 'Libre Bodoni'];
+    try {
+      const { stdout } = await execFileAsync('fc-list', [':', 'family']);
+      const missing = requiredFonts.filter((f) => !stdout.includes(f));
+      if (missing.length > 0) {
+        console.warn(
+          `[REPORT][LATEX][FONT_WARNING] Required fonts missing from fc-list: ${missing.join(', ')}. XeLaTeX may fallback or fail if fontspec cannot resolve them.`
+        );
+      }
+    } catch (_) {
+      // fontconfig/fc-list tool check ignored if not installed
+    }
+  }
+
+  private extractLatexLogError(outputDir: string, rawExecErr?: any): string {
     const logPath = path.join(outputDir, 'main.log');
     let logLines: string[] = [];
     if (fs.existsSync(logPath)) {
@@ -157,27 +174,37 @@ export class XeLatexCompiler {
       } catch (_) {}
     }
 
-    const errorSnippets = logLines.filter(
-      (line) =>
+    const snippets: string[] = [];
+    for (let i = 0; i < logLines.length; i++) {
+      const line = logLines[i];
+      if (
         line.startsWith('!') ||
         line.includes('LaTeX Error:') ||
         line.includes('Fatal error') ||
         line.includes('Emergency stop') ||
         line.includes('Undefined control sequence') ||
-        line.includes('Font ') ||
-        line.includes('File `')
-    );
+        line.includes('Runaway argument')
+      ) {
+        snippets.push(...logLines.slice(i, i + 4));
+        i += 3;
+      }
+    }
 
-    const extracted = errorSnippets.slice(0, 20).join('\n');
-    return extracted || rawErrorMessage || 'Unknown XeLaTeX compilation error log.';
+    const extracted = snippets.join('\n');
+    const stdout = rawExecErr?.stdout || '';
+    const stderr = rawExecErr?.stderr || rawExecErr?.message || '';
+    const fallbackOutput = [stdout, stderr].filter(Boolean).join('\n').substring(0, 300);
+
+    return extracted.trim() || fallbackOutput || 'Unknown XeLaTeX compilation error.';
   }
 
-  private async checkXeLatexAvailable(): Promise<boolean> {
+  private async checkXeLatexAvailable(): Promise<{ installed: boolean; version?: string }> {
     try {
-      await execFileAsync('which', ['xelatex']);
-      return true;
+      const { stdout } = await execFileAsync('xelatex', ['--version']);
+      const firstLine = stdout.split('\n')[0] || '';
+      return { installed: true, version: firstLine };
     } catch (_) {
-      return false;
+      return { installed: false };
     }
   }
 
@@ -190,18 +217,9 @@ export class XeLatexCompiler {
       throw new Error(`PDF Validation Error: Invalid PDF header magic bytes: "${header}"`);
     }
   }
-
-  private estimatePdfPageCount(buffer: Buffer): number {
-    const text = buffer.toString('binary');
-    const matches = text.match(/\/Type\s*\/Page\b/g);
-    return matches ? matches.length : 1;
-  }
-
-  private generateFallbackPdfBuffer(reportDataTex: string): Buffer {
-    // Generate minimal compliant PDF buffer with report title
-    const content = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 50 >>\nstream\nBT /F1 12 Tf 50 700 Td (Astro Sushil Career Dossier) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000214 00000 n \ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n314\n%%EOF`;
-    return Buffer.from(content, 'binary');
-  }
 }
 
-export const xeLatexCompiler = new XeLatexCompiler();
+export const localXeLatexCompiler = new LocalXeLatexCompiler();
+export const xeLatexCompiler = localXeLatexCompiler; // Backward compatibility alias
+export { LocalXeLatexCompiler as XeLatexCompiler };
+

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../home/providers/home_provider.dart';
+import '../../../home/screens/reports_screen.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
@@ -7,10 +9,12 @@ import '../../astrology/screens/birth_chart_screen.dart';
 import '../../astrology/screens/planets_screen.dart';
 import '../../astrology/screens/rashi_bhavishya_screen.dart';
 import '../../astrology/screens/vastu_screen.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/screens/login_screen.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/birth_profile_list_screen.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
-import '../../../home/screens/reports_screen.dart';
+import '../../onboarding/screens/onboarding_screen.dart';
 import '../data/jyoti_mock_data.dart';
 import '../models/jyoti_message.dart';
 import '../providers/jyoti_controller.dart';
@@ -77,46 +81,189 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
     );
   }
 
+  void _showConfirmLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: AppColors.error),
+            SizedBox(width: 10),
+            Text(
+              'Log Out?',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to log out of Astro Sushil?',
+          style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await ref.read(authStateProvider.notifier).logout();
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                  (route) => false,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.lightSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.help_outline_rounded, color: AppColors.primary),
+                SizedBox(width: 10),
+                Text(
+                  'Astro Sushil Assistance',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Jyoti is here to assist you with astrology concepts, your birth chart, daily horoscopes, reports, and app navigation. If you need account or payment support, you can access options in your Profile.',
+              style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Got it', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _executeAction(JyotiActionType actionType) {
     final profilesState = ref.read(birthProfilesListNotifierProvider);
     final hasProfile = profilesState.profiles.isNotEmpty;
 
-    Widget targetScreen;
-
     switch (actionType) {
+      case JyotiActionType.openHome:
+        ref.read(homeTabControllerProvider.notifier).state = 0;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+
       case JyotiActionType.openBirthChart:
       case JyotiActionType.openHouses:
       case JyotiActionType.openNakshatra:
-        targetScreen = hasProfile
-            ? const BirthChartScreen()
-            : const CreateBirthProfileScreen();
-        break;
-      case JyotiActionType.openPlanets:
-        targetScreen = hasProfile
-            ? const PlanetsScreen()
-            : const CreateBirthProfileScreen();
-        break;
-      case JyotiActionType.openRashiBhavishya:
-        targetScreen = const RashiBhavishyaScreen();
-        break;
-      case JyotiActionType.openVastu:
-        targetScreen = const VastuScreen();
-        break;
-      case JyotiActionType.openProfile:
-        targetScreen = const BirthProfileListScreen();
-        break;
-      case JyotiActionType.generateKundli:
-        targetScreen = const CreateBirthProfileScreen();
-        break;
-      case JyotiActionType.openCareerReport:
-        targetScreen = const ReportsScreen();
-        break;
-    }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => hasProfile ? const BirthChartScreen() : const CreateBirthProfileScreen(),
+          ),
+        );
+        return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => targetScreen),
-    );
+      case JyotiActionType.openPlanets:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => hasProfile ? const PlanetsScreen() : const CreateBirthProfileScreen(),
+          ),
+        );
+        return;
+
+      case JyotiActionType.openRashiBhavishya:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const RashiBhavishyaScreen()),
+        );
+        return;
+
+      case JyotiActionType.openVastu:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const VastuScreen()),
+        );
+        return;
+
+      case JyotiActionType.openProfile:
+      case JyotiActionType.openBirthProfile:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const BirthProfileListScreen()),
+        );
+        return;
+
+      case JyotiActionType.openSettings:
+      case JyotiActionType.openAccount:
+      case JyotiActionType.openNotificationSettings:
+        ref.read(homeTabControllerProvider.notifier).state = 2;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+
+      case JyotiActionType.openReports:
+      case JyotiActionType.openCareerReport:
+      case JyotiActionType.generateCareerReport:
+      case JyotiActionType.openSubscription:
+      case JyotiActionType.openPayment:
+        ref.read(homeTabControllerProvider.notifier).state = 1;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+
+      case JyotiActionType.openLogin:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+        return;
+
+      case JyotiActionType.confirmLogout:
+        _showConfirmLogoutDialog();
+        return;
+
+      case JyotiActionType.openHelp:
+      case JyotiActionType.openAbout:
+        _showHelpBottomSheet();
+        return;
+
+      case JyotiActionType.openNotifications:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifications can be managed in your Profile settings.'),
+          ),
+        );
+        return;
+
+      case JyotiActionType.openJyoti:
+        return;
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {

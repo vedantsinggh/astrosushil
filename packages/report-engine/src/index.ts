@@ -10,6 +10,8 @@ export * from './mappers/career-report.mapper';
 export * from './services/career-report.service';
 export * from './pdf/pdf-writer';
 export * from './pdf/report-pdf.service';
-export * from './pdf/xelatex-compiler';
+export type { LatexCompilationOptions, LatexCompilationResult, LatexCompiler } from './pdf/latex-compiler.interface';
+export { latextoCompiler, LatextoCompiler } from './pdf/latexto-compiler';
+export { localXeLatexCompiler, xeLatexCompiler, XeLatexCompiler, LocalXeLatexCompiler } from './pdf/xelatex-compiler';
+export { latexCompiler, getLatexCompiler } from './pdf/latex-compiler.factory';
 export * from './validation/pdf-qa.validator';
-

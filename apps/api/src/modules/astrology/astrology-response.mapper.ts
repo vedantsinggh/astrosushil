@@ -7,6 +7,12 @@ import {
 } from '@astro/astrology-engine';
 import { AppError } from '../../errors/app-error';
 
+export interface PlanetAvasthaDto {
+  baladi: string;
+  baladiStrengthPercent: number;
+  jagratadi: string;
+}
+
 export interface PlanetResponseDto {
   name?: string;
   planet: string;
@@ -29,6 +35,10 @@ export interface PlanetResponseDto {
   nakshatraIndex: number;
   nakshatraName: string;
   nakshatraLord: string;
+  avastha?: PlanetAvasthaDto;
+  charaKaraka?: string;
+  aspectsReceived?: string[];
+  aspectsCast?: number[];
   status?: string;
 }
 
@@ -123,11 +133,15 @@ export interface AstroChartResponseDto {
  * Maps the domain chart object into a sanitized, validated public API response DTO.
  * Guarantees no empty {} objects for ascendant, planets, or houses.
  */
-export function mapAstroChartToResponse(chart: AstroChart | NormalizedChart): AstroChartResponseDto {
+export function mapAstroChartToResponse(
+  chart: AstroChart | NormalizedChart,
+  normalizedChartInput?: NormalizedChart
+): AstroChartResponseDto {
   const normalized: NormalizedChart =
-    'ascendant' in chart && 'planets' in chart && Array.isArray(chart.planets)
+    normalizedChartInput ||
+    ('ascendant' in chart && 'planets' in chart && Array.isArray(chart.planets)
       ? (chart as NormalizedChart)
-      : normalizeAstroChart(chart as AstroChart);
+      : normalizeAstroChart(chart as AstroChart));
 
   // Strict Validation to ensure no empty {} objects
   if (!normalized.ascendant || typeof normalized.ascendant !== 'object' || !normalized.ascendant.sign) {
@@ -155,8 +169,8 @@ export function mapAstroChartToResponse(chart: AstroChart | NormalizedChart): As
     dignity: p.dignity,
     lordship: p.lordship,
     longitude: p.absoluteDegree,
-    latitude: 0,
-    speedLongitude: 0,
+    latitude: typeof p.latitude === 'number' ? p.latitude : 0,
+    speedLongitude: typeof p.speedLongitude === 'number' ? p.speedLongitude : 0,
     isRetrograde: p.retrograde,
     rashiIndex: p.rashiIndex,
     rashiName: p.sign,
@@ -164,6 +178,16 @@ export function mapAstroChartToResponse(chart: AstroChart | NormalizedChart): As
     nakshatraIndex: p.nakshatraIndex,
     nakshatraName: p.nakshatra,
     nakshatraLord: p.nakshatraLord,
+    avastha: p.avastha
+      ? {
+          baladi: p.avastha.baladi,
+          baladiStrengthPercent: p.avastha.baladiStrengthPercent,
+          jagratadi: p.avastha.jagratadi,
+        }
+      : undefined,
+    charaKaraka: p.charaKaraka,
+    aspectsReceived: p.aspectsReceived ? p.aspectsReceived.map((sym) => String(sym)) : [],
+    aspectsCast: p.aspectsCast ? p.aspectsCast : [],
     status: p.status,
   }));
 

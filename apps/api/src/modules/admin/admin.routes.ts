@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { adminService } from './admin.service';
+import { liveSessionService } from './live-session.service';
 import { analyticsService } from './analytics.service';
 import { notificationService } from '../notifications/notification.service';
 import { sendTestNotificationSchema } from '../notifications/notification.schemas';
@@ -52,7 +53,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
     },
     handler: async (request, reply) => {
       const body = adminLoginSchema.parse(request.body);
-      const signJwt = (payload: object) => fastify.jwt.sign(payload);
+      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await adminService.login(body, signJwt, {
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
@@ -585,6 +586,133 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         });
 
         return reply.status(200).send({ message: 'Test notification sent successfully', result });
+      },
+    });
+
+    // ----------------------------------------------------
+    // LIVE SESSION CONSULTATION ENDPOINTS (PHASES 1-5)
+    // ----------------------------------------------------
+
+    // 1. Create / Start Session
+    protectedRoutes.post('/live-sessions', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Start a new consultation live session' },
+      handler: async (request, reply) => {
+        const body = request.body as { userId: string; birthProfileId: string };
+        const result = await liveSessionService.createSession(body, request.user);
+        return reply.status(201).send(result);
+      },
+    });
+
+    // 2. List Live Sessions
+    protectedRoutes.get('/live-sessions', {
+      preHandler: [checkPermission('live_sessions:read')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'List live consultation sessions' },
+      handler: async (request, reply) => {
+        const query = request.query as any;
+        const result = await liveSessionService.listSessions(request.user, query);
+        return reply.status(200).send(result);
+      },
+    });
+
+    // 3. Get Live Session by ID
+    protectedRoutes.get('/live-sessions/:id', {
+      preHandler: [checkPermission('live_sessions:read')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Get live session details & context' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const result = await liveSessionService.getSessionById(id, request.user);
+        return reply.status(200).send(result);
+      },
+    });
+
+    // 4. End Live Session
+    protectedRoutes.post('/live-sessions/:id/end', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Conclude and end a live session' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const result = await liveSessionService.endSession(id, request.user, {
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
+        return reply.status(200).send(result);
+      },
+    });
+
+    // 5. Notes Endpoints
+    protectedRoutes.get('/live-sessions/:id/notes', {
+      preHandler: [checkPermission('live_sessions:read')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'List notes for a live session' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const result = await liveSessionService.listNotes(id, request.user);
+        return reply.status(200).send(result);
+      },
+    });
+
+    protectedRoutes.post('/live-sessions/:id/notes', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Create note in live session' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as any;
+        const result = await liveSessionService.createNote(id, body, request.user);
+        return reply.status(201).send(result);
+      },
+    });
+
+    protectedRoutes.put('/live-sessions/:id/notes/:noteId', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Update note in live session' },
+      handler: async (request, reply) => {
+        const { id, noteId } = request.params as { id: string; noteId: string };
+        const body = request.body as any;
+        const result = await liveSessionService.updateNote(id, noteId, body, request.user);
+        return reply.status(200).send(result);
+      },
+    });
+
+    protectedRoutes.delete('/live-sessions/:id/notes/:noteId', {
+      preHandler: [checkPermission('live_sessions:delete')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Delete note in live session' },
+      handler: async (request, reply) => {
+        const { id, noteId } = request.params as { id: string; noteId: string };
+        const result = await liveSessionService.deleteNote(id, noteId, request.user);
+        return reply.status(200).send(result);
+      },
+    });
+
+    // 6. Observations Endpoints
+    protectedRoutes.post('/live-sessions/:id/observations', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Add observation tag in live session' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as any;
+        const result = await liveSessionService.addObservation(id, body, request.user);
+        return reply.status(201).send(result);
+      },
+    });
+
+    protectedRoutes.delete('/live-sessions/:id/observations/:obsId', {
+      preHandler: [checkPermission('live_sessions:delete')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Remove observation from live session' },
+      handler: async (request, reply) => {
+        const { id, obsId } = request.params as { id: string; obsId: string };
+        const result = await liveSessionService.removeObservation(id, obsId, request.user);
+        return reply.status(200).send(result);
+      },
+    });
+
+    // 7. Client Session History
+    protectedRoutes.get('/live-sessions/clients/:userId/history', {
+      preHandler: [checkPermission('live_sessions:read')],
+      schema: { tags: ['Admin Live Sessions'], summary: 'Get past session history for a client' },
+      handler: async (request, reply) => {
+        const { userId } = request.params as { userId: string };
+        const result = await liveSessionService.getClientSessionHistory(userId, request.user);
+        return reply.status(200).send(result);
       },
     });
   });

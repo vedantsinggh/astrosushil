@@ -11,6 +11,22 @@ export function validateBirthDetails(details: BirthDetails): BirthDetails {
     throw new BirthDetailsValidationError('BirthDetails object is required');
   }
 
+  // Support string dateOfBirth if date object is omitted
+  if (!details.date && details.dateOfBirth && typeof details.dateOfBirth === 'string') {
+    const parts = details.dateOfBirth.split('-').map(Number);
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      details.date = { year: parts[0], month: parts[1], day: parts[2] };
+    }
+  }
+
+  // Support string timeOfBirth if time object is omitted
+  if (!details.time && details.timeOfBirth && typeof details.timeOfBirth === 'string') {
+    const parts = details.timeOfBirth.split(':').map(Number);
+    if (parts.length >= 2 && !parts.some(isNaN)) {
+      details.time = { hour: parts[0], minute: parts[1], second: parts[2] || 0 };
+    }
+  }
+
   // Validate Date
   if (!details.date) {
     errors.push('Birth date object is required');
