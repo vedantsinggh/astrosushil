@@ -43,9 +43,21 @@ export class PdfQaValidator {
     }
 
     // 2. Determine Page Count
-    const pdfText = options.pdfBuffer.toString('binary');
+    const pdfText = options.pdfBuffer.toString('latin1');
     const pageMatches = pdfText.match(/\/Type\s*\/Page\b/g);
-    const pageCount = pageMatches ? pageMatches.length : 1;
+    let pageCount = pageMatches ? pageMatches.length : 0;
+    
+    // Also check /Type /Pages /Count <N> in PDF dictionary
+    const countMatches = [...pdfText.matchAll(/\/Count\s+(\d+)/g)];
+    for (const match of countMatches) {
+      const cnt = parseInt(match[1], 10);
+      if (!isNaN(cnt) && cnt > pageCount) {
+        pageCount = cnt;
+      }
+    }
+    if (pageCount === 0) {
+      pageCount = 1;
+    }
 
     if (pageCount < minPages) {
       errors.push(`PDF page count is ${pageCount}, expected >= ${minPages} pages.`);

@@ -125,3 +125,28 @@ final singleBirthProfileProvider =
   }
   return await repository.getProfileById(id);
 });
+
+/// StateProvider to track the explicitly selected birth profile ID
+final selectedBirthProfileIdProvider = StateProvider<String?>((ref) => null);
+
+/// Provider resolving the currently active BirthProfileModel:
+/// returns the explicitly selected profile if set and exists,
+/// else falls back to the first profile in the list (or guest profile).
+final selectedBirthProfileProvider = Provider<BirthProfileModel?>((ref) {
+  final profilesState = ref.watch(birthProfilesListNotifierProvider);
+  final selectedId = ref.watch(selectedBirthProfileIdProvider);
+
+  if (profilesState.profiles.isEmpty) {
+    return null;
+  }
+
+  if (selectedId != null) {
+    final matched = profilesState.profiles.where((p) => p.id == selectedId);
+    if (matched.isNotEmpty) {
+      return matched.first;
+    }
+  }
+
+  return profilesState.profiles.first;
+});
+

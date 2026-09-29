@@ -15,6 +15,7 @@ import '../models/astro_chart_model.dart';
 import '../providers/astrology_provider.dart';
 import '../services/kundli_pdf_service.dart';
 import '../widgets/kundli_chart_widget.dart';
+import 'divisional_charts_screen.dart';
 import 'planet_detail_screen.dart';
 
 class BirthChartScreen extends ConsumerStatefulWidget {
@@ -81,9 +82,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   @override
   Widget build(BuildContext context) {
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
-    final activeProfile = _selectedProfileOverride ??
-        widget.profile ??
-        (profilesState.profiles.isNotEmpty ? profilesState.profiles.first : null);
+    final selectedProfile = ref.watch(selectedBirthProfileProvider);
+    final activeProfile = _selectedProfileOverride ?? widget.profile ?? selectedProfile;
 
     final chartAsync = activeProfile != null
         ? ref.watch(astrologyChartForProfileProvider(activeProfile))
@@ -324,6 +324,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                     ),
                     onSelected: (value) {
                       if (value is BirthProfileModel) {
+                        ref.read(selectedBirthProfileIdProvider.notifier).state = value.id;
                         setState(() {
                           _selectedProfileOverride = value;
                         });
@@ -649,6 +650,58 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
           chart: chart,
           size: 320,
           showTitle: false, // Single clear title rendered above
+        ),
+
+        const SizedBox(height: 12),
+
+        // 2.5 DIVISIONAL CHARTS (VARGAS) 1-TAP ACTION BUTTON
+        InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DivisionalChartsScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Divisional Charts (वर्ग D1–D60)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        'Explore Navamsha (D9), Dashamsha (D10) & 16 Vargas',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+              ],
+            ),
+          ),
         ),
 
         const SizedBox(height: 24),

@@ -37,7 +37,7 @@ const configSchema = z.object({
   // OpenRouter & Jyoti AI Assistant Configuration
   LLM_PROVIDER: z.string().default('openrouter'),
   OPENROUTER_API_KEY: z.string().optional().default(''),
-  OPENROUTER_MODEL: z.string().default('minimax/minimax-m3:free'),
+  OPENROUTER_MODEL: z.string().default('poolside/laguna-s-2.1:free'),
   JYOTI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(20),
   JYOTI_DAILY_LIMIT: z.coerce.number().int().positive().default(200),
 

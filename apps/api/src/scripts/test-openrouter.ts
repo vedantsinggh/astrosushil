@@ -29,6 +29,15 @@ export async function checkOpenRouterConnectivity(): Promise<{
 
   try {
     const url = 'https://openrouter.ai/api/v1/chat/completions';
+    const fallbackList = (process.env.OPENROUTER_FALLBACK_MODELS || '')
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean);
+
+    const candidateModels = Array.from(
+      new Set([model, ...fallbackList, 'nvidia/nemotron-3.5-lightning:free', 'qwen/qwen3.8-27b:free'])
+    ).slice(0, 3);
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -39,6 +48,7 @@ export async function checkOpenRouterConnectivity(): Promise<{
       },
       body: JSON.stringify({
         model,
+        models: candidateModels,
         messages: [{ role: 'user', content: 'Ping' }],
         max_tokens: 10,
       }),

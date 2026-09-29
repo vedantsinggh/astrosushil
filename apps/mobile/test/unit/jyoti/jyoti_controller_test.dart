@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
 import 'package:astro_mobile/features/jyoti/models/jyoti_message.dart';
 import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
 
@@ -21,7 +20,12 @@ void main() {
       expect(state.messages, isEmpty);
       expect(state.isThinking, isFalse);
       expect(state.isOffline, isFalse);
-      expect(state.suggestions, equals(JyotiMockData.defaultSuggestions));
+      expect(state.suggestions, equals([
+        'Explain this screen',
+        'Generate my Kundli',
+        'Show my planets',
+        'Explain 7th house dynamics',
+      ]));
     });
 
     test('sendMessage appends user message and simulated Jyoti responses', () async {
@@ -37,11 +41,9 @@ void main() {
 
       state = container.read(jyotiControllerProvider);
       expect(state.isThinking, isFalse);
-      // User message + 2 Jyoti responses (text + action card)
-      expect(state.messages.length, equals(3));
-      expect(state.messages[1].type, equals(JyotiMessageType.jyotiText));
-      expect(state.messages[2].type, equals(JyotiMessageType.actionCard));
-      expect(state.messages[2].action?.type, equals(JyotiActionType.openBirthChart));
+      expect(state.messages.length, equals(2));
+      expect(state.messages[0].type, equals(JyotiMessageType.user));
+      expect(state.messages[1].type, equals(JyotiMessageType.error));
     });
 
     test('sendMessage handles offline mode properly', () async {

@@ -3,6 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_required_gate.dart';
 import '../../core/auth/feature_access_service.dart';
 import '../../features/astrology/screens/birth_chart_screen.dart';
+import '../../features/astrology/screens/astrology_hub_screen.dart';
+import '../../features/astrology/screens/divisional_charts_screen.dart';
+import '../../features/astrology/screens/vimshottari_dasha_screen.dart';
+import '../../features/astrology/screens/matchmaking_screen.dart';
+import '../../features/astrology/screens/panchanga_screen.dart';
+import '../../features/astrology/screens/gochara_screen.dart';
+import '../../features/astrology/screens/yogas_screen.dart';
+import '../../features/astrology/screens/jaimini_screen.dart';
+import '../../features/astrology/screens/kp_astrology_screen.dart';
+import '../../features/astrology/screens/varshaphala_screen.dart';
+import '../../features/astrology/screens/prashna_screen.dart';
 import '../../features/astrology/screens/planets_screen.dart';
 import '../../features/astrology/screens/rashi_bhavishya_screen.dart';
 import '../../features/astrology/screens/vastu_screen.dart';
@@ -88,6 +99,12 @@ class _HomeTabContentView extends ConsumerWidget {
     }
   }
 
+  void _navigateToAstrologyHub(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AstrologyHubScreen()),
+    );
+  }
+
   void _navigateToPlanets(BuildContext context, bool hasProfile) {
     if (hasProfile) {
       Navigator.of(context).push(
@@ -98,6 +115,66 @@ class _HomeTabContentView extends ConsumerWidget {
         MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
       );
     }
+  }
+
+  void _navigateToDivisionalCharts(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DivisionalChartsScreen()),
+    );
+  }
+
+  void _navigateToDasha(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const VimshottariDashaScreen()),
+    );
+  }
+
+  void _navigateToMatchmaking(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MatchmakingScreen()),
+    );
+  }
+
+  void _navigateToPanchanga(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PanchangaScreen()),
+    );
+  }
+
+  void _navigateToGochara(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const GocharaScreen()),
+    );
+  }
+
+  void _navigateToYogas(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const YogasScreen()),
+    );
+  }
+
+  void _navigateToJaimini(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const JaiminiScreen()),
+    );
+  }
+
+  void _navigateToKP(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const KPAstrologyScreen()),
+    );
+  }
+
+  void _navigateToVarshaphala(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const VarshaphalaScreen()),
+    );
+  }
+
+  void _navigateToPrashna(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PrashnaScreen()),
+    );
   }
 
   void _navigateToRashiBhavishya(BuildContext context) {
@@ -149,7 +226,7 @@ class _HomeTabContentView extends ConsumerWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -160,7 +237,7 @@ class _HomeTabContentView extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.premiumAccent.withOpacity(0.2),
+                    color: AppColors.premiumAccent.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -185,7 +262,7 @@ class _HomeTabContentView extends ConsumerWidget {
               'Gupta Nadi is Astro Sushil\'s flagship rule engine based on Brihaspati Nandi Nadi (BNN) principles. It delivers 100% deterministic planetary interaction mapping.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 height: 1.4,
               ),
             ),
@@ -255,14 +332,25 @@ class _HomeTabContentView extends ConsumerWidget {
               onTap: () => _navigateToJyoti(context, ref),
             ),
 
-            const SizedBox(height: 26),
+            const SizedBox(height: 24),
 
-            // 3. QUICK ACCESS (Birth Chart, Planets, Rashi Bhavishya, Vastu)
+            // 3. VEDIC ASTROLOGY SYSTEMS & QUICK ACCESS
             QuickAccessSection(
               onKundliTap: () => _navigateToBirthChart(context, hasProfile),
               onPlanetsTap: () => _navigateToPlanets(context, hasProfile),
               onPredictionTap: () => _navigateToRashiBhavishya(context),
               onVastuTap: () => _navigateToVastu(context),
+              onDivisionalChartsTap: () => _navigateToDivisionalCharts(context),
+              onDashaTap: () => _navigateToDasha(context),
+              onMatchmakingTap: () => _navigateToMatchmaking(context),
+              onPanchangaTap: () => _navigateToPanchanga(context),
+              onGocharaTap: () => _navigateToGochara(context),
+              onYogasTap: () => _navigateToYogas(context),
+              onJaiminiTap: () => _navigateToJaimini(context),
+              onKPTap: () => _navigateToKP(context),
+              onVarshaphalaTap: () => _navigateToVarshaphala(context),
+              onPrashnaTap: () => _navigateToPrashna(context),
+              onSeeAllTap: () => _navigateToAstrologyHub(context),
             ),
 
             const SizedBox(height: 26),

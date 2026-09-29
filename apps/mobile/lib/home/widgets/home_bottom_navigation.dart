@@ -90,36 +90,39 @@ class _NavItem extends StatelessWidget {
     final isSelected = index == currentIndex;
     final displayIcon = (isSelected && activeIcon != null) ? activeIcon! : icon;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(25),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFEAE8F4) : Colors.transparent,
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              displayIcon,
-              size: 20,
-              color: isSelected ? AppColors.primary : AppColors.lightTextSecondary,
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFEAE8F4) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                displayIcon,
+                size: 20,
+                color: isSelected ? AppColors.primary : AppColors.lightTextSecondary,
+              ),
+              const SizedBox(height: 2),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : AppColors.lightTextSecondary,
                 ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );

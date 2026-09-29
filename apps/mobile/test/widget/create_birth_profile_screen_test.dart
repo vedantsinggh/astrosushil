@@ -7,6 +7,10 @@ import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 
 void main() {
   testWidgets('CreateBirthProfileScreen renders form and validates inputs', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -17,21 +21,20 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify fields render
-    expect(find.text('Create Birth Profile'), findsWidgets);
-    expect(find.widgetWithText(TextFormField, 'Full Name'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Date of Birth'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Time of Birth'), findsOneWidget);
-    expect(find.text('Explicit Timezone'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Latitude'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Longitude'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Place Name'), findsOneWidget);
-    expect(find.text('Save Birth Profile'), findsOneWidget);
+    expect(find.text('Your Birth Details'), findsWidgets);
+    expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('Date of Birth'), findsOneWidget);
+    expect(find.text('Time of Birth'), findsOneWidget);
+    expect(find.text('Timezone'), findsOneWidget);
+    expect(find.text('Place of Birth'), findsOneWidget);
+    expect(find.text('Create Birth Chart'), findsOneWidget);
 
     // Tap Save with empty Name/Date/Time to trigger validation
-    await tester.tap(find.text('Save Birth Profile'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create Birth Chart'));
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify validation error
     expect(find.text('Name is required'), findsOneWidget);

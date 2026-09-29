@@ -17,14 +17,16 @@ export function getOpenRouterCareerConfig(): OpenRouterCareerConfig {
   const model =
     process.env.OPENROUTER_MODEL ||
     process.env.OPENROUTER_CAREER_MODEL ||
-    'minimax/minimax-m3:free';
+    'poolside/laguna-s-2.1:free';
 
   const fallbackModels = (process.env.OPENROUTER_FALLBACK_MODELS || '')
     .split(',')
     .map((m) => m.trim())
     .filter(Boolean);
 
-  const defaultModels = fallbackModels.length > 0 ? Array.from(new Set([model, ...fallbackModels])) : [model];
+  const defaultModels = fallbackModels.length > 0
+    ? Array.from(new Set([model, ...fallbackModels])).slice(0, 3)
+    : [model];
 
   const temperature = parseFloat(process.env.OPENROUTER_CAREER_TEMPERATURE || '0.2');
   const maxOutputTokens = parseInt(process.env.OPENROUTER_CAREER_MAX_TOKENS || '12000', 10);

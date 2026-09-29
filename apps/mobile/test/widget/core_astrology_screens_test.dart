@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile/features/astrology/screens/birth_chart_screen.dart';
-import 'package:mobile/features/astrology/screens/planets_screen.dart';
-import 'package:mobile/features/astrology/screens/planet_detail_screen.dart';
-import 'package:mobile/features/astrology/screens/rashi_bhavishya_screen.dart';
-import 'package:mobile/features/astrology/screens/vastu_screen.dart';
-import 'package:mobile/features/astrology/screens/vastu_detail_screen.dart';
-import 'package:mobile/features/astrology/models/vastu_model.dart';
-import 'package:mobile/features/birth_profile/models/birth_profile_model.dart';
-import 'package:mobile/shared/theme/app_theme.dart';
+import 'package:astro_mobile/features/astrology/screens/birth_chart_screen.dart';
+import 'package:astro_mobile/features/astrology/screens/planets_screen.dart';
+import 'package:astro_mobile/features/astrology/screens/planet_detail_screen.dart';
+import 'package:astro_mobile/features/astrology/screens/rashi_bhavishya_screen.dart';
+import 'package:astro_mobile/features/astrology/screens/vastu_screen.dart';
+import 'package:astro_mobile/features/astrology/screens/vastu_detail_screen.dart';
+import 'package:astro_mobile/features/astrology/models/vastu_model.dart';
+import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
+import 'package:astro_mobile/shared/theme/app_theme.dart';
 
 void main() {
   final testProfile = BirthProfileModel(

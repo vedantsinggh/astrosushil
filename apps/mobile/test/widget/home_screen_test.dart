@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astro_mobile/home/screens/home_screen.dart';
 import 'package:astro_mobile/home/data/mock_home_repository.dart';
-import 'package:astro_mobile/home/providers/home_provider.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
+import 'package:astro_mobile/features/auth/data/auth_repository.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
@@ -22,14 +22,15 @@ void main() {
   final testBirthProfile = BirthProfileModel(
     id: 'bp_123',
     userId: 'usr_test_123',
-    fullName: 'Cosmic Traveler',
-    dateOfBirth: DateTime(1995, 5, 15),
-    timeOfBirth: '14:30',
+    name: 'Cosmic Traveler',
+    dateOfBirth: '1995-05-15',
+    timeOfBirth: '14:30:00',
     latitude: 28.6139,
     longitude: 77.2090,
-    cityName: 'New Delhi',
-    ayanamsa: 'LAHIRI',
+    timezone: 'Asia/Kolkata',
+    placeName: 'New Delhi, India',
     createdAt: DateTime(2026, 1, 1),
+    updatedAt: DateTime(2026, 1, 1),
   );
 
   Widget buildTestWidget({
@@ -182,10 +183,26 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   Future<void> checkSession() async {}
 
   @override
-  Future<bool> login(String email, String password) async => true;
+  Future<AuthRegistrationResult?> login(String email, String password) async => null;
 
   @override
-  Future<bool> register(String email, String password) async => true;
+  Future<AuthRegistrationResult?> register(String email, String password,
+      {Map<String, dynamic>? birthProfile, String? fullName, String? phoneNumber}) async => null;
+
+  @override
+  Future<bool> verifyEmail(String email, String otp) async => true;
+
+  @override
+  Future<String?> forgotPassword(String email) async => 'OTP sent';
+
+  @override
+  Future<bool> resetPassword(String email, String otp, String newPassword) async => true;
+
+  @override
+  Future<String?> resendVerification(String email) async => 'OTP sent';
+
+  @override
+  Future<void> handleSessionExpired() async {}
 
   @override
   Future<void> logout() async {
@@ -216,4 +233,7 @@ class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>
 
   @override
   Future<BirthProfileModel?> createProfile(CreateBirthProfileDto dto) async => null;
+
+  @override
+  Future<BirthProfileModel?> migrateGuestProfile(CreateBirthProfileDto dto) async => null;
 }

@@ -203,7 +203,7 @@ class ReportsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'ASTRO SUSHIL REPORTS',
+                            'YOUR ASTRO REPORTS',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,

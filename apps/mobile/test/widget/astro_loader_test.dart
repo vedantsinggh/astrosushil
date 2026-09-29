@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/shared/widgets/astro_loader/astro_loader.dart';
+import 'package:astro_mobile/shared/widgets/astro_loader/astro_loader.dart';
 
 void main() {
   group('AstroLoader Widget Tests', () {

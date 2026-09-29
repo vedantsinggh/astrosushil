@@ -51,13 +51,16 @@ class HomeJyotiCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            const Text(
-                              'Ask Jyoti',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                                letterSpacing: -0.2,
+                            const Flexible(
+                              child: Text(
+                                'Ask Jyoti',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  letterSpacing: -0.2,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
