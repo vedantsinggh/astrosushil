@@ -205,7 +205,12 @@ class ApiClient {
           path,
           queryParameters: queryParameters,
           cancelToken: cancelToken,
-          options: Options(responseType: ResponseType.bytes),
+          options: Options(
+            responseType: ResponseType.bytes,
+            // Use extended timeout for binary downloads (PDF reports can be 350KB+)
+            receiveTimeout: AppConfig.binaryReceiveTimeout,
+            sendTimeout: AppConfig.connectTimeout,
+          ),
         );
         return Uint8List.fromList(response.data ?? []);
       } catch (e) {

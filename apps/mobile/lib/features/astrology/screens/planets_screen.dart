@@ -26,9 +26,8 @@ class PlanetsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profilesState = ref.watch(birthProfilesListNotifierProvider);
-    final activeProfile = profile ??
-        (profilesState.profiles.isNotEmpty ? profilesState.profiles.first : null);
+    final selectedProfile = ref.watch(selectedBirthProfileProvider);
+    final activeProfile = profile ?? selectedProfile;
 
     final chartAsync = activeProfile != null
         ? ref.watch(astrologyChartForProfileProvider(activeProfile))

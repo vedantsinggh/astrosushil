@@ -27,13 +27,15 @@ class RashiBhavishyaSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                "Today's Rashi Bhavishya",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  letterSpacing: -0.3,
+              const Expanded(
+                child: Text(
+                  "Today's Rashi Bhavishya",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
               InkWell(

@@ -79,11 +79,17 @@ export class OpenRouterProvider implements LLMProvider {
           'X-OpenRouter-Title': this.siteName,
         };
 
+        const fallbackList = (process.env.OPENROUTER_FALLBACK_MODELS || '')
+          .split(',')
+          .map((m) => m.trim())
+          .filter(Boolean);
+
         const candidateModels = Array.from(
           new Set([
             this.model,
-            'google/gemini-2.5-flash:free',
-            'meta-llama/llama-3.3-70b-instruct:free',
+            ...fallbackList,
+            'nvidia/nemotron-3.5-lightning:free',
+            'qwen/qwen3.8-27b:free',
           ])
         ).slice(0, 3);
 

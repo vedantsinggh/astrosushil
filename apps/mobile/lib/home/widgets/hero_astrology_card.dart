@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../shared/assets/app_assets.dart';
 import '../../shared/theme/app_colors.dart';
@@ -88,33 +87,37 @@ class HeroAstrologyCard extends StatelessWidget {
                         width: 0.8,
                       ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.auto_awesome,
-                          size: 11,
-                          color: AppColors.premiumAccent,
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          'BIRTH CHART & KUNDLI',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            size: 11,
                             color: AppColors.premiumAccent,
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 5),
+                          Text(
+                            'BIRTH CHART & KUNDLI',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                              color: AppColors.premiumAccent,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 14),
 
                   // Main Heading (Dual-color title: White + Gold)
-                  RichText(
-                    text: TextSpan(
+                  Text.rich(
+                    TextSpan(
                       children: hasBirthProfile
                           ? const [
                               TextSpan(
@@ -190,30 +193,33 @@ class HeroAstrologyCard extends StatelessWidget {
                       foregroundColor: AppColors.primary,
                       elevation: 2,
                       shadowColor: AppColors.premiumAccent.withOpacity(0.4),
-                      minimumSize: const Size(140, 42),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      minimumSize: const Size(120, 42),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          hasBirthProfile ? 'View Your Chart' : 'Add Birth Details',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            hasBirthProfile ? 'View Your Chart' : 'Add Birth Details',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 15,
                             color: AppColors.primary,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 15,
-                          color: AppColors.primary,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
 
@@ -260,124 +266,3 @@ class HeroAstrologyCard extends StatelessWidget {
   }
 }
 
-/// Fallback custom painter rendering a rich gold circular zodiac wheel illustration with planets
-class _HeroZodiacWheelPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.7, size.height * 0.5);
-    final maxRadius = size.height * 0.45;
-
-    // Gold Stroke Paint
-    final goldPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    final faintPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.15)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-
-    // Outer and Inner Concentric Circles
-    canvas.drawCircle(center, maxRadius, goldPaint);
-    canvas.drawCircle(center, maxRadius * 0.85, faintPaint);
-    canvas.drawCircle(center, maxRadius * 0.65, goldPaint);
-    canvas.drawCircle(center, maxRadius * 0.4, faintPaint);
-
-    // Center Glowing Sun
-    final sunGlowPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.25)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, maxRadius * 0.22, sunGlowPaint);
-
-    final sunCorePaint = Paint()
-      ..color = AppColors.premiumAccent
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, maxRadius * 0.12, sunCorePaint);
-
-    // Sun Rays
-    final rayPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.6)
-      ..strokeWidth = 1.2;
-    for (int i = 0; i < 8; i++) {
-      final angle = i * math.pi / 4;
-      final start = Offset(
-        center.dx + math.cos(angle) * (maxRadius * 0.14),
-        center.dy + math.sin(angle) * (maxRadius * 0.14),
-      );
-      final end = Offset(
-        center.dx + math.cos(angle) * (maxRadius * 0.26),
-        center.dy + math.sin(angle) * (maxRadius * 0.26),
-      );
-      canvas.drawLine(start, end, rayPaint);
-    }
-
-    // Zodiac Division Spoke Lines & Symbols
-    const zodiacSymbols = [
-      '♈', '♉', '♊', '♋', '♌', '♍',
-      '♎', '♏', '♐', '♑', '♒', '♓'
-    ];
-
-    final textPainter = TextPainter(textDirection: TextDirection.ltr);
-
-    for (int i = 0; i < 12; i++) {
-      final angle = i * (2 * math.pi / 12);
-      final inner = Offset(
-        center.dx + math.cos(angle) * (maxRadius * 0.65),
-        center.dy + math.sin(angle) * (maxRadius * 0.65),
-      );
-      final outer = Offset(
-        center.dx + math.cos(angle) * maxRadius,
-        center.dy + math.sin(angle) * maxRadius,
-      );
-      canvas.drawLine(inner, outer, faintPaint);
-
-      // Render Zodiac Symbol on wheel ring
-      final symbolAngle = angle + (math.pi / 12);
-      final symbolPos = Offset(
-        center.dx + math.cos(symbolAngle) * (maxRadius * 0.75),
-        center.dy + math.sin(symbolAngle) * (maxRadius * 0.75),
-      );
-
-      textPainter.text = TextSpan(
-        text: zodiacSymbols[i],
-        style: TextStyle(
-          fontSize: 10,
-          color: AppColors.premiumAccent.withOpacity(0.7),
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        symbolPos - Offset(textPainter.width / 2, textPainter.height / 2),
-      );
-    }
-
-    // Colorful Glossy Planetary Spheres on orbits
-    final planets = [
-      (angle: 0.6, dist: 0.52, color: const Color(0xFF38BDF8), radius: 5.0),
-      (angle: 1.8, dist: 0.88, color: const Color(0xFFF97316), radius: 6.5),
-      (angle: 3.4, dist: 0.65, color: const Color(0xFFA855F7), radius: 4.5),
-      (angle: 4.7, dist: 0.95, color: const Color(0xFFEAB308), radius: 7.0),
-      (angle: 5.5, dist: 0.42, color: const Color(0xFFEC4899), radius: 4.0),
-    ];
-
-    for (final p in planets) {
-      final pos = Offset(
-        center.dx + math.cos(p.angle) * (maxRadius * p.dist),
-        center.dy + math.sin(p.angle) * (maxRadius * p.dist),
-      );
-      final planetPaint = Paint()
-        ..color = p.color
-        ..style = PaintingStyle.fill;
-
-      // Glow halo
-      canvas.drawCircle(pos, p.radius * 1.5, Paint()..color = p.color.withOpacity(0.3));
-      // Planet core
-      canvas.drawCircle(pos, p.radius, planetPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

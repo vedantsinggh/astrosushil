@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+export 'app_colors.dart';
 
 /// Extension providing easy access to official brand accent tokens via ColorScheme
 extension AstroColorSchemeExtension on ColorScheme {

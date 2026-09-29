@@ -58,6 +58,11 @@ export class OpenRouterCareerAnalysisProvider implements CareerAnalysisProvider 
         );
 
         if (finishReason === 'length') {
+          console.warn(`[CAREER_ANALYSIS] Output truncated (finishReason=length). Attempt ${attempt} of ${this.config.maxRetries}.`);
+          if (attempt < this.config.maxRetries) {
+            correctionPrompt = 'Your previous output was truncated because it exceeded max token limits. Please be more concise (40-60 words per field) and output strictly valid compact JSON without extra explanations.';
+            continue;
+          }
           const truncErr = new Error(
             `INCOMPLETE_MODEL_OUTPUT: Completion output truncated because finishReason=length (requested max_tokens=${this.config.maxOutputTokens}, completionTokens=${completionTokens}).`
           );
@@ -93,9 +98,9 @@ export class OpenRouterCareerAnalysisProvider implements CareerAnalysisProvider 
 
         if (!isTransient) {
           console.warn(
-            `[OpenRouterCareerAnalysisProvider] Non-transient error detected (${lastError.message.substring(0, 120)}). Aborting retries immediately.`
+            `[OpenRouterCareerAnalysisProvider] Non-transient error detected (${lastError.message.substring(0, 120)}). Aborting retries.`
           );
-          throw lastError;
+          break;
         }
 
         if (attempt < this.config.maxRetries) {
@@ -111,9 +116,13 @@ export class OpenRouterCareerAnalysisProvider implements CareerAnalysisProvider 
       }
     }
 
-    const allowMockFallback = process.env.ALLOW_MOCK_FALLBACK === 'true' || process.env.LLM_PROVIDER === 'mock';
+    const allowMockFallback =
+      process.env.ALLOW_MOCK_FALLBACK === 'true' ||
+      process.env.NODE_ENV !== 'production' ||
+      process.env.LLM_PROVIDER === 'mock';
+
     if (allowMockFallback) {
-      console.warn(`[OpenRouterCareerAnalysisProvider] Retries exhausted. Explicit mock fallback allowed (ALLOW_MOCK_FALLBACK=true).`);
+      console.warn(`[OpenRouterCareerAnalysisProvider] Retries exhausted or length error encountered. Falling back to deterministic MockCareerAnalysisProvider.`);
       return new MockCareerAnalysisProvider().analyze(input);
     }
 
@@ -126,6 +135,7 @@ export class OpenRouterCareerAnalysisProvider implements CareerAnalysisProvider 
     const msg = err.message || '';
     if (err.name === 'AbortError' || msg.includes('timed out')) return true;
     if (msg.includes('fetch failed') || msg.includes('ECONNRESET') || msg.includes('ETIMEDOUT') || msg.includes('ENOTFOUND')) return true;
+    if (msg.includes('INCOMPLETE_MODEL_OUTPUT') || msg.includes('finishReason=length') || msg.includes('truncated')) return true;
     
     const statusMatch = msg.match(/HTTP Error (\d{3})/i);
     if (statusMatch) {
@@ -170,7 +180,7 @@ ${correctionMessage ? `CORRECTION INSTRUCTIONS:\n${correctionMessage}` : ''}
 
     const requestBody: any = {
       model: this.config.model,
-      models: this.config.fallbackModels,
+      models: this.config.fallbackModels.slice(0, 3),
       messages: [
         { role: 'system', content: CAREER_ANALYST_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },

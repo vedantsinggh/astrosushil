@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/features/onboarding/screens/onboarding_screen.dart';
-import 'package:astro_mobile/features/onboarding/providers/onboarding_provider.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
 import 'package:astro_mobile/features/auth/screens/login_screen.dart';
 

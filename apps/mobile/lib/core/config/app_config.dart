@@ -57,7 +57,10 @@ class AppConfig {
     return 'http://127.0.0.1:$apiPort$apiPrefix';
   }
 
-  /// Network request timeout
+  /// Network request timeout (JSON)
   static const Duration connectTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 15);
+  static const Duration receiveTimeout = Duration(seconds: 30);
+
+  /// Extended timeout for large binary downloads (PDF reports ~350KB)
+  static const Duration binaryReceiveTimeout = Duration(seconds: 90);
 }

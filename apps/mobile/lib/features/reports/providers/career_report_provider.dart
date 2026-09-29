@@ -253,10 +253,18 @@ class CareerReportNotifier extends StateNotifier<CareerReportState>
     try {
       final detail = await _service.getCareerReportDetail(reportId);
       state = state.copyWith(detail: detail, activeReportId: reportId);
-      // Pre-cache PDF locally
+    } catch (e) {
+      debugPrint('[CAREER_REPORT] Failed to load report detail: $e');
+    }
+
+    // Pre-cache PDF in background — do NOT propagate errors here.
+    // The PDF viewer screen will retry independently if precache fails.
+    try {
       await downloadAndCachePdf(reportId);
     } catch (e) {
-      // Fallback
+      debugPrint('[CAREER_REPORT] Background PDF precache failed (non-fatal): $e');
+      // Clear any error set by downloadAndCachePdf so it doesn't block the PDF viewer
+      state = state.copyWith(errorMessage: null);
     }
   }
 

@@ -6,11 +6,9 @@ import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 void main() {
   group('AuthInterceptor Unit Tests', () {
     late InMemorySecureStorageService storage;
-    late Dio refreshDio;
 
     setUp(() {
       storage = InMemorySecureStorageService();
-      refreshDio = Dio();
     });
 
     test('onRequest attaches Bearer access token from storage', () async {
@@ -40,8 +38,7 @@ void main() {
         response: Response(requestOptions: requestOptions, statusCode: 401),
       );
 
-      final handler = ErrorInterceptorHandler();
-
+      final handler = _FakeErrorInterceptorHandler();
       await interceptor.onError(dioErr, handler);
 
       expect(unauthCalled, isTrue);
@@ -65,12 +62,16 @@ void main() {
         response: Response(requestOptions: requestOptions, statusCode: 401),
       );
 
-      final handler = ErrorInterceptorHandler();
-
+      final handler = _FakeErrorInterceptorHandler();
       await interceptor.onError(dioErr, handler);
 
       expect(unauthCalled, isTrue);
       expect(await storage.read(key: StorageKeys.accessToken), isNull);
     });
   });
+}
+
+class _FakeErrorInterceptorHandler extends ErrorInterceptorHandler {
+  @override
+  void next(DioException err) {}
 }

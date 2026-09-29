@@ -1,5 +1,3 @@
-// Prisma Schema for Astro Sushil Platform Backend Foundation
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,67 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  SUPER_ADMIN
-  ADMIN
-  SUPPORT
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-}
-
-enum ReportType {
-  KUNDLI
-  PLANETARY_SUMMARY
-  MARRIAGE_COMPATIBILITY
-  CAREER
-  CAREER_PROSITY
-  CHILDBIRTH_FAMILY
-  GUPTA_NADI_DOSSIER
-}
-
-enum ReportStatus {
-  PENDING
-  QUEUED
-  CALCULATING
-  ANALYZING
-  RENDERING
-  COMPILING
-  UPLOADING
-  PROCESSING
-  COMPLETED
-  FAILED
-}
-
-enum VerificationPurpose {
-  EMAIL_VERIFICATION
-  PASSWORD_RESET
-}
-
 model User {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  passwordHash    String
-  fullName        String?
-  phoneNumber     String?
-  emailVerifiedAt DateTime?
-  role            Role           @default(USER)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
+  id                     String                  @id @default(uuid())
+  email                  String                  @unique
+  passwordHash           String
+  role                   Role                    @default(USER)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  fullName               String?
+  phoneNumber            String?
+  emailVerifiedAt        DateTime?
   birthProfiles          BirthProfile[]
-  refreshTokens         RefreshToken[]
-  otpVerifications       OtpVerification[]
-  orders                Order[]
-  reports               Report[]
-  deviceTokens          DeviceToken[]
-  notifications         Notification[]
+  deviceTokens           DeviceToken[]
   notificationPreference NotificationPreference?
+  notifications          Notification[]
+  orders                 Order[]
+  otpVerifications       OtpVerification[]
+  refreshTokens          RefreshToken[]
+  reports                Report[]
 
   @@index([email])
   @@map("users")
@@ -83,8 +38,7 @@ model RefreshToken {
   revokedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([tokenHash])
@@ -100,8 +54,7 @@ model OtpVerification {
   attempts  Int                 @default(0)
   usedAt    DateTime?
   createdAt DateTime            @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, purpose])
@@ -112,17 +65,16 @@ model BirthProfile {
   id          String   @id @default(uuid())
   userId      String
   name        String
-  dateOfBirth String   // Canonical format: YYYY-MM-DD
-  timeOfBirth String   // Canonical 24h format: HH:mm:ss
-  latitude    Float    // Decimal degrees [-90, 90]
-  longitude   Float    // Decimal degrees [-180, 180]
-  timezone    String   // IANA Timezone ID (e.g. "Asia/Kolkata")
-  placeName   String?  // Optional display place name
+  dateOfBirth String
+  timeOfBirth String
+  latitude    Float
+  longitude   Float
+  timezone    String
+  placeName   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports Report[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports     Report[]
 
   @@index([userId])
   @@map("birth_profiles")
@@ -133,15 +85,14 @@ model Order {
   userId            String
   razorpayOrderId   String      @unique
   razorpayPaymentId String?     @unique
-  amount            Int         // Amount in paise
+  amount            Int
   currency          String      @default("INR")
   status            OrderStatus @default(PENDING)
   reportType        ReportType
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
-
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports Report[]
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports           Report[]
 
   @@index([userId])
   @@map("orders")
@@ -154,25 +105,24 @@ model Report {
   orderId            String?
   reportType         ReportType
   status             ReportStatus @default(QUEUED)
+  s3Url              String?
+  errorMessage       String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
   stage              String?      @default("QUEUED")
   progress           Int          @default(0)
   reportVersion      String       @default("1.0.0")
   calculationVersion String       @default("1.0.0")
-  s3Url              String?
   storageKey         String?
   fileName           String?
   fileSize           Int?
   pageCount          Int?
   errorCode          String?
-  errorMessage       String?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
   completedAt        DateTime?
   failedAt           DateTime?
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  birthProfile BirthProfile @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
-  order        Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  birthProfile       BirthProfile @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
+  order              Order?       @relation(fields: [orderId], references: [id])
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([birthProfileId])
@@ -183,13 +133,12 @@ model DeviceToken {
   id         String   @id @default(uuid())
   userId     String
   fcmToken   String   @unique
-  deviceType String   // "ANDROID" | "IOS" | "WEB"
+  deviceType String
+  createdAt  DateTime @default(now())
   isActive   Boolean  @default(true)
   lastUsedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([fcmToken])
@@ -199,14 +148,13 @@ model DeviceToken {
 model Notification {
   id        String    @id @default(uuid())
   userId    String
-  type      String    // "REPORT_READY", "PAYMENT_SUCCESS", "PROMOTIONAL", "SYSTEM"
+  type      String
   title     String
   body      String
-  metadata  String?   // JSON metadata payload
+  metadata  String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, readAt])
@@ -224,8 +172,7 @@ model NotificationPreference {
   promotions         Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
 }
@@ -244,4 +191,46 @@ model AuditLog {
   @@index([adminId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+  SUPPORT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ReportType {
+  MARRIAGE_COMPATIBILITY
+  CAREER_PROSITY
+  CHILDBIRTH_FAMILY
+  GUPTA_NADI_DOSSIER
+  CAREER
+  KUNDLI
+  PLANETARY_SUMMARY
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  QUEUED
+  CALCULATING
+  ANALYZING
+  RENDERING
+  COMPILING
+  UPLOADING
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
 }
