@@ -7,6 +7,18 @@ export interface HealthStatusResponse {
   environment: string;
 }
 
+export interface LocationSearchResult {
+  id: string;
+  name: string;
+  displayName: string;
+  country: string;
+  countryCode: string;
+  state?: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+}
+
 export interface NormalizedBirthDetails {
   profileId?: string;
   name: string;
@@ -17,6 +29,10 @@ export interface NormalizedBirthDetails {
   latitude: number; // Decimal degrees [-90, 90]
   longitude: number; // Decimal degrees [-180, 180]
   placeName?: string;
+  country?: string;
+  countryCode?: string;
+  state?: string;
+  isResolved?: boolean;
 }
 
 export interface ApiErrorDetail {
@@ -39,3 +55,4 @@ export interface ApiResponse<T> {
 }
 
 export const SHARED_PACKAGE_NAME = "@astro/shared";
+

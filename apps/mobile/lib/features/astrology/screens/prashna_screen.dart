@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/prashna_model.dart';
 import '../providers/astrology_provider.dart';
@@ -70,15 +71,12 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
     final prashnaState = ref.watch(prashnaProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Prashna (Horary Astrology)'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Prashna (Horary Astrology)',
         actions: [
           if (prashnaState.result != null)
             IconButton(
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
               tooltip: 'New Question',
               onPressed: () {
                 ref.read(prashnaProvider.notifier).clear();

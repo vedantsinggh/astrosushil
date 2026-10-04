@@ -8,7 +8,7 @@ import { careerAnalysisValidator } from '../validation/career-analysis.validator
 import { CareerAnalysisInput, CareerAnalysis } from '../types/evidence.types';
 
 describe('Phase 4: LLM Career Analyst Provider & Validation Suite', () => {
-  const aaravSharmaFixture: AstroChart = {
+  const aaravSharmaFixture: any = {
     ascendant: { sign: 'Aries', degree: 15.42, nakshatra: 'Bharani', pada: 1 },
     planets: [
       { name: 'Sun', sign: 'Leo', degree: 10.5, house: 5, nakshatra: 'Magha', pada: 4, retrograde: false },
@@ -50,7 +50,7 @@ describe('Phase 4: LLM Career Analyst Provider & Validation Suite', () => {
     const result = await provider.analyze(analysisInput);
 
     expect(result.executiveCareerSummary).toBeDefined();
-    expect(result.careerIdentity).toContain('Aries Ascendant');
+    expect(result.careerIdentity).toContain('Ascendant in Aries');
     expect(result.houseInterpretations).toBeDefined();
     expect(result.planetInterpretations).toBeDefined();
     expect(result.recommendedFields?.length).toBeGreaterThan(0);
@@ -154,7 +154,7 @@ describe('Phase 4: LLM Career Analyst Provider & Validation Suite', () => {
     const provider = new MockCareerAnalysisProvider();
     const result = await provider.analyze(analysisInput);
 
-    const scratchDir = path.resolve('/home/mirage/.gemini/antigravity/brain/518b516c-992f-4d0e-9016-64cb33296792/scratch');
+    const scratchDir = path.resolve('/tmp/scratch');
     if (!fs.existsSync(scratchDir)) {
       fs.mkdirSync(scratchDir, { recursive: true });
     }

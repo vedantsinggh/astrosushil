@@ -1,6 +1,11 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { authService } from './auth.service';
 import {
+  phoneSendOtpSchema,
+  phoneVerifyOtpSchema,
+  googleAuthSchema,
+  linkPhoneSchema,
+  linkGoogleSchema,
   registerSchema,
   loginSchema,
   verifyEmailSchema,
@@ -12,6 +17,157 @@ import {
 } from './auth.schemas';
 
 export async function authRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
+  const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
+
+  // =========================================================================
+  // PHONE NUMBER + OTP ROUTES
+  // =========================================================================
+
+  // POST /api/v1/auth/phone/send-otp
+  fastify.post('/phone/send-otp', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'Request Phone OTP verification code',
+      description: 'Sends a 6-digit verification code to the normalized E.164 phone number with 60-second cooldown rate limit',
+      body: {
+        type: 'object',
+        required: ['phoneNumber'],
+        properties: {
+          phoneNumber: { type: 'string', example: '+919876543210' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = phoneSendOtpSchema.parse(request.body);
+      const result = await authService.sendPhoneOtp(input);
+      return reply.status(200).send(result);
+    },
+  });
+
+  // POST /api/v1/auth/phone/verify-otp
+  fastify.post('/phone/verify-otp', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'Verify Phone OTP and authenticate session',
+      description: 'Verifies 6-digit numeric OTP and returns authenticated session tokens with user profile',
+      body: {
+        type: 'object',
+        required: ['phoneNumber', 'otp'],
+        properties: {
+          phoneNumber: { type: 'string', example: '+919876543210' },
+          otp: { type: 'string', example: '123456' },
+          birthProfile: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', example: 'Rahul Sharma' },
+              dateOfBirth: { type: 'string', example: '1998-08-15' },
+              timeOfBirth: { type: 'string', example: '08:30:00' },
+              latitude: { type: 'number', example: 28.6139 },
+              longitude: { type: 'number', example: 77.2090 },
+              timezone: { type: 'string', example: 'Asia/Kolkata' },
+              placeName: { type: 'string', example: 'New Delhi, India' },
+            },
+          },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = phoneVerifyOtpSchema.parse(request.body);
+      const result = await authService.verifyPhoneOtp(input, signJwt);
+      return reply.status(200).send(result);
+    },
+  });
+
+  // =========================================================================
+  // GOOGLE SIGN-IN ROUTES
+  // =========================================================================
+
+  // POST /api/v1/auth/google
+  fastify.post('/google', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'Sign in with Google ID token',
+      description: 'Verifies Google ID token server-side and returns authenticated session tokens',
+      body: {
+        type: 'object',
+        required: ['idToken'],
+        properties: {
+          idToken: { type: 'string', example: 'eyJhbGciOiJSUzI1NiIs...' },
+          birthProfile: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', example: 'Rahul Sharma' },
+              dateOfBirth: { type: 'string', example: '1998-08-15' },
+              timeOfBirth: { type: 'string', example: '08:30:00' },
+              latitude: { type: 'number', example: 28.6139 },
+              longitude: { type: 'number', example: 77.2090 },
+              timezone: { type: 'string', example: 'Asia/Kolkata' },
+              placeName: { type: 'string', example: 'New Delhi, India' },
+            },
+          },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = googleAuthSchema.parse(request.body);
+      const result = await authService.googleAuth(input, signJwt);
+      return reply.status(200).send(result);
+    },
+  });
+
+  // =========================================================================
+  // ACCOUNT LINKING ROUTES (AUTHENTICATED)
+  // =========================================================================
+
+  // POST /api/v1/auth/link-phone
+  fastify.post('/link-phone', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      tags: ['Auth'],
+      summary: 'Link verified phone number to current account',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['phoneNumber', 'otp'],
+        properties: {
+          phoneNumber: { type: 'string', example: '+919876543210' },
+          otp: { type: 'string', example: '123456' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = linkPhoneSchema.parse(request.body);
+      const result = await authService.linkPhone(request.user.id, input);
+      return reply.status(200).send(result);
+    },
+  });
+
+  // POST /api/v1/auth/link-google
+  fastify.post('/link-google', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      tags: ['Auth'],
+      summary: 'Link Google account to current account',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['idToken'],
+        properties: {
+          idToken: { type: 'string', example: 'eyJhbGciOiJSUzI1NiIs...' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = linkGoogleSchema.parse(request.body);
+      const result = await authService.linkGoogle(request.user.id, input);
+      return reply.status(200).send(result);
+    },
+  });
+
+  // =========================================================================
+  // LEGACY AUTH ROUTES (PRESERVED FOR COMPATIBILITY)
+  // =========================================================================
+
   // POST /api/v1/auth/register
   fastify.post('/register', {
     schema: {
@@ -26,18 +182,6 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
           password: { type: 'string', minLength: 8, example: 'SecurePassword123!' },
           fullName: { type: 'string', example: 'Rahul Sharma' },
           phoneNumber: { type: 'string', example: '+919876543210' },
-          birthProfile: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', example: 'Rahul Sharma' },
-              dateOfBirth: { type: 'string', example: '1998-08-15' },
-              timeOfBirth: { type: 'string', example: '08:30:00' },
-              latitude: { type: 'number', example: 28.6139 },
-              longitude: { type: 'number', example: 77.2090 },
-              timezone: { type: 'string', example: 'Asia/Kolkata' },
-              placeName: { type: 'string', example: 'New Delhi, India' },
-            },
-          },
         },
       },
     },
@@ -65,7 +209,6 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = verifyEmailSchema.parse(request.body);
-      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await authService.verifyEmail(input, signJwt);
       return reply.status(200).send(result);
     },
@@ -88,7 +231,6 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = loginSchema.parse(request.body);
-      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await authService.login(input, signJwt);
       return reply.status(200).send(result);
     },
@@ -175,7 +317,6 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = refreshSchema.parse(request.body);
-      const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
       const result = await authService.refresh(input.refreshToken, signJwt);
       return reply.status(200).send(result);
     },

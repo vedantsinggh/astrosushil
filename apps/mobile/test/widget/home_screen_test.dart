@@ -210,6 +210,21 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   }
 
   @override
+  Future<bool> sendPhoneOtp(String phoneNumber) async => true;
+
+  @override
+  Future<bool> verifyPhoneOtp(String phoneNumber, String otp, [Map<String, dynamic>? birthProfile]) async => true;
+
+  @override
+  Future<bool> signInWithGoogle(String idToken, [Map<String, dynamic>? birthProfile]) async => true;
+
+  @override
+  Future<bool> linkPhone(String phoneNumber, String otp) async => true;
+
+  @override
+  Future<bool> linkGoogle(String idToken) async => true;
+
+  @override
   Future<void> continueAsGuest() async {
     state = AuthState.guest();
   }

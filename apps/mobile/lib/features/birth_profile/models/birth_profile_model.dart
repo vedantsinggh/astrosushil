@@ -9,6 +9,10 @@ class NormalizedDetailsModel {
   final double latitude;
   final double longitude;
   final String placeName;
+  final String? country;
+  final String? countryCode;
+  final String? state;
+  final bool isResolved;
 
   const NormalizedDetailsModel({
     required this.profileId,
@@ -20,6 +24,10 @@ class NormalizedDetailsModel {
     required this.latitude,
     required this.longitude,
     required this.placeName,
+    this.country,
+    this.countryCode,
+    this.state,
+    this.isResolved = true,
   });
 
   factory NormalizedDetailsModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +43,10 @@ class NormalizedDetailsModel {
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       placeName: json['placeName'] as String? ?? '',
+      country: json['country'] as String?,
+      countryCode: json['countryCode'] as String?,
+      state: json['state'] as String?,
+      isResolved: json['isResolved'] as bool? ?? true,
     );
   }
 
@@ -49,6 +61,10 @@ class NormalizedDetailsModel {
       'latitude': latitude,
       'longitude': longitude,
       'placeName': placeName,
+      if (country != null) 'country': country,
+      if (countryCode != null) 'countryCode': countryCode,
+      if (state != null) 'state': state,
+      'isResolved': isResolved,
     };
   }
 }
@@ -64,6 +80,10 @@ class BirthProfileModel {
   final double longitude;
   final String timezone;
   final String placeName;
+  final String? country;
+  final String? countryCode;
+  final String? state;
+  final bool isResolved;
   final DateTime createdAt;
   final DateTime updatedAt;
   final NormalizedDetailsModel? normalizedDetails;
@@ -78,22 +98,39 @@ class BirthProfileModel {
     required this.longitude,
     required this.timezone,
     required this.placeName,
+    this.country,
+    this.countryCode,
+    this.state,
+    this.isResolved = true,
     required this.createdAt,
     required this.updatedAt,
     this.normalizedDetails,
   });
 
   factory BirthProfileModel.fromJson(Map<String, dynamic> json) {
+    final lat = (json['latitude'] as num?)?.toDouble() ?? 0.0;
+    final lng = (json['longitude'] as num?)?.toDouble() ?? 0.0;
+    final tz = json['timezone'] as String? ?? '';
+    final isExplicitlyResolved = json['isResolved'] as bool?;
+
+    // If isResolved is not explicitly set, determine resolution:
+    // A profile is unresolved if coordinates are (0,0) with empty or UTC timezone and missing place
+    final isResolved = isExplicitlyResolved ?? !(lat == 0.0 && lng == 0.0 && (tz.isEmpty || tz == 'UTC'));
+
     return BirthProfileModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       name: json['name'] as String? ?? '',
       dateOfBirth: json['dateOfBirth'] as String? ?? '',
       timeOfBirth: json['timeOfBirth'] as String? ?? '',
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      timezone: json['timezone'] as String? ?? '',
+      latitude: lat,
+      longitude: lng,
+      timezone: tz.isNotEmpty ? tz : 'Asia/Kolkata',
       placeName: json['placeName'] as String? ?? '',
+      country: json['country'] as String?,
+      countryCode: json['countryCode'] as String?,
+      state: json['state'] as String?,
+      isResolved: isResolved,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -117,6 +154,10 @@ class BirthProfileModel {
       'longitude': longitude,
       'timezone': timezone,
       'placeName': placeName,
+      if (country != null) 'country': country,
+      if (countryCode != null) 'countryCode': countryCode,
+      if (state != null) 'state': state,
+      'isResolved': isResolved,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (normalizedDetails != null) 'normalizedDetails': normalizedDetails!.toJson(),
@@ -133,6 +174,10 @@ class CreateBirthProfileDto {
   final double longitude;
   final String timezone;
   final String placeName;
+  final String? country;
+  final String? countryCode;
+  final String? state;
+  final bool isResolved;
 
   const CreateBirthProfileDto({
     required this.name,
@@ -142,6 +187,10 @@ class CreateBirthProfileDto {
     required this.longitude,
     required this.timezone,
     required this.placeName,
+    this.country,
+    this.countryCode,
+    this.state,
+    this.isResolved = true,
   });
 
   Map<String, dynamic> toJson() {
@@ -153,6 +202,11 @@ class CreateBirthProfileDto {
       'longitude': longitude,
       'timezone': timezone,
       'placeName': placeName,
+      if (country != null) 'country': country,
+      if (countryCode != null) 'countryCode': countryCode,
+      if (state != null) 'state': state,
+      'isResolved': isResolved,
     };
   }
 }
+

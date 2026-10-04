@@ -8,6 +8,10 @@ export interface BirthProfileResponseDto {
   longitude: number;
   timezone: string;
   placeName: string | null;
+  country: string | null;
+  countryCode: string | null;
+  state: string | null;
+  isResolved: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +27,10 @@ export interface BirthProfileWithDetailsResponseDto extends BirthProfileResponse
     latitude: number;
     longitude: number;
     placeName?: string;
+    country?: string;
+    countryCode?: string;
+    state?: string;
+    isResolved?: boolean;
   };
 }
 
@@ -36,9 +44,19 @@ export function mapBirthProfileToResponseDto(profile: {
   longitude: number;
   timezone: string;
   placeName: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  state?: string | null;
+  isResolved?: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }): BirthProfileResponseDto {
+  // Determine if location is considered resolved (valid place and not dummy 0,0 UTC coordinates)
+  const isResolved =
+    profile.isResolved !== undefined && profile.isResolved !== null
+      ? profile.isResolved
+      : !(profile.latitude === 0 && profile.longitude === 0 && profile.timezone === 'UTC');
+
   return {
     id: profile.id,
     userId: profile.userId,
@@ -49,7 +67,12 @@ export function mapBirthProfileToResponseDto(profile: {
     longitude: profile.longitude,
     timezone: profile.timezone,
     placeName: profile.placeName,
+    country: profile.country ?? null,
+    countryCode: profile.countryCode ?? null,
+    state: profile.state ?? null,
+    isResolved,
     createdAt: profile.createdAt.toISOString(),
     updatedAt: profile.updatedAt.toISOString(),
   };
 }
+

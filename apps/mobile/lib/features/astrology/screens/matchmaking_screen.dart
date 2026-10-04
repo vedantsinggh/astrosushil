@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
@@ -32,15 +33,12 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final allProfiles = profilesState.profiles;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kundli Matchmaking (Guna Milan)'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Kundli Matchmaking (Guna Milan)',
         actions: [
           if (matchState.result != null)
             IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
               tooltip: 'Recalculate',
               onPressed: () {
                 if (personA != null && personB != null) {

@@ -85,6 +85,10 @@ export class AdminService {
       throw new AuthenticationError('Invalid administrative credentials');
     }
 
+    if (!user.passwordHash) {
+      throw new AuthenticationError('Invalid administrative credentials');
+    }
+
     const isValidPassword = await verifyPassword(input.password, user.passwordHash);
     if (!isValidPassword) {
       throw new AuthenticationError('Invalid administrative credentials');
@@ -105,7 +109,7 @@ export class AdminService {
 
     await this.logAction({
       adminId: user.id,
-      adminEmail: user.email,
+      adminEmail: user.email || 'admin@astrosushil.internal',
       action: 'ADMIN_LOGIN',
       resource: `User:${user.id}`,
       details: `Admin login successful with role ${user.role}`,
@@ -152,7 +156,7 @@ export class AdminService {
 
     return {
       id: user.id,
-      email: user.email,
+      email: user.email || '',
       fullName: user.fullName,
       role: user.role,
       permissions: getPermissionsForRole(user.role),
@@ -481,7 +485,7 @@ export class AdminService {
       prisma.user.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
-        select: { id: true, email: true, fullName: true, createdAt: true },
+        select: { id: true, email: true, phoneNumber: true, fullName: true, createdAt: true },
       }),
       prisma.report.findMany({
         take: 5,
@@ -521,7 +525,7 @@ export class AdminService {
         id: `user-${u.id}`,
         timestamp: u.createdAt.toISOString(),
         event: 'New user registered',
-        user: u.email,
+        user: u.email || u.phoneNumber || u.id,
         status: 'SUCCESS',
       });
     }
@@ -1205,7 +1209,7 @@ export class AdminService {
       userAgent: reqMeta?.userAgent,
     });
 
-    const isGuestUser = user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest');
+    const isGuestUser = user.email ? (user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest')) : false;
     const totalPaidOrders = user.orders.filter((o) => o.status === 'PAID').length;
     const currentPlan = totalPaidOrders > 0 ? 'PAID_SUBSCRIBER' : 'FREE_REGISTERED';
 

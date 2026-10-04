@@ -75,9 +75,9 @@ export class LocalXeLatexCompiler implements LatexCompiler {
         `[REPORT][LATEX] Starting local XeLaTeX compilation for reportId: ${reportId} (Binary: ${xeLatexInfo.version || 'xelatex'})`
       );
 
-      // Run XeLaTeX in isolated subprocess (Pass 1 & Pass 2 for page numbering)
+      // Run XeLaTeX in isolated subprocess (3 passes for stable Table of Contents & page references)
       try {
-        for (let pass = 1; pass <= 2; pass++) {
+        for (let pass = 1; pass <= 3; pass++) {
           await execFileAsync(
             'xelatex',
             ['-interaction=nonstopmode', `-output-directory=${outputDir}`, 'main.tex'],
@@ -106,6 +106,7 @@ export class LocalXeLatexCompiler implements LatexCompiler {
         reportDataTex: options.reportDataTex,
         expectedClientName: options.careerReportData?.client?.clientName,
         minPageCount: options.minPageCount !== undefined ? options.minPageCount : 5,
+        reportData: options.careerReportData,
       });
 
       const isQaEnabled = process.env.REPORT_PDF_QA_ENABLED?.toLowerCase().trim() !== 'false';
@@ -183,17 +184,18 @@ export class LocalXeLatexCompiler implements LatexCompiler {
         line.includes('Fatal error') ||
         line.includes('Emergency stop') ||
         line.includes('Undefined control sequence') ||
-        line.includes('Runaway argument')
+        line.includes('Runaway argument') ||
+        line.includes('Missing ')
       ) {
-        snippets.push(...logLines.slice(i, i + 4));
-        i += 3;
+        snippets.push(...logLines.slice(Math.max(0, i - 2), Math.min(logLines.length, i + 8)));
+        i += 7;
       }
     }
 
     const extracted = snippets.join('\n');
     const stdout = rawExecErr?.stdout || '';
     const stderr = rawExecErr?.stderr || rawExecErr?.message || '';
-    const fallbackOutput = [stdout, stderr].filter(Boolean).join('\n').substring(0, 300);
+    const fallbackOutput = [stdout, stderr].filter(Boolean).join('\n');
 
     return extracted.trim() || fallbackOutput || 'Unknown XeLaTeX compilation error.';
   }

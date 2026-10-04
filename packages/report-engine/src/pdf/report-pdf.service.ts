@@ -132,7 +132,7 @@ export class ReportPdfService {
     pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 440, true, true);
 
     pdf.drawText('6. APTITUDES & SECTOR FIT ANALYSIS', pdf.marginLeft + 15, 480, 12, true, PdfColors.NAVY);
-    const sectorText = careerData.careerAnalysis?.sectorFit || 'Sector fit and career fields analysis.';
+    const sectorText = (careerData.careerAnalysis as any)?.sectorFit || careerData.careerAnalysis?.careerDirections?.[0]?.whySupported || 'Sector fit and career fields analysis.';
     this.drawWrappedText(pdf, sectorText, pdf.marginLeft + 15, 455, pdf.contentWidth - 30, 9.5, 14);
 
     // PAGE 4: Action Plan & Final Synthesis
@@ -145,7 +145,7 @@ export class ReportPdfService {
     pdf.drawRect(pdf.marginLeft, 460, pdf.contentWidth, 320, true, true);
 
     pdf.drawText('7. STRATEGIC ACTION PLAN', pdf.marginLeft + 15, 760, 12, true, PdfColors.NAVY);
-    const actionPlanText = careerData.careerAnalysis?.actionPlanSummary || 'Step-by-step career action plan.';
+    const actionPlanText = (careerData.careerAnalysis as any)?.actionPlanSummary || careerData.careerAnalysis?.decisionFramework || 'Step-by-step career action plan.';
     this.drawWrappedText(pdf, actionPlanText, pdf.marginLeft + 15, 735, pdf.contentWidth - 30, 9.5, 14);
 
     pdf.setFillColor(PdfColors.WHITE);
@@ -500,6 +500,12 @@ export class ReportPdfService {
     curY -= 20;
     let isAlt = false;
     for (const p of report.planets) {
+      if (curY < 100) {
+        pdf.addPage();
+        pdf.drawHeader('Planetary Summary Report');
+        curY = 760;
+      }
+
       pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
       pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
 
@@ -520,11 +526,23 @@ export class ReportPdfService {
       isAlt = !isAlt;
     }
 
+    if (curY < 140) {
+      pdf.addPage();
+      pdf.drawHeader('Planetary Summary Report');
+      curY = 760;
+    }
+
     curY -= 25;
     pdf.drawText('PLANETARY FORCE ANALYSIS', pdf.marginLeft, curY, 12, true, PdfColors.INDIGO);
     curY -= 15;
 
     for (const sec of report.sections) {
+      if (curY < 100) {
+        pdf.addPage();
+        pdf.drawHeader('Planetary Summary Report');
+        curY = 760;
+      }
+
       pdf.setFillColor(PdfColors.LIGHT_BG);
       pdf.setStrokeColor(PdfColors.BORDER_GREY);
       pdf.drawRect(pdf.marginLeft, curY - 70, pdf.contentWidth, 70, true, true);

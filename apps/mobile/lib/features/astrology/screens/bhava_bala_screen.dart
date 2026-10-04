@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -49,13 +50,11 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Bhava Bala (भावबल)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Bhava Bala (भावबल)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
             tooltip: 'About Bhava Bala',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(

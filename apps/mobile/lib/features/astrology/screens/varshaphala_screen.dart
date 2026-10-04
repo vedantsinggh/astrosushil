@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/varshaphala_model.dart';
 import '../providers/astrology_provider.dart';
@@ -47,11 +48,8 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
     final selectedYear = ref.watch(selectedVarshaphalaYearProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Varshaphala (Solar Return)'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: const AstroAppBar(
+        title: 'Varshaphala (Solar Return)',
       ),
       body: SubtleCelestialBackground(
         child: Column(

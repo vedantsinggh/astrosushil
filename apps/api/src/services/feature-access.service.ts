@@ -231,7 +231,7 @@ export class FeatureAccessService {
       select: { id: true, email: true, emailVerifiedAt: true, createdAt: true },
     });
 
-    const isGuest = !user || user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest');
+    const isGuest = !user || (user.email ? (user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest')) : false);
     const isSuspended = user ? await this.isUserSuspended(userId) : false;
     const accountType = isGuest ? 'GUEST' : isSuspended ? 'SUSPENDED' : 'REGISTERED';
 

@@ -14,6 +14,7 @@ import { reportsRoutes } from '../modules/reports/reports.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
 import { notificationsRoutes } from '../modules/notifications/notifications.routes';
 import { jyotiRoutes } from '../modules/jyoti/jyoti.routes';
+import { locationsRoutes } from '../modules/locations/locations.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -26,6 +27,7 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(authRoutes, { prefix: '/auth' });
       await v1.register(usersRoutes, { prefix: '/users' });
       await v1.register(birthProfilesRoutes, { prefix: '/birth-profiles' });
+      await v1.register(locationsRoutes, { prefix: '/locations' });
       await v1.register(astrologyRoutes, { prefix: '/astrology' });
       await v1.register(rashiBhavishyaRoutes, { prefix: '/rashi-bhavishya' });
       await v1.register(vastuRoutes, { prefix: '/vastu' });

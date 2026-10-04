@@ -26,6 +26,21 @@ export function globalErrorHandler(error: FastifyError | AppError | Error, reque
     });
   }
 
+  // Handle Incomplete Astrology Data Error (422)
+  if (
+    error.name === 'IncompleteAstrologyDataError' ||
+    (error as any).code === 'INCOMPLETE_ASTROLOGY_DATA' ||
+    error.message?.includes('Incomplete astrology data')
+  ) {
+    return reply.status(422).send({
+      error: {
+        code: 'INCOMPLETE_ASTROLOGY_DATA',
+        message: 'Complete chart data is currently unavailable. Please try again.',
+        requestId,
+      },
+    });
+  }
+
   // Handle Prisma Database Connection Failures
   const isPrismaDbError =
     error.name === 'PrismaClientInitializationError' ||

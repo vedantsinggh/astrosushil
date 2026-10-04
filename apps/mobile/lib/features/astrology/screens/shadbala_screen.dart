@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -33,13 +34,11 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Shadbala (षड्बल)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Shadbala (षड्बल)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
             tooltip: 'About Shadbala',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(

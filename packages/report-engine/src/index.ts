@@ -15,3 +15,5 @@ export { latextoCompiler, LatextoCompiler } from './pdf/latexto-compiler';
 export { localXeLatexCompiler, xeLatexCompiler, XeLatexCompiler, LocalXeLatexCompiler } from './pdf/xelatex-compiler';
 export { latexCompiler, getLatexCompiler } from './pdf/latex-compiler.factory';
 export * from './validation/pdf-qa.validator';
+export * from './validation/claim-validation.engine';
+export * from './validation/duplication-detector';

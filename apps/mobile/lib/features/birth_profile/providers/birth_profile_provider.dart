@@ -69,15 +69,18 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
     try {
       if (_authState.isGuest) {
         final guestProfile = await _repository.getGuestProfile();
+        if (!mounted) return;
         state = state.copyWith(
           isLoading: false,
           profiles: guestProfile != null ? [guestProfile] : [],
         );
       } else {
         final profiles = await _repository.getProfiles();
+        if (!mounted) return;
         state = state.copyWith(isLoading: false, profiles: profiles);
       }
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
@@ -87,15 +90,18 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
     try {
       if (_authState.isGuest) {
         final newProfile = await _repository.saveGuestProfile(dto);
+        if (!mounted) return newProfile;
         state = state.copyWith(isLoading: false, profiles: [newProfile]);
         return newProfile;
       } else {
         final newProfile = await _repository.createProfile(dto);
+        if (!mounted) return newProfile;
         final updatedList = [newProfile, ...state.profiles];
         state = state.copyWith(isLoading: false, profiles: updatedList);
         return newProfile;
       }
     } catch (e) {
+      if (!mounted) return null;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return null;
     }
@@ -106,9 +112,11 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final migrated = await _repository.migrateGuestProfile(dto);
+      if (!mounted) return migrated;
       await fetchProfiles();
       return migrated;
     } catch (e) {
+      if (!mounted) return null;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return null;
     }

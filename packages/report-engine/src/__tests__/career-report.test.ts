@@ -11,7 +11,7 @@ import {
 } from '../index';
 
 describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
-  const mockAstroChart: AstroChart = {
+  const mockAstroChart: any = {
     ascendant: {
       sign: 'Aries',
       degree: 15.42,

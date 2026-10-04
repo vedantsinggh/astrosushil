@@ -7,7 +7,10 @@ export const directBirthDetailsSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   timezone: z.string().min(1, 'timezone is required'),
-  placeName: z.string().optional(),
+  placeName: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+  countryCode: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
 });
 
 export const VARGA_TYPES_ENUM = [

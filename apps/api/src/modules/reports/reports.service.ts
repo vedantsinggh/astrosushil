@@ -212,7 +212,7 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
-      throw new ForbiddenError('You do not have access to this report');
+      throw new NotFoundError('Report not found');
     }
 
     const downloadUrl = `/api/v1/reports/${report.id}/download-file`;
@@ -348,9 +348,7 @@ export class ReportsService {
       }
     }
 
-    // 2. Fallback for legacy MVP Kundli / Planetary summary reports
-    const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
-    let structuredReport: StructuredReportModel;
+    // 2. Generate PDF deterministically if storage buffer is unavailable
     const profileInput = {
       name: report.birthProfile.name,
       dateOfBirth: report.birthProfile.dateOfBirth,
@@ -358,6 +356,23 @@ export class ReportsService {
       placeName: report.birthProfile.placeName,
       timezone: report.birthProfile.timezone,
     };
+
+    if (report.reportType === 'CAREER') {
+      const normalizedChart = await astrologyService.calculateNormalizedChart(
+        { birthProfileId: report.birthProfileId },
+        user
+      );
+      const { careerReportService } = await import('@astro/report-engine');
+      const pipelineResult = await careerReportService.generateCareerReportData(normalizedChart, {
+        clientProfile: profileInput,
+      });
+      const pdfBuffer = await reportPdfService.generateCareerReportPdf(pipelineResult.reportData);
+      return { buffer: pdfBuffer, report };
+    }
+
+    const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
+    validateAstrologyDataForReport(chartResponse);
+    let structuredReport: StructuredReportModel;
 
     if (report.reportType === 'KUNDLI') {
       structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
@@ -388,6 +403,28 @@ export class ReportsService {
       throw new NotFoundError('Birth profile not found');
     }
 
+    // Check for existing completed report to reuse
+    const existing = await prisma.report.findFirst({
+      where: {
+        userId: user.id,
+        birthProfileId: input.birthProfileId,
+        reportType: input.reportType as any,
+        status: 'COMPLETED',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existing && profile.updatedAt <= existing.createdAt) {
+      return {
+        id: existing.id,
+        userId: existing.userId,
+        birthProfileId: existing.birthProfileId,
+        reportType: existing.reportType,
+        status: existing.status,
+        createdAt: existing.createdAt,
+      };
+    }
+
     const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
 
     validateAstrologyDataForReport(chartResponse);
@@ -410,12 +447,25 @@ export class ReportsService {
       } as any,
     });
 
+    const profileInput = {
+      name: profile.name,
+      dateOfBirth: profile.dateOfBirth,
+      timeOfBirth: profile.timeOfBirth,
+      placeName: profile.placeName,
+      timezone: profile.timezone,
+    };
+
+    const structuredReport = (input.reportType === 'KUNDLI')
+      ? await generateKundliReport(profileInput, chartResponse, this.interpretationProvider)
+      : await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
+
     return {
       id: report.id,
       userId: user.id,
       birthProfileId: input.birthProfileId,
       reportType: input.reportType,
       status: 'COMPLETED',
+      report: structuredReport,
       createdAt: now,
     };
   }

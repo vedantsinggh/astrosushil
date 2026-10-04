@@ -19,6 +19,10 @@ class LocalGuestBirthProfileService {
     longitude: 77.2090,
     timezone: 'Asia/Kolkata',
     placeName: 'New Delhi, India',
+    country: 'India',
+    countryCode: 'IN',
+    state: 'Delhi',
+    isResolved: true,
     createdAt: DateTime(1995, 1, 1),
     updatedAt: DateTime(1995, 1, 1),
   );
@@ -48,6 +52,10 @@ class LocalGuestBirthProfileService {
       longitude: dto.longitude,
       timezone: dto.timezone,
       placeName: dto.placeName,
+      country: dto.country,
+      countryCode: dto.countryCode,
+      state: dto.state,
+      isResolved: dto.isResolved,
       createdAt: now,
       updatedAt: now,
     );
@@ -69,6 +77,10 @@ class LocalGuestBirthProfileService {
       longitude: profile.longitude,
       timezone: profile.timezone,
       placeName: profile.placeName,
+      country: profile.country,
+      countryCode: profile.countryCode,
+      state: profile.state,
+      isResolved: profile.isResolved,
       createdAt: profile.createdAt,
       updatedAt: DateTime.now(),
     );

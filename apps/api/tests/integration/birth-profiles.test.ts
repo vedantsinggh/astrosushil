@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import crypto from 'crypto';
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
 import { buildApp } from '../../src/app';
@@ -12,7 +13,7 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
 
   beforeAll(async () => {
     (vi.spyOn(prisma.birthProfile, 'create') as any).mockImplementation(async ({ data }: any) => {
-      const id = `profile-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const id = crypto.randomUUID();
       const profile = {
         id,
         userId: data.userId,
@@ -23,6 +24,10 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
         longitude: data.longitude,
         timezone: data.timezone,
         placeName: data.placeName || null,
+        country: data.country || null,
+        countryCode: data.countryCode || null,
+        state: data.state || null,
+        isResolved: data.isResolved ?? true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -55,6 +60,9 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
 
     app = buildApp();
     await app.ready();
+
+    user1Token = (app as any).jwt.sign({ sub: user1Id, role: 'USER' });
+    user2Token = (app as any).jwt.sign({ sub: user2Id, role: 'USER' });
   });
 
   afterAll(async () => {
@@ -70,11 +78,6 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
 
   let createdProfileId: string;
 
-  beforeAll(async () => {
-    user1Token = (app as any).jwt.sign({ sub: user1Id, role: 'USER' });
-    user2Token = (app as any).jwt.sign({ sub: user2Id, role: 'USER' });
-  });
-
   it('POST /api/v1/birth-profiles should create a valid profile for User 1', async () => {
     const payload = {
       name: 'User 1 Profile',
@@ -84,6 +87,9 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
       longitude: 77.209,
       timezone: 'Asia/Kolkata',
       placeName: 'Delhi, India',
+      country: 'India',
+      countryCode: 'IN',
+      state: 'Delhi',
     };
 
     const response = await app.inject({
@@ -98,6 +104,9 @@ describe('Birth Profiles API Endpoints (Integration)', () => {
     expect(body.id).toBeDefined();
     expect(body.name).toBe(payload.name);
     expect(body.userId).toBe(user1Id);
+    expect(body.country).toBe('India');
+    expect(body.countryCode).toBe('IN');
+    expect(body.isResolved).toBe(true);
     expect(body.normalizedDetails.utcDateTime).toBeDefined();
 
     createdProfileId = body.id;

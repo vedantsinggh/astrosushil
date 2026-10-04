@@ -127,6 +127,8 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
                 )
               : PdfPreview(
                   build: (format) async => _pdfBytes!,
+                  dynamicLayout: false,
+                  canChangePageFormat: false,
                   allowPrinting: true,
                   allowSharing: true,
                   canChangeOrientation: false,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/jaimini_model.dart';
 import '../providers/astrology_provider.dart';
@@ -37,11 +38,8 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
     final activeScheme = ref.watch(selectedJaiminiSchemeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Jaimini Astrology'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: const AstroAppBar(
+        title: 'Jaimini Astrology',
       ),
       body: SubtleCelestialBackground(
         child: Column(

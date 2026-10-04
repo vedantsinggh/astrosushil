@@ -137,8 +137,10 @@ class AppTheme {
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.lightSurface,
+        foregroundColor: AppColors.lightTextPrimary,
         elevation: 0,
-        centerTitle: false,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.lightTextPrimary),
         actionsIconTheme: IconThemeData(color: AppColors.lightTextPrimary),
         titleTextStyle: TextStyle(

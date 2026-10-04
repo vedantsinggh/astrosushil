@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
@@ -55,13 +56,11 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Classical Vedic Yogas'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Classical Vedic Yogas',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
             tooltip: 'About Vedic Yogas',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(

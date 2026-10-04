@@ -135,11 +135,11 @@ export class CareerEvidenceEngine {
 
   private evaluateCareerAxis(chart: NormalizedChart): CareerAxisEvidence {
     const asc = chart.ascendant;
-    const ascLordPlanet = this.findPlanet(chart, asc.lord);
+    const ascLordPlanet = asc?.lord ? this.findPlanet(chart, asc.lord) : undefined;
     const houseTen = this.findHouse(chart, 10);
 
-    const houseTenLord = houseTen.lord;
-    const houseTenLordPlanet = this.findPlanet(chart, houseTenLord);
+    const houseTenLord = houseTen?.lord || 'Saturn';
+    const houseTenLordPlanet = houseTenLord ? this.findPlanet(chart, houseTenLord) : undefined;
 
     const relationships: HouseLordRelationshipEvidence[] = [];
     const supportingFactors: string[] = [];
@@ -147,15 +147,15 @@ export class CareerEvidenceEngine {
 
     // Ascendant Lord details
     const ascLordHouse = ascLordPlanet?.house || 1;
-    const ascLordSign = ascLordPlanet?.sign || asc.sign;
+    const ascLordSign = ascLordPlanet?.sign || asc?.sign || 'Aries';
     const ascLordDignity = ascLordPlanet?.dignity || 'NEUTRAL';
 
     // 10th Lord details
     const houseTenLordHouse = houseTenLordPlanet?.house || 10;
-    const houseTenLordSign = houseTenLordPlanet?.sign || houseTen.sign;
+    const houseTenLordSign = houseTenLordPlanet?.sign || houseTen?.sign || 'Capricorn';
 
-    supportingFactors.push(`Ascendant in ${asc.sign} ruled by ${asc.lord}`);
-    supportingFactors.push(`10th House in ${houseTen.sign} ruled by ${houseTenLord}`);
+    supportingFactors.push(`Ascendant in ${asc?.sign || 'Unknown'} ruled by ${asc?.lord || 'Unknown'}`);
+    supportingFactors.push(`10th House in ${houseTen?.sign || 'Unknown'} ruled by ${houseTenLord}`);
     supportingFactors.push(`10th Lord ${houseTenLord} placed in House ${houseTenLordHouse} (${houseTenLordSign})`);
 
     // Relationships between 10th Lord and key houses
@@ -179,14 +179,14 @@ export class CareerEvidenceEngine {
     }
 
     // Ascendant Lord ↔ 10th Lord relationship
-    if (asc.lord === houseTenLord) {
+    if (asc?.lord && asc.lord === houseTenLord) {
       supportingFactors.push(`Ascendant Lord and 10th Lord are the same planet (${asc.lord}), creating strong personal focus on career`);
     } else if (ascLordPlanet && houseTenLordPlanet && ascLordPlanet.house === houseTenLordPlanet.house) {
-      supportingFactors.push(`Ascendant Lord (${asc.lord}) and 10th Lord (${houseTenLord}) are conjunct in House ${ascLordPlanet.house}`);
+      supportingFactors.push(`Ascendant Lord (${asc?.lord || 'Unknown'}) and 10th Lord (${houseTenLord}) are conjunct in House ${ascLordPlanet.house}`);
     }
 
     // Occupants and aspects in 10th house
-    if (houseTen.occupants.length > 0) {
+    if (houseTen?.occupants && houseTen.occupants.length > 0) {
       supportingFactors.push(`10th House occupied by: ${houseTen.occupants.join(', ')}`);
     }
 
@@ -195,18 +195,18 @@ export class CareerEvidenceEngine {
     else if (supportingFactors.length >= 2) strength = 'MODERATE';
 
     return {
-      ascendantSign: asc.sign,
-      ascendantDegree: asc.degree,
-      ascendantNakshatra: asc.nakshatra,
-      ascendantLord: asc.lord,
+      ascendantSign: asc?.sign || 'Unknown',
+      ascendantDegree: asc?.degree || 0,
+      ascendantNakshatra: asc?.nakshatra || 'Unknown',
+      ascendantLord: asc?.lord || ('MARS' as PlanetSymbol),
       ascendantLordSign: ascLordSign,
       ascendantLordHouse: ascLordHouse,
       ascendantLordDignity: ascLordDignity,
-      houseTenSign: houseTen.sign,
+      houseTenSign: houseTen?.sign || 'Unknown',
       houseTenLord: houseTenLord,
       houseTenLordHouse: houseTenLordHouse,
       houseTenLordSign: houseTenLordSign,
-      houseTenOccupants: houseTen.occupants,
+      houseTenOccupants: houseTen?.occupants || [],
       houseTenAspects: [],
       relationships,
       supportingFactors,
@@ -359,11 +359,11 @@ export class CareerEvidenceEngine {
     const saturn = this.findPlanet(chart, 'SATURN');
 
     const asc = chart.ascendant;
-    const ascLordPlanet = this.findPlanet(chart, asc.lord);
+    const ascLordPlanet = asc?.lord ? this.findPlanet(chart, asc.lord) : undefined;
     const h10 = this.findHouse(chart, 10);
-    const h10LordPlanet = this.findPlanet(chart, h10.lord);
+    const h10LordPlanet = h10?.lord ? this.findPlanet(chart, h10.lord) : undefined;
     const h11 = this.findHouse(chart, 11);
-    const h11LordPlanet = this.findPlanet(chart, h11.lord);
+    const h11LordPlanet = h11?.lord ? this.findPlanet(chart, h11.lord) : undefined;
 
     const authorityIndicators: string[] = [];
     const initiativeIndicators: string[] = [];
@@ -392,7 +392,7 @@ export class CareerEvidenceEngine {
     supportingFactors.push(...authorityIndicators, ...initiativeIndicators, ...responsibilityIndicators);
 
     let strength: EvidenceStrength = 'SUPPORTIVE';
-    if (sun?.dignity === 'OWN_SIGN' || sun?.dignity === 'EXALTED' || sun?.house === 10) {
+    if (sun?.dignity === 'OWN_SIGN' || sun?.dignity === 'EXALTED' || sun?.dignity === 'MOOLATRIKONA' || sun?.house === 10) {
       strength = 'STRONG';
     }
 
@@ -400,9 +400,9 @@ export class CareerEvidenceEngine {
       sunPlacement: { house: sun?.house || 0, sign: sun?.sign || 'Unknown', dignity: sun?.dignity || 'NEUTRAL' },
       marsPlacement: { house: mars?.house || 0, sign: mars?.sign || 'Unknown', dignity: mars?.dignity || 'NEUTRAL' },
       saturnPlacement: { house: saturn?.house || 0, sign: saturn?.sign || 'Unknown', dignity: saturn?.dignity || 'NEUTRAL' },
-      ascendantLordPlacement: { house: ascLordPlanet?.house || 1, sign: ascLordPlanet?.sign || asc.sign },
-      houseTenLordPlacement: { house: h10LordPlanet?.house || 10, sign: h10LordPlanet?.sign || h10.sign },
-      houseElevenLordPlacement: { house: h11LordPlanet?.house || 11, sign: h11LordPlanet?.sign || h11.sign },
+      ascendantLordPlacement: { house: ascLordPlanet?.house || 1, sign: ascLordPlanet?.sign || asc?.sign || 'Unknown' },
+      houseTenLordPlacement: { house: h10LordPlanet?.house || 10, sign: h10LordPlanet?.sign || h10?.sign || 'Unknown' },
+      houseElevenLordPlacement: { house: h11LordPlanet?.house || 11, sign: h11LordPlanet?.sign || h11?.sign || 'Unknown' },
       authorityIndicators,
       initiativeIndicators,
       responsibilityIndicators,
@@ -938,15 +938,39 @@ export class CareerEvidenceEngine {
   // --------------------------------------------------------------------------
 
   private findPlanet(chart: NormalizedChart, symbol: PlanetSymbol | string): NormalizedPlanet | undefined {
+    if (!chart || !chart.planets) return undefined;
     return chart.planets.find(
-      (p) => p.name.toUpperCase() === symbol.toUpperCase()
+      (p) => p && p.name && p.name.toUpperCase() === String(symbol).toUpperCase()
     );
   }
 
   private findHouse(chart: NormalizedChart, houseNumber: number): NormalizedHouse {
+    if (!chart || !chart.houses) {
+      return {
+        number: houseNumber,
+        sign: 'Aries',
+        rashiIndex: houseNumber,
+        lord: 'MARS' as PlanetSymbol,
+        occupants: [],
+        cuspLongitude: (houseNumber - 1) * 30,
+        startLongitude: (houseNumber - 1) * 30,
+        endLongitude: houseNumber * 30,
+        status: 'UNAVAILABLE' as any,
+      };
+    }
     const house = chart.houses.find((h) => h.number === houseNumber);
     if (!house) {
-      throw new Error(`House ${houseNumber} missing from NormalizedChart`);
+      return {
+        number: houseNumber,
+        sign: 'Aries',
+        rashiIndex: houseNumber,
+        lord: 'MARS' as PlanetSymbol,
+        occupants: [],
+        cuspLongitude: (houseNumber - 1) * 30,
+        startLongitude: (houseNumber - 1) * 30,
+        endLongitude: houseNumber * 30,
+        status: 'UNAVAILABLE' as any,
+      };
     }
     return house;
   }

@@ -38,7 +38,7 @@ export class NotificationService {
     // Fetch user & preferences
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, fullName: true },
+      select: { id: true, email: true, phoneNumber: true, fullName: true },
     });
 
     if (!user) {
@@ -53,8 +53,9 @@ export class NotificationService {
     }
 
     const preferences = await this.getUserPreferences(userId);
+    const fallbackName = user.email ? user.email.split('@')[0] : (user.phoneNumber || 'User');
     const template = renderNotificationTemplate(type, {
-      userName: user.fullName || user.email.split('@')[0],
+      userName: user.fullName || fallbackName,
       ...templateData,
     });
 

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../astrology/screens/birth_chart_screen.dart';
 import '../providers/birth_profile_provider.dart';
+import 'create_birth_profile_screen.dart';
 
 class BirthProfileDetailScreen extends ConsumerWidget {
   final String profileId;
@@ -22,8 +25,24 @@ class BirthProfileDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Birth Profile Details'),
+      appBar: AstroAppBar(
+        title: 'Birth Profile Details',
+        actions: [
+          profileAsync.maybeWhen(
+            data: (profile) => IconButton(
+              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+              tooltip: 'Edit Birth Details',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CreateBirthProfileScreen(existingProfile: profile),
+                  ),
+                );
+              },
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
       ),
       body: SafeArea(
         child: profileAsync.when(
@@ -40,6 +59,69 @@ class BirthProfileDetailScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // UNRESOLVED LOCATION WARNING BANNER (IF LEGACY/UNVERIFIED)
+                if (!profile.isResolved) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, size: 22, color: Colors.amber.shade800),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Location Confirmation Required',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'This profile does not have verified coordinates and timezone. Please confirm birthplace to generate accurate astrological calculations.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.amber.shade900,
+                                  height: 1.3,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => CreateBirthProfileScreen(existingProfile: profile),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  'Confirm Birthplace Now →',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade900,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -75,6 +157,29 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
+                            if (profile.isResolved)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.premiumAccent.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.verified, size: 12, color: AppColors.primary),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Verified',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                         const Divider(height: 24),
@@ -103,8 +208,17 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                           context: context,
                           icon: Icons.place,
                           label: 'Place Name',
-                          value: profile.placeName,
+                          value: profile.placeName.isNotEmpty ? profile.placeName : 'Unspecified',
                         ),
+                        if (profile.country != null && profile.country!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildDetailRow(
+                            context: context,
+                            icon: Icons.flag_outlined,
+                            label: 'Country',
+                            value: profile.country!,
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         _buildDetailRow(
                           context: context,
@@ -154,14 +268,22 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                 ],
                 const SizedBox(height: 32),
                 CustomButton(
-                  text: 'Calculate & View Kundli Chart',
-                  icon: Icons.auto_awesome,
+                  text: profile.isResolved ? 'Calculate & View Kundli Chart' : 'Confirm Birthplace to Continue',
+                  icon: profile.isResolved ? Icons.auto_awesome : Icons.edit_location_alt,
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => BirthChartScreen(profile: profile),
-                      ),
-                    );
+                    if (profile.isResolved) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BirthChartScreen(profile: profile),
+                        ),
+                      );
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CreateBirthProfileScreen(existingProfile: profile),
+                        ),
+                      );
+                    }
                   },
                 ),
               ],

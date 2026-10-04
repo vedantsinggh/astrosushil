@@ -51,7 +51,7 @@ describe('LLM Career Analyst OpenRouter Provider & Validation Suite', () => {
     const result = await provider.analyze(analysisInput);
 
     expect(result.executiveCareerSummary).toBeDefined();
-    expect(result.careerIdentity).toContain('Aries Ascendant');
+    expect(result.careerIdentity).toContain('Ascendant in Aries');
     expect(result.houseInterpretations).toBeDefined();
     expect(result.planetInterpretations).toBeDefined();
     expect(result.recommendedFields?.length).toBeGreaterThan(0);

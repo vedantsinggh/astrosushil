@@ -19,6 +19,7 @@ class AuthState {
   final UserModel? user;
   final String? errorMessage;
   final String? pendingVerificationEmail;
+  final String? pendingVerificationPhone;
 
   const AuthState({
     this.isLoading = false,
@@ -26,6 +27,7 @@ class AuthState {
     this.user,
     this.errorMessage,
     this.pendingVerificationEmail,
+    this.pendingVerificationPhone,
   });
 
   bool get isGuest => status == AuthStatus.guest;
@@ -33,8 +35,13 @@ class AuthState {
   bool get isGuestOrAuthenticated => status == AuthStatus.authenticated || status == AuthStatus.guest;
 
   factory AuthState.initial() => const AuthState(isLoading: true);
-  factory AuthState.unauthenticated({String? error, String? pendingEmail}) =>
-      AuthState(status: AuthStatus.unauthenticated, errorMessage: error, pendingVerificationEmail: pendingEmail);
+  factory AuthState.unauthenticated({String? error, String? pendingEmail, String? pendingPhone}) =>
+      AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage: error,
+        pendingVerificationEmail: pendingEmail,
+        pendingVerificationPhone: pendingPhone,
+      );
   factory AuthState.guest() =>
       const AuthState(status: AuthStatus.guest);
   factory AuthState.authenticated(UserModel user) =>
@@ -47,6 +54,7 @@ class AuthState {
     UserModel? user,
     String? errorMessage,
     String? pendingVerificationEmail,
+    String? pendingVerificationPhone,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -54,6 +62,7 @@ class AuthState {
       user: user ?? this.user,
       errorMessage: errorMessage,
       pendingVerificationEmail: pendingVerificationEmail ?? this.pendingVerificationEmail,
+      pendingVerificationPhone: pendingVerificationPhone ?? this.pendingVerificationPhone,
     );
   }
 }
@@ -121,7 +130,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           state = AuthState.authenticated(
             UserModel(
               id: 'offline',
-              email: 'Offline User',
+              email: 'offline@astrosushil.internal',
               role: 'USER',
               createdAt: DateTime(2026, 1, 1),
             ),
@@ -150,7 +159,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Map raw exceptions to user-friendly messages adhering to requirements
   String _mapUserFriendlyError(dynamic e) {
     if (e is AuthenticationException) {
-      return e.message.isNotEmpty ? e.message : 'Email or password is incorrect.';
+      return e.message.isNotEmpty ? e.message : 'Invalid credentials or verification code.';
     }
     if (e is NetworkException) {
       return 'You\'re offline. Check your connection and try again.';
@@ -169,9 +178,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return 'Your connection seems slow.';
     }
     if (errorStr.contains('401') || errorStr.contains('invalid credentials') || errorStr.contains('authentication')) {
-      return 'Email or password is incorrect.';
+      return 'Invalid verification code or session expired.';
     }
-    return 'We couldn\'t process your request right now.';
+    return 'We couldn\'t process your request right now. Please try again.';
   }
 
   /// Enter Guest Mode
@@ -186,7 +195,84 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthState.unauthenticated();
   }
 
-  /// Register user with optional birth profile
+  /// Request OTP for Phone number authentication
+  Future<bool> sendPhoneOtp(String phoneNumber) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.sendPhoneOtp(phoneNumber);
+      state = state.copyWith(
+        isLoading: false,
+        pendingVerificationPhone: phoneNumber,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
+  /// Verify Phone OTP and authenticate session
+  Future<bool> verifyPhoneOtp(String phoneNumber, String otp, [Map<String, dynamic>? birthProfile]) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final authResult = await _repository.verifyPhoneOtp(
+        phoneNumber: phoneNumber,
+        otp: otp,
+        birthProfile: birthProfile,
+      );
+      await _storage.delete(key: StorageKeys.isGuestMode);
+      state = AuthState.authenticated(authResult.user);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
+  /// Authenticate with Google Sign-In idToken
+  Future<bool> signInWithGoogle(String idToken, [Map<String, dynamic>? birthProfile]) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final authResult = await _repository.signInWithGoogle(
+        idToken,
+        birthProfile: birthProfile,
+      );
+      await _storage.delete(key: StorageKeys.isGuestMode);
+      state = AuthState.authenticated(authResult.user);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
+  /// Link Phone number to existing account
+  Future<bool> linkPhone(String phoneNumber, String otp) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final updatedUser = await _repository.linkPhone(phoneNumber: phoneNumber, otp: otp);
+      state = AuthState.authenticated(updatedUser);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
+  /// Link Google account to existing account
+  Future<bool> linkGoogle(String idToken) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final updatedUser = await _repository.linkGoogle(idToken);
+      state = AuthState.authenticated(updatedUser);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
+  /// Register user with email/password (legacy fallback)
   Future<AuthRegistrationResult?> register(
     String email,
     String password, {
@@ -223,7 +309,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Verify email OTP
+  /// Verify email OTP (legacy fallback)
   Future<bool> verifyEmail(String email, String otp) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -237,7 +323,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Login user
+  /// Login user with email/password (legacy fallback)
   Future<AuthRegistrationResult?> login(String email, String password) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {

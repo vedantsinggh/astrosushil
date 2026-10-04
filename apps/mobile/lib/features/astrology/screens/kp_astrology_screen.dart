@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/kp_model.dart';
 import '../providers/astrology_provider.dart';
@@ -36,11 +37,8 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
     final kpAsync = ref.watch(activeProfileKPProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('KP Astrology (Krishnamurti)'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: const AstroAppBar(
+        title: 'KP Astrology (Krishnamurti)',
       ),
       body: SubtleCelestialBackground(
         child: Column(

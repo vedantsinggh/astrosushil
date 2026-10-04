@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
@@ -72,13 +73,11 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Divisional Charts (वर्ग)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Divisional Charts (वर्ग)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.grid_view_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.grid_view_rounded, color: AppColors.primary),
             tooltip: 'All 16 Vargas',
             onPressed: () => _openAllVargasModal(context),
           ),

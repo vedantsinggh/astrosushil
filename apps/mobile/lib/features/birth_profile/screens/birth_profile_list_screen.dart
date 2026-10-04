@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../providers/birth_profile_provider.dart';
@@ -16,11 +17,11 @@ class BirthProfileListScreen extends ConsumerWidget {
     final state = ref.watch(birthProfilesListNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Birth Profiles'),
+      appBar: AstroAppBar(
+        title: 'My Birth Profiles',
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
             onPressed: () {
               ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
             },

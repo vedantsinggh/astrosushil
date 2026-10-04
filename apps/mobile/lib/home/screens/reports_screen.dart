@@ -453,63 +453,9 @@ class ReportsScreen extends ConsumerWidget {
                       : null,
                 ),
 
-                const SizedBox(height: 16),
-
-                // 5. KUNDLI REPORT CARD
-                _ReportCard(
-                  title: 'Birth Chart & Kundli',
-                  tagline: 'YOUR COSMIC BLUEPRINT',
-                  description:
-                      'Explore your birth chart, planetary placements, houses and Nakshatra.',
-                  icon: Icons.auto_awesome_rounded,
-                  accentColor: AppColors.premiumAccent,
-                  isAvailable: true,
-                  onViewTap: () => _onReportAction(
-                    context: context,
-                    ref: ref,
-                    title: 'Birth Chart & Kundli',
-                    reportType: 'KUNDLI',
-                    birthProfileId: activeProfile.id,
-                  ),
-                  onDownloadTap: () => _onReportAction(
-                    context: context,
-                    ref: ref,
-                    title: 'Birth Chart & Kundli',
-                    reportType: 'KUNDLI',
-                    birthProfileId: activeProfile.id,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 6. PLANETARY REPORT CARD
-                _ReportCard(
-                  title: 'Planetary Summary',
-                  tagline: 'PLANETARY DYNAMICS',
-                  description:
-                      'Understand how each planet is placed in your birth chart.',
-                  icon: Icons.brightness_6_rounded,
-                  accentColor: AppColors.secondary,
-                  isAvailable: true,
-                  onViewTap: () => _onReportAction(
-                    context: context,
-                    ref: ref,
-                    title: 'Planetary Summary',
-                    reportType: 'PLANETARY_SUMMARY',
-                    birthProfileId: activeProfile.id,
-                  ),
-                  onDownloadTap: () => _onReportAction(
-                    context: context,
-                    ref: ref,
-                    title: 'Planetary Summary',
-                    reportType: 'PLANETARY_SUMMARY',
-                    birthProfileId: activeProfile.id,
-                  ),
-                ),
-
                 const SizedBox(height: 24),
 
-                // 7. UPCOMING REPORTS
+                // 5. UPCOMING REPORTS
                 Text(
                   'UPCOMING REPORTS',
                   style: TextStyle(
@@ -521,7 +467,35 @@ class ReportsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
 
-                _ReportCard(
+                // KUNDLI REPORT CARD (COMING SOON)
+                const _ReportCard(
+                  title: 'Birth Chart & Kundli Report',
+                  tagline: 'YOUR COSMIC BLUEPRINT',
+                  description:
+                      'Comprehensive astrological document detailing your Janma Kundli, planetary placements, Bhavas, and Nakshatra.',
+                  icon: Icons.auto_awesome_rounded,
+                  accentColor: AppColors.premiumAccent,
+                  isAvailable: false,
+                  badgeText: 'COMING SOON',
+                ),
+
+                const SizedBox(height: 14),
+
+                // PLANETARY SUMMARY REPORT CARD (COMING SOON)
+                const _ReportCard(
+                  title: 'Planetary Summary Report',
+                  tagline: 'PLANETARY DYNAMICS',
+                  description:
+                      'In-depth breakdown of planetary dignities, retrogressions, conjunctions, and astronomical strength.',
+                  icon: Icons.brightness_6_rounded,
+                  accentColor: AppColors.secondary,
+                  isAvailable: false,
+                  badgeText: 'COMING SOON',
+                ),
+
+                const SizedBox(height: 14),
+
+                const _ReportCard(
                   title: 'Marriage & Relationship Report',
                   tagline: 'KUNDLI MILAN & COMPATIBILITY',
                   description:
@@ -569,25 +543,37 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isAvailable
-              ? accentColor.withOpacity(0.3)
-              : AppColors.lightBorder,
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+    return InkWell(
+      onTap: !isAvailable
+          ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$title is coming soon!'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isAvailable
+                ? accentColor.withOpacity(0.3)
+                : AppColors.lightBorder,
+            width: 1.2,
           ),
-        ],
-      ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
       child: Padding(
         padding: const EdgeInsets.all(18.0),
         child: Column(
@@ -712,6 +698,7 @@ class _ReportCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

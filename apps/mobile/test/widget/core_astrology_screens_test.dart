@@ -38,7 +38,7 @@ void main() {
   group('Core Astrology UI Widget Tests', () {
     testWidgets('BirthChartScreen renders profile summary and chart tab by default', (tester) async {
       await tester.pumpWidget(createTestableWidget(BirthChartScreen(profile: testProfile)));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Your Birth Chart'), findsOneWidget);
       expect(find.text('Rahul Sharma'), findsOneWidget);
@@ -52,34 +52,34 @@ void main() {
 
     testWidgets('BirthChartScreen switches tabs correctly (Planets, Houses, Nakshatra)', (tester) async {
       await tester.pumpWidget(createTestableWidget(BirthChartScreen(profile: testProfile)));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       // Tap Planets tab
       await tester.tap(find.text('Planets'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Planetary Positions'), findsOneWidget);
 
       // Tap Houses tab
       await tester.tap(find.text('Houses'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('12 Houses (Bhavas)'), findsOneWidget);
       expect(find.text('1st House • Tanu Bhava'), findsOneWidget);
 
       // Tap Nakshatra tab
       await tester.tap(find.text('Nakshatra'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Nakshatra Profile'), findsOneWidget);
       expect(find.text('BIRTH NAKSHATRA (JANMA NAKSHATRA)'), findsOneWidget);
 
       // Tap Chart tab back
       await tester.tap(find.text('Chart'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Kundli'), findsOneWidget);
     });
 
     testWidgets('PlanetsScreen renders scannable list of planetary positions', (tester) async {
       await tester.pumpWidget(createTestableWidget(PlanetsScreen(profile: testProfile)));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Planets'), findsOneWidget);
       expect(find.text('See where each planet was positioned at the time of your birth.'), findsOneWidget);
@@ -96,7 +96,7 @@ void main() {
           houseNumber: 5,
         ),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('SUN'), findsWidgets);
       expect(find.text('Leo • 18°24\''), findsOneWidget);
@@ -109,7 +109,7 @@ void main() {
 
     testWidgets('RashiBhavishyaScreen renders Rashi selector and prediction categories', (tester) async {
       await tester.pumpWidget(createTestableWidget(const RashiBhavishyaScreen()));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Rashi Bhavishya'), findsOneWidget);
       expect(find.textContaining('Aries'), findsWidgets);
@@ -119,7 +119,7 @@ void main() {
 
     testWidgets('VastuScreen and VastuDetailScreen render spatial guidance', (tester) async {
       await tester.pumpWidget(createTestableWidget(const VastuScreen()));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Vastu Shastra'), findsOneWidget);
       expect(find.textContaining('Main Entrance'), findsWidgets);
@@ -136,7 +136,7 @@ void main() {
       );
 
       await tester.pumpWidget(createTestableWidget(const VastuDetailScreen(category: mockCat)));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text('Simhadwara'), findsOneWidget);
       expect(find.text('Directional Placement'), findsOneWidget);
