@@ -99,7 +99,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await ref.read(birthProfilesListNotifierProvider.notifier).migrateGuestProfile(dto);
         return false;
       } else {
+        // User chose "Start Fresh" — clear guest data then take them straight
+        // to CreateBirthProfileScreen so they can enter their own details.
         await repo.clearGuestProfile();
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+          );
+        }
+        return true;
       }
     }
 

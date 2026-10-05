@@ -151,7 +151,10 @@ class DashaPeriodModel {
       nominalYears: (json['nominalYears'] as num?)?.toDouble() ?? 0.0,
       isBirthDasha: json['isBirthDasha'] as bool? ?? false,
       isActive: json['isActive'] as bool? ?? false,
-      subPeriods: rawSub.whereType<Map<String, dynamic>>().map((s) => DashaPeriodModel.fromJson(s)).toList(),
+      subPeriods: rawSub
+          .whereType<Map>()
+          .map((s) => DashaPeriodModel.fromJson(Map<String, dynamic>.from(s)))
+          .toList(),
     );
   }
 
@@ -307,8 +310,8 @@ class DashaTreeModel {
       balanceAtBirthYears: (treeMap['balanceAtBirthYears'] as num?)?.toDouble(),
       startingLord: treeMap['startingLord'] as String?,
       mahadashas: rawMahadashas
-          .whereType<Map<String, dynamic>>()
-          .map((m) => DashaPeriodModel.fromJson(m))
+          .whereType<Map>()
+          .map((m) => DashaPeriodModel.fromJson(Map<String, dynamic>.from(m)))
           .toList(),
       activeDasha: parsedActiveDasha,
     );

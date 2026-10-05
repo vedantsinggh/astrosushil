@@ -173,29 +173,37 @@ class AshtakavargaResultModel {
   });
 
   factory AshtakavargaResultModel.fromJson(Map<String, dynamic> json) {
-    final sav = SarvashtakavargaModel.fromJson(json['sav'] as Map<String, dynamic>? ?? {});
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
 
-    final rawBav = json['bav'] as Map<String, dynamic>? ?? {};
+    final sav = SarvashtakavargaModel.fromJson(
+        root['sav'] is Map ? Map<String, dynamic>.from(root['sav'] as Map) : {});
+
+    final rawBav = root['bav'] as Map? ?? {};
     final bavMap = <String, BhinnashtakavargaModel>{};
     rawBav.forEach((p, val) {
-      if (val is Map<String, dynamic>) {
-        bavMap[p.toUpperCase()] = BhinnashtakavargaModel.fromJson(val);
+      if (val is Map) {
+        bavMap[p.toString().toUpperCase()] =
+            BhinnashtakavargaModel.fromJson(Map<String, dynamic>.from(val));
       }
     });
 
-    final rawShodhana = json['shodhana'] as Map<String, dynamic>? ?? {};
+    final rawShodhana = root['shodhana'] as Map? ?? {};
     final shodhanaMap = <String, ShodhanaModel>{};
     rawShodhana.forEach((p, val) {
-      if (val is Map<String, dynamic>) {
-        shodhanaMap[p.toUpperCase()] = ShodhanaModel.fromJson(val);
+      if (val is Map) {
+        shodhanaMap[p.toString().toUpperCase()] =
+            ShodhanaModel.fromJson(Map<String, dynamic>.from(val));
       }
     });
 
-    final rawPinda = json['pinda'] as Map<String, dynamic>? ?? {};
+    final rawPinda = root['pinda'] as Map? ?? {};
     final pindaMap = <String, ShodhyaPindaModel>{};
     rawPinda.forEach((p, val) {
-      if (val is Map<String, dynamic>) {
-        pindaMap[p.toUpperCase()] = ShodhyaPindaModel.fromJson(val);
+      if (val is Map) {
+        pindaMap[p.toString().toUpperCase()] =
+            ShodhyaPindaModel.fromJson(Map<String, dynamic>.from(val));
       }
     });
 

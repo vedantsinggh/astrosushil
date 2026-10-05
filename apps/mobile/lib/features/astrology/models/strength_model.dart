@@ -129,15 +129,21 @@ class ShadbalaReportModel {
   });
 
   factory ShadbalaReportModel.fromJson(Map<String, dynamic> json) {
-    final rawPlanets = json['planets'] as Map<String, dynamic>? ?? {};
+    final root = json['shadbala'] is Map
+        ? json['shadbala'] as Map
+        : (json['data'] is Map && (json['data'] as Map)['shadbala'] is Map)
+            ? (json['data'] as Map)['shadbala'] as Map
+            : json;
+
+    final rawPlanets = root['planets'] as Map? ?? {};
     final planetsMap = <String, PlanetShadbalaModel>{};
     rawPlanets.forEach((k, v) {
-      if (v is Map<String, dynamic>) {
-        planetsMap[k.toUpperCase()] = PlanetShadbalaModel.fromJson(v);
+      if (v is Map) {
+        planetsMap[k.toString().toUpperCase()] = PlanetShadbalaModel.fromJson(Map<String, dynamic>.from(v));
       }
     });
 
-    final summaryList = (json['summary'] as List? ?? [])
+    final summaryList = (root['summary'] as List? ?? [])
         .whereType<Map>()
         .map((s) => PlanetShadbalaModel.fromJson(Map<String, dynamic>.from(s)))
         .toList();
@@ -201,7 +207,13 @@ class BhavaBalaReportModel {
   });
 
   factory BhavaBalaReportModel.fromJson(Map<String, dynamic> json) {
-    final list = (json['houses'] as List? ?? [])
+    final root = json['bhavaBala'] is Map
+        ? json['bhavaBala'] as Map
+        : (json['data'] is Map && (json['data'] as Map)['bhavaBala'] is Map)
+            ? (json['data'] as Map)['bhavaBala'] as Map
+            : json;
+
+    final list = (root['houses'] as List? ?? [])
         .whereType<Map>()
         .map((h) => HouseBhavaBalaModel.fromJson(Map<String, dynamic>.from(h)))
         .toList();
@@ -220,9 +232,13 @@ class ComprehensiveStrengthModel {
   });
 
   factory ComprehensiveStrengthModel.fromJson(Map<String, dynamic> json) {
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
+
     return ComprehensiveStrengthModel(
-      shadbala: ShadbalaReportModel.fromJson(json['shadbala'] as Map<String, dynamic>? ?? {}),
-      bhavaBala: BhavaBalaReportModel.fromJson(json['bhavaBala'] as Map<String, dynamic>? ?? {}),
+      shadbala: ShadbalaReportModel.fromJson(root['shadbala'] is Map ? Map<String, dynamic>.from(root['shadbala'] as Map) : root),
+      bhavaBala: BhavaBalaReportModel.fromJson(root['bhavaBala'] is Map ? Map<String, dynamic>.from(root['bhavaBala'] as Map) : root),
     );
   }
 }

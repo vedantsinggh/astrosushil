@@ -30,35 +30,44 @@ class PrashnaChartModel {
   });
 
   factory PrashnaChartModel.fromJson(Map<String, dynamic> json) {
-    final rawPlanets = json['planets'] as Map<String, dynamic>? ?? {};
-    final parsedPlanets = rawPlanets.map((key, value) =>
-        MapEntry(key, PrashnaPlanetModel.fromJson(value as Map<String, dynamic>)));
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
+
+    final rawPlanets = root['planets'] as Map? ?? {};
+    final parsedPlanets = <String, PrashnaPlanetModel>{};
+    rawPlanets.forEach((key, value) {
+      if (value is Map) {
+        parsedPlanets[key.toString()] =
+            PrashnaPlanetModel.fromJson(Map<String, dynamic>.from(value));
+      }
+    });
 
     return PrashnaChartModel(
-      calculationVersion: json['calculationVersion'] as String? ?? '1.1.0',
+      calculationVersion: root['calculationVersion'] as String? ?? '1.1.0',
       questionTime: PrashnaTimeDetailsModel.fromJson(
-          json['questionTime'] as Map<String, dynamic>? ?? {}),
+          root['questionTime'] is Map ? Map<String, dynamic>.from(root['questionTime'] as Map) : {}),
       location: PrashnaLocationModel.fromJson(
-          json['location'] as Map<String, dynamic>? ?? {}),
-      questionText: json['questionText'] as String?,
+          root['location'] is Map ? Map<String, dynamic>.from(root['location'] as Map) : {}),
+      questionText: root['questionText'] as String?,
       prashnaLagna: PrashnaLagnaModel.fromJson(
-          json['prashnaLagna'] as Map<String, dynamic>? ?? {}),
+          root['prashnaLagna'] is Map ? Map<String, dynamic>.from(root['prashnaLagna'] as Map) : {}),
       planets: parsedPlanets,
-      houses: (json['houses'] as List<dynamic>?)
-              ?.map((e) => PrashnaHouseModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      houses: (root['houses'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => PrashnaHouseModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       moon: PrashnaMoonModel.fromJson(
-          json['moon'] as Map<String, dynamic>? ?? {}),
+          root['moon'] is Map ? Map<String, dynamic>.from(root['moon'] as Map) : {}),
       sphutas: PrashnaSphutasModel.fromJson(
-          json['sphutas'] as Map<String, dynamic>? ?? {}),
-      questionNumberDetails: json['questionNumberDetails'] != null
+          root['sphutas'] is Map ? Map<String, dynamic>.from(root['sphutas'] as Map) : {}),
+      questionNumberDetails: root['questionNumberDetails'] != null && root['questionNumberDetails'] is Map
           ? PrashnaNumberDetailsModel.fromJson(
-              json['questionNumberDetails'] as Map<String, dynamic>)
+              Map<String, dynamic>.from(root['questionNumberDetails'] as Map))
           : null,
-      isRahuKala: json['isRahuKala'] as bool? ?? false,
-      panchanga: json['panchanga'] != null
-          ? PrashnaPanchangaModel.fromJson(json['panchanga'] as Map<String, dynamic>)
+      isRahuKala: root['isRahuKala'] as bool? ?? false,
+      panchanga: root['panchanga'] != null && root['panchanga'] is Map
+          ? PrashnaPanchangaModel.fromJson(Map<String, dynamic>.from(root['panchanga'] as Map))
           : null,
     );
   }

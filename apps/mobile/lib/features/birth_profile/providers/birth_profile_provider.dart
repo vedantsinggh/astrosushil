@@ -74,10 +74,14 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
           isLoading: false,
           profiles: guestProfile != null ? [guestProfile] : [],
         );
-      } else {
+      } else if (_authState.isAuthenticated) {
         final profiles = await _repository.getProfiles();
         if (!mounted) return;
         state = state.copyWith(isLoading: false, profiles: profiles);
+      } else {
+        // Unauthenticated or initializing session — do not call protected remote endpoint
+        if (!mounted) return;
+        state = state.copyWith(isLoading: false, profiles: const []);
       }
     } catch (e) {
       if (!mounted) return;
@@ -88,7 +92,7 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
   Future<BirthProfileModel?> createProfile(CreateBirthProfileDto dto) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      if (_authState.isGuest) {
+      if (_authState.isGuest || !_authState.isAuthenticated) {
         final newProfile = await _repository.saveGuestProfile(dto);
         if (!mounted) return newProfile;
         state = state.copyWith(isLoading: false, profiles: [newProfile]);

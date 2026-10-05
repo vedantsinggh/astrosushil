@@ -22,44 +22,54 @@ class KPReportModel {
   });
 
   factory KPReportModel.fromJson(Map<String, dynamic> json) {
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
+
     List<KPPointPlacementModel> parsedPlanets = [];
-    if (json['planets'] is List) {
-      parsedPlanets = (json['planets'] as List)
-          .map((e) => KPPointPlacementModel.fromJson(e as Map<String, dynamic>))
+    if (root['planets'] is List) {
+      parsedPlanets = (root['planets'] as List)
+          .whereType<Map>()
+          .map((e) => KPPointPlacementModel.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-    } else if (json['planets'] is Map) {
-      parsedPlanets = (json['planets'] as Map<String, dynamic>)
+    } else if (root['planets'] is Map) {
+      parsedPlanets = (root['planets'] as Map)
           .values
-          .map((e) => KPPointPlacementModel.fromJson(e as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((e) => KPPointPlacementModel.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     }
 
-    final rawSignifications = json['planetSignifications'] as Map<String, dynamic>? ?? {};
-    final parsedSignifications = rawSignifications.map((key, value) => MapEntry(
-          key,
-          (value as List<dynamic>?)?.map((e) => (e as num).toInt()).toList() ?? [],
-        ));
+    final rawSignifications = root['planetSignifications'] as Map? ?? {};
+    final parsedSignifications = <String, List<int>>{};
+    rawSignifications.forEach((key, value) {
+      if (value is List) {
+        parsedSignifications[key.toString()] =
+            value.map((e) => (e as num).toInt()).toList();
+      }
+    });
 
-    final rawSignificators = json['significators'] ?? json['houseSignificators'];
+    final rawSignificators = root['houseSignificators'] ?? root['significators'];
+    final parsedSignificators = (rawSignificators as List? ?? [])
+        .whereType<Map>()
+        .map((e) => KPHouseSignificatorsModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
 
     return KPReportModel(
-      ayanamsaType: json['ayanamsa'] ?? json['ayanamsaType'] ?? 'KRISHNAMURTI',
-      ayanamsaValue: (json['ayanamsaValue'] as num?)?.toDouble() ?? 0.0,
-      cusps: (json['cusps'] as List<dynamic>?)
-              ?.map((e) => KPCuspPlacementModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      ayanamsaType: root['ayanamsaType'] as String? ?? root['ayanamsa'] as String? ?? 'KRISHNAMURTI',
+      ayanamsaValue: (root['ayanamsaValue'] as num?)?.toDouble() ?? 0.0,
+      cusps: (root['cusps'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => KPCuspPlacementModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       planets: parsedPlanets,
-      houseSignificators: (rawSignificators as List<dynamic>?)
-              ?.map((e) => KPHouseSignificatorsModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      houseSignificators: parsedSignificators,
       planetSignifications: parsedSignifications,
-      rulingPlanets: json['rulingPlanets'] != null
-          ? KPRulingPlanetsModel.fromJson(json['rulingPlanets'] as Map<String, dynamic>)
+      rulingPlanets: root['rulingPlanets'] is Map
+          ? KPRulingPlanetsModel.fromJson(Map<String, dynamic>.from(root['rulingPlanets'] as Map))
           : const KPRulingPlanetsModel.empty(),
-      parsFortuna: json['parsFortuna'] != null
-          ? KPPointPlacementModel.fromJson(json['parsFortuna'] as Map<String, dynamic>)
+      parsFortuna: root['parsFortuna'] is Map
+          ? KPPointPlacementModel.fromJson(Map<String, dynamic>.from(root['parsFortuna'] as Map))
           : null,
     );
   }

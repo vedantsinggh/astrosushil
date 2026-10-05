@@ -136,7 +136,16 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
         await ref.read(birthProfilesListNotifierProvider.notifier).migrateGuestProfile(dto);
         return false;
       } else {
+        // User chose "Start Fresh" — clear guest data then take them straight
+        // to CreateBirthProfileScreen so they can enter their own details.
         await repo.clearGuestProfile();
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+            (route) => false,
+          );
+        }
+        return true;
       }
     }
 

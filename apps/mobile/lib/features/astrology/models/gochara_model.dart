@@ -274,44 +274,53 @@ class TransitSnapshotModel {
   });
 
   factory TransitSnapshotModel.fromJson(Map<String, dynamic> json) {
-    final chart = json['transitChart'] as Map<String, dynamic>? ?? {};
-    final transitTime = chart['transitTime'] as Map<String, dynamic>? ?? {};
-    final rawPlanets = chart['planets'] as Map<String, dynamic>? ?? {};
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
+
+    final chart = root['transitChart'] is Map
+        ? Map<String, dynamic>.from(root['transitChart'] as Map)
+        : <String, dynamic>{};
+    final transitTime = chart['transitTime'] is Map
+        ? Map<String, dynamic>.from(chart['transitTime'] as Map)
+        : <String, dynamic>{};
+    final rawPlanets = chart['planets'] as Map? ?? {};
 
     final planetsMap = <String, TransitPlanetPositionModel>{};
     rawPlanets.forEach((key, val) {
-      if (val is Map<String, dynamic>) {
-        planetsMap[key] = TransitPlanetPositionModel.fromJson(val);
+      if (val is Map) {
+        planetsMap[key.toString().toUpperCase()] =
+            TransitPlanetPositionModel.fromJson(Map<String, dynamic>.from(val));
       }
     });
 
-    final moonRel = (json['transitToMoon'] as List? ?? [])
+    final moonRel = (root['transitToMoon'] as List? ?? [])
         .whereType<Map>()
         .map((m) => TransitToMoonRelationshipModel.fromJson(Map<String, dynamic>.from(m)))
         .toList();
 
-    final lagnaRel = (json['transitToLagna'] as List? ?? [])
+    final lagnaRel = (root['transitToLagna'] as List? ?? [])
         .whereType<Map>()
         .map((m) => TransitToLagnaRelationshipModel.fromJson(Map<String, dynamic>.from(m)))
         .toList();
 
-    final natalPlanetsRel = (json['transitToNatalPlanets'] as List? ?? [])
+    final natalPlanetsRel = (root['transitToNatalPlanets'] as List? ?? [])
         .whereType<Map>()
         .map((m) => TransitToNatalPlanetRelationshipModel.fromJson(Map<String, dynamic>.from(m)))
         .toList();
 
-    final avTransit = (json['ashtakavargaTransit'] as List? ?? [])
+    final avTransit = (root['ashtakavargaTransit'] as List? ?? [])
         .whereType<Map>()
         .map((m) => TransitAshtakavargaDetailModel.fromJson(Map<String, dynamic>.from(m)))
         .toList();
 
-    final kakshas = (json['gocharaKakshas'] as List? ?? [])
+    final kakshas = (root['gocharaKakshas'] as List? ?? [])
         .whereType<Map>()
         .map((m) => GocharaKakshaDetailModel.fromJson(Map<String, dynamic>.from(m)))
         .toList();
 
     return TransitSnapshotModel(
-      calculationVersion: json['calculationVersion'] as String? ?? '1.0.0',
+      calculationVersion: root['calculationVersion'] as String? ?? '1.0.0',
       utcIso: transitTime['utcIso'] as String? ?? '',
       localIso: transitTime['localIso'] as String? ?? '',
       timezone: transitTime['timezone'] as String? ?? 'UTC',

@@ -23,10 +23,10 @@ class MatchmakingReportModel {
   });
 
   factory MatchmakingReportModel.fromJson(Map<String, dynamic> json) {
-    // If wrapped in compatibility
-    final root = json['compatibility'] is Map
-        ? Map<String, dynamic>.from(json['compatibility'] as Map)
-        : json;
+    final data = json['data'] is Map ? json['data'] as Map : json;
+    final root = data['compatibility'] is Map
+        ? Map<String, dynamic>.from(data['compatibility'] as Map)
+        : Map<String, dynamic>.from(data);
 
     return MatchmakingReportModel(
       calculationVersion: root['calculationVersion'] as String? ?? '0.1.0',
@@ -56,7 +56,7 @@ class MatchmakingReportModel {
             ? Map<String, dynamic>.from(root['overallSummary'] as Map)
             : {},
       ),
-      overallVerdict: json['overallVerdict'] as String?,
+      overallVerdict: json['overallVerdict'] as String? ?? root['overallVerdict'] as String?,
     );
   }
 
