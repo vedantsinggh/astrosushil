@@ -77,12 +77,31 @@ class RashiBhavishyaCard extends StatelessWidget {
     required this.onReadTap,
   });
 
+  String _getGlyph(String rashi) {
+    final clean = rashi.toUpperCase();
+    if (clean.contains('ARIES') || clean.contains('MESHA')) return '♈';
+    if (clean.contains('TAURUS') || clean.contains('VRISHABHA')) return '♉';
+    if (clean.contains('GEMINI') || clean.contains('MITHUNA')) return '♊';
+    if (clean.contains('CANCER') || clean.contains('KARKATA')) return '♋';
+    if (clean.contains('LEO') || clean.contains('SIMHA')) return '♌';
+    if (clean.contains('VIRGO') || clean.contains('KANYA')) return '♍';
+    if (clean.contains('LIBRA') || clean.contains('TULA')) return '♎';
+    if (clean.contains('SCORPIO') || clean.contains('VRISHCHIKA')) return '♏';
+    if (clean.contains('SAGITTARIUS') || clean.contains('DHANU')) return '♐';
+    if (clean.contains('CAPRICORN') || clean.contains('MAKARA')) return '♑';
+    if (clean.contains('AQUARIUS') || clean.contains('KUMBHA')) return '♒';
+    if (clean.contains('PISCES') || clean.contains('MEENA')) return '♓';
+    return '♈';
+  }
+
   @override
   Widget build(BuildContext context) {
     // Extract sign name (e.g. "Aries" from "Mesha (Aries)" or use preview.rashiName)
     final rashiTitle = preview.rashiName.contains('(')
         ? preview.rashiName.split('(').last.replaceAll(')', '').trim()
         : preview.rashiName;
+
+    final glyph = _getGlyph(preview.rashiName);
 
     return Container(
       width: double.infinity,
@@ -92,7 +111,7 @@ class RashiBhavishyaCard extends StatelessWidget {
         border: Border.all(color: AppColors.lightBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -100,17 +119,6 @@ class RashiBhavishyaCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Background Constellation Art (Right Aligned)
-          Positioned(
-            right: 40,
-            top: 10,
-            bottom: 10,
-            width: 100,
-            child: CustomPaint(
-              painter: _ConstellationPatternPainter(),
-            ),
-          ),
-
           // Content
           Material(
             color: Colors.transparent,
@@ -123,7 +131,7 @@ class RashiBhavishyaCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Left Sign Icon Circle Container (Dark Navy + Gold Aries Symbol)
+                    // Left Sign Icon Circle Container (Dark Navy + Gold Zodiac Glyph)
                     Container(
                       width: 52,
                       height: 52,
@@ -131,10 +139,10 @@ class RashiBhavishyaCard extends StatelessWidget {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          '♈',
-                          style: TextStyle(
+                          glyph,
+                          style: const TextStyle(
                             fontSize: 26,
                             color: AppColors.premiumAccent,
                             fontWeight: FontWeight.bold,
@@ -150,17 +158,37 @@ class RashiBhavishyaCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            rashiTitle,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                rashiTitle,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFD98A2B).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'TODAY',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFB45309),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 2),
                           const Text(
-                            'March 21 - April 19',
+                            'Daily Transit Planetary Influence',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.lightTextSecondary,
@@ -168,7 +196,7 @@ class RashiBhavishyaCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'A positive day for new beginnings. Your confidence will attract good opportunities.',
+                            'A favorable period for analytical focus and methodical progress. Beneficial planetary transits support strategic initiatives.',
                             style: TextStyle(
                               fontSize: 12,
                               color: AppColors.lightTextSecondary,
@@ -198,36 +226,4 @@ class RashiBhavishyaCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Custom painter for subtle faint constellation dots & lines in card background
-class _ConstellationPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-
-    final dotPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.2)
-      ..style = PaintingStyle.fill;
-
-    final pts = [
-      Offset(size.width * 0.2, size.height * 0.7),
-      Offset(size.width * 0.45, size.height * 0.4),
-      Offset(size.width * 0.75, size.height * 0.3),
-      Offset(size.width * 0.9, size.height * 0.5),
-    ];
-
-    for (int i = 0; i < pts.length - 1; i++) {
-      canvas.drawLine(pts[i], pts[i + 1], linePaint);
-    }
-    for (final pt in pts) {
-      canvas.drawCircle(pt, 2.0, dotPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

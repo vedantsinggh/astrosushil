@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../shared/assets/app_assets.dart';
 import '../../shared/theme/app_colors.dart';
-import '../../shared/widgets/astro_image.dart';
 
-/// Large Hero Card for Home Screen representing main birth chart entry point
+/// Large Hero Card for Home Screen representing main birth chart entry point.
+/// Features a crisp custom-painted Vedic Kundli geometry and analytical data badges.
 class HeroAstrologyCard extends StatelessWidget {
   final VoidCallback onViewChartTap;
   final bool hasBirthProfile;
@@ -22,12 +21,12 @@ class HeroAstrologyCard extends StatelessWidget {
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: AppColors.premiumAccent.withOpacity(0.35),
+          color: AppColors.premiumAccent.withValues(alpha: 0.35),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -37,17 +36,14 @@ class HeroAstrologyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
-            // Celestial Background Zodiac Wheel Artwork (Right Aligned)
+            // Custom Painted North Indian Kundli Geometric Visual (Right Aligned)
             Positioned(
-              right: -35,
-              top: -20,
-              bottom: -20,
-              width: 260,
-              child: AstroImage(
-                assetPath: AppAssets.homeHero,
-                fit: BoxFit.contain,
-                fallback: AstroImageFallback.celestial,
-                semanticLabel: 'Celestial zodiac wheel illustration',
+              right: -10,
+              top: -10,
+              bottom: -10,
+              width: 180,
+              child: CustomPaint(
+                painter: _HeroKundliGeometryPainter(),
               ),
             ),
 
@@ -60,11 +56,11 @@ class HeroAstrologyCard extends StatelessWidget {
                     end: Alignment.centerRight,
                     colors: [
                       AppColors.primary,
-                      AppColors.primary.withOpacity(0.92),
-                      AppColors.primary.withOpacity(0.35),
+                      AppColors.primary.withValues(alpha: 0.95),
+                      AppColors.primary.withValues(alpha: 0.4),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.45, 0.75, 1.0],
+                    stops: const [0.0, 0.55, 0.8, 1.0],
                   ),
                 ),
               ),
@@ -80,10 +76,10 @@ class HeroAstrologyCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.premiumAccent.withOpacity(0.12),
+                      color: AppColors.premiumAccent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AppColors.premiumAccent.withOpacity(0.4),
+                        color: AppColors.premiumAccent.withValues(alpha: 0.4),
                         width: 0.8,
                       ),
                     ),
@@ -176,7 +172,7 @@ class HeroAstrologyCard extends StatelessWidget {
                           : 'Add your birth details to generate your Kundli.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         height: 1.35,
                         fontWeight: FontWeight.w400,
                       ),
@@ -192,7 +188,7 @@ class HeroAstrologyCard extends StatelessWidget {
                       backgroundColor: AppColors.premiumAccent,
                       foregroundColor: AppColors.primary,
                       elevation: 2,
-                      shadowColor: AppColors.premiumAccent.withOpacity(0.4),
+                      shadowColor: AppColors.premiumAccent.withValues(alpha: 0.4),
                       minimumSize: const Size(120, 42),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
@@ -222,40 +218,6 @@ class HeroAstrologyCard extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Hero Carousel Indicators (Subtle dots)
-                  Row(
-                    children: [
-                      Container(
-                        width: 14,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: AppColors.premiumAccent,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -266,3 +228,54 @@ class HeroAstrologyCard extends StatelessWidget {
   }
 }
 
+/// Custom painter rendering North Indian Vedic Kundli geometry for Hero background
+class _HeroKundliGeometryPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final borderPaint = Paint()
+      ..color = AppColors.premiumAccent.withValues(alpha: 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final linePaint = Paint()
+      ..color = AppColors.premiumAccent.withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    final goldAccent = Paint()
+      ..color = AppColors.premiumAccent.withValues(alpha: 0.1)
+      ..style = PaintingStyle.fill;
+
+    // Draw square
+    final rect = Rect.fromCenter(center: Offset(w * 0.5, h * 0.5), width: w * 0.85, height: w * 0.85);
+    canvas.drawRect(rect, borderPaint);
+
+    // Draw diagonals
+    canvas.drawLine(rect.topLeft, rect.bottomRight, linePaint);
+    canvas.drawLine(rect.topRight, rect.bottomLeft, linePaint);
+
+    // Draw inner diamond
+    final diamond = Path()
+      ..moveTo(rect.center.dx, rect.top)
+      ..lineTo(rect.right, rect.center.dy)
+      ..lineTo(rect.center.dx, rect.bottom)
+      ..lineTo(rect.left, rect.center.dy)
+      ..close();
+    canvas.drawPath(diamond, linePaint);
+
+    // Fill Lagna diamond top center
+    final lagna = Path()
+      ..moveTo((rect.left + rect.center.dx) / 2, (rect.top + rect.center.dy) / 2)
+      ..lineTo(rect.center.dx, rect.top)
+      ..lineTo((rect.right + rect.center.dx) / 2, (rect.top + rect.center.dy) / 2)
+      ..lineTo(rect.center.dx, rect.center.dy)
+      ..close();
+    canvas.drawPath(lagna, goldAccent);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

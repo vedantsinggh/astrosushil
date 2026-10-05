@@ -204,7 +204,11 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Calculated at: ${snapshot.localIso.isNotEmpty ? snapshot.localIso.replaceFirst('T', ' ').substring(0, 16) : snapshot.utcIso.replaceFirst('T', ' ').substring(0, 16)} (${snapshot.timezone})',
+                  'Calculated at: ${() {
+                    final raw = snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso;
+                    final displayDate = raw.replaceFirst('T', ' ');
+                    return displayDate.length > 16 ? displayDate.substring(0, 16) : displayDate;
+                  }()} (${snapshot.timezone})',
                   style: const TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
                   overflow: TextOverflow.ellipsis,
                 ),

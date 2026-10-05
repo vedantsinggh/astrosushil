@@ -8,8 +8,6 @@ import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/reports/providers/career_report_provider.dart';
 import '../../features/reports/screens/career_report_generation_screen.dart';
 import '../../features/reports/screens/career_report_overview_screen.dart';
-import '../../features/reports/screens/career_report_pdf_screen.dart';
-import '../../features/reports/screens/report_view_screen.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/widgets/subtle_celestial_background.dart';
 
@@ -18,31 +16,6 @@ final selectedReportProfileIdProvider = StateProvider<String?>((ref) => null);
 /// Premium Client-Facing Reports Home Screen for Astro Sushil
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
-
-  void _onReportAction({
-    required BuildContext context,
-    required WidgetRef ref,
-    required String title,
-    required String reportType,
-    required String birthProfileId,
-  }) {
-    AuthRequiredGate.checkAndProceed(
-      context: context,
-      ref: ref,
-      feature: AppFeature.reports,
-      featureTitle: title,
-      onAllowed: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ReportViewScreen(
-              birthProfileId: birthProfileId,
-              reportType: reportType,
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   void _onCareerReportAction({
     required BuildContext context,

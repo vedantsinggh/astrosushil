@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../shared/theme/app_colors.dart';
 
@@ -12,7 +11,7 @@ class CelestialBackgroundPainter extends CustomPainter {
     // 1. Orbital Arcs (Top Right)
     final arcCenterTopRight = Offset(size.width * 0.9, -size.height * 0.05);
     final arcPaint = Paint()
-      ..color = AppColors.primary.withOpacity(0.035)
+      ..color = AppColors.primary.withValues(alpha: 0.035)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -23,7 +22,7 @@ class CelestialBackgroundPainter extends CustomPainter {
     // 2. Dashed Orbital Arc (Center Left)
     final arcCenterLeft = Offset(-size.width * 0.2, size.height * 0.45);
     final goldArcPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.04)
+      ..color = AppColors.premiumAccent.withValues(alpha: 0.04)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -32,12 +31,12 @@ class CelestialBackgroundPainter extends CustomPainter {
 
     // 3. Faint Constellation Line Nodes (Mid-Right)
     final constellationPaint = Paint()
-      ..color = AppColors.secondary.withOpacity(0.04)
+      ..color = AppColors.secondary.withValues(alpha: 0.04)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
 
     final dotPaint = Paint()
-      ..color = AppColors.primary.withOpacity(0.06)
+      ..color = AppColors.primary.withValues(alpha: 0.06)
       ..style = PaintingStyle.fill;
 
     final points = [

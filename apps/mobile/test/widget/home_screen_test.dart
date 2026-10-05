@@ -9,6 +9,7 @@ import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
+import 'package:astro_mobile/home/widgets/hero_astrology_card.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
 void main() {
@@ -68,8 +69,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Create Your'), findsOneWidget);
-      expect(find.textContaining('Birth Profile'), findsOneWidget);
+      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.textContaining('Create Your')), findsOneWidget);
+      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.textContaining('Birth Profile')), findsOneWidget);
       expect(find.text('Add Birth Details'), findsOneWidget);
     });
 

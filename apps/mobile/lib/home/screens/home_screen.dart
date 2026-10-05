@@ -17,6 +17,10 @@ import '../../features/astrology/screens/prashna_screen.dart';
 import '../../features/astrology/screens/planets_screen.dart';
 import '../../features/astrology/screens/rashi_bhavishya_screen.dart';
 import '../../features/astrology/screens/vastu_screen.dart';
+import '../../features/astrology/screens/ashtakavarga_screen.dart';
+import '../../features/astrology/screens/bhava_bala_screen.dart';
+import '../../features/astrology/screens/shadbala_screen.dart';
+import '../../features/astrology/screens/special_points_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
@@ -189,6 +193,30 @@ class _HomeTabContentView extends ConsumerWidget {
     );
   }
 
+  void _navigateToShadbala(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ShadbalaScreen()),
+    );
+  }
+
+  void _navigateToBhavaBala(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const BhavaBalaScreen()),
+    );
+  }
+
+  void _navigateToAshtakavarga(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AshtakavargaScreen()),
+    );
+  }
+
+  void _navigateToSpecialPoints(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SpecialPointsScreen()),
+    );
+  }
+
   void _navigateToJyoti(BuildContext context, WidgetRef ref) {
     AuthRequiredGate.checkAndProceed(
       context: context,
@@ -350,6 +378,10 @@ class _HomeTabContentView extends ConsumerWidget {
               onKPTap: () => _navigateToKP(context),
               onVarshaphalaTap: () => _navigateToVarshaphala(context),
               onPrashnaTap: () => _navigateToPrashna(context),
+              onShadbalaTap: () => _navigateToShadbala(context),
+              onBhavaBalaTap: () => _navigateToBhavaBala(context),
+              onAshtakavargaTap: () => _navigateToAshtakavarga(context),
+              onSpecialPointsTap: () => _navigateToSpecialPoints(context),
               onSeeAllTap: () => _navigateToAstrologyHub(context),
             ),
 
