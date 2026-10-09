@@ -75,6 +75,27 @@ Hope this helps!`;
       expect(res.message).not.toContain('{');
       expect(res.message.length).toBeGreaterThan(0);
     });
+
+    it('7. Should parse Sushil Explainer structured JSON with headline and keyPoints', () => {
+      const explainerJson = `\`\`\`json
+{
+  "headline": "Dynamic Career Drive and Emotional Focus",
+  "message": "Your Moon in Capricorn in the 10th House indicates a practical approach to goals.\\n\\nSaturn strengthens your perseverance.",
+  "keyPoints": [
+    "Moon in 10th house brings disciplined work ethic.",
+    "Mars in Aries provides leadership energy.",
+    "Favorable time for structured career planning."
+  ],
+  "disclaimer": "AI Sushil Sir interpretation based on calculated chart data."
+}
+\`\`\``;
+      const res = provider.parseJsonResponse(explainerJson);
+      expect(res.headline).toBe('Dynamic Career Drive and Emotional Focus');
+      expect(res.message).toContain('Moon in Capricorn');
+      expect(res.keyPoints).toHaveLength(3);
+      expect(res.keyPoints?.[0]).toContain('Moon in 10th house');
+      expect(res.disclaimer).toContain('AI Sushil Sir');
+    });
   });
 
   describe('OpenRouterProvider API & Error Scenarios', () => {
@@ -82,7 +103,7 @@ Hope this helps!`;
       vi.restoreAllMocks();
     });
 
-    it('7. Should handle OpenRouter 429 rate limit with retries and eventual controlled fallback', async () => {
+    it('8. Should handle OpenRouter 429 rate limit with retries and eventual controlled fallback', async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: false,
         status: 429,
@@ -98,7 +119,7 @@ Hope this helps!`;
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    it('8. Should handle OpenRouter timeout (AbortError) with controlled fallback', async () => {
+    it('9. Should handle OpenRouter timeout (AbortError) with controlled fallback', async () => {
       const fetchMock = vi.fn().mockImplementation(() => {
         const err: any = new Error('The operation was aborted');
         err.name = 'AbortError';
@@ -113,7 +134,7 @@ Hope this helps!`;
       expect(res.actions).toEqual([]);
     });
 
-    it('9. Should return controlled fallback when API key is missing', async () => {
+    it('10. Should return controlled fallback when API key is missing', async () => {
       const provider = new OpenRouterProvider('', 'minimax/minimax-m3:free');
       const res = await provider.generateResponse('Hello');
       expect(res).toBeDefined();
@@ -121,7 +142,7 @@ Hope this helps!`;
       expect(res.actions).toEqual([]);
     });
 
-    it('10. Should fail immediately on HTTP 401 Invalid API key and return controlled fallback', async () => {
+    it('11. Should fail immediately on HTTP 401 Invalid API key and return controlled fallback', async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
@@ -207,7 +228,7 @@ Hope this helps!`;
       expect(result.actions).toEqual([]);
     });
 
-    it('Enforces rate limit per user ID', async () => {
+    it('5. Enforces rate limit per user ID', async () => {
       const mockLlmProvider = {
         generateResponse: vi.fn().mockResolvedValue({
           message: 'Response',
@@ -224,6 +245,90 @@ Hope this helps!`;
       await expect(
         service.processChat(userId, { message: '21st message' })
       ).rejects.toThrow(/rate limit/i);
+    });
+  });
+
+  describe('JyotiService Sushil Explainer One-Shot Flow', () => {
+    it('1. Successfully processes structured explanation context', async () => {
+      const mockLlmProvider = {
+        generateResponse: vi.fn().mockResolvedValue({
+          headline: 'Strong Leadership and Analytical Mind',
+          message: 'Your Ascendant in Leo gives you natural confidence and warmth. The Sun in the 10th house enhances career success.',
+          keyPoints: [
+            'Leo Ascendant gives charisma and natural leadership.',
+            'Sun in 10th House supports career achievements.',
+            'Maintain patience in daily communications.'
+          ],
+          disclaimer: 'AI Sushil Sir interpretation based on calculated chart data.',
+        }),
+      };
+
+      const service = new JyotiService(mockLlmProvider);
+      const result = await service.processExplain('user-explainer-1', {
+        feature: 'birth_chart',
+        screenTitle: 'Birth Chart',
+        purpose: 'Explain natal chart placements',
+        context: {
+          astrologyData: {
+            ascendant: { sign: 'Leo', degree: 14.5 },
+            planets: [{ name: 'Sun', sign: 'Taurus', house: 10 }],
+          },
+          importantValues: {
+            lagna: 'Leo',
+            currentDasha: 'Sun-Mars',
+          },
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result.headline).toBe('Strong Leadership and Analytical Mind');
+      expect(result.message).toContain('Ascendant in Leo');
+      expect(result.keyPoints).toHaveLength(3);
+      expect(result.disclaimer).toContain('AI Sushil Sir');
+      expect(mockLlmProvider.generateResponse).toHaveBeenCalled();
+    });
+
+    it('2. Handles empty astrology data gracefully without fabricating', async () => {
+      const mockLlmProvider = {
+        generateResponse: vi.fn(),
+      };
+
+      const service = new JyotiService(mockLlmProvider);
+      const result = await service.processExplain('user-explainer-2', {
+        feature: 'shadbala',
+        screenTitle: 'Planetary Strength',
+        context: {
+          astrologyData: {},
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result.headline).toContain('No Chart Data');
+      expect(result.message).toContain("There isn't enough astrological information");
+      expect(mockLlmProvider.generateResponse).not.toHaveBeenCalled();
+    });
+
+    it('3. Gracefully handles LLM provider failure during explanation', async () => {
+      const mockLlmProvider = {
+        generateResponse: vi.fn().mockRejectedValue(new Error('LLM Provider connection timeout')),
+      };
+
+      const service = new JyotiService(mockLlmProvider);
+      const result = await service.processExplain('user-explainer-3', {
+        feature: 'vimshottari_dasha',
+        screenTitle: 'Vimshottari Dasha',
+        context: {
+          astrologyData: {
+            currentMahadasha: 'Jupiter',
+            currentAntardasha: 'Saturn',
+          },
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result.headline).toBe('Vimshottari Dasha Insights');
+      expect(result.message).toContain('connection delay');
+      expect(result.keyPoints.length).toBeGreaterThan(0);
     });
   });
 });

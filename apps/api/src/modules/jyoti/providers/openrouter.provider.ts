@@ -10,7 +10,7 @@ export class OpenRouterProvider implements LLMProvider {
   private readonly siteName: string;
 
   constructor(apiKey?: string, model?: string) {
-    this.apiKey = apiKey || process.env.OPENROUTER_API_KEY || config.OPENROUTER_API_KEY || '';
+    this.apiKey = apiKey !== undefined ? apiKey : (process.env.OPENROUTER_API_KEY || config.OPENROUTER_API_KEY || '');
     this.model = model || process.env.OPENROUTER_MODEL || config.OPENROUTER_MODEL || 'minimax/minimax-m3:free';
     this.siteUrl = process.env.OPENROUTER_SITE_URL || 'https://astrosushil.com';
     this.siteName = process.env.OPENROUTER_SITE_NAME || 'Astro Sushil';
@@ -262,7 +262,7 @@ export class OpenRouterProvider implements LLMProvider {
       }
 
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const messageText = this.sanitizeMessageText(parsed.message || (typeof targetText === 'string' ? targetText : rawText));
+        const messageText = this.sanitizeMessageText(parsed.message || (typeof targetText === 'string' && !targetText.startsWith('{') ? targetText : rawText));
         this.logLlmStatus({
           status: 200,
           latency: latencyMs,
@@ -273,6 +273,10 @@ export class OpenRouterProvider implements LLMProvider {
           message: messageText,
           actions: Array.isArray(parsed.actions) ? parsed.actions : [],
           explanation: typeof parsed.explanation === 'object' && parsed.explanation !== null ? parsed.explanation : undefined,
+          headline: typeof parsed.headline === 'string' ? parsed.headline.trim() : undefined,
+          keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.filter((k: any) => typeof k === 'string').map((k: string) => k.trim()) : undefined,
+          disclaimer: typeof parsed.disclaimer === 'string' ? parsed.disclaimer.trim() : undefined,
+          rawJson: parsed,
         };
       }
     } catch (_) {
@@ -298,6 +302,10 @@ export class OpenRouterProvider implements LLMProvider {
               message: messageText,
               actions: Array.isArray(parsed.actions) ? parsed.actions : [],
               explanation: typeof parsed.explanation === 'object' && parsed.explanation !== null ? parsed.explanation : undefined,
+              headline: typeof parsed.headline === 'string' ? parsed.headline.trim() : undefined,
+              keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.filter((k: any) => typeof k === 'string').map((k: string) => k.trim()) : undefined,
+              disclaimer: typeof parsed.disclaimer === 'string' ? parsed.disclaimer.trim() : undefined,
+              rawJson: parsed,
             };
           }
         } catch (_) {}
@@ -306,7 +314,7 @@ export class OpenRouterProvider implements LLMProvider {
 
     // 4. Plain text fallback if raw text is clean conversational text without raw JSON delimiters
     const sanitizedText = this.sanitizeMessageText(cleaned);
-    if (sanitizedText && sanitizedText.length > 0 && !sanitizedText.startsWith('{') && !sanitizedText.includes('```')) {
+    if (sanitizedText && sanitizedText.length > 0 && !sanitizedText.includes('{') && !sanitizedText.includes('```')) {
       this.logLlmStatus({
         status: 200,
         latency: latencyMs,

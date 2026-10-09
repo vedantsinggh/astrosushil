@@ -7,6 +7,8 @@ import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/vastu_model.dart';
 import '../providers/vastu_provider.dart';
 import 'vastu_detail_screen.dart';
@@ -14,9 +16,28 @@ import 'vastu_detail_screen.dart';
 class VastuScreen extends ConsumerWidget {
   const VastuScreen({super.key});
 
+  ExplanationContext _buildExplanationContext(List<VastuCategoryModel>? categories) {
+    return ExplanationContext(
+      feature: 'vastu',
+      screenTitle: 'Vedic Vastu Shastra',
+      purpose: 'Explain the directional energies, spatial harmony principles, and living spaces alignment.',
+      astrologyData: {
+        'totalZones': categories?.length ?? 8,
+        'categories': categories?.map((c) => {
+          'name': c.name,
+          'idealDirection': c.idealDirection,
+        }).toList(),
+      },
+      importantValues: {
+        'corePrinciple': 'Pancha Maha Bhootas spatial alignment',
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categoriesAsync = ref.watch(vastuCategoriesProvider);
+    final categories = categoriesAsync.valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -34,7 +55,15 @@ class VastuScreen extends ConsumerWidget {
                 // 1. HERO VASTU BANNER
                 _buildHeroVastuCard(),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
+
+                // Sushil Sir Explainer Button
+                SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(categories),
+                  poseAsset: AppAssets.sushilGuiding,
+                ),
+
+                const SizedBox(height: 16),
 
                 // 2. SUBTITLE & GRID HEADER
                 const Text(

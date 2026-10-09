@@ -16,6 +16,8 @@ import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 
 /// Screen presenting Vedic Ashtakavarga charts (SAV, BAV, Shodhana & Shodhya Pindas)
 /// Evaluated deterministically via Fastify backend /astrology/ashtakavarga
@@ -208,6 +210,15 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+        SushilExplainerButton(
+          contextData: _buildSavExplanationContext(sav),
+          label: 'Let Sushil Sir explain this Ashtakavarga',
+          isCompact: false,
         ),
 
         const SizedBox(height: 16),
@@ -545,4 +556,22 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
       ],
     );
   }
+
+  ExplanationContext _buildSavExplanationContext(SarvashtakavargaModel sav) {
+    return ExplanationContext(
+      feature: 'ashtakavarga',
+      screenTitle: 'Sarvashtakavarga (SAV)',
+      purpose: 'Explain 8-contributor benefic bindu distributions, favorable signs, and transit vitality',
+      astrologyData: {
+        'grandTotal': sav.grandTotal,
+        'signScores': sav.signs,
+        'averagePerSign': (sav.grandTotal / 12).toStringAsFixed(1),
+      },
+      importantValues: {
+        'grandTotal': sav.grandTotal,
+        'benchmarkAverage': 28,
+      },
+    );
+  }
 }
+

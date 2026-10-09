@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/kp_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
@@ -32,6 +35,43 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
     AstrologyTabItem(label: 'Ruling Planets', icon: Icons.schedule_rounded),
   ];
 
+  ExplanationContext _buildExplanationContext(KPReportModel kp) {
+    return ExplanationContext(
+      feature: 'kp_astrology',
+      screenTitle: 'KP Astrology (Krishnamurti)',
+      purpose: 'Explain the user\'s Krishnamurti Padhdhati (KP) 4-tier planetary lords (Sign/Star/Sub/Sub-Sub) and Placidus house cusps.',
+      astrologyData: {
+        'planets': kp.planets.map((p) => {
+          'name': p.name,
+          'sign': p.rashiName,
+          'signLord': p.signLord,
+          'starLord': p.starLord,
+          'subLord': p.subLord,
+          'isRetrograde': p.isRetrograde,
+        }).toList(),
+        'cusps': kp.cusps.map((c) => {
+          'cuspNumber': c.cuspNumber,
+          'sign': c.rashiName,
+          'signLord': c.signLord,
+          'starLord': c.starLord,
+          'subLord': c.subLord,
+        }).toList(),
+        'rulingPlanets': {
+          'dayLord': kp.rulingPlanets.dayLord,
+          'lagnaSignLord': kp.rulingPlanets.lagnaSignLord,
+          'lagnaStarLord': kp.rulingPlanets.lagnaStarLord,
+          'lagnaSubLord': kp.rulingPlanets.lagnaSubLord,
+          'moonSignLord': kp.rulingPlanets.moonSignLord,
+          'moonStarLord': kp.rulingPlanets.moonStarLord,
+        },
+      },
+      importantValues: {
+        'totalPlanets': kp.planets.length,
+        'totalCusps': kp.cusps.length,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final kpAsync = ref.watch(activeProfileKPProvider);
@@ -52,7 +92,15 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
               },
               tabs: _tabs,
             ),
-            const SizedBox(height: 8),
+            if (kpAsync.valueOrNull != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(kpAsync.valueOrNull!),
+                  poseAsset: AppAssets.sushilExplaining,
+                ),
+              ),
+            const SizedBox(height: 6),
             Expanded(
               child: kpAsync.when(
                 loading: () => const AstrologyLoadingState(

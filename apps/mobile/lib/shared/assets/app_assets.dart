@@ -162,4 +162,20 @@ class AppAssets {
         return null;
     }
   }
+
+  // 6. Sushil Sir Explainer Assets (Concept Art Reference)
+  static const String sushilAvatar = '$assetDir/sushil_avatar.png';
+  static const String sushilAvatarNeutral = '$assetDir/sushil_avatar_neutral.png';
+  static const String sushilAvatarThinking = '$assetDir/sushil_avatar_thinking.png';
+  static const String sushilAvatarGuiding = '$assetDir/sushil_avatar_guiding.png';
+  static const String sushilThinking = '$assetDir/sushil_thinking.png';
+  static const String sushilExplaining = '$assetDir/sushil_explaining.png';
+  static const String sushilExplainingChart = '$assetDir/sushil_explaining_chart.png';
+  static const String sushilPointing = '$assetDir/sushil_pointing.png';
+  static const String sushilFriendly = '$assetDir/sushil_friendly.png';
+  static const String sushilConfident = '$assetDir/sushil_confident.png';
+  static const String sushilHappy = '$assetDir/sushil_happy.png';
+  static const String sushilChatting = '$assetDir/sushil_chatting.png';
+  static const String sushilGuiding = '$assetDir/sushil_guiding.png';
+  static const String sushilHero = '$assetDir/sushil_hero.png';
 }

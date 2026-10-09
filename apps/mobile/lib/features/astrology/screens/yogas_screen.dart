@@ -15,6 +15,8 @@ import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_tab_bar.dart';
 import '../widgets/planet_chip.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 
 /// Screen presenting Classical Vedic Yogas evaluated deterministically
 /// by packages/astrology-engine and served via Fastify /astrology/yogas
@@ -141,6 +143,16 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
           children: [
             // Search & Category Filters
             _buildFilterHeader(report),
+
+            // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SushilExplainerButton(
+                contextData: _buildYogaExplanationContext(profile, report),
+                label: 'Let Sushil Sir explain these Yogas',
+                isCompact: false,
+              ),
+            ),
 
             // Yoga Cards List
             Expanded(
@@ -339,6 +351,37 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
 
         final yoga = filtered[index - 1];
         return _YogaCard(yoga: yoga);
+      },
+    );
+  }
+
+  ExplanationContext _buildYogaExplanationContext(
+    BirthProfileModel profile,
+    YogaEvaluationReportModel report,
+  ) {
+    return ExplanationContext(
+      feature: 'yogas',
+      screenTitle: 'Classical Vedic Yogas',
+      purpose: 'Explain active yoga combinations, auspicious blessings, and life impacts in simple terms',
+      astrologyData: {
+        'totalEvaluated': report.totalEvaluated,
+        'detectedCount': report.detectedYogas.length,
+        'detectedYogas': report.detectedYogas
+            .map((y) => {
+                  'name': y.canonicalName,
+                  'sanskritName': y.sanskritName,
+                  'category': y.formattedCategory,
+                  'planets': y.planetNames,
+                  'houses': y.houseNumbers,
+                })
+            .toList(),
+      },
+      importantValues: {
+        'activeYogaCount': report.detectedYogas.length,
+        'topYogas': report.detectedYogas.take(3).map((y) => y.canonicalName).toList(),
+      },
+      userProfileContext: {
+        'name': profile.name,
       },
     );
   }
@@ -699,3 +742,4 @@ class _YogaCardState extends State<_YogaCard> {
     );
   }
 }
+

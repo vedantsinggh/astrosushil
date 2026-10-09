@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -106,6 +109,44 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    SpecialPointsReportModel report,
+    BirthProfileModel profile,
+  ) {
+    return ExplanationContext(
+      feature: 'special_points',
+      screenTitle: 'Special Points & Upagrahas',
+      purpose: 'Explain the mathematical Upagrahas (Mandi, Gulika), Special Lagnas (Hora, Ghatika), and Yogi points for ${profile.name}.',
+      astrologyData: {
+        'upagrahas': report.upagrahas.allPoints.map((u) => {
+          'name': u.name,
+          'sign': u.rashiName,
+          'degree': u.degreeInRashi,
+          'house': u.house,
+        }).toList(),
+        'specialLagnas': report.specialLagnas.allLagnas.map((l) => {
+          'name': l.name,
+          'sign': l.rashiName,
+          'degree': l.degreeInRashi,
+        }).toList(),
+        'yogiPoints': {
+          'yogiPointDegree': report.yogiPoints.yogiPoint.degreeInRashi,
+          'yogiSign': report.yogiPoints.yogiPoint.rashiName,
+          'yogiPlanet': report.yogiPoints.yogiPlanet,
+          'avyogiPlanet': report.yogiPoints.avyogiPlanet,
+          'duplicateYogiPlanet': report.yogiPoints.duplicateYogiPlanet,
+        },
+      },
+      importantValues: {
+        'totalUpagrahas': report.upagrahas.allPoints.length,
+        'yogiPlanet': report.yogiPoints.yogiPlanet,
+      },
+      userProfileContext: {
+        'name': profile.name,
+      },
+    );
+  }
+
   Widget _buildSpecialPointsBody(BuildContext context, BirthProfileModel profile) {
     final reportAsync = ref.watch(specialPointsForProfileProvider(profile));
 
@@ -139,11 +180,20 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
               ),
             ),
 
+            // Sushil Sir Explainer Button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: SushilExplainerButton(
+                contextBuilder: () => _buildExplanationContext(report, profile),
+                poseAsset: AppAssets.sushilGuiding,
+              ),
+            ),
+
             // Tab View Body
             Expanded(
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

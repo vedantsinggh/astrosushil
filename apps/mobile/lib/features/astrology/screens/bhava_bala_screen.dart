@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/strength_model.dart';
@@ -121,6 +124,37 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    BhavaBalaReportModel report,
+    HouseBhavaBalaModel selectedHouseData,
+  ) {
+    return ExplanationContext(
+      feature: 'bhava_bala',
+      screenTitle: 'Bhava Bala (House Strength)',
+      purpose: 'Explain the 12-house potency scores and the strength of selected House ${selectedHouseData.houseNumber}.',
+      astrologyData: {
+        'selectedHouse': {
+          'houseNumber': selectedHouseData.houseNumber,
+          'totalRupas': selectedHouseData.totalRupas,
+          'totalShashtiamsas': selectedHouseData.totalShashtiamsas,
+          'rank': selectedHouseData.rank,
+          'sign': selectedHouseData.sign,
+          'lord': selectedHouseData.lord,
+        },
+        'allHouses': report.houses.map((h) => {
+          'house': h.houseNumber,
+          'rupas': h.totalRupas,
+          'rank': h.rank,
+          'lord': h.lord,
+        }).toList(),
+      },
+      importantValues: {
+        'selectedHouseRupas': selectedHouseData.totalRupas,
+        'selectedHouseRank': selectedHouseData.rank,
+      },
+    );
+  }
+
   Widget _buildBhavaBalaContent(BuildContext context, BhavaBalaReportModel report) {
     final houses = report.houses;
     final selectedHouseData = houses.firstWhere(
@@ -134,6 +168,15 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
       children: [
         // 1. HORIZONTAL 12-HOUSE SELECTOR
         _buildHouseSelector(houses),
+
+        const SizedBox(height: 12),
+
+        // Sushil Sir Explainer Button
+        SushilExplainerButton(
+          contextBuilder: () => _buildExplanationContext(report, selectedHouseData),
+          poseAsset: AppAssets.sushilExplaining,
+        ),
+
         const SizedBox(height: 14),
 
         // 2. SELECTED HOUSE HERO CARD

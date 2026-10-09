@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_error_state.dart';
 import '../../../shared/widgets/astro_loader/astro_loader_full_screen.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../astrology/widgets/kundli_chart_widget.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/report_model.dart';
 import '../providers/reports_provider.dart';
 
@@ -224,10 +227,43 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
       'The 9th House signifies higher learning, philosophy, father, gurus, luck, and virtuous deeds.',
       'The 10th House signifies professional achievement, career reputation, authority, and public actions.',
       'The 11th House signifies income streams, fulfillment of desires, elder siblings, and professional networks.',
-      'The 12th House governs spiritual retreats, foreign residence, subconscious mind, and subconscious release.',
+      'The 12th House signifies sub-conscious spiritual journey, seclusion, foreign residences, and expenditure.',
     ];
     if (house >= 1 && house <= 12) return descriptions[house - 1];
     return '';
+  }
+
+  ExplanationContext _buildExplanationContext(ReportDataModel report) {
+    return ExplanationContext(
+      feature: 'reports',
+      screenTitle: '${report.profile.name}\'s ${report.title}',
+      purpose: 'Explain the key astrological highlights and findings from this comprehensive dossier for ${report.profile.name}.',
+      astrologyData: {
+        'userName': report.profile.name,
+        'title': report.title,
+        'type': report.type,
+        'ascendant': {
+          'sign': report.ascendant.sign,
+          'degree': report.ascendant.degree,
+          'nakshatra': report.ascendant.nakshatra,
+        },
+        'nakshatra': report.nakshatra.birthNakshatra,
+        'planets': report.planets.map((p) => {
+          'name': p.planet,
+          'sign': p.sign,
+          'house': p.house,
+          'isRetrograde': p.isRetrograde,
+        }).toList(),
+      },
+      importantValues: {
+        'ascendant': report.ascendant.sign,
+        'nakshatra': report.nakshatra.birthNakshatra,
+        'reportType': report.type,
+      },
+      userProfileContext: {
+        'name': report.profile.name,
+      },
+    );
   }
 
   @override
@@ -398,7 +434,15 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
                   // 4.1 REPORT COVER / PREMIUM HEADER CARD
                   _buildReportCoverHeader(report),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+
+                  // Sushil Sir Explainer Button
+                  SushilExplainerButton(
+                    contextBuilder: () => _buildExplanationContext(report),
+                    poseAsset: AppAssets.sushilGuiding,
+                  ),
+
+                  const SizedBox(height: 18),
 
                   // 4.2 EXECUTIVE SUMMARY ("YOUR COSMIC SNAPSHOT")
                   _buildExecutiveSummary(report),

@@ -6,6 +6,9 @@ import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/astro_chart_model.dart';
 import '../models/divisional_chart_info.dart';
 import '../providers/astrology_provider.dart';
@@ -197,6 +200,41 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    AstroChartModel chart,
+    DivisionalChartInfo vargaInfo,
+    BirthProfileModel profile,
+  ) {
+    return ExplanationContext(
+      feature: 'divisional_charts',
+      screenTitle: '${vargaInfo.code} ${vargaInfo.sanskritName}',
+      purpose: 'Explain what the ${vargaInfo.code} (${vargaInfo.englishName}) divisional chart signifies for ${profile.name}.',
+      astrologyData: {
+        'vargaCode': vargaInfo.code,
+        'vargaName': vargaInfo.sanskritName,
+        'domain': vargaInfo.englishName,
+        'description': vargaInfo.description,
+        'ascendant': {
+          'rashi': chart.ascendant?.rashiName,
+          'degree': chart.ascendant?.degreeInRashi,
+        },
+        'planets': chart.planets.map((p) => {
+          'name': p.displayName,
+          'rashi': p.rashiName,
+          'house': p.calculateHouseNumber(chart.ascendant?.rashiIndex ?? 1),
+          'isRetrograde': p.isRetrograde,
+        }).toList(),
+      },
+      importantValues: {
+        'division': '1/${vargaInfo.division}',
+        'vargaType': vargaInfo.code,
+      },
+      userProfileContext: {
+        'name': profile.name,
+      },
+    );
+  }
+
   /// Body content displaying chart visualization, Lagna info, and planetary table
   Widget _buildChartContent(
     BuildContext context,
@@ -230,6 +268,14 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
             children: [
               // 1. SELECTED VARGA HEADER & LIFE DOMAIN SUMMARY
               _buildVargaInfoCard(vargaInfo),
+
+              const SizedBox(height: 12),
+
+              // Sushil Sir Explainer Button
+              SushilExplainerButton(
+                contextBuilder: () => _buildExplanationContext(chart, vargaInfo, profile),
+                poseAsset: AppAssets.sushilExplainingChart,
+              ),
 
               const SizedBox(height: 16),
 

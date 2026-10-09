@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/varshaphala_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
@@ -42,6 +45,43 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
     super.dispose();
   }
 
+  ExplanationContext _buildExplanationContext(
+    VarshaphalaChartModel chart,
+    int selectedYear,
+  ) {
+    return ExplanationContext(
+      feature: 'varshaphala',
+      screenTitle: 'Varshaphala $selectedYear',
+      purpose: 'Explain the annual Solar Return (Tajika) horoscope themes, Year Lord (${chart.varshesha.planet}), and Muntha focus.',
+      astrologyData: {
+        'year': selectedYear,
+        'varshaLagna': {
+          'sign': chart.varshaLagna.rashiName,
+          'degree': chart.varshaLagna.degreeInRashi,
+        },
+        'muntha': {
+          'sign': chart.muntha.rashiName,
+          'house': chart.muntha.houseInVarshaChart,
+          'lord': chart.muntha.lord,
+        },
+        'varshesha': {
+          'planet': chart.varshesha.planet,
+          'selectionReason': chart.varshesha.selectionReason,
+          'harshaBala': chart.varshesha.harshaBalaScore,
+        },
+        'tajikaYogas': chart.tajikaYogas.map((y) => {
+          'name': y.name,
+          'planets': y.participatingPlanets,
+          'type': y.type,
+        }).toList(),
+      },
+      importantValues: {
+        'yearLord': chart.varshesha.planet,
+        'munthaHouse': chart.muntha.houseInVarshaChart,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final varshaAsync = ref.watch(activeProfileVarshaphalaProvider);
@@ -64,7 +104,18 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
               },
               tabs: _tabs,
             ),
-            const SizedBox(height: 8),
+            if (varshaAsync.valueOrNull != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(
+                    varshaAsync.valueOrNull!,
+                    selectedYear,
+                  ),
+                  poseAsset: AppAssets.sushilExplaining,
+                ),
+              ),
+            const SizedBox(height: 6),
             Expanded(
               child: varshaAsync.when(
                 loading: () => const AstrologyLoadingState(

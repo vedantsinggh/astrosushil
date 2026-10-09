@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
+import '../models/career_report_models.dart';
 import '../providers/career_report_provider.dart';
 import 'career_report_generation_screen.dart';
 import 'career_report_pdf_screen.dart';
@@ -16,6 +20,30 @@ class CareerReportOverviewScreen extends ConsumerWidget {
     required this.reportId,
     required this.profile,
   });
+
+  ExplanationContext _buildExplanationContext(CareerReportDetailModel? detail) {
+    return ExplanationContext(
+      feature: 'career_report',
+      screenTitle: 'Career Report Dossier',
+      purpose: 'Explain the career potential, stage of progress (${detail?.stage ?? "READY"}), and vocational dossier for ${profile.name}.',
+      astrologyData: {
+        'reportId': reportId,
+        'reportStatus': detail?.status ?? 'COMPLETED',
+        'reportStage': detail?.stage ?? 'COMPLETED',
+        'reportVersion': detail?.reportVersion ?? '1.0.0',
+        'userName': profile.name,
+        'pageCount': detail?.pageCount,
+        'fileSize': detail?.fileSize,
+      },
+      importantValues: {
+        'reportStatus': detail?.status ?? 'COMPLETED',
+        'reportStage': detail?.stage ?? 'COMPLETED',
+      },
+      userProfileContext: {
+        'name': profile.name,
+      },
+    );
+  }
 
   void _showRegenerateConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
@@ -196,7 +224,15 @@ class CareerReportOverviewScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+
+                // Sushil Sir Explainer Button
+                SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(detail),
+                  poseAsset: AppAssets.sushilGuiding,
+                ),
+
+                const SizedBox(height: 16),
 
                 // 2. Primary CTA: View Full PDF
                 SizedBox(

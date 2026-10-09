@@ -14,6 +14,8 @@ import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../models/astro_chart_model.dart';
 import '../providers/astrology_provider.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import 'planet_detail_screen.dart';
 
 class PlanetsScreen extends ConsumerWidget {
@@ -24,6 +26,42 @@ class PlanetsScreen extends ConsumerWidget {
     this.profile,
   });
 
+  ExplanationContext _buildExplanationContext(
+    AstroChartModel? chart,
+    BirthProfileModel? profile,
+  ) {
+    final planetsData = chart != null && chart.planets.isNotEmpty
+        ? {
+            'ascendant': {
+              'rashi': chart.ascendant?.rashiName,
+              'degree': chart.ascendant?.degreeInRashi,
+            },
+            'planets': chart.planets.map((p) => {
+              'name': p.displayName,
+              'rashi': p.rashiName,
+              'degree': p.degreeInRashi,
+              'isRetrograde': p.isRetrograde,
+              'house': p.calculateHouseNumber(chart.ascendant?.rashiIndex ?? 1),
+              'nakshatra': p.nakshatraName,
+            }).toList(),
+          }
+        : <String, dynamic>{};
+
+    return ExplanationContext(
+      feature: 'planets',
+      screenTitle: 'Planetary Placements',
+      purpose: 'Explain what the displayed planetary positions and house alignments indicate in plain, accessible terms.',
+      astrologyData: planetsData,
+      importantValues: {
+        'totalPlanets': chart?.planets.length ?? 0,
+        'retrogradeCount': chart?.planets.where((p) => p.isRetrograde).length ?? 0,
+      },
+      userProfileContext: profile != null ? {
+        'name': profile.name,
+      } : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedProfile = ref.watch(selectedBirthProfileProvider);
@@ -32,6 +70,7 @@ class PlanetsScreen extends ConsumerWidget {
     final chartAsync = activeProfile != null
         ? ref.watch(astrologyChartForProfileProvider(activeProfile))
         : null;
+    final chart = chartAsync?.valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -66,7 +105,15 @@ class PlanetsScreen extends ConsumerWidget {
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+
+                // Sushil Sir Explainer Button
+                SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(chart, activeProfile),
+                  poseAsset: AppAssets.sushilExplaining,
+                ),
+
+                const SizedBox(height: 16),
                 if (chartAsync != null && chartAsync.isLoading)
                   const AstroLoaderCard(
                     message: AstroLoaderMessages.planetaryData,

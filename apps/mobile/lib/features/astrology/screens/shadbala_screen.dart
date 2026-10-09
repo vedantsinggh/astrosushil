@@ -15,6 +15,8 @@ import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 
 /// Screen presenting Shadbala (Sixfold Planetary Strength)
 /// Evaluated deterministically via Fastify backend /astrology/strength
@@ -115,6 +117,14 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
       children: [
         // 1. HORIZONTAL PLANET SELECTOR
         _buildPlanetSelector(rankedList),
+        const SizedBox(height: 14),
+
+        // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+        SushilExplainerButton(
+          contextData: _buildShadbalaExplanationContext(report, selectedShadbala, rankedList),
+          label: 'Let Sushil Sir explain this Strength',
+          isCompact: false,
+        ),
         const SizedBox(height: 14),
 
         // 2. SELECTED PLANET HERO CARD
@@ -380,4 +390,51 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
       ),
     );
   }
+
+  ExplanationContext _buildShadbalaExplanationContext(
+    ShadbalaReportModel report,
+    PlanetShadbalaModel? selectedShadbala,
+    List<PlanetShadbalaModel> rankedList,
+  ) {
+    final strongest = rankedList.firstOrNull;
+    final weakest = rankedList.lastOrNull;
+
+    return ExplanationContext(
+      feature: 'shadbala',
+      screenTitle: 'Planetary Strength (Shadbala)',
+      purpose: 'Explain sixfold planetary potencies, strongest planets, and practical life strengths',
+      astrologyData: {
+        'selectedPlanet': selectedShadbala != null
+            ? {
+                'planet': selectedShadbala.planet,
+                'totalRupas': selectedShadbala.totalRupas,
+                'ratio': selectedShadbala.ratio,
+                'rank': selectedShadbala.rank,
+                'isStrong': selectedShadbala.isStrong,
+                'sthanaBala': selectedShadbala.sthanaBala.total,
+                'digBala': selectedShadbala.digBala,
+                'kalaBala': selectedShadbala.kalaBala.total,
+                'cheshtaBala': selectedShadbala.cheshtaBala,
+                'naisargikaBala': selectedShadbala.naisargikaBala,
+                'drikBala': selectedShadbala.drikBala,
+              }
+            : null,
+        'allPlanets': rankedList
+            .map((p) => {
+                  'planet': p.planet,
+                  'totalRupas': p.totalRupas,
+                  'ratio': p.ratio,
+                  'rank': p.rank,
+                  'isStrong': p.isStrong,
+                })
+            .toList(),
+      },
+      importantValues: {
+        'strongestPlanet': strongest?.planet,
+        'weakestPlanet': weakest?.planet,
+        'selectedPlanet': selectedShadbala?.planet,
+      },
+    );
+  }
 }
+

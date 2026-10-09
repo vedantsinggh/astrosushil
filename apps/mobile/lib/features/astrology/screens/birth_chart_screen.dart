@@ -17,6 +17,8 @@ import '../services/kundli_pdf_service.dart';
 import '../widgets/kundli_chart_widget.dart';
 import 'divisional_charts_screen.dart';
 import 'planet_detail_screen.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 
 class BirthChartScreen extends ConsumerStatefulWidget {
   final BirthProfileModel? profile;
@@ -455,6 +457,14 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+            SushilExplainerButton(
+              contextData: _buildExplanationContext(activeProfile, chart),
+              isCompact: false,
             ),
           ],
         ),
@@ -1748,6 +1758,61 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   // ==========================================
   // HELPERS
   // ==========================================
+  ExplanationContext _buildExplanationContext(BirthProfileModel profile, AstroChartModel? chart) {
+    if (chart == null) {
+      return ExplanationContext(
+        feature: 'birth_chart',
+        screenTitle: 'Birth Chart',
+        purpose: 'Explain the natal chart placements',
+        astrologyData: const {},
+        userProfileContext: {
+          'name': profile.name,
+          'dateOfBirth': profile.dateOfBirth,
+        },
+      );
+    }
+
+    final asc = chart.ascendant;
+    final ascRashiIndex = asc?.rashiIndex ?? 1;
+    final moon = chart.planets.where((p) => p.planet.toLowerCase() == 'moon').firstOrNull;
+    final sun = chart.planets.where((p) => p.planet.toLowerCase() == 'sun').firstOrNull;
+
+    return ExplanationContext(
+      feature: 'birth_chart',
+      screenTitle: 'Birth Chart',
+      purpose: 'Explain natal chart placements, ascendant sign, houses, and planetary influences in everyday language',
+      astrologyData: {
+        'ascendant': asc != null ? {
+          'sign': asc.rashiName,
+          'degree': asc.degreeInRashi,
+          'nakshatra': asc.nakshatraName,
+        } : null,
+        'planets': chart.planets.map((p) => {
+          'name': p.displayName,
+          'sign': p.rashiName,
+          'house': p.calculateHouseNumber(ascRashiIndex),
+          'degree': p.degreeInRashi,
+          'nakshatra': p.nakshatraName,
+          'isRetrograde': p.isRetrograde,
+        }).toList(),
+        'houses': chart.houses.map((h) => {
+          'houseNumber': h.houseNumber,
+          'sign': h.rashiName,
+        }).toList(),
+      },
+      importantValues: {
+        'ascendantSign': asc?.rashiName,
+        'moonSign': moon?.rashiName,
+        'sunSign': sun?.rashiName,
+      },
+      userProfileContext: {
+        'name': profile.name,
+        'dateOfBirth': profile.dateOfBirth,
+        'placeName': profile.placeName,
+      },
+    );
+  }
+
   String _formatDegree(double degree) {
     final deg = degree.floor();
     final min = ((degree - deg) * 60).round();

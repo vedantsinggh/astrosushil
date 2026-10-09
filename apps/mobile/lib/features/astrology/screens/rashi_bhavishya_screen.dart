@@ -7,6 +7,8 @@ import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/rashi_bhavishya_model.dart';
 import '../providers/rashi_bhavishya_provider.dart';
 
@@ -28,11 +30,38 @@ class RashiBhavishyaScreen extends ConsumerWidget {
     {'index': 12, 'sanskrit': 'Meena', 'english': 'Pisces', 'dates': 'February 19 - March 20', 'symbol': '♓'},
   ];
 
+  ExplanationContext _buildExplanationContext(
+    Map<String, dynamic> selectedRashi,
+    RashiBhavishyaModel? data,
+  ) {
+    return ExplanationContext(
+      feature: 'rashi_bhavishya',
+      screenTitle: '${selectedRashi['english']} Daily Horoscope',
+      purpose: 'Explain the daily astrological influences and energy guidance for ${selectedRashi['english']} (${selectedRashi['sanskrit']}).',
+      astrologyData: {
+        'sign': selectedRashi['english'],
+        'sanskrit': selectedRashi['sanskrit'],
+        'summary': data?.prediction.summary,
+        'luckyColor': data?.prediction.luckyColor,
+        'luckyNumber': data?.prediction.luckyNumber,
+        'career': data?.prediction.categories.career,
+        'finance': data?.prediction.categories.finance,
+        'love': data?.prediction.categories.love,
+        'health': data?.prediction.categories.health,
+      },
+      importantValues: {
+        'luckyColor': data?.prediction.luckyColor,
+        'luckyNumber': data?.prediction.luckyNumber,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = ref.watch(selectedRashiIndexProvider);
     final selectedRashi = _rashisList.firstWhere((r) => r['index'] == selectedIndex);
     final predictionAsync = ref.watch(todayRashiBhavishyaProvider(selectedIndex));
+    final predictionData = predictionAsync.valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -55,7 +84,15 @@ class RashiBhavishyaScreen extends ConsumerWidget {
                 // 1. COMPACT RASHI SELECTOR BAR (< Aries >)
                 _buildRashiSelectorBar(context, ref, selectedIndex, selectedRashi),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+
+                // Sushil Sir Explainer Button
+                SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(selectedRashi, predictionData),
+                  poseAsset: AppAssets.sushilFriendly,
+                ),
+
+                const SizedBox(height: 14),
 
                 // 2. TODAY'S DATE BADGE
                 _buildDateHeaderBadge(),

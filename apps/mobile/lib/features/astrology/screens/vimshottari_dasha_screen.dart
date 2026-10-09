@@ -14,6 +14,8 @@ import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 
 /// Vimshottari Dasha Screen (120-Year Parashari Cycle)
 /// Displays active periods (Mahadasha -> Antardasha -> Pratyantardasha)
@@ -142,7 +144,23 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                 // 1. ACTIVE RUNNING PERIOD CARD
                 _buildCurrentPeriodCard(currentMd, currentAd, currentPd, now),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+
+                // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+                SushilExplainerButton(
+                  contextData: _buildDashaExplanationContext(
+                    profile,
+                    dashaTree,
+                    currentMd,
+                    currentAd,
+                    currentPd,
+                    now,
+                  ),
+                  label: 'Let Sushil Sir explain this Dasha',
+                  isCompact: false,
+                ),
+
+                const SizedBox(height: 16),
 
                 // 2. MAHADASHA 120-YEAR TIMELINE SECTION
                 AstrologySectionCard(
@@ -630,4 +648,62 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
       ),
     );
   }
+
+  ExplanationContext _buildDashaExplanationContext(
+    BirthProfileModel profile,
+    DashaTreeModel dashaTree,
+    DashaPeriodModel? currentMd,
+    DashaPeriodModel? currentAd,
+    DashaPeriodModel? currentPd,
+    DateTime now,
+  ) {
+    return ExplanationContext(
+      feature: 'vimshottari_dasha',
+      screenTitle: 'Vimshottari Dasha',
+      purpose: 'Explain current active planetary dasha period, its ruler energies, and general life themes',
+      astrologyData: {
+        'currentMahadasha': currentMd != null
+            ? {
+                'planet': currentMd.planet,
+                'startDate': currentMd.startDate.toIso8601String(),
+                'endDate': currentMd.endDate.toIso8601String(),
+                'durationYears': currentMd.durationYears,
+              }
+            : null,
+        'currentAntardasha': currentAd != null
+            ? {
+                'planet': currentAd.planet,
+                'startDate': currentAd.startDate.toIso8601String(),
+                'endDate': currentAd.endDate.toIso8601String(),
+              }
+            : null,
+        'currentPratyantardasha': currentPd != null
+            ? {
+                'planet': currentPd.planet,
+                'startDate': currentPd.startDate.toIso8601String(),
+                'endDate': currentPd.endDate.toIso8601String(),
+              }
+            : null,
+        'allMahadashas': dashaTree.mahadashas
+            .map((m) => {
+                  'planet': m.planet,
+                  'durationYears': m.durationYears,
+                  'startDate': m.startDate.toIso8601String(),
+                  'endDate': m.endDate.toIso8601String(),
+                  'isCurrent': m.isCurrent(now),
+                })
+            .toList(),
+      },
+      importantValues: {
+        'activeMahadasha': currentMd?.planet,
+        'activeAntardasha': currentAd?.planet,
+        'activePratyantardasha': currentPd?.planet,
+      },
+      userProfileContext: {
+        'name': profile.name,
+        'dateOfBirth': profile.dateOfBirth,
+      },
+    );
+  }
 }
+

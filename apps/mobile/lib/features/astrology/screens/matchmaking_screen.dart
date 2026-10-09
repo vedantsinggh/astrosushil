@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -462,6 +465,46 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    MatchmakingReportModel result,
+    BirthProfileModel? personA,
+    BirthProfileModel? personB,
+  ) {
+    return ExplanationContext(
+      feature: 'matchmaking',
+      screenTitle: 'Kundli Matchmaking (Guna Milan)',
+      purpose: 'Explain the 36-point Ashtakoota compatibility score (${result.totalScore}/36) and Manglik balance for ${personA?.name ?? "Partner 1"} and ${personB?.name ?? "Partner 2"}.',
+      astrologyData: {
+        'totalScore': result.totalScore,
+        'maxScore': result.maxScore,
+        'isCompatible': result.isCompatible,
+        'verdict': result.overallVerdict ?? (result.isCompatible ? 'AUSPICIOUS_MATCH' : 'INCOMPATIBLE_MATCH'),
+        'kootas': result.ashtakoota.kootaList.map((k) => {
+          'name': k.name,
+          'score': k.scoreFormatted,
+          'maxPoints': k.maxPoints,
+          'obtainedPoints': k.obtainedPoints,
+          'isDoshaCancelled': k.isDoshaCancelled,
+          'description': k.description,
+        }).toList(),
+        'manglikComparison': {
+          'isHarmonious': result.manglikComparison.isHarmonious,
+          'verdict': result.manglikComparison.verdict,
+          'personAIsManglik': result.manglikComparison.personA.isManglik,
+          'personBIsManglik': result.manglikComparison.personB.isManglik,
+        },
+      },
+      importantValues: {
+        'totalScore': '${result.totalScore}/${result.maxScore.toInt()}',
+        'manglikHarmonious': result.manglikComparison.isHarmonious,
+      },
+      userProfileContext: {
+        'personA': personA?.name,
+        'personB': personB?.name,
+      },
+    );
+  }
+
   Widget _buildResultView(
     MatchmakingReportModel result,
     BirthProfileModel? personA,
@@ -478,6 +521,15 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
       children: [
         // 1. HERO COMPATIBILITY SCORE CARD
         _buildHeroScoreCard(result),
+
+        const SizedBox(height: 12),
+
+        // Sushil Sir Explainer Button
+        SushilExplainerButton(
+          contextBuilder: () => _buildExplanationContext(result, personA, personB),
+          poseAsset: AppAssets.sushilFriendly,
+        ),
+
         const SizedBox(height: 16),
 
         // 2. MOON PROFILES COMPARISON CARD

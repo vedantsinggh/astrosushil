@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -106,6 +109,36 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    TransitSnapshotModel snapshot,
+    BirthProfileModel profile,
+  ) {
+    return ExplanationContext(
+      feature: 'gochara',
+      screenTitle: 'Gochara (Transits)',
+      purpose: 'Explain the current real-time planetary transits relative to natal Moon and Ascendant for ${profile.name}.',
+      astrologyData: {
+        'transitDate': snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso,
+        'planets': snapshot.planets.entries.map((e) => {
+          'planet': e.key,
+          'sign': e.value.rashiName,
+          'degree': e.value.degreeInRashi,
+          'isRetrograde': e.value.isRetrograde,
+          'houseFromMoon': snapshot.getMoonRelationship(e.key)?.houseFromMoon,
+          'houseFromLagna': snapshot.getLagnaRelationship(e.key)?.houseFromLagna,
+        }).toList(),
+        'selectedPlanet': _selectedPlanet,
+      },
+      importantValues: {
+        'selectedPlanet': _selectedPlanet,
+        'selectedHouseFromMoon': snapshot.getMoonRelationship(_selectedPlanet)?.houseFromMoon,
+      },
+      userProfileContext: {
+        'name': profile.name,
+      },
+    );
+  }
+
   Widget _buildGocharaContent(
     BuildContext context,
     BirthProfileModel profile,
@@ -124,6 +157,15 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
       children: [
         // 1. CONTEXT BANNER
         _buildContextBanner(snapshot, profile),
+
+        const SizedBox(height: 12),
+
+        // Sushil Sir Explainer Button
+        SushilExplainerButton(
+          contextBuilder: () => _buildExplanationContext(snapshot, profile),
+          poseAsset: AppAssets.sushilExplaining,
+        ),
+
         const SizedBox(height: 14),
 
         // 2. HORIZONTAL PLANET SELECTOR

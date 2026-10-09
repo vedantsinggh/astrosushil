@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/jaimini_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
@@ -31,6 +34,43 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
     AstrologyTabItem(label: 'Rashi Drishti', icon: Icons.visibility_rounded),
     AstrologyTabItem(label: 'Argala & KL', icon: Icons.shield_rounded),
   ];
+
+  ExplanationContext _buildExplanationContext(
+    JaiminiReportModel jaimini,
+    String activeScheme,
+  ) {
+    return ExplanationContext(
+      feature: 'jaimini',
+      screenTitle: 'Jaimini Astrology',
+      purpose: 'Explain the user\'s Jaimini Chara Karakas (Atmakaraka, Amatyakaraka, Darakaraka) and Arudha Padas.',
+      astrologyData: {
+        'scheme': activeScheme,
+        'charaKarakas': jaimini.charaKarakas.map((k) => {
+          'karaka': k.roleName,
+          'code': k.roleCode,
+          'planet': k.planet,
+          'rashi': k.rashiName,
+          'significance': k.significance,
+        }).toList(),
+        'arudhaPadas': jaimini.arudhaPadas.map((a) => {
+          'house': a.houseNumber,
+          'padaCode': a.code,
+          'name': a.name,
+          'sign': a.signName,
+        }).toList(),
+        'karakamsha': jaimini.karakamsha != null ? {
+          'sign': jaimini.karakamsha!.karakamshaRashiName,
+          'atmakaraka': jaimini.karakamsha!.atmakarakaPlanet,
+          'houseOffset': jaimini.karakamsha!.karakamshaHouseFromLagna,
+        } : null,
+      },
+      importantValues: {
+        'scheme': activeScheme,
+        'karakaCount': jaimini.charaKarakas.length,
+        'atmakaraka': jaimini.atmakaraka?.planet,
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +139,18 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
               },
               tabs: _tabs,
             ),
-            const SizedBox(height: 8),
+            if (jaiminiAsync.valueOrNull != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(
+                    jaiminiAsync.valueOrNull!,
+                    activeScheme,
+                  ),
+                  poseAsset: AppAssets.sushilGuiding,
+                ),
+              ),
+            const SizedBox(height: 6),
             Expanded(
               child: jaiminiAsync.when(
                 loading: () => const AstrologyLoadingState(

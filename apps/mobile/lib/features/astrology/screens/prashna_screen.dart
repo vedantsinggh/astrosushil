@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/prashna_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/astrology_data_table.dart';
@@ -375,6 +378,35 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(PrashnaChartModel result) {
+    return ExplanationContext(
+      feature: 'prashna',
+      screenTitle: 'Prashna (Horary Astrology)',
+      purpose: 'Explain the Prashna Lagna (${result.prashnaLagna.rashiName}), Chandra mind indicator (${result.chandra.rashiName}), and query outcome indicators.',
+      astrologyData: {
+        'questionText': result.questionText,
+        'prashnaLagna': {
+          'sign': result.prashnaLagna.rashiName,
+          'degree': result.prashnaLagna.formattedDegree,
+          'lord': result.prashnaLagna.lord,
+        },
+        'chandraMind': {
+          'sign': result.chandra.rashiName,
+          'house': result.chandra.house,
+          'nakshatra': result.chandra.nakshatraName,
+        },
+        'sphutas': {
+          'gulika': result.sphutas.gulika.rashiName,
+          'trisphuta': result.sphutas.trisphuta.rashiName,
+        },
+      },
+      importantValues: {
+        'prashnaLagna': result.prashnaLagna.rashiName,
+        'chandraHouse': result.chandra.house,
+      },
+    );
+  }
+
   Widget _buildResultView(PrashnaChartModel result) {
     final lagna = result.prashnaLagna;
     final moon = result.chandra;
@@ -444,6 +476,15 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
             ],
           ),
         ),
+
+        const SizedBox(height: 12),
+
+        // Sushil Sir Explainer Button
+        SushilExplainerButton(
+          contextBuilder: () => _buildExplanationContext(result),
+          poseAsset: AppAssets.sushilGuiding,
+        ),
+
         const SizedBox(height: 16),
         AstrologySectionCard(
           title: 'Prashna Lagna (Horary Ascendant)',
