@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_required_gate.dart';
 import '../../core/auth/feature_access_service.dart';
+import '../../core/localization/locale_provider.dart';
 import '../../features/birth_profile/models/birth_profile_model.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/reports/providers/career_report_provider.dart';
 import '../../features/reports/screens/career_report_generation_screen.dart';
 import '../../features/reports/screens/career_report_overview_screen.dart';
+import '../../features/reports/screens/report_view_screen.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/widgets/subtle_celestial_background.dart';
 
@@ -16,6 +18,168 @@ final selectedReportProfileIdProvider = StateProvider<String?>((ref) => null);
 /// Premium Client-Facing Reports Home Screen for Astro Sushil
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
+
+  void _onKundliReportAction({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BirthProfileModel profile,
+  }) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.reports,
+      featureTitle: 'Birth Chart & Kundli Report',
+      onAllowed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ReportViewScreen(
+              birthProfileId: profile.id,
+              reportType: 'KUNDLI',
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _onPlanetaryReportAction({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BirthProfileModel profile,
+  }) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.reports,
+      featureTitle: 'Planetary Summary Report',
+      onAllowed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ReportViewScreen(
+              birthProfileId: profile.id,
+              reportType: 'PLANETARY_SUMMARY',
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _onProHoroscopeAction({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BirthProfileModel profile,
+  }) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.premiumReportCareer,
+      featureTitle: 'Pro Horoscope & Multi-Divisional Dossier',
+      onAllowed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ReportViewScreen(
+              birthProfileId: profile.id,
+              reportType: 'CAREER_PROSITY',
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _onMatchmakingReportAction({
+    required BuildContext context,
+    required WidgetRef ref,
+    required BirthProfileModel profile,
+    required List<BirthProfileModel> profiles,
+  }) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.premiumReportMarriage,
+      featureTitle: 'Marriage & Relationship Report',
+      onAllowed: () {
+        final availablePartners = profiles.where((p) => p.id != profile.id).toList();
+        if (availablePartners.isEmpty) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Partner Profile Required'),
+              content: const Text(
+                'Kundli Milan requires two distinct birth profiles. Please add a partner birth profile to continue.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CreateBirthProfileScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Add Partner Profile'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          showModalBottomSheet(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (sheetCtx) => SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select Partner Profile',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Primary Profile: ${profile.name}',
+                      style: const TextStyle(fontSize: 14, color: AppColors.secondary),
+                    ),
+                    const Divider(height: 24),
+                    ...availablePartners.map(
+                      (partner) => ListTile(
+                        leading: const Icon(Icons.person_outline, color: AppColors.primary),
+                        title: Text(partner.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${partner.dateOfBirth} • ${partner.placeName ?? ""}'),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                        onTap: () {
+                          Navigator.of(sheetCtx).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ReportViewScreen(
+                                birthProfileId: profile.id,
+                                partnerProfileId: partner.id,
+                                reportType: 'MARRIAGE_COMPATIBILITY',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+      },
+    );
+  }
 
   void _onCareerReportAction({
     required BuildContext context,
@@ -122,9 +286,9 @@ class ReportsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text(
-          'Your Astrology Reports',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.l10n.reportsTitle,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.lightSurface,
         foregroundColor: AppColors.lightTextPrimary,
@@ -428,9 +592,9 @@ class ReportsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // 5. UPCOMING REPORTS
+                // 5. CONSUMER HOROSCOPE TIERS
                 Text(
-                  'UPCOMING REPORTS',
+                  'MORE HOROSCOPE DOSSIERS',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -440,43 +604,83 @@ class ReportsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // KUNDLI REPORT CARD (COMING SOON)
-                const _ReportCard(
+                // KUNDLI REPORT CARD (₹299)
+                _ReportCard(
                   title: 'Birth Chart & Kundli Report',
-                  tagline: 'YOUR COSMIC BLUEPRINT',
+                  tagline: 'YOUR COSMIC BLUEPRINT (D1 & CHANDRA)',
                   description:
-                      'Comprehensive astrological document detailing your Janma Kundli, planetary placements, Bhavas, and Nakshatra.',
+                      'Comprehensive astrological document detailing your Janma & Chandra Kundli, 9 Grahas, Vimshottari Dasha, Doshas, and Gemstone recommendations.',
                   icon: Icons.auto_awesome_rounded,
                   accentColor: AppColors.premiumAccent,
-                  isAvailable: false,
-                  badgeText: 'COMING SOON',
+                  isAvailable: true,
+                  badgeText: '₹299',
+                  primaryActionText: 'Generate Kundli Report',
+                  onViewTap: () => _onKundliReportAction(
+                    context: context,
+                    ref: ref,
+                    profile: activeProfile,
+                  ),
                 ),
 
                 const SizedBox(height: 14),
 
-                // PLANETARY SUMMARY REPORT CARD (COMING SOON)
-                const _ReportCard(
-                  title: 'Planetary Summary Report',
-                  tagline: 'PLANETARY DYNAMICS',
+                // PLANETARY SUMMARY REPORT CARD (₹199)
+                _ReportCard(
+                  title: 'Mini Horoscope & Transit Forecast',
+                  tagline: '3-6 MONTH TRANSIT WINDOWS & SADE SATI',
                   description:
-                      'In-depth breakdown of planetary dignities, retrogressions, conjunctions, and astronomical strength.',
+                      'Detailed transit forecast from Janma Rashi, Sade Sati phase analysis, planetary dignities, and key caution dates.',
                   icon: Icons.brightness_6_rounded,
                   accentColor: AppColors.secondary,
-                  isAvailable: false,
-                  badgeText: 'COMING SOON',
+                  isAvailable: true,
+                  badgeText: '₹199',
+                  primaryActionText: 'Generate Mini Horoscope',
+                  onViewTap: () => _onPlanetaryReportAction(
+                    context: context,
+                    ref: ref,
+                    profile: activeProfile,
+                  ),
                 ),
 
                 const SizedBox(height: 14),
 
-                const _ReportCard(
-                  title: 'Marriage & Relationship Report',
-                  tagline: 'KUNDLI MILAN & COMPATIBILITY',
+                // PRO HOROSCOPE REPORT CARD (₹699)
+                _ReportCard(
+                  title: 'Pro Horoscope & Divisional Charts',
+                  tagline: 'SHODASHVARGAS (D1, D9, D10, D7, D12) & SHADBALA',
                   description:
-                      'Deep compatibility assessment based on 7th house and Venus placements.',
-                  icon: Icons.favorite_border_rounded,
+                      'Multi-divisional analysis, 6-fold planetary Shadbala, 12 Bhava Bala rank analysis, and classical remedial measures.',
+                  icon: Icons.military_tech_rounded,
+                  accentColor: Colors.purple,
+                  isAvailable: true,
+                  badgeText: '₹699',
+                  primaryActionText: 'Generate Pro Horoscope',
+                  onViewTap: () => _onProHoroscopeAction(
+                    context: context,
+                    ref: ref,
+                    profile: activeProfile,
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // MATCHMAKING REPORT CARD (₹999)
+                _ReportCard(
+                  title: 'Marriage & Relationship Report',
+                  tagline: 'ASHTAKOOTA 36-GUNA MILAN & MANGLIK',
+                  description:
+                      'Comprehensive 36-point Guna Milan, comparative Manglik analysis, and synastry synthesis for prospective couples.',
+                  icon: Icons.favorite_rounded,
                   accentColor: AppColors.supportingAccent,
-                  isAvailable: false,
-                  badgeText: 'COMING SOON',
+                  isAvailable: true,
+                  badgeText: '₹999',
+                  primaryActionText: 'Generate Matchmaking Report',
+                  onViewTap: () => _onMatchmakingReportAction(
+                    context: context,
+                    ref: ref,
+                    profile: activeProfile,
+                    profiles: profiles,
+                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -632,6 +836,7 @@ class _ReportCard extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -650,6 +855,7 @@ class _ReportCard extends StatelessWidget {
                       onPressed: onDownloadTap,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
+                        minimumSize: const Size(80, 48),
                         side: const BorderSide(
                             color: AppColors.primary, width: 1.2),
                         padding: const EdgeInsets.symmetric(

@@ -46,16 +46,20 @@ class ReportsService {
     return await _apiClient.getBytes('/reports/$id/download-file');
   }
 
-  /// Legacy synchronous report generator
+  /// Synchronous report generator
   Future<ReportResponseModel> generateReport({
     required String birthProfileId,
     required String reportType,
+    String? partnerProfileId,
+    String? orderId,
   }) async {
     final response = await _apiClient.post(
       '/reports',
       data: {
         'birthProfileId': birthProfileId,
         'reportType': reportType,
+        if (partnerProfileId != null) 'partnerProfileId': partnerProfileId,
+        if (orderId != null) 'orderId': orderId,
       },
     );
     return ReportResponseModel.fromJson(response);

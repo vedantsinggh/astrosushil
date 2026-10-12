@@ -16,6 +16,8 @@ import '../widgets/astrology_section_card.dart';
 import '../widgets/planet_chip.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Vimshottari Dasha Screen (120-Year Parashari Cycle)
 /// Displays active periods (Mahadasha -> Antardasha -> Pratyantardasha)
@@ -141,6 +143,14 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Educational Explanation Card
+                AstrologyExplanationCard(
+                  title: context.l10n.explainDashaTitle,
+                  whatIsText: context.l10n.explainDashaWhatIs,
+                  howToReadText: context.l10n.explainDashaHowToRead,
+                ),
+                const SizedBox(height: 14),
+
                 // 1. ACTIVE RUNNING PERIOD CARD
                 _buildCurrentPeriodCard(currentMd, currentAd, currentPd, now),
 

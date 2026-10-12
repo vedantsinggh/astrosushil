@@ -5,6 +5,8 @@ export * from './providers/interpretation-provider.interface';
 export * from './providers/deterministic-interpretation.provider';
 export * from './generators/kundli-report.generator';
 export * from './generators/planetary-report.generator';
+export * from './generators/pro-horoscope.generator';
+export * from './generators/matchmaking-report.generator';
 export * from './generators/report-data-tex.generator';
 export * from './mappers/career-report.mapper';
 export * from './services/career-report.service';

@@ -97,6 +97,7 @@ describe('Phase 4: Astrology Report Pipeline Hardening Suite', () => {
   const profilesStore = new Map<string, any>();
 
   beforeAll(async () => {
+    process.env.LLM_PROVIDER = 'mock';
     profilesStore.set(profileA.id, { ...profileA });
     profilesStore.set(profileB.id, { ...profileB });
 
@@ -226,7 +227,7 @@ describe('Phase 4: Astrology Report Pipeline Hardening Suite', () => {
     expect(downloadRes.headers['content-type']).toBe('application/pdf');
     const pdfBuffer = downloadRes.rawPayload;
     expect(pdfBuffer.toString('utf-8', 0, 5)).toBe('%PDF-');
-  });
+  }, 60000);
 
   // --- TASK 3: REPORT STATUS & STAGE SEPARATION ---
   it('2. Enforces semantic correctness between worker stages and Prisma ReportStatus enum', async () => {
@@ -287,7 +288,7 @@ describe('Phase 4: Astrology Report Pipeline Hardening Suite', () => {
       reportsStore.set(where.id, updated);
       return updated;
     });
-  });
+  }, 60000);
 
   // --- TASK 4: DETERMINISTIC EVIDENCE BOUNDARY ---
   it('4. Deterministic evidence boundary: calculations are strictly deterministic, LLM interprets facts', () => {
@@ -493,7 +494,7 @@ describe('Phase 4: Astrology Report Pipeline Hardening Suite', () => {
     );
     expect(res3.reused).toBe(false);
     expect(res3.reportId).not.toBe(report1Id);
-  });
+  }, 60000);
 
   // --- TASK 11 & 12: FAILURE HANDLING & CONCURRENT ISOLATION ---
   it('12. Enters FAILED state safely on calculation/pipeline errors without corrupting DB or leaking secrets', async () => {

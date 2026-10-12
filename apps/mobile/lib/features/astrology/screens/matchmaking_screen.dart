@@ -11,6 +11,8 @@ import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/matchmaking_model.dart';
 import '../providers/astrology_provider.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 import '../widgets/astrology_data_table.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
@@ -89,12 +91,21 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     BirthProfileModel? personB,
     List<BirthProfileModel> allProfiles,
   ) {
-    final canCalculate = personA != null && personB != null;
+    final isSameProfile = personA != null && personB != null && personA.id == personB.id;
+    final canCalculate = personA != null && personB != null && !isSameProfile;
 
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainMatchmakingTitle,
+          whatIsText: context.l10n.explainMatchmakingWhatIs,
+          howToReadText: context.l10n.explainMatchmakingHowToRead,
+        ),
+        const SizedBox(height: 12),
+
         // Intro Banner
         Container(
           padding: const EdgeInsets.all(16),
@@ -173,6 +184,34 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         ),
         const SizedBox(height: 24),
 
+        if (isSameProfile) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.l10n.matchmakingSameProfileWarning,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
         // Calculate Action Button
         ElevatedButton.icon(
           onPressed: canCalculate
@@ -203,7 +242,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
           ),
         ),
 
-        if (!canCalculate) ...[
+        if (!canCalculate && !isSameProfile) ...[
           const SizedBox(height: 12),
           const Center(
             child: Text(

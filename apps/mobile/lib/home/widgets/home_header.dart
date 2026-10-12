@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/locale_provider.dart';
 import '../../shared/theme/app_colors.dart';
 
-/// Top Header component for Home Screen showing user greeting, notification bell, and profile avatar
-class HomeHeader extends StatelessWidget {
+/// Top Header component for Home Screen showing user greeting, language toggle, and profile avatar
+class HomeHeader extends ConsumerWidget {
   final String userName;
   final VoidCallback onProfileTap;
 
@@ -13,11 +15,19 @@ class HomeHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final locale = ref.watch(localeProvider);
+    final isHindi = locale.languageCode == 'hi';
+
     // Extract a clean display name from email or user string
     final displayName = userName.isNotEmpty
         ? (userName.contains('@') ? userName.split('@').first : userName)
-        : 'User';
+        : '';
+
+    final greeting = displayName.isNotEmpty
+        ? l10n.welcomeUser(displayName)
+        : l10n.welcomeGuest;
 
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
 
@@ -32,111 +42,125 @@ class HomeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hello, $displayName',
+                  greeting,
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.3,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Explore your cosmic journey',
-                  style: TextStyle(
-                    fontSize: 13,
+                Text(
+                  l10n.blessingSubtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
                     color: AppColors.lightTextSecondary,
                     fontWeight: FontWeight.w400,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Row(
             children: [
-              // Notification Icon Button with subtle red badge dot
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('You have no unread notifications.'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.lightBorder, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(
-                        Icons.notifications_none_rounded,
-                        color: AppColors.primary,
-                        size: 22,
-                      ),
-                      // Notification Red Badge Dot (top-right)
-                      Positioned(
-                        top: 10,
-                        right: 12,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
+              // Language Toggle Pill with 48dp minimum interactive area
+              Semantics(
+                button: true,
+                label: 'Switch language. Current: ${isHindi ? "Hindi" : "English"}',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      ref.read(localeProvider.notifier).toggleLanguage();
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      alignment: Alignment.center,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                            width: 1,
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.translate_rounded,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              isHindi ? 'हिन्दी' : 'EN',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
 
-              // User Profile Avatar with Gold Border
-              GestureDetector(
-                onTap: onProfileTap,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.premiumAccent,
-                      width: 1.8,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.premiumAccent,
+              const SizedBox(width: 4),
+
+              // User Profile Avatar with Gold Border (48dp touch target)
+              Semantics(
+                button: true,
+                label: 'View Account and Profile',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onProfileTap,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                      alignment: Alignment.center,
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.premiumAccent,
+                            width: 1.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.18),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.premiumAccent,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -149,4 +173,3 @@ class HomeHeader extends StatelessWidget {
     );
   }
 }
-

@@ -27,8 +27,12 @@ void main() {
   testWidgets('OnboardingScreen displays Page 1 title "Know Your Chart" and Skip button', (WidgetTester tester) async {
     await tester.pumpWidget(buildTestWidget());
 
-    expect(find.text('Know Your '), findsOneWidget);
-    expect(find.text('Chart'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('Know Your Chart'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Explore your birth chart, planets and houses in one clear, beautiful view.'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
   });
@@ -37,22 +41,39 @@ void main() {
     await tester.pumpWidget(buildTestWidget());
 
     // Verify Page 1
-    expect(find.text('Chart'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('Know Your Chart'),
+      ),
+      findsOneWidget,
+    );
 
     // Tap Next arrow
     await tester.tap(find.byIcon(Icons.arrow_forward));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     // Verify Page 2: "Find Your Direction"
-    expect(find.text('Direction'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('Find Your Direction'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Understand the patterns in your chart and explore the areas of life that matter to you.'), findsOneWidget);
 
     // Tap Next arrow again
     await tester.tap(find.byIcon(Icons.arrow_forward));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     // Verify Page 3: "Go Beyond the Basics" and "Get Started" button
-    expect(find.text('the Basics'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('Go Beyond the Basics'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Get Started'), findsOneWidget);
   });
 
@@ -61,13 +82,16 @@ void main() {
 
     // Navigate to Page 3
     await tester.tap(find.byIcon(Icons.arrow_forward));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.byIcon(Icons.arrow_forward));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     // Tap Get Started
     await tester.tap(find.text('Get Started'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
     // Verify Onboarding flag is persisted in storage
     final isCompleted = await storageService.read(key: StorageKeys.onboardingCompleted);

@@ -109,7 +109,7 @@ void main() {
 
       expect(find.text('Reduced motion test'), findsOneWidget);
       expect(find.byType(CustomPaint), findsWidgets);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('loader does not overflow on small screens (360x640)', (WidgetTester tester) async {

@@ -24,6 +24,7 @@ export const ALLOWED_EXPLAINER_FEATURES = [
   'planet_details',
   'houses',
   'nakshatra',
+  'nakshatras',
   'rashi_bhavishya',
   'divisional_charts',
   'vargas',
@@ -47,9 +48,22 @@ export const ALLOWED_EXPLAINER_FEATURES = [
   'prashna',
   'vastu',
   'general_astrology',
+  'courses',
+  'course_detail',
+  'course_lesson',
+  'consultations',
+  'consultation_prep',
+  'shop',
+  'shop_product',
 ] as const;
 
 export type AllowedExplainerFeature = (typeof ALLOWED_EXPLAINER_FEATURES)[number];
+
+export const EXPLAINER_MODES = ['standard', 'simple', 'detailed', 'practical', 'next_steps'] as const;
+export type ExplainerMode = (typeof EXPLAINER_MODES)[number];
+
+export const EXPLAINER_LANGUAGES = ['en', 'hi'] as const;
+export type ExplainerLanguage = (typeof EXPLAINER_LANGUAGES)[number];
 
 export const JyotiExplainRequestSchema = z.object({
   feature: z.enum(ALLOWED_EXPLAINER_FEATURES, {
@@ -57,6 +71,9 @@ export const JyotiExplainRequestSchema = z.object({
   }),
   screenTitle: z.string().min(1, 'Screen title is required').max(100, 'Screen title is too long'),
   purpose: z.string().max(300).optional(),
+  mode: z.enum(EXPLAINER_MODES).optional().default('standard'),
+  language: z.enum(EXPLAINER_LANGUAGES).optional().default('en'),
+  birthProfileId: z.string().uuid().optional(),
   context: z.object({
     astrologyData: z.record(z.any()),
     importantValues: z.record(z.any()).optional(),
@@ -73,4 +90,6 @@ export interface SushilExplanationPayload {
   message: string;
   keyPoints: string[];
   disclaimer?: string;
+  mode?: string;
+  language?: string;
 }

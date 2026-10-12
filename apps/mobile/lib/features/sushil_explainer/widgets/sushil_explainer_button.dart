@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../models/explanation_context.dart';
@@ -24,9 +25,13 @@ class SushilExplainerButton extends ConsumerWidget {
     this.poseAsset,
   }) : assert(contextData != null || contextBuilder != null, 'Either contextData or contextBuilder must be provided');
 
-  void _handleTap(BuildContext context) {
+  void _handleTap(BuildContext context, WidgetRef ref) {
     onBeforeOpen?.call();
-    final ctx = contextData ?? contextBuilder!();
+    final baseCtx = contextData ?? contextBuilder!();
+    final locale = ref.read(localeProvider);
+    final ctx = baseCtx.copyWith(
+      language: baseCtx.language == 'en' && locale.languageCode == 'hi' ? 'hi' : baseCtx.language,
+    );
     SushilExplainerSheet.show(
       context,
       explanationContext: ctx,
@@ -36,29 +41,33 @@ class SushilExplainerButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider);
+    final isHindi = locale.languageCode == 'hi';
+    final effectiveLabel = label == 'Let Sushil Sir explain' && isHindi ? 'सुशील सर से समझें' : label;
+
     if (isCompact) {
       return InkWell(
-        onTap: () => _handleTap(context),
+        onTap: () => _handleTap(context, ref),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.tertiary.withOpacity(0.95),
-                AppColors.primary.withOpacity(0.95),
+                AppColors.tertiary.withValues(alpha: 0.95),
+                AppColors.primary.withValues(alpha: 0.95),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppColors.premiumAccent.withOpacity(0.6),
+              color: AppColors.premiumAccent.withValues(alpha: 0.6),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.premiumAccent.withOpacity(0.15),
+                color: AppColors.premiumAccent.withValues(alpha: 0.15),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -83,7 +92,7 @@ class SushilExplainerButton extends ConsumerWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                label,
+                effectiveLabel,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 12,
@@ -114,27 +123,27 @@ class SushilExplainerButton extends ConsumerWidget {
     }
 
     return InkWell(
-      onTap: () => _handleTap(context),
+      onTap: () => _handleTap(context, ref),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppColors.surfaceElevated.withOpacity(0.85),
-              AppColors.tertiary.withOpacity(0.95),
+              AppColors.surfaceElevated.withValues(alpha: 0.85),
+              AppColors.tertiary.withValues(alpha: 0.95),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.premiumAccent.withOpacity(0.7),
+            color: AppColors.premiumAccent.withValues(alpha: 0.7),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.premiumAccent.withOpacity(0.12),
+              color: AppColors.premiumAccent.withValues(alpha: 0.12),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -180,7 +189,7 @@ class SushilExplainerButton extends ConsumerWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          label,
+                          effectiveLabel,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 13,
@@ -210,9 +219,11 @@ class SushilExplainerButton extends ConsumerWidget {
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    'Tap for a simple plain-language breakdown',
+                    isHindi
+                        ? 'सरल भाषा में विश्लेषण के लिए टैप करें'
+                        : 'Tap for a simple plain-language breakdown',
                     style: TextStyle(
-                      color: AppColors.textSecondary.withOpacity(0.9),
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
                       fontSize: 11,
                       fontWeight: FontWeight.w400,
                     ),
@@ -226,7 +237,7 @@ class SushilExplainerButton extends ConsumerWidget {
             Icon(
               Icons.auto_awesome,
               size: 16,
-              color: AppColors.premiumAccent.withOpacity(0.9),
+              color: AppColors.premiumAccent.withValues(alpha: 0.9),
             ),
           ],
         ),

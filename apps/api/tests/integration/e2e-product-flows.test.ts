@@ -24,7 +24,7 @@ describe('Phase 9 End-to-End Product Integration Test Suite', () => {
   let userBToken: string;
   let adminToken: string;
 
-  const profileAId = 'p1111111-1111-1111-1111-p11111111111';
+  const profileAId = '11111111-1111-1111-1111-111111111111';
 
   beforeAll(async () => {
     // 1. Seed mock users
@@ -84,15 +84,22 @@ describe('Phase 9 End-to-End Product Integration Test Suite', () => {
       return profilesMap.get(where.id) || null;
     });
 
-    vi.spyOn(prisma.birthProfile, 'findMany').mockImplementation(async ({ where }: any) => {
-      return Array.from(profilesMap.values()).filter((p) => p.userId === where.userId);
+    vi.spyOn(prisma.birthProfile, 'findMany').mockImplementation(async ({ where }: any = {}) => {
+      return Array.from(profilesMap.values()).filter((p) => p.userId === where?.userId);
     });
 
-    vi.spyOn(prisma.notification, 'findMany').mockImplementation(async ({ where }: any) => {
-      return Array.from(notificationsMap.values()).filter((n) => n.userId === where?.userId);
+    vi.spyOn(prisma.notification, 'findMany').mockImplementation(async ({ where }: any = {}) => {
+      let list = Array.from(notificationsMap.values());
+      if (where?.userId) {
+        list = list.filter((n) => n.userId === where.userId);
+      }
+      return list.map((n) => ({
+        ...n,
+        user: { email: usersMap.get(n.userId)?.email || 'unknown@astrosushil.com' },
+      }));
     });
 
-    vi.spyOn(prisma.notification, 'count').mockImplementation(async ({ where }: any) => {
+    vi.spyOn(prisma.notification, 'count').mockImplementation(async ({ where }: any = {}) => {
       if (!where) return notificationsMap.size;
       return Array.from(notificationsMap.values()).filter((n) => {
         if (where.userId && n.userId !== where.userId) return false;
@@ -101,18 +108,22 @@ describe('Phase 9 End-to-End Product Integration Test Suite', () => {
       }).length;
     });
 
-    vi.spyOn(prisma.notification, 'create').mockImplementation(async ({ data }: any) => {
+    vi.spyOn(prisma.notification as any, 'groupBy').mockImplementation(async () => {
+      return [{ type: 'REPORT_READY', _count: { id: 1 } }];
+    });
+
+    vi.spyOn(prisma.notification, 'create').mockImplementation(async ({ data }: any = {}) => {
       const id = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const notif = { id, ...data, createdAt: new Date(), readAt: null };
       notificationsMap.set(id, notif);
       return notif;
     });
 
-    vi.spyOn(prisma.deviceToken, 'findMany').mockImplementation(async ({ where }: any) => {
+    vi.spyOn(prisma.deviceToken, 'findMany').mockImplementation(async ({ where }: any = {}) => {
       return [];
     });
 
-    vi.spyOn(prisma.deviceToken, 'count').mockImplementation(async ({ where }: any) => {
+    vi.spyOn(prisma.deviceToken, 'count').mockImplementation(async ({ where }: any = {}) => {
       return 0;
     });
 
@@ -125,6 +136,17 @@ describe('Phase 9 End-to-End Product Integration Test Suite', () => {
         reportAlerts: true,
         promotions: false,
       };
+    });
+
+    vi.spyOn(prisma.notificationPreference, 'upsert').mockImplementation(async ({ where, update, create }: any) => {
+      const existing = preferencesMap.get(where.userId) || { userId: where.userId, ...create };
+      const merged = { ...existing, ...update };
+      preferencesMap.set(where.userId, merged);
+      return merged;
+    });
+
+    vi.spyOn(prisma.auditLog, 'create').mockImplementation(async ({ data }: any) => {
+      return { id: `log-${Date.now()}`, ...data, createdAt: new Date() };
     });
 
     app = buildApp();
@@ -173,7 +195,7 @@ describe('Phase 9 End-to-End Product Integration Test Suite', () => {
       });
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.payload);
-      expect(body.profile.id).toBe(profileAId);
+      expect(body.id).toBe(profileAId);
     });
 
     it('User B cannot access User A birth profile (Cross-User Isolation Guard)', async () => {

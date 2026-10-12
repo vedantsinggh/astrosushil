@@ -7,6 +7,10 @@ import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 
 void main() {
   testWidgets('RegisterScreen renders Step 1 fields and validates requirements', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -28,6 +32,7 @@ void main() {
     expect(find.text('Continue'), findsOneWidget);
 
     // Tap Continue with empty fields
+    await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
@@ -38,6 +43,10 @@ void main() {
   });
 
   testWidgets('RegisterScreen validates password matching', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -49,11 +58,13 @@ void main() {
       ),
     );
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Full Name'), 'Rahul Sharma');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Email Address'), 'rahul@example.com');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'Password123!');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Confirm Password'), 'Mismatch123!');
+    // Index 0: Full Name, 1: Email, 2: Phone (Optional), 3: Password, 4: Confirm Password
+    await tester.enterText(find.byType(TextFormField).at(0), 'Rahul Sharma');
+    await tester.enterText(find.byType(TextFormField).at(1), 'rahul@example.com');
+    await tester.enterText(find.byType(TextFormField).at(3), 'Password123!');
+    await tester.enterText(find.byType(TextFormField).at(4), 'Mismatch123!');
 
+    await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 

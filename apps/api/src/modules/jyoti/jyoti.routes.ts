@@ -98,6 +98,8 @@ export async function jyotiRoutes(fastify: FastifyInstance, _options: FastifyPlu
                 message: { type: 'string' },
                 keyPoints: { type: 'array', items: { type: 'string' } },
                 disclaimer: { type: 'string' },
+                mode: { type: 'string' },
+                language: { type: 'string' },
               },
             },
           },

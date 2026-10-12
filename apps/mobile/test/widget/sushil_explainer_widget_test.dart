@@ -149,5 +149,101 @@ void main() {
 
       expect(find.text('Strong Planetary Placement'), findsOneWidget);
     });
+
+    testWidgets('5. SushilExplainerSheet renders adaptation mode chips and handles mode change', (tester) async {
+      final fakeRepo = FakeExplainerRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sushilExplainerRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SushilExplainerSheet(
+                explanationContext: testContext,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Verify adaptation mode chips
+      expect(find.text('Standard'), findsOneWidget);
+      expect(find.text('Explain simply'), findsOneWidget);
+      expect(find.text('In more detail'), findsOneWidget);
+      expect(find.text('Why this matters'), findsOneWidget);
+      expect(find.text('What next?'), findsOneWidget);
+
+      // Tap "Explain simply"
+      await tester.tap(find.text('Explain simply'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(fakeRepo.explainCallCount, 2);
+    });
+
+    testWidgets('6. SushilExplainerSheet renders Jyoti AI transition card', (tester) async {
+      final fakeRepo = FakeExplainerRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sushilExplainerRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SushilExplainerSheet(
+                explanationContext: testContext,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Have specific questions?'), findsOneWidget);
+      expect(find.text('Ask Jyoti AI'), findsOneWidget);
+    });
+
+    testWidgets('7. SushilExplainerSheet renders localized Hindi elements when language is hi', (tester) async {
+      final fakeRepo = FakeExplainerRepository();
+      const hindiContext = ExplanationContext(
+        feature: 'course_lesson',
+        screenTitle: 'कर्म सिद्धांत',
+        language: 'hi',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sushilExplainerRepositoryProvider.overrideWithValue(fakeRepo),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SushilExplainerSheet(
+                explanationContext: hindiContext,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('सुशील सर (AI मार्गदर्शक)'), findsOneWidget);
+      expect(find.text('कर्म सिद्धांत का विश्लेषण'), findsOneWidget);
+      expect(find.text('सरल शब्दों में'), findsOneWidget);
+      expect(find.text('विस्तार से'), findsOneWidget);
+      expect(find.text('मुख्य बिंदु'), findsOneWidget);
+      expect(find.text('ज्योति AI से पूछें'), findsOneWidget);
+      expect(find.text('समझ गया'), findsOneWidget);
+    });
   });
 }

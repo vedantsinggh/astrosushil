@@ -281,6 +281,7 @@ describe('Phase 9: Infrastructure & External Services Hardening Suite', () => {
       process.env.RAZORPAY_WEBHOOK_SECRET = secret;
 
       const payload = {
+        event_id: 'evt_infra_' + Date.now(),
         event: 'payment.captured',
         payload: {
           payment: {

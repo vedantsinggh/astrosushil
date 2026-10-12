@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_required_gate.dart';
 import '../../core/auth/feature_access_service.dart';
+import '../../core/localization/locale_provider.dart';
 import '../../features/astrology/screens/birth_chart_screen.dart';
 import '../../features/astrology/screens/astrology_hub_screen.dart';
 import '../../features/astrology/screens/divisional_charts_screen.dart';
@@ -24,19 +25,24 @@ import '../../features/astrology/screens/special_points_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
+import '../../features/courses/screens/courses_hub_screen.dart';
 import '../../features/jyoti/screens/jyoti_chat_screen.dart';
 import '../../features/jyoti/widgets/home_jyoti_card.dart';
 import '../../features/jyoti/widgets/jyoti_floating_button.dart';
 import '../../shared/theme/app_colors.dart';
 import '../providers/home_provider.dart';
 import '../widgets/celestial_background_painter.dart';
+import '../widgets/active_birth_profile_header_card.dart';
+import '../widgets/active_dasha_summary_card.dart';
+import '../widgets/daily_panchang_summary_card.dart';
+import '../widgets/essential_astrology_shortcuts.dart';
+import '../widgets/explore_astrology_card.dart';
 import '../widgets/gupta_nadi_card.dart';
 import '../widgets/hero_astrology_card.dart';
 import '../widgets/home_bottom_navigation.dart';
 import '../widgets/home_header.dart';
-import '../widgets/quick_access_section.dart';
 import '../widgets/rashi_bhavishya_card.dart';
-import '../widgets/reports_section.dart';
+import 'consult_screen.dart';
 import 'profile_screen.dart';
 import 'reports_screen.dart';
 
@@ -53,10 +59,11 @@ class HomeScreen extends ConsumerWidget {
       body: SubtleCelestialBackground(
         child: IndexedStack(
           index: currentTabIndex,
-          children: [
-            const _HomeTabContentView(),
-            const ReportsScreen(),
-            const ProfileScreen(),
+          children: const [
+            _HomeTabContentView(),
+            ReportsScreen(),
+            ConsultScreen(),
+            ProfileScreen(),
           ],
         ),
       ),
@@ -326,9 +333,7 @@ class _HomeTabContentView extends ConsumerWidget {
     final user = authState.user;
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
     final hasProfile = profilesState.profiles.isNotEmpty;
-
     final prediction = ref.watch(dailyRashiBhavishyaProvider);
-    final reports = ref.watch(paidReportsProvider);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -337,83 +342,86 @@ class _HomeTabContentView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. TOP HEADER ("Hello, [User Name]")
+            // 1. TOP HEADER ("Hello, [User Name]") + Language Quick Switcher
             HomeHeader(
               userName: user?.email ?? 'User',
               onProfileTap: () {
-                ref.read(homeTabControllerProvider.notifier).state = 2;
+                ref.read(homeTabControllerProvider.notifier).state = 3;
               },
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-            // 2. HERO CARD ("Your Cosmic Journey" / "Create Your Birth Profile")
+            // 2. ACTIVE BIRTH PROFILE SELECTOR (Crucial for multi-profile awareness)
+            ActiveBirthProfileHeaderCard(
+              activeProfile: ref.watch(selectedBirthProfileProvider),
+              profiles: profilesState.profiles,
+              onSelectProfile: (id) {
+                ref.read(selectedBirthProfileIdProvider.notifier).state = id;
+              },
+              onAddProfile: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // 3. HERO ASTROLOGY CARD (Janma Kundli primary action)
             HeroAstrologyCard(
               hasBirthProfile: hasProfile,
               onViewChartTap: () => _navigateToBirthChart(context, hasProfile),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
-            // 2.5 ASK JYOTI AI ASSISTANT ENTRY CARD
-            HomeJyotiCard(
-              onTap: () => _navigateToJyoti(context, ref),
+            // 4. DAILY PANCHANG REAL-DATA SUMMARY CARD
+            DailyPanchangSummaryCard(
+              onViewFullPanchang: () => _navigateToPanchanga(context),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // 3. VEDIC ASTROLOGY SYSTEMS & QUICK ACCESS
-            QuickAccessSection(
-              onKundliTap: () => _navigateToBirthChart(context, hasProfile),
+            // 5. ACTIVE DASHA SUMMARY (When profile exists, shows real Mahadasha)
+            ActiveDashaSummaryCard(
+              onViewDashaTree: () => _navigateToDasha(context),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 6. ESSENTIAL ASTROLOGY SHORTCUTS (Primary 6 core journeys)
+            EssentialAstrologyShortcutsGrid(
+              onBirthChartTap: () => _navigateToBirthChart(context, hasProfile),
               onPlanetsTap: () => _navigateToPlanets(context, hasProfile),
-              onPredictionTap: () => _navigateToRashiBhavishya(context),
-              onVastuTap: () => _navigateToVastu(context),
-              onDivisionalChartsTap: () => _navigateToDivisionalCharts(context),
               onDashaTap: () => _navigateToDasha(context),
               onMatchmakingTap: () => _navigateToMatchmaking(context),
-              onPanchangaTap: () => _navigateToPanchanga(context),
-              onGocharaTap: () => _navigateToGochara(context),
-              onYogasTap: () => _navigateToYogas(context),
-              onJaiminiTap: () => _navigateToJaimini(context),
-              onKPTap: () => _navigateToKP(context),
-              onVarshaphalaTap: () => _navigateToVarshaphala(context),
-              onPrashnaTap: () => _navigateToPrashna(context),
-              onShadbalaTap: () => _navigateToShadbala(context),
-              onBhavaBalaTap: () => _navigateToBhavaBala(context),
-              onAshtakavargaTap: () => _navigateToAshtakavarga(context),
-              onSpecialPointsTap: () => _navigateToSpecialPoints(context),
-              onSeeAllTap: () => _navigateToAstrologyHub(context),
+              onReportsTap: () {
+                ref.read(homeTabControllerProvider.notifier).state = 1;
+              },
+              onConsultTap: () {
+                ref.read(homeTabControllerProvider.notifier).state = 2;
+              },
             ),
 
-            const SizedBox(height: 26),
+            const SizedBox(height: 20),
 
-            // 4. TODAY'S RASHI BHAVISHYA PREVIEW
+            // 7. EXPLORE ALL ASTROLOGY TOOLS (Clean Progressive Disclosure)
+            ExploreAstrologyCard(
+              onExploreTap: () => _navigateToAstrologyHub(context),
+            ),
+
+            const SizedBox(height: 22),
+
+            // 8. TODAY'S RASHI BHAVISHYA PREVIEW
             RashiBhavishyaSection(
               preview: prediction,
               onReadTap: () => _navigateToRashiBhavishya(context),
             ),
 
-            const SizedBox(height: 26),
+            const SizedBox(height: 22),
 
-            // 5. PERSONALIZED REPORTS
-            ReportsSection(
-              reports: reports,
-              onReportTap: (report) {
-                AuthRequiredGate.checkAndProceed(
-                  context: context,
-                  ref: ref,
-                  feature: AppFeature.premiumReportMarriage,
-                  featureTitle: report.title,
-                  onAllowed: () {
-                    ref.read(homeTabControllerProvider.notifier).state = 1;
-                  },
-                );
-              },
-            ),
-
-            const SizedBox(height: 26),
-
-            // 6. GUPTA NADI FLAGSHIP FEATURE
+            // 9. GUPTA NADI FLAGSHIP FEATURE
             GuptaNadiCard(
               onExploreTap: () {
                 AuthRequiredGate.checkAndProceed(
@@ -426,6 +434,24 @@ class _HomeTabContentView extends ConsumerWidget {
               },
             ),
 
+            const SizedBox(height: 20),
+
+            // 9.5 VEDIC COURSES & MASTERCLASSES
+            _CoursesHomeCard(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CoursesHubScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // 10. ASK JYOTI ASSISTANT ENTRY CARD
+            HomeJyotiCard(
+              onTap: () => _navigateToJyoti(context, ref),
+            ),
+
             const SizedBox(height: 24),
           ],
         ),
@@ -433,3 +459,113 @@ class _HomeTabContentView extends ConsumerWidget {
     );
   }
 }
+
+class _CoursesHomeCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CoursesHomeCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.lightBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    color: AppColors.premiumAccent,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.coursesScreenTitle,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.lightTextPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.premiumAccent.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'NEW',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.coursesSubtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.lightTextSecondary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: AppColors.lightTextMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -1,0 +1,272 @@
+{
+  "@@locale": "en",
+  "appName": "Astro Sushil",
+  "@appName": {
+    "description": "Application Title"
+  },
+  "navHome": "Home",
+  "navReports": "Reports",
+  "navConsult": "Consult",
+  "navAccount": "Account",
+
+  "welcomeGuest": "Namaste",
+  "welcomeUser": "Namaste, {name}",
+  "@welcomeUser": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "blessingSubtitle": "Vedic guidance and cosmic clarity for your life journey.",
+  
+  "activeProfile": "Active Profile",
+  "changeProfile": "Change Profile",
+  "addBirthProfile": "Add New Profile",
+  "noProfileSelected": "No profile selected",
+  "createProfilePrompt": "Create a birth profile to calculate your Janma Kundli.",
+  "createProfileButton": "Create Profile",
+  "switchProfile": "Switch Profile",
+
+  "sectionToday": "Today's Cosmic Insights",
+  "sectionKeyFeatures": "Essential Astrology",
+  "sectionExploreTools": "Explore Astrology",
+  "exploreAllTools": "All Vedic Astrology Tools",
+  "exploreAllToolsSubtitle": "Explore Vargas, Ashtakavarga, Shadbala, KP, Jaimini, Transits & Vastu.",
+
+  "toolBirthChart": "Birth Chart",
+  "toolBirthChartDesc": "Lagna Kundli & planetary houses",
+  "toolPlanets": "Planetary Positions",
+  "toolPlanetsDesc": "Degrees, signs, nakshatras & aspects",
+  "toolDasha": "Dasha Timeline",
+  "toolDashaDesc": "Vimshottari planetary periods",
+  "toolMatchmaking": "Kundli Matching",
+  "toolMatchmakingDesc": "36 Gunas Ashtakoota compatibility",
+  "toolPanchanga": "Panchang & Muhurta",
+  "toolPanchangaDesc": "Tithi, Nakshatra, Rahu Kaal & Choghadiya",
+  "toolTransits": "Gochara Transits",
+  "toolTransitsDesc": "Current planetary movements",
+  "toolRashiBhavishya": "Rashi Bhavishya",
+  "toolRashiBhavishyaDesc": "Daily horoscope by Moon sign",
+  "toolVastu": "Vastu Shastra",
+  "toolVastuDesc": "Directional balance & home remedies",
+  "toolGuptaNadi": "Gupta Nadi Analysis",
+  "toolGuptaNadiDesc": "Brihaspati Nandi Nadi (BNN) principles",
+
+  "quickPanchang": "Today's Panchang",
+  "tithi": "Tithi",
+  "nakshatra": "Nakshatra",
+  "rahuKaal": "Rahu Kaal",
+  "sunrise": "Sunrise",
+  "viewFullPanchang": "View Complete Panchang",
+
+  "activeDashaBanner": "Running Planetary Period",
+  "currentMahaDasha": "{planet} Mahadasha",
+  "@currentMahaDasha": {
+    "placeholders": {
+      "planet": {
+        "type": "String"
+      }
+    }
+  },
+  "viewDashaDetails": "View Dasha Tree",
+
+  "reportsTitle": "Personalized Reports",
+  "reportsSubtitle": "In-depth astrological documents compiled with deterministic precision.",
+  "availableReports": "Available Reports",
+  "careerReportTitle": "Career & Professional Life",
+  "careerReportSubtitle": "10th House analysis, vocation & professional timing",
+  "careerReportDesc": "A deeper look at your career patterns, leadership opportunities, and professional strengths.",
+  "kundliReportTitle": "Birth Chart & Kundli Dossier",
+  "kundliReportSubtitle": "Comprehensive cosmic blueprint (Basic & Pro)",
+  "marriageReportTitle": "Marriage Compatibility Dossier",
+  "marriageReportSubtitle": "36-Guna matching, dosha cancellation & remedies",
+  "miniHoroscopeTitle": "Mini Horoscope 6-Month Transit",
+  "miniHoroscopeSubtitle": "Upcoming planetary shifts and favorable windows",
+  "generateReport": "Generate Report",
+  "viewReport": "View Report",
+  "downloadPdf": "Download PDF",
+  "reportInProgress": "Generating ({progress}%)",
+  "@reportInProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      }
+    }
+  },
+  "deterministicEngineBadge": "100% Deterministic Engine",
+  "comingSoon": "Coming Soon",
+
+  "consultTitle": "Consult Sushil Sir",
+  "consultSubtitle": "Personalized 1-on-1 astrological guidance with Astro Sushil Kumar Singh.",
+  "consultNoticeTitle": "App Scheduling Notice",
+  "consultNoticeBody": "In-app automated calendar slot booking is currently being integrated for an upcoming release. Direct consultations are actively scheduled through Sushil Sir's official office support.",
+  "consultFormatsTitle": "Consultation Formats Offered",
+  "consultVoice": "Voice Call Consultation",
+  "consultVoiceDesc": "30-minute private audio session for your most pressing questions.",
+  "consultVideo": "Video Call Consultation",
+  "consultVideoDesc": "In-depth 1-on-1 video reading analyzing your chart and hand signatures.",
+  "consultInPerson": "In-Person Consultation",
+  "consultInPersonDesc": "Exclusive face-to-face sessions in Delhi/NCR or client city.",
+  "consultPrepareTitle": "What to Keep Ready",
+  "consultPrepare1": "Exact Date, Time, and City of Birth for all parties involved.",
+  "consultPrepare2": "Specific areas of concern (Career, Marriage, Health, Financial stability).",
+  "consultInquireWhatsApp": "Inquire via WhatsApp",
+  "consultContactOffice": "Contact Office Support",
+  "consultOfficeDetails": "Office: Cleo County, Sector-121, Noida, UP\nPhone: +91 9621127233 / +91 6393551359\nEmail: connect@astrosushil.com",
+
+  "accountTitle": "My Account",
+  "accountSubtitle": "Manage your profile, family charts, language, and settings.",
+  "guestModeTitle": "Guest Mode Active",
+  "guestModeSubtitle": "Your profiles are saved locally on this device. Create an account to sync across devices.",
+  "createAccount": "Create Account",
+  "signIn": "Sign In",
+  "signOut": "Sign Out",
+  "signOutConfirmTitle": "Sign out of your account?",
+  "signOutConfirmMessage": "Are you sure you want to sign out? Your cloud data remains safe.",
+  "exitGuestModeConfirmTitle": "Exit Guest Mode?",
+  "exitGuestModeConfirmMessage": "You will return to the sign-in screen.",
+
+  "languageSetting": "App Language / भाषा",
+  "languageEnglish": "English",
+  "languageHindi": "हिन्दी (Hindi)",
+  "selectLanguage": "Select App Language",
+
+  "savedProfilesTitle": "My Saved Birth Profiles",
+  "savedProfilesSubtitle": "View, edit, or add family members and friends.",
+  "appSettingsTitle": "Settings & Preferences",
+  "helpSupportTitle": "Help & WhatsApp Support",
+  "helpSupportSubtitle": "Direct assistance from the Astro Sushil support team.",
+  "privacyPolicyTitle": "Privacy & Data Protection",
+  "privacyPolicySubtitle": "Your birth details are kept strictly private and secure.",
+  "deleteCacheTitle": "Clear Local Report Cache",
+  "deleteCacheSubtitle": "Remove downloaded report PDFs to free up storage space.",
+  "deleteCacheConfirm": "Are you sure you want to delete locally stored report files?",
+
+  "retry": "Try Again",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "close": "Close",
+  "save": "Save",
+  "errorOccurred": "Something went wrong",
+  "networkError": "Please check your internet connection.",
+  "emptyStateMessage": "No information available right now.",
+  "accessibilityClose": "Close dialog",
+  "accessibilityBack": "Go back",
+  "accessibilityMenu": "Navigation menu",
+
+  "explainWhatDoesThisMean": "What does this mean?",
+  "explainHowToRead": "How to read this",
+  "explainLimitations": "Limitations & Guidance",
+  "explainDisclaimer": "Vedic astrology provides guidance and self-reflection; it does not replace medical, legal, or financial professional advice.",
+  "explainBirthChartTitle": "Understanding Your Kundli",
+  "explainBirthChartWhatIs": "Your Kundli is a snapshot of the celestial sky at the exact moment and location of your birth, mapped across 12 zodiac houses (Bhavas) and signs (Rashis).",
+  "explainBirthChartHowToRead": "House 1 (top central diamond) represents your Ascendant (Lagna) and core personality. The numbers 1–12 indicate zodiac signs, and abbreviations like 'Su' or 'Mo' show planetary placements.",
+  "explainPlanetsTitle": "Understanding Planetary Placements",
+  "explainPlanetsWhatIs": "In Vedic astrology, each of the nine grahas (Sun to Ketu) governs specific life themes and drives distinct psychological energies.",
+  "explainPlanetsHowToRead": "Look at the sign and house position for each planet. A planet marked '(R)' is retrograde, meaning its energy is reflective, unconventional, and karmically potent.",
+  "explainDashaTitle": "Understanding Vimshottari Dasha",
+  "explainDashaWhatIs": "Vimshottari Dasha is a 120-year planetary timeline that reveals which celestial energy currently influences your life events and consciousness.",
+  "explainDashaHowToRead": "The active Mahadasha (major period) sets the broader theme, while the Antardasha (sub-period) highlights daily focus. Check the start and end dates to understand active cycles.",
+  "explainPanchangaTitle": "Understanding Daily Panchanga",
+  "explainPanchangaWhatIs": "Panchanga represents the five limbs of time: Tithi (lunar phase), Vara (weekday), Nakshatra (constellation), Yoga (luni-solar angle), and Karana (half-tithi).",
+  "explainPanchangaHowToRead": "Check Tithi and Nakshatra for general auspiciousness, and observe Rahu Kaal to avoid starting critical new ventures during that window.",
+  "explainMatchmakingTitle": "Understanding Kundli Matchmaking",
+  "explainMatchmakingWhatIs": "Ashtakoota Milan evaluates compatibility across eight psychological and physiological dimensions, totaling a maximum of 36 points (Gunas).",
+  "explainMatchmakingHowToRead": "A score of 18 or higher is traditionally considered acceptable. Higher scores indicate greater natural alignment in temperament, emotional bonding (Bhakoot), and genetic vitality (Nadi).",
+  "explainShadbalaTitle": "Understanding Shadbala Strengths",
+  "explainShadbalaWhatIs": "Shadbala evaluates six distinct sources of astronomical strength: Sthana (positional), Dig (directional), Kala (temporal), Cheshta (motional), Naisargika (natural), and Drik (aspectual).",
+  "explainShadbalaHowToRead": "Each planet has a minimum required strength measured in Virupas and Rupas. Planets with a ratio of 1.0 or greater possess sufficient strength to manifest their positive significations.",
+  "explainAshtakavargaTitle": "Understanding Ashtakavarga",
+  "explainAshtakavargaWhatIs": "Ashtakavarga maps the distribution of benefic points (bindus) contributed by eight references across the 12 signs of the zodiac.",
+  "explainAshtakavargaHowToRead": "In Sarvashtakavarga (SAV), houses with 28 or more bindus represent strong, supportive life areas, while houses below 25 require patience and mindful effort.",
+  "matchmakingSameProfileWarning": "Please select two different birth profiles to evaluate compatibility.",
+  "dataNotAvailable": "Data not available",
+  "calculationUnavailable": "Calculation unavailable",
+  "consultTabsBook": "Book Consultation",
+  "consultTabsMyAppointments": "My Appointments",
+  "consultSelectSlot": "Select Time Slot",
+  "consultSelectDate": "Select Date",
+  "consultNoSlots": "No time slots available for this date. Please pick another date.",
+  "consultNoticePrefix": "Notice required:",
+  "consultDaysNotice": "{days} days notice",
+  "@consultDaysNotice": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "consultDurationMin": "{minutes} mins",
+  "@consultDurationMin": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "consultInclusiveGST": "18% GST Included",
+  "consultBookNow": "Book Now",
+  "consultBookingTitle": "Book Appointment",
+  "consultSelectProfile": "Select Birth Profile",
+  "consultNoProfile": "Proceed as Self",
+  "consultQueryHint": "Your specific question or topic of concern (optional)",
+  "consultPayAndConfirm": "Proceed to Pay ₹{amount}",
+  "@consultPayAndConfirm": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "consultBookingSuccess": "Appointment Confirmed!",
+  "consultBookingReference": "Booking ID: {ref}",
+  "@consultBookingReference": {
+    "placeholders": {
+      "ref": { "type": "String" }
+    }
+  },
+  "consultJoinSession": "Join Live Session",
+  "consultReschedule": "Reschedule",
+  "consultCancel": "Cancel Appointment",
+  "consultStatusConfirmed": "Confirmed",
+  "consultStatusPending": "Pending Payment",
+  "consultStatusRescheduled": "Rescheduled",
+  "consultStatusCancelled": "Cancelled",
+  "consultStatusCompleted": "Completed",
+  "consultNoAppointments": "No consultation appointments found.",
+  "consultReschedulePolicy": "Rescheduling allowed up to 24 hours prior to scheduled start time.",
+  "consultCancellationPolicy": "Cancellation releases slot capacity in accordance with policy.",
+  "coursesNavTitle": "Courses",
+  "coursesScreenTitle": "Vedic Courses & Masterclasses",
+  "coursesSubtitle": "Learn authentic Gupta Nadi & predictive astrology from Astro Sushil",
+  "exploreCoursesTab": "All Courses",
+  "myLearningTab": "My Learning",
+  "searchCoursesHint": "Search courses, topics, methods...",
+  "allLevels": "All Levels",
+  "filterAll": "All",
+  "courseEnrollNow": "Enroll Now",
+  "courseEnrolledBadge": "Enrolled",
+  "courseContinueLearning": "Continue Learning",
+  "courseSyllabus": "Curriculum & Syllabus",
+  "courseOverview": "Course Overview",
+  "courseFreePreview": "Free Preview",
+  "courseLockedLesson": "Premium Lesson",
+  "courseLessonCompleted": "Completed",
+  "courseMarkComplete": "Mark as Completed",
+  "coursePreviousLesson": "Previous",
+  "courseNextLesson": "Next Lesson",
+  "courseNoCoursesFound": "No courses found matching your criteria.",
+  "courseNoMyLearning": "You haven't enrolled in any courses yet. Explore our authentic masterclasses!",
+  "courseBrowseCourses": "Explore Course Catalog",
+  "courseSecureNotice": "Official Masterclass Portal",
+  "courseOpenWebPortal": "Open Official Learning Portal",
+  "courseIncludesGst": "Inclusive of all taxes (18% GST)",
+  "courseTotalDuration": "{hours} hrs {mins} mins",
+  "@courseTotalDuration": {
+    "placeholders": {
+      "hours": { "type": "String" },
+      "mins": { "type": "String" }
+    }
+  },
+  "courseLessonCount": "{count} Lessons",
+  "@courseLessonCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/localization/locale_provider.dart';
 import '../../shared/theme/app_colors.dart';
 
 /// Large Hero Card for Home Screen representing main birth chart entry point.
@@ -15,6 +16,8 @@ class HeroAstrologyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -83,21 +86,21 @@ class HeroAstrologyCard extends StatelessWidget {
                         width: 0.8,
                       ),
                     ),
-                    child: const FittedBox(
+                    child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.auto_awesome,
                             size: 11,
                             color: AppColors.premiumAccent,
                           ),
-                          SizedBox(width: 5),
+                          const SizedBox(width: 5),
                           Text(
-                            'BIRTH CHART & KUNDLI',
-                            style: TextStyle(
+                            l10n.toolBirthChart.toUpperCase(),
+                            style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.0,
@@ -111,68 +114,29 @@ class HeroAstrologyCard extends StatelessWidget {
 
                   const SizedBox(height: 14),
 
-                  // Main Heading (Dual-color title: White + Gold)
-                  Text.rich(
-                    TextSpan(
-                      children: hasBirthProfile
-                          ? const [
-                              TextSpan(
-                                text: 'Your Cosmic\n',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: -0.4,
-                                  height: 1.15,
-                                ),
-                              ),
-                              TextSpan(
-                                text: 'Journey',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.premiumAccent,
-                                  letterSpacing: -0.4,
-                                  height: 1.15,
-                                ),
-                              ),
-                            ]
-                          : const [
-                              TextSpan(
-                                text: 'Create Your\n',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: -0.4,
-                                  height: 1.15,
-                                ),
-                              ),
-                              TextSpan(
-                                text: 'Birth Profile',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.premiumAccent,
-                                  letterSpacing: -0.4,
-                                  height: 1.15,
-                                ),
-                              ),
-                            ],
+                  // Main Heading
+                  Text(
+                    hasBirthProfile ? l10n.toolBirthChart : l10n.createProfileButton,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.4,
+                      height: 1.15,
                     ),
                   ),
 
                   const SizedBox(height: 8),
 
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 210),
+                    constraints: const BoxConstraints(maxWidth: 220),
                     child: Text(
                       hasBirthProfile
-                          ? 'Explore your birth chart, planetary positions and personalized insights.'
-                          : 'Add your birth details to generate your Kundli.',
+                          ? l10n.toolBirthChartDesc
+                          : l10n.createProfilePrompt,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.88),
                         height: 1.35,
                         fontWeight: FontWeight.w400,
                       ),
@@ -181,7 +145,7 @@ class HeroAstrologyCard extends StatelessWidget {
 
                   const SizedBox(height: 18),
 
-                  // Primary Gold CTA Button
+                  // Primary Gold CTA Button (48dp touch target)
                   ElevatedButton(
                     onPressed: onViewChartTap,
                     style: ElevatedButton.styleFrom(
@@ -189,33 +153,33 @@ class HeroAstrologyCard extends StatelessWidget {
                       foregroundColor: AppColors.primary,
                       elevation: 2,
                       shadowColor: AppColors.premiumAccent.withValues(alpha: 0.4),
-                      minimumSize: const Size(120, 42),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      minimumSize: const Size(140, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            hasBirthProfile ? 'View Your Chart' : 'Add Birth Details',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            hasBirthProfile ? l10n.toolBirthChart : l10n.createProfileButton,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 6),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 15,
-                            color: AppColors.primary,
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -228,52 +192,29 @@ class HeroAstrologyCard extends StatelessWidget {
   }
 }
 
-/// Custom painter rendering North Indian Vedic Kundli geometry for Hero background
 class _HeroKundliGeometryPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
     final borderPaint = Paint()
-      ..color = AppColors.premiumAccent.withValues(alpha: 0.35)
+      ..color = AppColors.premiumAccent.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
+      ..strokeWidth = 1.0;
 
-    final linePaint = Paint()
-      ..color = AppColors.premiumAccent.withValues(alpha: 0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-
-    final goldAccent = Paint()
-      ..color = AppColors.premiumAccent.withValues(alpha: 0.1)
-      ..style = PaintingStyle.fill;
-
-    // Draw square
-    final rect = Rect.fromCenter(center: Offset(w * 0.5, h * 0.5), width: w * 0.85, height: w * 0.85);
+    final rect = Rect.fromLTWH(size.width * 0.1, 0, size.width * 0.9, size.height);
     canvas.drawRect(rect, borderPaint);
 
-    // Draw diagonals
-    canvas.drawLine(rect.topLeft, rect.bottomRight, linePaint);
-    canvas.drawLine(rect.topRight, rect.bottomLeft, linePaint);
+    // Diagonals
+    canvas.drawLine(rect.topLeft, rect.bottomRight, borderPaint);
+    canvas.drawLine(rect.topRight, rect.bottomLeft, borderPaint);
 
-    // Draw inner diamond
-    final diamond = Path()
-      ..moveTo(rect.center.dx, rect.top)
-      ..lineTo(rect.right, rect.center.dy)
-      ..lineTo(rect.center.dx, rect.bottom)
-      ..lineTo(rect.left, rect.center.dy)
+    // Diamond
+    final path = Path()
+      ..moveTo(rect.centerLeft.dx, rect.centerLeft.dy)
+      ..lineTo(rect.topCenter.dx, rect.topCenter.dy)
+      ..lineTo(rect.centerRight.dx, rect.centerRight.dy)
+      ..lineTo(rect.bottomCenter.dx, rect.bottomCenter.dy)
       ..close();
-    canvas.drawPath(diamond, linePaint);
-
-    // Fill Lagna diamond top center
-    final lagna = Path()
-      ..moveTo((rect.left + rect.center.dx) / 2, (rect.top + rect.center.dy) / 2)
-      ..lineTo(rect.center.dx, rect.top)
-      ..lineTo((rect.right + rect.center.dx) / 2, (rect.top + rect.center.dy) / 2)
-      ..lineTo(rect.center.dx, rect.center.dy)
-      ..close();
-    canvas.drawPath(lagna, goldAccent);
+    canvas.drawPath(path, borderPaint);
   }
 
   @override

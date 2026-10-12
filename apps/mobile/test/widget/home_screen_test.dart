@@ -10,7 +10,11 @@ import 'package:astro_mobile/features/birth_profile/providers/birth_profile_prov
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/home/widgets/hero_astrology_card.dart';
+import 'package:astro_mobile/home/widgets/home_bottom_navigation.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
+
+import 'package:astro_mobile/l10n/app_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {
   final testUser = UserModel(
@@ -48,6 +52,13 @@ void main() {
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
         home: const HomeScreen(),
       ),
     );
@@ -58,43 +69,41 @@ void main() {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();
 
-      expect(find.text('Hello, seeker'), findsOneWidget);
-      expect(find.text('Explore your cosmic journey'), findsOneWidget);
+      expect(find.textContaining('seeker'), findsOneWidget);
+      expect(find.textContaining('Vedic guidance'), findsOneWidget);
     });
 
-    testWidgets('Renders Hero Card with "Create Your Birth Profile" for first-time user without birth profile', (WidgetTester tester) async {
+    testWidgets('Renders Hero Card with "Create Profile" for first-time user without birth profile', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(
         authState: AuthState.authenticated(testUser),
         profiles: [],
       ));
       await tester.pumpAndSettle();
 
-      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.textContaining('Create Your')), findsOneWidget);
-      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.textContaining('Birth Profile')), findsOneWidget);
-      expect(find.text('Add Birth Details'), findsOneWidget);
+      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.text('Create Profile')), findsWidgets);
+      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.textContaining('Janma Kundli')), findsOneWidget);
     });
 
-    testWidgets('Renders Hero Card with "Your Cosmic Journey" when user has a birth profile', (WidgetTester tester) async {
+    testWidgets('Renders Hero Card with "Birth Chart" when user has a birth profile', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(
         authState: AuthState.authenticated(testUser),
         profiles: [testBirthProfile],
       ));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Your Cosmic'), findsOneWidget);
-      expect(find.textContaining('Journey'), findsOneWidget);
-      expect(find.text('View Your Chart'), findsOneWidget);
+      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.text('Birth Chart')), findsWidgets);
+      expect(find.descendant(of: find.byType(HeroAstrologyCard), matching: find.text('Lagna Kundli & planetary houses')), findsOneWidget);
     });
 
-    testWidgets('Renders Quick Access section and 4 core cards', (WidgetTester tester) async {
+    testWidgets('Renders Essential Astrology shortcuts grid', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();
 
-      expect(find.text('Quick Access'), findsOneWidget);
+      expect(find.text('Essential Astrology'), findsOneWidget);
       expect(find.text('Birth Chart'), findsWidgets);
-      expect(find.text('Planets'), findsOneWidget);
-      expect(find.text('Rashi Bhavishya'), findsWidgets);
-      expect(find.text('Vastu'), findsWidgets);
+      expect(find.text('Planetary Positions'), findsOneWidget);
+      expect(find.text('Dasha Timeline'), findsOneWidget);
+      expect(find.text('Kundli Matching'), findsOneWidget);
     });
 
     testWidgets('Renders Gupta Nadi flagship premium card with badge', (WidgetTester tester) async {
@@ -106,14 +115,12 @@ void main() {
       expect(find.text('Explore Gupta Nadi'), findsOneWidget);
     });
 
-    testWidgets('Renders Personalized Report cards (Career, Marriage, Childbirth)', (WidgetTester tester) async {
+    testWidgets('Renders Explore Astrology hub progressive disclosure card', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();
 
-      expect(find.text('Personalized Reports'), findsWidgets);
-      expect(find.text('Career Report'), findsOneWidget);
-      expect(find.text('Marriage & Relationship Report'), findsOneWidget);
-      expect(find.text('Childbirth Report'), findsOneWidget);
+      expect(find.text('All Vedic Astrology Tools'), findsOneWidget);
+      expect(find.text('VEDIC'), findsOneWidget);
     });
 
     testWidgets('Renders Today\'s Rashi Bhavishya preview card', (WidgetTester tester) async {
@@ -124,24 +131,30 @@ void main() {
       expect(find.text('Aries'), findsOneWidget);
     });
 
-    testWidgets('Bottom Navigation allows switching between Home, Reports, and Profile tabs', (WidgetTester tester) async {
+    testWidgets('Bottom Navigation allows switching between Home, Reports, Consult, and Account tabs', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();
 
       // Initially on Home tab (Index 0)
-      expect(find.text('Explore your cosmic journey'), findsOneWidget);
+      expect(find.textContaining('Vedic guidance'), findsOneWidget);
 
       // Tap Reports tab (Index 1)
-      await tester.tap(find.text('Reports'));
+      await tester.tap(find.descendant(of: find.byType(HomeBottomNavigation), matching: find.text('Reports')));
       await tester.pumpAndSettle();
       expect(find.text('YOUR ASTRO REPORTS'), findsOneWidget);
 
-      // Tap Profile tab (Index 2)
-      await tester.tap(find.text('Profile'));
+      // Tap Consult tab (Index 2)
+      await tester.tap(find.descendant(of: find.byType(HomeBottomNavigation), matching: find.text('Consult')));
+      await tester.pumpAndSettle();
+      expect(find.text('Consult Sushil Sir'), findsWidgets);
+      expect(find.text('Book Consultation'), findsOneWidget);
+
+      // Tap Account tab (Index 3)
+      await tester.tap(find.descendant(of: find.byType(HomeBottomNavigation), matching: find.text('Account')));
       await tester.pumpAndSettle();
       expect(find.text('seeker@astrosushil.com'), findsOneWidget);
-      expect(find.text('My Birth Profiles'), findsOneWidget);
-      expect(find.text('Logout'), findsOneWidget);
+      expect(find.text('My Saved Birth Profiles'), findsOneWidget);
+      expect(find.text('Sign Out'), findsOneWidget);
     });
 
     testWidgets('Responsive layout renders without overflow on small device screens', (WidgetTester tester) async {

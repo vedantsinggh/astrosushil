@@ -80,7 +80,7 @@ export class LocalXeLatexCompiler implements LatexCompiler {
         for (let pass = 1; pass <= 3; pass++) {
           await execFileAsync(
             'xelatex',
-            ['-interaction=nonstopmode', `-output-directory=${outputDir}`, 'main.tex'],
+            ['-no-shell-escape', '-interaction=nonstopmode', `-output-directory=${outputDir}`, 'main.tex'],
             { cwd: baseTempDir, timeout: timeoutMs }
           );
         }

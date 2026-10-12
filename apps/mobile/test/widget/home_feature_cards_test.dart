@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:astro_mobile/home/screens/home_screen.dart';
+import 'package:astro_mobile/features/astrology/screens/astrology_hub_screen.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
 import 'package:astro_mobile/features/auth/data/auth_repository.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
@@ -46,7 +46,7 @@ void main() {
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
-        home: const HomeScreen(),
+        home: const AstrologyHubScreen(),
       ),
     );
   }

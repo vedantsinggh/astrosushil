@@ -17,6 +17,8 @@ import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Shadbala (Sixfold Planetary Strength)
 /// Evaluated deterministically via Fastify backend /astrology/strength
@@ -115,6 +117,14 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainShadbalaTitle,
+          whatIsText: context.l10n.explainShadbalaWhatIs,
+          howToReadText: context.l10n.explainShadbalaHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         // 1. HORIZONTAL PLANET SELECTOR
         _buildPlanetSelector(rankedList),
         const SizedBox(height: 14),

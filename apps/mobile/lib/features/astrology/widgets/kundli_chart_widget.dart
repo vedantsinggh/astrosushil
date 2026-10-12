@@ -142,25 +142,17 @@ class _NorthIndianKundliPainter extends CustomPainter {
       housePlanetsMap[i] = [];
     }
 
-    // Always add Ascendant to House 1
-    housePlanetsMap[1]!.add('As');
+    if (chart != null) {
+      // Add Ascendant to House 1
+      housePlanetsMap[1]!.add('As');
 
-    if (chart != null && chart!.planets.isNotEmpty) {
-      for (final p in chart!.planets) {
-        final houseNum = p.calculateHouseNumber(ascendantRashiIndex);
-        final abbr = _getPlanetAbbr(p.planet, p.isRetrograde);
-        housePlanetsMap[houseNum]?.add(abbr);
+      if (chart!.planets.isNotEmpty) {
+        for (final p in chart!.planets) {
+          final houseNum = p.calculateHouseNumber(ascendantRashiIndex);
+          final abbr = _getPlanetAbbr(p.planet, p.isRetrograde);
+          housePlanetsMap[houseNum]?.add(abbr);
+        }
       }
-    } else {
-      // Default mock placements matching standard reference Kundli
-      housePlanetsMap[1]!.addAll([]);
-      housePlanetsMap[2]!.add('Ve 5');
-      housePlanetsMap[3]!.add('Mo 6');
-      housePlanetsMap[5]!.add('Ju 8');
-      housePlanetsMap[6]!.add('Ra 9');
-      housePlanetsMap[8]!.add('Ke 10');
-      housePlanetsMap[10]!.add('SaR 12');
-      housePlanetsMap[12]!.addAll(['Su 4', 'Ma 2']);
     }
 
     // Draw Rashi indices & planet strings into each house

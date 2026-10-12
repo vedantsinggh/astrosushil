@@ -64,12 +64,19 @@ class SushilExplainerNotifier extends StateNotifier<AsyncValue<SushilExplanation
         );
       }
 
+      final isHindi = context.language == 'hi';
       final errorModel = SushilExplanationModel.error(
         feature: context.feature,
         screenTitle: context.screenTitle,
+        mode: context.mode,
+        language: context.language,
         message: e.toString().contains('SocketException') || e.toString().contains('connection')
-            ? "Sushil Sir couldn't connect right now. Please check your network and try again."
-            : "Sushil Sir couldn't explain this section right now. Please try again.",
+            ? (isHindi
+                ? "सुशील सर अभी कनेक्ट नहीं हो सके। कृपया नेटवर्क जांचें और पुनः प्रयास करें।"
+                : "Sushil Sir couldn't connect right now. Please check your network and try again.")
+            : (isHindi
+                ? "सुशील सर अभी इस खंड को नहीं समझा सके। कृपया पुनः प्रयास करें।"
+                : "Sushil Sir couldn't explain this section right now. Please try again."),
       );
 
       state = AsyncValue.error(e, stackTrace);

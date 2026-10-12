@@ -13,11 +13,13 @@ import '../providers/reports_provider.dart';
 
 class ReportViewScreen extends ConsumerStatefulWidget {
   final String birthProfileId;
-  final String reportType; // 'KUNDLI' or 'PLANETARY_SUMMARY'
+  final String? partnerProfileId;
+  final String reportType; // 'KUNDLI', 'PLANETARY_SUMMARY', 'CAREER_PROSITY', 'MARRIAGE_COMPATIBILITY'
 
   const ReportViewScreen({
     super.key,
     required this.birthProfileId,
+    this.partnerProfileId,
     this.reportType = 'KUNDLI',
   });
 
@@ -39,6 +41,7 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
   void _loadReport() {
     ref.read(reportsNotifierProvider.notifier).generateReport(
           birthProfileId: widget.birthProfileId,
+          partnerProfileId: widget.partnerProfileId,
           reportType: widget.reportType,
         );
   }

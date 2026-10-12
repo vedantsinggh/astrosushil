@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../jyoti/screens/jyoti_chat_screen.dart';
 import '../models/explanation_context.dart';
 import '../models/sushil_explanation_model.dart';
 import '../providers/sushil_explainer_provider.dart';
@@ -41,6 +43,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  late String _currentMode;
   SushilExplanationModel? _explanation;
   bool _isLoading = true;
   String? _errorMessage;
@@ -48,6 +51,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
   @override
   void initState() {
     super.initState();
+    _currentMode = widget.explanationContext.mode;
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -70,8 +74,10 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
     super.dispose();
   }
 
-  Future<void> _loadExplanation({bool forceRefresh = false}) async {
+  Future<void> _loadExplanation({String? mode, bool forceRefresh = false}) async {
+    final effectiveMode = mode ?? _currentMode;
     setState(() {
+      _currentMode = effectiveMode;
       _isLoading = true;
       _errorMessage = null;
     });
@@ -79,10 +85,17 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
       _pulseController.repeat(reverse: true);
     }
 
+    final isHindi = (widget.explanationContext.language == 'hi') ||
+        (ref.read(localeProvider).languageCode == 'hi');
+
     try {
+      final ctx = widget.explanationContext.copyWith(
+        mode: effectiveMode,
+        language: isHindi ? 'hi' : 'en',
+      );
       final result = await ref
           .read(sushilExplainerProvider.notifier)
-          .fetchExplanation(widget.explanationContext, forceRefresh: forceRefresh);
+          .fetchExplanation(ctx, forceRefresh: forceRefresh);
 
       if (mounted) {
         _pulseController.stop();
@@ -99,7 +112,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
         _pulseController.stop();
         setState(() {
           _isLoading = false;
-          _errorMessage = "Sushil Sir couldn't explain this right now. Please try again.";
+          _errorMessage = isHindi
+              ? 'सुशील सर अभी इसका विश्लेषण नहीं कर सके। कृपया पुनः प्रयास करें।'
+              : "Sushil Sir couldn't explain this right now. Please try again.";
         });
       }
     }
@@ -122,7 +137,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final maxHeight = mediaQuery.size.height * 0.85;
+    final maxHeight = mediaQuery.size.height * 0.88;
+    final isHindi = (widget.explanationContext.language == 'hi') ||
+        (ref.watch(localeProvider).languageCode == 'hi');
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -130,12 +147,12 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
         color: AppColors.background,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(
-          color: AppColors.surfaceElevated.withOpacity(0.8),
+          color: AppColors.surfaceElevated.withValues(alpha: 0.8),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -145,7 +162,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
         mainAxisSize: MainAxisSize.min,
         children: [
           // 1. Drag handle & Header
-          _buildHeader(context),
+          _buildHeader(context, isHindi),
 
           const Divider(height: 1, color: AppColors.border),
 
@@ -154,10 +171,10 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: _isLoading
-                  ? _buildLoadingState()
+                  ? _buildLoadingState(isHindi)
                   : _errorMessage != null
-                      ? _buildErrorState()
-                      : _buildLoadedState(_explanation!),
+                      ? _buildErrorState(isHindi)
+                      : _buildLoadedState(context, _explanation!, isHindi),
             ),
           ),
         ],
@@ -165,7 +182,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isHindi) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
       child: Column(
@@ -175,7 +192,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.textMuted.withOpacity(0.4),
+              color: AppColors.textMuted.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -194,7 +211,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.premiumAccent.withOpacity(0.2),
+                      color: AppColors.premiumAccent.withValues(alpha: 0.2),
                       blurRadius: 8,
                     ),
                   ],
@@ -218,9 +235,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                   children: [
                     Row(
                       children: [
-                        const Text(
-                          'AI Sushil Sir',
-                          style: TextStyle(
+                        Text(
+                          isHindi ? 'सुशील सर (AI मार्गदर्शक)' : 'AI Sushil Sir',
+                          style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -234,9 +251,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                             color: AppColors.premiumAccent,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'AI MENTOR',
-                            style: TextStyle(
+                          child: Text(
+                            isHindi ? 'AI मार्गदर्शक' : 'AI MENTOR',
+                            style: const TextStyle(
                               color: AppColors.primary,
                               fontSize: 9,
                               fontWeight: FontWeight.w900,
@@ -248,9 +265,11 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Explaining ${widget.explanationContext.screenTitle}',
+                      isHindi
+                          ? '${widget.explanationContext.screenTitle} का विश्लेषण'
+                          : 'Explaining ${widget.explanationContext.screenTitle}',
                       style: TextStyle(
-                        color: AppColors.textSecondary.withOpacity(0.9),
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -271,7 +290,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(bool isHindi) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -284,12 +303,12 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppColors.premiumAccent.withOpacity(0.5),
+                color: AppColors.premiumAccent.withValues(alpha: 0.5),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.premiumAccent.withOpacity(0.2),
+                  color: AppColors.premiumAccent.withValues(alpha: 0.2),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -308,9 +327,11 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Sushil Sir is studying this chart...',
-          style: TextStyle(
+        Text(
+          isHindi
+              ? 'सुशील सर इस खंड का अध्ययन कर रहे हैं...'
+              : 'Sushil Sir is studying this section...',
+          style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -318,10 +339,12 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
         ),
         const SizedBox(height: 8),
         Text(
-          'Translating complex Vedic astrological metrics into clear, practical insights.',
+          isHindi
+              ? 'जटिल वैदिक सूत्रों और आंकड़ों का सरल और व्यावहारिक भाषा में विश्लेषण तैयार हो रहा है।'
+              : 'Translating complex astrological metrics into clear, practical insights.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: AppColors.textSecondary.withOpacity(0.9),
+            color: AppColors.textSecondary.withValues(alpha: 0.9),
             fontSize: 13,
             height: 1.4,
           ),
@@ -332,7 +355,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           width: 160,
           child: LinearProgressIndicator(
             backgroundColor: AppColors.surfaceElevated,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.premiumAccent),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.premiumAccent),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -341,7 +364,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(bool isHindi) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -351,7 +374,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.error.withOpacity(0.5), width: 1.5),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.5), width: 1.5),
           ),
           child: ClipOval(
             child: Image.asset(
@@ -365,9 +388,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Explanation Unavailable',
-          style: TextStyle(
+        Text(
+          isHindi ? 'विश्लेषण उपलब्ध नहीं है' : 'Explanation Unavailable',
+          style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -375,7 +398,10 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
         ),
         const SizedBox(height: 8),
         Text(
-          _errorMessage ?? "Sushil Sir couldn't explain this section right now. Please try again.",
+          _errorMessage ??
+              (isHindi
+                  ? 'सुशील सर अभी इस खंड का विश्लेषण नहीं कर सके। कृपया पुनः प्रयास करें।'
+                  : "Sushil Sir couldn't explain this section right now. Please try again."),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: AppColors.textSecondary,
@@ -387,7 +413,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
         ElevatedButton.icon(
           onPressed: () => _loadExplanation(forceRefresh: true),
           icon: const Icon(Icons.refresh, size: 18),
-          label: const Text('Try Again'),
+          label: Text(isHindi ? 'पुनः प्रयास करें' : 'Try Again'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.premiumAccent,
             foregroundColor: AppColors.primary,
@@ -401,7 +427,143 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
     );
   }
 
-  Widget _buildLoadedState(SushilExplanationModel explanation) {
+  Widget _buildModeSelector(bool isHindi) {
+    final modes = [
+      {'id': 'standard', 'en': 'Standard', 'hi': 'सामान्य'},
+      {'id': 'simple', 'en': 'Explain simply', 'hi': 'सरल शब्दों में'},
+      {'id': 'detailed', 'en': 'In more detail', 'hi': 'विस्तार से'},
+      {'id': 'practical', 'en': 'Why this matters', 'hi': 'महत्व क्या है?'},
+      {'id': 'next_steps', 'en': 'What next?', 'hi': 'आगे क्या देखें?'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: modes.map((m) {
+          final isSelected = _currentMode == m['id'];
+          final title = isHindi ? m['hi']! : m['en']!;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: AppColors.premiumAccent,
+              backgroundColor: AppColors.surfaceElevated,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isSelected
+                      ? AppColors.premiumAccent
+                      : AppColors.border.withValues(alpha: 0.4),
+                ),
+              ),
+              onSelected: _isLoading
+                  ? null
+                  : (selected) {
+                      if (selected && _currentMode != m['id']) {
+                        _loadExplanation(mode: m['id']);
+                      }
+                    },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildJyotiHandoff(BuildContext context, bool isHindi) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.secondary.withValues(alpha: 0.4),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: AppColors.secondary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isHindi ? 'विशेष प्रश्न पूछना चाहते हैं?' : 'Have specific questions?',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isHindi
+                ? 'ज्योति AI के साथ बातचीत करें और अपने व्यक्तिगत प्रश्न पूछें।'
+                : 'Discuss this screen with Jyoti AI and ask free-form follow-up questions.',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => JyotiChatScreen(
+                      initialPrompt: isHindi
+                          ? 'मुझे ${widget.explanationContext.screenTitle} के बारे में और विस्तार से बताएं।'
+                          : 'Can you help me understand ${widget.explanationContext.screenTitle} in more detail?',
+                      initialScreen: widget.explanationContext.feature,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+              label: Text(
+                isHindi ? 'ज्योति AI से पूछें' : 'Ask Jyoti AI',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.premiumAccent,
+                side: const BorderSide(color: AppColors.premiumAccent),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadedState(
+      BuildContext context, SushilExplanationModel explanation, bool isHindi) {
     if (explanation.isEmptyData) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -436,7 +598,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Close'),
+            child: Text(isHindi ? 'बंद करें' : 'Close'),
           ),
           const SizedBox(height: 16),
         ],
@@ -447,6 +609,11 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Mode Selector Chips
+        _buildModeSelector(isHindi),
+
+        const SizedBox(height: 16),
+
         // Headline Card
         Container(
           width: double.infinity,
@@ -454,15 +621,15 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.surfaceElevated.withOpacity(0.9),
-                AppColors.tertiary.withOpacity(0.95),
+                AppColors.surfaceElevated.withValues(alpha: 0.9),
+                AppColors.tertiary.withValues(alpha: 0.95),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppColors.premiumAccent.withOpacity(0.4),
+              color: AppColors.premiumAccent.withValues(alpha: 0.4),
               width: 1,
             ),
           ),
@@ -497,10 +664,10 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.surface.withOpacity(0.6),
+            color: AppColors.surface.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppColors.border.withOpacity(0.5),
+              color: AppColors.border.withValues(alpha: 0.5),
               width: 1,
             ),
           ),
@@ -528,9 +695,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
               ),
               const SizedBox(width: 6),
               Text(
-                'KEY TAKEAWAYS',
+                isHindi ? 'मुख्य बिंदु' : 'KEY TAKEAWAYS',
                 style: TextStyle(
-                  color: AppColors.premiumAccent.withOpacity(0.95),
+                  color: AppColors.premiumAccent.withValues(alpha: 0.95),
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.8,
@@ -545,10 +712,10 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated.withOpacity(0.5),
+                  color: AppColors.surfaceElevated.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: AppColors.border.withOpacity(0.4),
+                    color: AppColors.border.withValues(alpha: 0.4),
                     width: 1,
                   ),
                 ),
@@ -589,12 +756,17 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           child: Text(
             explanation.disclaimer,
             style: TextStyle(
-              color: AppColors.textMuted.withOpacity(0.7),
+              color: AppColors.textMuted.withValues(alpha: 0.7),
               fontSize: 11,
               fontStyle: FontStyle.italic,
             ),
           ),
         ),
+
+        const SizedBox(height: 18),
+
+        // Jyoti Handoff Transition
+        _buildJyotiHandoff(context, isHindi),
 
         const SizedBox(height: 18),
 
@@ -612,9 +784,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
               ),
               elevation: 0,
             ),
-            child: const Text(
-              'Got It',
-              style: TextStyle(
+            child: Text(
+              isHindi ? 'समझ गया' : 'Got It',
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,

@@ -19,6 +19,8 @@ import 'divisional_charts_screen.dart';
 import 'planet_detail_screen.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 class BirthChartScreen extends ConsumerStatefulWidget {
   final BirthProfileModel? profile;
@@ -623,6 +625,14 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     return Column(
       key: const ValueKey('tab_chart'),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainBirthChartTitle,
+          whatIsText: context.l10n.explainBirthChartWhatIs,
+          howToReadText: context.l10n.explainBirthChartHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         // 1. SINGLE CLEAR CHART HEADING
         const Row(
           mainAxisAlignment: MainAxisAlignment.center,

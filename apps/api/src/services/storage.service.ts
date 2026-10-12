@@ -50,11 +50,25 @@ export class StorageService {
     return process.env.JWT_SECRET || process.env.STORAGE_SECRET || 'astro-sushil-storage-secret-key-v1';
   }
 
+  private validateKey(key: string): void {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Invalid storage key');
+    }
+    if (key.includes('\0') || key.includes('\n') || key.includes('\r')) {
+      throw new Error('Security Error: Path traversal attempt detected');
+    }
+    const normalized = path.normalize(key);
+    if (normalized.startsWith('..') || path.isAbsolute(normalized) || key.includes('..') || normalized.includes('../') || normalized.includes('..\\')) {
+      throw new Error('Security Error: Path traversal attempt detected');
+    }
+  }
+
   /**
    * Uploads binary object (e.g. PDF report) to private Cloudflare R2 object storage
    * or local fallback directory.
    */
   public async upload(input: ObjectStorageUploadInput): Promise<ObjectStorageUploadResult> {
+    this.validateKey(input.key);
     const checksum = crypto.createHash('sha256').update(input.body).digest('hex');
     const contentType = input.contentType || 'application/pdf';
     const config = this.r2Config;
@@ -122,6 +136,7 @@ export class StorageService {
    * Generates a short-lived signed download URL for private report viewing.
    */
   public async getSignedDownloadUrl(key: string, expiresInSeconds: number = 900): Promise<string> {
+    this.validateKey(key);
     const config = this.r2Config;
     const expiresAtMs = Date.now() + expiresInSeconds * 1000;
 
@@ -190,13 +205,19 @@ export class StorageService {
     }
     const payload = `${key}:${expiresMs}`;
     const expectedToken = crypto.createHmac('sha256', this.signingSecretKey).update(payload).digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+    const tokenBuf = Buffer.from(token);
+    const expectedBuf = Buffer.from(expectedToken);
+    if (tokenBuf.length !== expectedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(tokenBuf, expectedBuf);
   }
 
   /**
    * Deletes object from Cloudflare R2 or local disk storage.
    */
   public async delete(key: string): Promise<void> {
+    this.validateKey(key);
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;
@@ -235,6 +256,7 @@ export class StorageService {
    * Checks if object exists in Cloudflare R2 or local disk storage.
    */
   public async exists(key: string): Promise<boolean> {
+    this.validateKey(key);
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;
@@ -271,6 +293,7 @@ export class StorageService {
    * Gets metadata for object in Cloudflare R2 or local disk storage.
    */
   public async getMetadata(key: string): Promise<ObjectMetadata | null> {
+    this.validateKey(key);
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;
@@ -324,6 +347,7 @@ export class StorageService {
    * Downloads raw buffer of an object from Cloudflare R2 or local disk.
    */
   public async downloadBuffer(key: string): Promise<Buffer> {
+    this.validateKey(key);
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;

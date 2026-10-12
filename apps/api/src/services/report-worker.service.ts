@@ -16,6 +16,13 @@ import {
 import {
   careerReportService,
   latexCompiler,
+  generateKundliReport,
+  generatePlanetaryReport,
+  generateProHoroscopeReport,
+  generateMatchmakingReport,
+  validateAstrologyDataForReport,
+  DeterministicInterpretationProvider,
+  reportPdfService,
 } from '@astro/report-engine';
 
 export type ReportJobStage =
@@ -148,176 +155,374 @@ export class CareerReportWorker {
       // --- STAGE 1: QUEUED (0%) ---
       await this.updateJobStatus(reportId, 'QUEUED', 0, 'QUEUED');
 
-      // --- STAGE 2: CALCULATING (15%) ---
-      await this.updateJobStatus(reportId, 'CALCULATING', 15, 'CALCULATING');
+      if (report.reportType === 'CAREER') {
+        // --- STAGE 2: CALCULATING (15%) ---
+        await this.updateJobStatus(reportId, 'CALCULATING', 15, 'CALCULATING');
 
-      const normalizedChart = await astrologyService.calculateNormalizedChart(
-        { birthProfileId: report.birthProfileId },
-        { id: report.userId, role: 'USER' }
-      );
+        const normalizedChart = await astrologyService.calculateNormalizedChart(
+          { birthProfileId: report.birthProfileId },
+          { id: report.userId, role: 'USER' }
+        );
 
-      if (!normalizedChart || !normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
-        await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Ascendant data is missing from chart calculation.');
-        return;
-      }
-      if (!Array.isArray(normalizedChart.planets) || normalizedChart.planets.length < 9) {
-        await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Incomplete planetary positions from chart calculation.');
-        return;
-      }
-      if (!Array.isArray(normalizedChart.houses) || normalizedChart.houses.length < 12) {
-        await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Incomplete house positions from chart calculation.');
-        return;
-      }
-
-      // --- STAGE 3: ANALYZING (35%) ---
-      await this.updateJobStatus(reportId, 'ANALYZING', 35, 'ANALYZING');
-
-      // Select LLM Provider: Check LLM_PROVIDER env var first, fallback to OpenRouter if API key present
-      const llmProviderEnv = (process.env.LLM_PROVIDER || '').toLowerCase().trim();
-      const openrouterConfig = getOpenRouterCareerConfig();
-      const isApiKeyAvailable = Boolean(
-        openrouterConfig.apiKey &&
-        openrouterConfig.apiKey.trim().length > 0 &&
-        openrouterConfig.apiKey !== 'mock-key-dev'
-      );
-
-      const useMock = llmProviderEnv === 'mock' || (!isApiKeyAvailable && llmProviderEnv !== 'openrouter');
-      const provider: CareerAnalysisProvider = useMock
-        ? new MockCareerAnalysisProvider()
-        : new OpenRouterCareerAnalysisProvider();
-
-      logger.info(
-        { reportId, provider: useMock ? 'MOCK' : 'OPENROUTER', model: openrouterConfig.model },
-        '[CareerReportWorker] Initiating career analysis synthesis'
-      );
-
-      let pipelineResult;
-      try {
-        pipelineResult = await careerReportService.generateCareerReportData(normalizedChart, {
-          provider,
-          clientProfile: {
-            clientName: report.birthProfile.name,
-            dateOfBirth: report.birthProfile.dateOfBirth,
-            timeOfBirth: report.birthProfile.timeOfBirth,
-            birthPlace: report.birthProfile.placeName || undefined,
-            timeZone: report.birthProfile.timezone,
-            latitude: report.birthProfile.latitude,
-            longitude: report.birthProfile.longitude,
-          },
-        });
-      } catch (analysisErr: any) {
-        logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Career analysis failed');
-        await this.failJob(reportId, 'CAREER_ANALYSIS_FAILED', analysisErr.message || 'LLM Career Analysis failed.');
-        return;
-      }
-
-      // --- STAGE 4: RENDERING (60%) ---
-      await this.updateJobStatus(reportId, 'RENDERING', 60, 'RENDERING');
-      const reportDataTex = pipelineResult.reportDataTex;
-
-      // --- STAGE 5: COMPILING (75%) ---
-      await this.updateJobStatus(reportId, 'COMPILING', 75, 'COMPILING');
-
-      let compilationResult;
-      try {
-        compilationResult = await latexCompiler.compileReport({
-          reportId,
-          reportDataTex,
-          careerReportData: pipelineResult.reportData,
-          timeoutMs: 180000,
-        });
-      } catch (compileErr: any) {
-        const cleanMsg = compileErr?.message ? compileErr.message.split('\n')[0] : 'LaTeX PDF compilation failed.';
-        await this.failJob(reportId, 'LATEX_COMPILE_FAILED', cleanMsg);
-        return;
-      }
-
-
-      // --- STAGE 5.5: VALIDATING / QA (85%) ---
-      await this.updateJobStatus(reportId, 'COMPILING', 85, 'VALIDATING');
-      const isQaEnabled = process.env.REPORT_PDF_QA_ENABLED?.toLowerCase().trim() !== 'false';
-
-      const validation = validateReportPdf(
-        compilationResult.pdfBuffer,
-        compilationResult.pageCount,
-        reportDataTex
-      );
-
-      if (isQaEnabled) {
-        if (!validation.valid) {
-          logger.error({ reportId, reason: validation.reason }, '[CareerReportWorker] PDF Validation QA failed');
-          await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', validation.reason || 'PDF failed quality verification.');
+        if (!normalizedChart || !normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
+          await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Ascendant data is missing from chart calculation.');
           return;
         }
-      } else {
-        logger.info(
-          { reportId, pageCount: compilationResult.pageCount, valid: validation.valid, reason: validation.reason },
-          '[CareerReportWorker] PDF QA: SKIPPED (REPORT_PDF_QA_ENABLED=false)'
+        if (!Array.isArray(normalizedChart.planets) || normalizedChart.planets.length < 9) {
+          await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Incomplete planetary positions from chart calculation.');
+          return;
+        }
+        if (!Array.isArray(normalizedChart.houses) || normalizedChart.houses.length < 12) {
+          await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Incomplete house positions from chart calculation.');
+          return;
+        }
+
+        // --- STAGE 3: ANALYZING (35%) ---
+        await this.updateJobStatus(reportId, 'ANALYZING', 35, 'ANALYZING');
+
+        // Select LLM Provider: Check LLM_PROVIDER env var first, fallback to OpenRouter if API key present
+        const llmProviderEnv = (process.env.LLM_PROVIDER || '').toLowerCase().trim();
+        const openrouterConfig = getOpenRouterCareerConfig();
+        const isApiKeyAvailable = Boolean(
+          openrouterConfig.apiKey &&
+          openrouterConfig.apiKey.trim().length > 0 &&
+          openrouterConfig.apiKey !== 'mock-key-dev'
         );
-      }
 
-      // --- STAGE 6: UPLOADING (95%) ---
-      await this.updateJobStatus(reportId, 'UPLOADING', 95, 'UPLOADING');
+        const useMock = llmProviderEnv === 'mock' || (!isApiKeyAvailable && llmProviderEnv !== 'openrouter');
+        const provider: CareerAnalysisProvider = useMock
+          ? new MockCareerAnalysisProvider()
+          : new OpenRouterCareerAnalysisProvider();
 
-      const storageKey = `reports/${report.userId}/${reportId}.pdf`;
-      const fileName = `career-report-${report.birthProfile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
+        logger.info(
+          { reportId, provider: useMock ? 'MOCK' : 'OPENROUTER', model: openrouterConfig.model },
+          '[CareerReportWorker] Initiating career analysis synthesis'
+        );
 
-      let uploadResult;
-      try {
-        uploadResult = await storageService.upload({
-          key: storageKey,
-          body: compilationResult.pdfBuffer,
-          contentType: 'application/pdf',
-          metadata: {
-            userId: report.userId,
+        let pipelineResult;
+        try {
+          pipelineResult = await careerReportService.generateCareerReportData(normalizedChart, {
+            provider,
+            clientProfile: {
+              clientName: report.birthProfile.name,
+              dateOfBirth: report.birthProfile.dateOfBirth,
+              timeOfBirth: report.birthProfile.timeOfBirth,
+              birthPlace: report.birthProfile.placeName || undefined,
+              timeZone: report.birthProfile.timezone,
+              latitude: report.birthProfile.latitude,
+              longitude: report.birthProfile.longitude,
+            },
+          });
+        } catch (analysisErr: any) {
+          logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Career analysis failed');
+          await this.failJob(reportId, 'CAREER_ANALYSIS_FAILED', analysisErr.message || 'LLM Career Analysis failed.');
+          return;
+        }
+
+        // --- STAGE 4: RENDERING (60%) ---
+        await this.updateJobStatus(reportId, 'RENDERING', 60, 'RENDERING');
+        const reportDataTex = pipelineResult.reportDataTex;
+
+        // --- STAGE 5: COMPILING (75%) ---
+        await this.updateJobStatus(reportId, 'COMPILING', 75, 'COMPILING');
+
+        let compilationResult;
+        try {
+          compilationResult = await latexCompiler.compileReport({
             reportId,
-            birthProfileId: report.birthProfileId,
-          },
+            reportDataTex,
+            careerReportData: pipelineResult.reportData,
+            timeoutMs: 180000,
+          });
+        } catch (compileErr: any) {
+          const cleanMsg = compileErr?.message ? compileErr.message.split('\n')[0] : 'LaTeX PDF compilation failed.';
+          await this.failJob(reportId, 'LATEX_COMPILE_FAILED', cleanMsg);
+          return;
+        }
+
+        // --- STAGE 5.5: VALIDATING / QA (85%) ---
+        await this.updateJobStatus(reportId, 'COMPILING', 85, 'VALIDATING');
+        const isQaEnabled = process.env.REPORT_PDF_QA_ENABLED?.toLowerCase().trim() !== 'false';
+
+        const validation = validateReportPdf(
+          compilationResult.pdfBuffer,
+          compilationResult.pageCount,
+          reportDataTex
+        );
+
+        if (isQaEnabled) {
+          if (!validation.valid) {
+            logger.error({ reportId, reason: validation.reason }, '[CareerReportWorker] PDF Validation QA failed');
+            await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', validation.reason || 'PDF failed quality verification.');
+            return;
+          }
+        } else {
+          logger.info(
+            { reportId, pageCount: compilationResult.pageCount, valid: validation.valid, reason: validation.reason },
+            '[CareerReportWorker] PDF QA: SKIPPED (REPORT_PDF_QA_ENABLED=false)'
+          );
+        }
+
+        // --- STAGE 6: UPLOADING (95%) ---
+        await this.updateJobStatus(reportId, 'UPLOADING', 95, 'UPLOADING');
+
+        const storageKey = `reports/${report.userId}/${reportId}.pdf`;
+        const fileName = `career-report-${report.birthProfile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
+
+        let uploadResult;
+        try {
+          uploadResult = await storageService.upload({
+            key: storageKey,
+            body: compilationResult.pdfBuffer,
+            contentType: 'application/pdf',
+            metadata: {
+              userId: report.userId,
+              reportId,
+              birthProfileId: report.birthProfileId,
+            },
+          });
+        } catch (uploadErr: any) {
+          logger.error({ reportId, err: uploadErr.message }, '[CareerReportWorker] Object storage upload failed');
+          await this.failJob(reportId, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr.message || 'Object storage upload failed.');
+          return;
+        }
+
+        // --- STAGE 7: COMPLETED (100%) ---
+        const now = new Date();
+        await prisma.report.update({
+          where: { id: reportId },
+          data: {
+            status: 'COMPLETED',
+            stage: 'COMPLETED',
+            progress: 100,
+            s3Url: null,
+            storageKey,
+            fileName,
+            fileSize: uploadResult.fileSize,
+            pageCount: compilationResult.pageCount,
+            completedAt: now,
+            updatedAt: now,
+          } as any,
         });
-      } catch (uploadErr: any) {
-        logger.error({ reportId, err: uploadErr.message }, '[CareerReportWorker] Object storage upload failed');
-        await this.failJob(reportId, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr.message || 'Object storage upload failed.');
-        return;
-      }
 
-      // --- STAGE 7: COMPLETED (100%) ---
-      const now = new Date();
-      await prisma.report.update({
-        where: { id: reportId },
-        data: {
-          status: 'COMPLETED',
-          stage: 'COMPLETED',
-          progress: 100,
-          s3Url: null,
-          storageKey,
-          fileName,
-          fileSize: uploadResult.fileSize,
-          pageCount: compilationResult.pageCount,
-          completedAt: now,
-          updatedAt: now,
-        } as any,
-      });
+        const durationMs = Date.now() - startTime;
+        logger.info(
+          { reportId, durationMs, pageCount: compilationResult.pageCount, fileSize: compilationResult.fileSize },
+          '[CareerReportWorker] Career report completed successfully'
+        );
 
-      const durationMs = Date.now() - startTime;
-      logger.info(
-        { reportId, durationMs, pageCount: compilationResult.pageCount, fileSize: compilationResult.fileSize },
-        '[CareerReportWorker] Report completed successfully'
-      );
+        // Async notification dispatch (non-blocking)
+        try {
+          await notificationService.sendNotification({
+            userId: report.userId,
+            type: 'REPORT_READY',
+            entityId: report.id,
+            route: 'OPEN_REPORT',
+            templateData: {
+              reportName: 'Career Intelligence Report',
+              reportId: report.id,
+            },
+          });
+        } catch (notifErr) {
+          logger.error({ reportId, notifErr }, '[CareerReportWorker] Failed to dispatch report completion notification');
+        }
+      } else {
+        // --- STAGE 2: CALCULATING (15%) ---
+        await this.updateJobStatus(reportId, 'CALCULATING', 15, 'CALCULATING');
 
-      // Async notification dispatch (non-blocking)
-      try {
-        await notificationService.sendNotification({
-          userId: report.userId,
-          type: 'REPORT_READY',
-          entityId: report.id,
-          route: 'OPEN_REPORT',
-          templateData: {
-            reportName: report.reportType || 'Career Intelligence Report',
-            reportId: report.id,
-          },
+        const metadata = ((report as any).metadata || {}) as Record<string, any>;
+        const userCtx = { id: report.userId, role: 'USER' };
+        const interpretationProvider = new DeterministicInterpretationProvider();
+
+        const profileInput = {
+          name: report.birthProfile.name,
+          dateOfBirth: report.birthProfile.dateOfBirth,
+          timeOfBirth: report.birthProfile.timeOfBirth,
+          placeName: report.birthProfile.placeName,
+          timezone: report.birthProfile.timezone,
+          latitude: report.birthProfile.latitude,
+          longitude: report.birthProfile.longitude,
+        };
+
+        let structuredReport: any;
+
+        if (report.reportType === 'MARRIAGE_COMPATIBILITY') {
+          const partnerProfileId = metadata.partnerProfileId;
+          if (!partnerProfileId) {
+            await this.failJob(
+              reportId,
+              'MISSING_PARTNER_PROFILE',
+              'Partner birth profile ID is required for marriage compatibility report.'
+            );
+            return;
+          }
+
+          const partnerProfile = await prisma.birthProfile.findUnique({
+            where: { id: partnerProfileId },
+          });
+
+          if (!partnerProfile) {
+            await this.failJob(reportId, 'PARTNER_PROFILE_NOT_FOUND', 'Partner birth profile not found.');
+            return;
+          }
+
+          let chart1: any;
+          let chart2: any;
+          try {
+            chart1 = await astrologyService.calculateChartForProfile(report.birthProfileId, userCtx);
+            chart2 = await astrologyService.calculateChartForProfile(partnerProfileId, userCtx);
+            validateAstrologyDataForReport(chart1);
+            validateAstrologyDataForReport(chart2);
+          } catch (chartErr: any) {
+            await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', chartErr.message || 'Error calculating partner charts.');
+            return;
+          }
+
+          // --- STAGE 3: ANALYZING (35%) ---
+          await this.updateJobStatus(reportId, 'ANALYZING', 35, 'ANALYZING');
+
+          const profile2Input = {
+            name: partnerProfile.name,
+            dateOfBirth: partnerProfile.dateOfBirth,
+            timeOfBirth: partnerProfile.timeOfBirth,
+            placeName: partnerProfile.placeName,
+            timezone: partnerProfile.timezone,
+            latitude: partnerProfile.latitude,
+            longitude: partnerProfile.longitude,
+          };
+
+          try {
+            structuredReport = await generateMatchmakingReport(
+              profileInput,
+              profile2Input,
+              chart1,
+              chart2,
+              interpretationProvider
+            );
+          } catch (analysisErr: any) {
+            logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Matchmaking analysis failed');
+            await this.failJob(reportId, 'MATCHMAKING_ANALYSIS_FAILED', analysisErr.message || 'Matchmaking analysis failed.');
+            return;
+          }
+        } else {
+          let chartResponse: any;
+          try {
+            chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, userCtx);
+            validateAstrologyDataForReport(chartResponse);
+          } catch (chartErr: any) {
+            await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', chartErr.message || 'Incomplete chart data.');
+            return;
+          }
+
+          // --- STAGE 3: ANALYZING (35%) ---
+          await this.updateJobStatus(reportId, 'ANALYZING', 35, 'ANALYZING');
+
+          try {
+            if (report.reportType === 'KUNDLI') {
+              structuredReport = await generateKundliReport(profileInput, chartResponse, interpretationProvider);
+            } else if (report.reportType === 'PLANETARY_SUMMARY') {
+              structuredReport = await generatePlanetaryReport(profileInput, chartResponse, interpretationProvider);
+            } else if (report.reportType === 'CAREER_PROSITY') {
+              structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, interpretationProvider);
+            } else {
+              await this.failJob(reportId, 'UNSUPPORTED_REPORT_TYPE', `Report type ${report.reportType} is not supported.`);
+              return;
+            }
+          } catch (analysisErr: any) {
+            logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Report analysis failed');
+            await this.failJob(reportId, 'ANALYSIS_FAILED', analysisErr.message || 'Report analysis failed.');
+            return;
+          }
+        }
+
+        // --- STAGE 4: RENDERING (60%) ---
+        await this.updateJobStatus(reportId, 'RENDERING', 60, 'RENDERING');
+
+        // --- STAGE 5: COMPILING (75%) ---
+        await this.updateJobStatus(reportId, 'COMPILING', 75, 'COMPILING');
+
+        let pdfBuffer: Buffer;
+        try {
+          pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
+        } catch (renderErr: any) {
+          logger.error({ reportId, err: renderErr.message }, '[CareerReportWorker] PDF rendering failed');
+          await this.failJob(reportId, 'PDF_RENDER_FAILED', renderErr.message || 'PDF rendering failed.');
+          return;
+        }
+
+        // --- STAGE 5.5: VALIDATING (85%) ---
+        await this.updateJobStatus(reportId, 'COMPILING', 85, 'VALIDATING');
+        if (!pdfBuffer || pdfBuffer.length < 1000 || !pdfBuffer.slice(0, 5).toString('utf-8').startsWith('%PDF-')) {
+          await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', 'PDF binary verification failed (invalid %PDF header).');
+          return;
+        }
+
+        // --- STAGE 6: UPLOADING (95%) ---
+        await this.updateJobStatus(reportId, 'UPLOADING', 95, 'UPLOADING');
+
+        const storageKey = `reports/${report.userId}/${reportId}.pdf`;
+        const prefix = report.reportType.toLowerCase().replace(/_/g, '-');
+        const fileName = `${prefix}-${report.birthProfile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
+
+        let uploadResult;
+        try {
+          uploadResult = await storageService.upload({
+            key: storageKey,
+            body: pdfBuffer,
+            contentType: 'application/pdf',
+            metadata: {
+              userId: report.userId,
+              reportId,
+              birthProfileId: report.birthProfileId,
+              reportType: report.reportType,
+            },
+          });
+        } catch (uploadErr: any) {
+          logger.error({ reportId, err: uploadErr.message }, '[CareerReportWorker] Object storage upload failed');
+          await this.failJob(reportId, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr.message || 'Object storage upload failed.');
+          return;
+        }
+
+        // --- STAGE 7: COMPLETED (100%) ---
+        const pageCount = (report.reportType === 'MARRIAGE_COMPATIBILITY' || report.reportType === 'CAREER_PROSITY') ? 4 : 3;
+        const now = new Date();
+        await prisma.report.update({
+          where: { id: reportId },
+          data: {
+            status: 'COMPLETED',
+            stage: 'COMPLETED',
+            progress: 100,
+            s3Url: null,
+            storageKey,
+            fileName,
+            fileSize: uploadResult.fileSize,
+            pageCount,
+            completedAt: now,
+            updatedAt: now,
+          } as any,
         });
-      } catch (notifErr) {
-        logger.error({ reportId, notifErr }, '[CareerReportWorker] Failed to dispatch report completion notification');
+
+        const durationMs = Date.now() - startTime;
+        logger.info(
+          { reportId, durationMs, pageCount, fileSize: uploadResult.fileSize, reportType: report.reportType },
+          '[CareerReportWorker] Report completed successfully'
+        );
+
+        // Async notification dispatch (non-blocking)
+        try {
+          await notificationService.sendNotification({
+            userId: report.userId,
+            type: 'REPORT_READY',
+            entityId: report.id,
+            route: 'OPEN_REPORT',
+            templateData: {
+              reportName: report.reportType,
+              reportId: report.id,
+            },
+          });
+        } catch (notifErr) {
+          logger.error({ reportId, notifErr }, '[CareerReportWorker] Failed to dispatch report completion notification');
+        }
       }
     } catch (err: any) {
       logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Pipeline error occurred');

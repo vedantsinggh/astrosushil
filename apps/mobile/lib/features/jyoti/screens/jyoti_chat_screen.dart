@@ -30,7 +30,14 @@ import '../widgets/jyoti_user_message.dart';
 
 /// Main Chat Screen for Jyoti AI Assistant (Phase 1 UI Shell).
 class JyotiChatScreen extends ConsumerStatefulWidget {
-  const JyotiChatScreen({super.key});
+  final String? initialPrompt;
+  final String? initialScreen;
+
+  const JyotiChatScreen({
+    super.key,
+    this.initialPrompt,
+    this.initialScreen,
+  });
 
   @override
   ConsumerState<JyotiChatScreen> createState() => _JyotiChatScreenState();
@@ -38,6 +45,19 @@ class JyotiChatScreen extends ConsumerStatefulWidget {
 
 class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPrompt != null && widget.initialPrompt!.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(jyotiControllerProvider.notifier).sendMessage(
+              widget.initialPrompt!.trim(),
+              currentScreen: widget.initialScreen,
+            );
+      });
+    }
+  }
 
   @override
   void dispose() {

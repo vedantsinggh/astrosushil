@@ -53,12 +53,16 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
   Future<void> generateReport({
     required String birthProfileId,
     required String reportType,
+    String? partnerProfileId,
+    String? orderId,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final result = await _service.generateReport(
         birthProfileId: birthProfileId,
         reportType: reportType,
+        partnerProfileId: partnerProfileId,
+        orderId: orderId,
       );
       state = state.copyWith(isLoading: false, reportResponse: result);
     } on AppException catch (e) {

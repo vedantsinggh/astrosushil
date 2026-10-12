@@ -16,6 +16,7 @@ class StorageKeys {
   static const String userProfile = 'user_profile';
   static const String isGuestMode = 'is_guest_mode';
   static const String guestBirthProfile = 'guest_birth_profile';
+  static const String appLocale = 'app_locale';
 }
 
 /// Production implementation using FlutterSecureStorage

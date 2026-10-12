@@ -19,6 +19,8 @@ import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Vedic Panchanga (The 5 Cosmic Limbs of Time)
 /// Built deterministically using Fastify backend /astrology/panchang
@@ -167,6 +169,14 @@ class PanchangaScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Educational Explanation Card
+              AstrologyExplanationCard(
+                title: context.l10n.explainPanchangaTitle,
+                whatIsText: context.l10n.explainPanchangaWhatIs,
+                howToReadText: context.l10n.explainPanchangaHowToRead,
+              ),
+              const SizedBox(height: 12),
+
               // 1. CONTEXT HEADER: Date, Location & Timezone
               _buildContextBanner(panchang, profile),
 

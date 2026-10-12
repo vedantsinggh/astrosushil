@@ -18,6 +18,8 @@ import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Vedic Ashtakavarga charts (SAV, BAV, Shodhana & Shodhya Pindas)
 /// Evaluated deterministically via Fastify backend /astrology/ashtakavarga
@@ -135,24 +137,32 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
   Widget _buildTabContent(BuildContext context, AshtakavargaResultModel report) {
     switch (_selectedTabIndex) {
       case 0:
-        return _buildSarvashtakavargaView(report.sav);
+        return _buildSarvashtakavargaView(context, report.sav);
       case 1:
         return _buildBhinnashtakavargaView(report.bav);
       case 2:
         return _buildShodhanaAndPindasView(report);
       default:
-        return _buildSarvashtakavargaView(report.sav);
+        return _buildSarvashtakavargaView(context, report.sav);
     }
   }
 
   // ==========================================
   // TAB 1: SARVASHTAKAVARGA (SAV)
   // ==========================================
-  Widget _buildSarvashtakavargaView(SarvashtakavargaModel sav) {
+  Widget _buildSarvashtakavargaView(BuildContext context, SarvashtakavargaModel sav) {
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainAshtakavargaTitle,
+          whatIsText: context.l10n.explainAshtakavargaWhatIs,
+          howToReadText: context.l10n.explainAshtakavargaHowToRead,
+        ),
+        const SizedBox(height: 12),
+
         // Grand Total Hero Card
         Container(
           padding: const EdgeInsets.all(16),
@@ -503,17 +513,17 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               return [
                 PlanetChip(planetName: p, isCompact: true),
                 Text(
-                  '${pinda?.rashiPinda ?? 0}',
+                  pinda?.rashiPinda != null ? '${pinda!.rashiPinda}' : '—',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  '${pinda?.grahaPinda ?? 0}',
+                  pinda?.grahaPinda != null ? '${pinda!.grahaPinda}' : '—',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  '${pinda?.shodhyaPinda ?? 0}',
+                  pinda?.shodhyaPinda != null ? '${pinda!.shodhyaPinda}' : '—',
                   style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.secondary),
                   textAlign: TextAlign.right,
                 ),
@@ -540,12 +550,12 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               return [
                 PlanetChip(planetName: p, isCompact: true),
                 Text(
-                  '${shodhana?.totalTrikonaPoints ?? 0}',
+                  shodhana?.totalTrikonaPoints != null ? '${shodhana!.totalTrikonaPoints}' : '—',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  '${shodhana?.totalEkadhipatyaPoints ?? 0}',
+                  shodhana?.totalEkadhipatyaPoints != null ? '${shodhana!.totalEkadhipatyaPoints}' : '—',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                   textAlign: TextAlign.right,
                 ),

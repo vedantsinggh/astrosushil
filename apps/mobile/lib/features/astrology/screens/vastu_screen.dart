@@ -42,7 +42,7 @@ class VastuScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: const AstroAppBar(
-        title: 'Vastu',
+        title: 'Vastu Shastra',
       ),
       body: SubtleCelestialBackground(
         child: SafeArea(

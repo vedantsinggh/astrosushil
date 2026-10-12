@@ -426,10 +426,11 @@ export class AnalyticsService {
     const typeMap = new Map<string, { reportType: string; paidCount: number; revenueRupees: number }>();
     for (const item of byTypeRaw) {
       if (item.status === 'PAID') {
-        const existing = typeMap.get(item.reportType) || { reportType: item.reportType, paidCount: 0, revenueRupees: 0 };
+        const typeKey = item.reportType || 'GENERAL_PURCHASE';
+        const existing = typeMap.get(typeKey) || { reportType: typeKey, paidCount: 0, revenueRupees: 0 };
         existing.paidCount += item._count.id;
         existing.revenueRupees += (item._sum.amount || 0) / 100;
-        typeMap.set(item.reportType, existing);
+        typeMap.set(typeKey, existing);
       }
     }
 

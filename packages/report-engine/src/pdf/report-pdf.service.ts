@@ -1,4 +1,12 @@
-import { StructuredReportModel, ReportType } from '../types/report.types';
+import {
+  StructuredReportModel,
+  ReportType,
+  MiniHoroscopeModel,
+  ProHoroscopeModel,
+  MatchmakingReportModel,
+  ReportHouseDto,
+  ReportPlanetDto,
+} from '../types/report.types';
 import { CareerReportData } from '../types/career-report.types';
 import { validateAstrologyDataForReport } from '../validation/report-data.validator';
 import { PdfWriter, PdfColors } from './pdf-writer';
@@ -98,364 +106,280 @@ export class ReportPdfService {
     pdf.setFillColor(PdfColors.INDIGO);
     pdf.drawRect(pdf.marginLeft, 735, pdf.contentWidth, 22, true, false);
 
-    pdf.drawText('Planet', colX[0] + 5, 742, 9, true, PdfColors.WHITE);
-    pdf.drawText('Sign', colX[1] + 5, 742, 9, true, PdfColors.WHITE);
-    pdf.drawText('House', colX[2] + 5, 742, 9, true, PdfColors.WHITE);
-    pdf.drawText('Nakshatra', colX[3] + 5, 742, 9, true, PdfColors.WHITE);
-    pdf.drawText('Dignity', colX[4] + 5, 742, 9, true, PdfColors.WHITE);
-    pdf.drawText('Career Role', colX[5] + 5, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Planet', colX[0] + 10, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Sign', colX[1] + 10, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('House', colX[2] + 10, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Nakshatra', colX[3] + 10, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Role', colX[4] + 10, 742, 9, true, PdfColors.WHITE);
+    pdf.drawText('Dignity', colX[5] + 10, 742, 9, true, PdfColors.WHITE);
 
-    const planetList = Object.values(careerData.planets || {});
-    let tableY = 715;
-    for (let i = 0; i < planetList.length; i++) {
-      const p = planetList[i] as any;
-      if (!p || typeof p !== 'object') continue;
-      const bg = i % 2 === 0 ? PdfColors.WHITE : PdfColors.LIGHT_BG;
-      pdf.setFillColor(bg);
-      pdf.setStrokeColor(PdfColors.BORDER_GREY);
-      pdf.setLineWidth(0.5);
-      pdf.drawRect(pdf.marginLeft, tableY - 5, pdf.contentWidth, 20, true, true);
+    let rowY = 715;
+    const planets: any[] = Object.values((careerData as any).planets || {});
+    for (let i = 0; i < planets.length; i++) {
+      const p = planets[i];
+      pdf.setFillColor(i % 2 === 0 ? PdfColors.WHITE : PdfColors.LIGHT_BG);
+      pdf.drawRect(pdf.marginLeft, rowY - 14, pdf.contentWidth, 18, true, false);
 
-      pdf.drawText(p.name || 'Planet', colX[0] + 5, tableY, 8.5, true, PdfColors.DARK_TEXT);
-      pdf.drawText(p.sign || '-', colX[1] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
-      pdf.drawText(p.house || '-', colX[2] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
-      pdf.drawText(p.nakshatra || '-', colX[3] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
-      pdf.drawText(p.dignity || '-', colX[4] + 5, tableY, 8.5, false, PdfColors.DARK_TEXT);
-      pdf.drawText(p.careerSignificance || 'Influence', colX[5] + 5, tableY, 8, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.planet || p.name || '', colX[0] + 10, rowY - 10, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.sign || '', colX[1] + 10, rowY - 10, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(String(p.house || ''), colX[2] + 10, rowY - 10, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.nakshatra || '', colX[3] + 10, rowY - 10, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.role || p.nature || '', colX[4] + 10, rowY - 10, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(p.dignity || '', colX[5] + 10, rowY - 10, 9, false, PdfColors.DARK_TEXT);
 
-      tableY -= 20;
+      rowY -= 18;
     }
-
-    pdf.setFillColor(PdfColors.WHITE);
-    pdf.setStrokeColor(PdfColors.GOLD);
-    pdf.setLineWidth(1);
-    pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 440, true, true);
-
-    pdf.drawText('6. APTITUDES & SECTOR FIT ANALYSIS', pdf.marginLeft + 15, 480, 12, true, PdfColors.NAVY);
-    const sectorText = (careerData.careerAnalysis as any)?.sectorFit || careerData.careerAnalysis?.careerDirections?.[0]?.whySupported || 'Sector fit and career fields analysis.';
-    this.drawWrappedText(pdf, sectorText, pdf.marginLeft + 15, 455, pdf.contentWidth - 30, 9.5, 14);
-
-    // PAGE 4: Action Plan & Final Synthesis
-    pdf.addPage();
-    pdf.drawHeader('Strategic Action Plan & Synthesis');
 
     pdf.setFillColor(PdfColors.LIGHT_BG);
-    pdf.setStrokeColor(PdfColors.INDIGO);
-    pdf.setLineWidth(1);
-    pdf.drawRect(pdf.marginLeft, 460, pdf.contentWidth, 320, true, true);
-
-    pdf.drawText('7. STRATEGIC ACTION PLAN', pdf.marginLeft + 15, 760, 12, true, PdfColors.NAVY);
-    const actionPlanText = (careerData.careerAnalysis as any)?.actionPlanSummary || careerData.careerAnalysis?.decisionFramework || 'Step-by-step career action plan.';
-    this.drawWrappedText(pdf, actionPlanText, pdf.marginLeft + 15, 735, pdf.contentWidth - 30, 9.5, 14);
-
-    pdf.setFillColor(PdfColors.WHITE);
-    pdf.setStrokeColor(PdfColors.PURPLE);
-    pdf.setLineWidth(1);
+    pdf.setStrokeColor(PdfColors.GOLD);
     pdf.drawRect(pdf.marginLeft, 60, pdf.contentWidth, 380, true, true);
 
-    pdf.drawText('8. FINAL SYNTHESIS & DEVELOPMENT PRIORITIES', pdf.marginLeft + 15, 420, 12, true, PdfColors.NAVY);
-    const finalSynthText = careerData.careerAnalysis?.finalSynthesis || 'Final synthesis and professional development priorities.';
-    this.drawWrappedText(pdf, finalSynthText, pdf.marginLeft + 15, 395, pdf.contentWidth - 30, 9.5, 14);
+    pdf.drawText('6. PROFESSIONAL APTITUDES & CAREER PATHWAYS', pdf.marginLeft + 15, 420, 12, true, PdfColors.NAVY);
+    const aptitudesText =
+      (careerData.careerAnalysis as any)?.aptitudesAndPathways ||
+      (careerData.careerAnalysis as any)?.naturalStrengths ||
+      (careerData.careerAnalysis as any)?.careerDNAAnalysis ||
+      'Core professional aptitudes and viable pathways.';
+    this.drawWrappedText(pdf, aptitudesText, pdf.marginLeft + 15, 395, pdf.contentWidth - 30, 9.5, 14);
 
     return pdf.buildPdfBuffer();
-  }
-
-  private drawWrappedText(
-    pdf: PdfWriter,
-    text: string,
-    x: number,
-    startY: number,
-    maxWidth: number,
-    fontSize: number = 9.5,
-    lineHeight: number = 14
-  ): number {
-    const paragraphs = text.split('\n');
-    let currentY = startY;
-
-    for (const para of paragraphs) {
-      if (!para.trim()) {
-        currentY -= lineHeight * 0.6;
-        continue;
-      }
-
-      const words = para.split(' ');
-      let currentLine = '';
-
-      for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const approxWidth = testLine.length * fontSize * 0.52;
-
-        if (approxWidth > maxWidth && currentLine) {
-          pdf.drawText(currentLine, x, currentY, fontSize, false, PdfColors.DARK_TEXT);
-          currentY -= lineHeight;
-          currentLine = word;
-        } else {
-          currentLine = testLine;
-        }
-      }
-
-      if (currentLine) {
-        pdf.drawText(currentLine, x, currentY, fontSize, false, PdfColors.DARK_TEXT);
-        currentY -= lineHeight;
-      }
-    }
-
-    return currentY;
   }
 
   /**
-   * Generates a downloadable PDF buffer from a validated StructuredReportModel.
-   * Does NOT perform any astrology calculations. Uses exact structured report JSON.
+   * Generates a downloadable PDF buffer from any validated Structured Report Model.
+   * Polymorphically routes to the respective tier's vector PDF renderer.
    */
-  public async generateReportPdf(report: StructuredReportModel): Promise<Buffer> {
-    // 1. Validate complete data integrity before generating PDF
-    validateAstrologyDataForReport(report);
-
+  public async generateReportPdf(report: any): Promise<Buffer> {
     const pdf = new PdfWriter();
 
-    if (report.type === ReportType.PLANETARY_SUMMARY) {
+    if (report.type === ReportType.MARRIAGE_COMPATIBILITY) {
+      this.buildMatchmakingPdf(pdf, report as MatchmakingReportModel);
+    } else if (report.type === ReportType.CAREER_PROSITY) {
+      this.buildProHoroscopePdf(pdf, report as ProHoroscopeModel);
+    } else if (report.type === ReportType.PLANETARY_SUMMARY) {
       this.buildPlanetaryPdf(pdf, report);
     } else {
-      this.buildKundliPdf(pdf, report);
+      this.buildKundliPdf(pdf, report as StructuredReportModel);
     }
 
     return pdf.buildPdfBuffer();
   }
 
-  // --- KUNDLI REPORT PDF BUILDER ---
+  // ---------------------------------------------------------------------------
+  // 1. BASIC HOROSCOPE (KUNDLI REPORT PDF BUILDER)
+  // ---------------------------------------------------------------------------
 
   private buildKundliPdf(pdf: PdfWriter, report: StructuredReportModel): void {
     // PAGE 1: Cover Header, Profile, Config, Ascendant & Nakshatra
     pdf.drawHeader('Birth Chart & Kundli Report');
 
-    // 1. Main Cover Banner Box
+    // Banner Box
     pdf.setFillColor(PdfColors.NAVY);
     pdf.setStrokeColor(PdfColors.GOLD);
     pdf.setLineWidth(2);
     pdf.drawRect(pdf.marginLeft, 690, pdf.contentWidth, 90, true, true);
 
     pdf.drawText('ASTRO SUSHIL', pdf.marginLeft + 20, 755, 20, true, PdfColors.GOLD);
-    pdf.drawText('BIRTH CHART & KUNDLI DOSSIER', pdf.marginLeft + 20, 735, 14, true, PdfColors.WHITE);
+    pdf.drawText('JANMA KUNDLI & LIFE BLUEPRINT', pdf.marginLeft + 20, 735, 14, true, PdfColors.WHITE);
     pdf.drawText(
-      `Generated: ${new Date(report.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}  |  Version ${report.version}`,
+      `Native: ${report.profile.name}  |  Generated: ${new Date(report.generatedAt).toLocaleDateString()}  |  Version ${report.version}`,
       pdf.marginLeft + 20,
-      708,
+      712,
       9,
       false,
       PdfColors.WHITE
     );
 
-    // 2. Birth Profile Box
+    // Birth Profile Box
     let curY = 660;
     pdf.setFillColor(PdfColors.LIGHT_BG);
     pdf.setStrokeColor(PdfColors.BORDER_GREY);
     pdf.setLineWidth(1);
-    pdf.drawRect(pdf.marginLeft, curY - 100, pdf.contentWidth, 100, true, true);
+    pdf.drawRect(pdf.marginLeft, curY - 95, pdf.contentWidth, 95, true, true);
 
-    pdf.drawText('1. BIRTH PROFILE', pdf.marginLeft + 15, curY - 20, 11, true, PdfColors.INDIGO);
-    pdf.drawText(`Full Name:`, pdf.marginLeft + 15, curY - 42, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.profile.name, pdf.marginLeft + 110, curY - 42, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText('1. BIRTH PROFILE & SYSTEM CONFIGURATION', pdf.marginLeft + 15, curY - 18, 11, true, PdfColors.INDIGO);
+    pdf.drawText(`Full Name: ${report.profile.name}`, pdf.marginLeft + 15, curY - 38, 9.5, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Date & Time: ${report.profile.dateOfBirth} ${report.profile.timeOfBirth}`, pdf.marginLeft + 15, curY - 54, 9.5, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Place & Timezone: ${report.profile.placeName || 'Not Specified'} (${report.profile.timezone})`, pdf.marginLeft + 15, curY - 70, 9.5, false, PdfColors.DARK_TEXT);
 
-    pdf.drawText(`Date of Birth:`, pdf.marginLeft + 15, curY - 60, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.profile.dateOfBirth, pdf.marginLeft + 110, curY - 60, 10, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Zodiac: ${report.configuration.zodiacType}`, pdf.marginLeft + 310, curY - 38, 9.5, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Ayanamsa: ${report.configuration.ayanamsa}`, pdf.marginLeft + 310, curY - 54, 9.5, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`House System: ${report.configuration.houseSystem}`, pdf.marginLeft + 310, curY - 70, 9.5, false, PdfColors.DARK_TEXT);
 
-    pdf.drawText(`Time of Birth:`, pdf.marginLeft + 270, curY - 60, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.profile.timeOfBirth, pdf.marginLeft + 360, curY - 60, 10, false, PdfColors.DARK_TEXT);
-
-    pdf.drawText(`Place of Birth:`, pdf.marginLeft + 15, curY - 78, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.profile.placeName || 'Not Specified', pdf.marginLeft + 110, curY - 78, 10, false, PdfColors.DARK_TEXT);
-
-    pdf.drawText(`Timezone:`, pdf.marginLeft + 270, curY - 78, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.profile.timezone, pdf.marginLeft + 360, curY - 78, 10, false, PdfColors.DARK_TEXT);
-
-    // 3. Chart Configuration Box
-    curY -= 120;
+    // Ascendant & Janma Nakshatra Box
+    curY -= 115;
     pdf.setFillColor(PdfColors.WHITE);
-    pdf.setStrokeColor(PdfColors.BORDER_GREY);
-    pdf.drawRect(pdf.marginLeft, curY - 80, pdf.contentWidth, 80, true, true);
-
-    pdf.drawText('2. CHART CONFIGURATION', pdf.marginLeft + 15, curY - 20, 11, true, PdfColors.INDIGO);
-    pdf.drawText(`Zodiac System:`, pdf.marginLeft + 15, curY - 42, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.configuration.zodiacType, pdf.marginLeft + 120, curY - 42, 10, false, PdfColors.DARK_TEXT);
-
-    pdf.drawText(`Ayanamsa:`, pdf.marginLeft + 270, curY - 42, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.configuration.ayanamsa, pdf.marginLeft + 360, curY - 42, 10, false, PdfColors.DARK_TEXT);
-
-    pdf.drawText(`House System:`, pdf.marginLeft + 15, curY - 62, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.configuration.houseSystem, pdf.marginLeft + 120, curY - 62, 10, false, PdfColors.DARK_TEXT);
-
-    pdf.drawText(`Node Calc:`, pdf.marginLeft + 270, curY - 62, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(report.configuration.nodeCalculation, pdf.marginLeft + 360, curY - 62, 10, false, PdfColors.DARK_TEXT);
-
-    // 4. Ascendant & Nakshatra Summary Box
-    curY -= 100;
-    pdf.setFillColor(PdfColors.LIGHT_BG);
     pdf.setStrokeColor(PdfColors.PURPLE);
-    pdf.setLineWidth(1.5);
-    pdf.drawRect(pdf.marginLeft, curY - 110, pdf.contentWidth, 110, true, true);
+    pdf.drawRect(pdf.marginLeft, curY - 75, pdf.contentWidth, 75, true, true);
 
-    pdf.drawText('3. ASCENDANT & JANMA NAKSHATRA', pdf.marginLeft + 15, curY - 22, 11, true, PdfColors.PURPLE);
+    pdf.drawText('2. ASCENDANT (LAGNA) & JANMA NAKSHATRA', pdf.marginLeft + 15, curY - 18, 11, true, PdfColors.PURPLE);
+    pdf.drawText(`Ascendant Sign: ${report.ascendant.sign} (${report.ascendant.degree.toFixed(2)}°)`, pdf.marginLeft + 15, curY - 38, 9.5, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Ascendant Nakshatra: ${report.ascendant.nakshatra} (Pada ${report.ascendant.pada})`, pdf.marginLeft + 15, curY - 54, 9.5, false, PdfColors.DARK_TEXT);
 
-    pdf.drawText(`Ascendant (Lagna):`, pdf.marginLeft + 15, curY - 46, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(
-      `${report.ascendant.sign} (${(typeof report.ascendant.degree === 'number' ? report.ascendant.degree : 0).toFixed(2)} deg)`,
-      pdf.marginLeft + 140,
-      curY - 46,
-      10,
-      false,
-      PdfColors.DARK_TEXT
-    );
+    pdf.drawText(`Moon Nakshatra: ${report.nakshatra.birthNakshatra} (Pada ${report.nakshatra.pada})`, pdf.marginLeft + 280, curY - 38, 9.5, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Nakshatra Lord: ${report.nakshatra.rulingPlanet}`, pdf.marginLeft + 280, curY - 54, 9.5, false, PdfColors.DARK_TEXT);
 
-    pdf.drawText(`Ascendant Nakshatra:`, pdf.marginLeft + 15, curY - 66, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(
-      `${report.ascendant.nakshatra} (Pada ${report.ascendant.pada})`,
-      pdf.marginLeft + 140,
-      curY - 66,
-      10,
-      false,
-      PdfColors.DARK_TEXT
-    );
+    // North Indian Chart
+    curY -= 95;
+    pdf.drawText('4. NORTH INDIAN KUNDLI CHART', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+    curY -= 190;
+    this.renderNorthIndianChart(pdf, report.houses, report.planets, 200, curY, 175);
 
-    pdf.drawText(`Janma Nakshatra:`, pdf.marginLeft + 15, curY - 86, 10, true, PdfColors.DARK_TEXT);
-    pdf.drawText(
-      `${report.nakshatra.birthNakshatra} (Pada ${report.nakshatra.pada})  |  Lord: ${report.nakshatra.rulingPlanet}`,
-      pdf.marginLeft + 140,
-      curY - 86,
-      10,
-      false,
-      PdfColors.DARK_TEXT
-    );
-
-    // PAGE 2: North Indian Kundli Chart Diagram & Planetary Positions Table
+    // PAGE 2: Chandra Kundli & 9 Grahas Table
     pdf.addPage();
-    pdf.drawHeader('Birth Chart & Kundli Report');
+    pdf.drawHeader('Birth Chart & Planetary Placements');
 
-    pdf.drawText('4. NORTH INDIAN KUNDLI CHART', pdf.marginLeft, 775, 12, true, PdfColors.INDIGO);
+    if (report.chandraKundli) {
+      pdf.drawText('4. CHANDRA KUNDLI (MOON CHART)', pdf.marginLeft, 775, 11, true, PdfColors.INDIGO);
+      this.renderNorthIndianChart(pdf, report.chandraKundli.houses, report.planets, 200, 580, 175);
+      curY = 550;
+    } else {
+      curY = 775;
+    }
 
-    // Render Vector Kundli Chart
-    this.renderNorthIndianChart(pdf, report, 197, 545, 200);
-
-    // 5. Planetary Positions Table
-    curY = 515;
-    pdf.drawText('5. PLANETARY POSITIONS', pdf.marginLeft, curY, 12, true, PdfColors.INDIGO);
-
+    pdf.drawText('5. NINE GRAHA PLACEMENTS & POSITIONS', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
     curY -= 20;
-    // Table Header
+
     pdf.setFillColor(PdfColors.INDIGO);
     pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
 
     const cols = [
-      { name: 'Planet', x: pdf.marginLeft + 10 },
-      { name: 'Sign', x: pdf.marginLeft + 90 },
-      { name: 'Degree', x: pdf.marginLeft + 170 },
+      { name: 'Graha', x: pdf.marginLeft + 10 },
+      { name: 'Rashi (Sign)', x: pdf.marginLeft + 90 },
+      { name: 'Degrees', x: pdf.marginLeft + 175 },
       { name: 'House', x: pdf.marginLeft + 250 },
-      { name: 'Nakshatra', x: pdf.marginLeft + 310 },
-      { name: 'Pada', x: pdf.marginLeft + 410 },
-      { name: 'Status', x: pdf.marginLeft + 465 },
+      { name: 'Nakshatra', x: pdf.marginLeft + 315 },
+      { name: 'Pada', x: pdf.marginLeft + 415 },
+      { name: 'Motion', x: pdf.marginLeft + 470 },
     ];
 
-    for (const col of cols) {
-      pdf.drawText(col.name, col.x, curY - 14, 9, true, PdfColors.WHITE);
+    for (const c of cols) {
+      pdf.drawText(c.name, c.x, curY - 14, 9, true, PdfColors.WHITE);
     }
 
     curY -= 20;
-    // Table Rows
     let isAlt = false;
     for (const p of report.planets) {
-      if (curY < 60) {
-        pdf.addPage();
-        pdf.drawHeader('Birth Chart & Kundli Report');
-        curY = 760;
-      }
-
       pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
       pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
 
       pdf.drawText(p.planet, cols[0].x, curY - 12, 9, true, PdfColors.DARK_TEXT);
       pdf.drawText(p.sign, cols[1].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(`${(typeof p.degree === 'number' ? p.degree : 0).toFixed(2)} deg`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(`${p.degree.toFixed(2)}°`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(`House ${p.house}`, cols[3].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(p.nakshatra, cols[4].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
       pdf.drawText(String(p.pada), cols[5].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-
-      if (p.isRetrograde) {
-        pdf.drawText('Retrograde (R)', cols[6].x, curY - 12, 8, true, PdfColors.ROSE);
-      } else {
-        pdf.drawText('Direct', cols[6].x, curY - 12, 8, false, PdfColors.GREY_TEXT);
-      }
+      pdf.drawText(p.isRetrograde ? 'Retrograde (R)' : 'Direct', cols[6].x, curY - 12, 8, p.isRetrograde, p.isRetrograde ? PdfColors.ROSE : PdfColors.GREY_TEXT);
 
       curY -= 18;
       isAlt = !isAlt;
     }
 
-    // PAGE 3: House Summary & Interpretation Sections
+    // PAGE 3: Vimshottari Dasha & Dosha Analysis
     pdf.addPage();
-    pdf.drawHeader('Birth Chart & Kundli Report');
+    pdf.drawHeader('Vimshottari Dasha & Dosha Analysis');
 
-    pdf.drawText('6. HOUSES & PLACEMENTS SUMMARY', pdf.marginLeft, 775, 12, true, PdfColors.INDIGO);
-
-    curY = 755;
-    pdf.setFillColor(PdfColors.INDIGO);
-    pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
-
-    pdf.drawText('House', pdf.marginLeft + 15, curY - 14, 9, true, PdfColors.WHITE);
-    pdf.drawText('Sign (Rashi)', pdf.marginLeft + 120, curY - 14, 9, true, PdfColors.WHITE);
-    pdf.drawText('Occupate Planets', pdf.marginLeft + 280, curY - 14, 9, true, PdfColors.WHITE);
-
-    curY -= 20;
-    isAlt = false;
-    for (const h of report.houses) {
-      pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
-      pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
-
-      pdf.drawText(`House ${h.houseNumber}`, pdf.marginLeft + 15, curY - 12, 9, true, PdfColors.DARK_TEXT);
-      pdf.drawText(h.sign, pdf.marginLeft + 120, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(
-        h.planetsPresent.length > 0 ? h.planetsPresent.join(', ') : 'None',
-        pdf.marginLeft + 280,
-        curY - 12,
-        9,
-        h.planetsPresent.length > 0,
-        h.planetsPresent.length > 0 ? PdfColors.PURPLE : PdfColors.GREY_TEXT
-      );
-
-      curY -= 18;
-      isAlt = !isAlt;
-    }
-
-    curY -= 25;
-    pdf.drawText('7. ASTROLOGICAL INSIGHTS & INTERPRETATIONS', pdf.marginLeft, curY, 12, true, PdfColors.INDIGO);
-    curY -= 15;
-
-    for (const sec of report.sections) {
-      if (curY < 120) {
-        pdf.addPage();
-        pdf.drawHeader('Birth Chart & Kundli Report');
-        curY = 760;
-      }
+    if (report.vimshottariDasha) {
+      pdf.drawText('6. VIMSHOTTARI DASHA TIMELINE', pdf.marginLeft, 775, 11, true, PdfColors.INDIGO);
 
       pdf.setFillColor(PdfColors.LIGHT_BG);
       pdf.setStrokeColor(PdfColors.BORDER_GREY);
-      pdf.drawRect(pdf.marginLeft, curY - 70, pdf.contentWidth, 70, true, true);
+      pdf.drawRect(pdf.marginLeft, 715, pdf.contentWidth, 38, true, true);
 
-      pdf.drawText(sec.title, pdf.marginLeft + 15, curY - 18, 10, true, PdfColors.PURPLE);
+      pdf.drawText(
+        `Active Mahadasha: ${report.vimshottariDasha.currentMahadasha}   |   Current Antardasha: ${report.vimshottariDasha.currentAntardasha}`,
+        pdf.marginLeft + 15,
+        734,
+        10,
+        true,
+        PdfColors.PURPLE
+      );
+      pdf.drawText(
+        `Cycle Window: ${report.vimshottariDasha.currentCycleStart} to ${report.vimshottariDasha.currentCycleEnd}`,
+        pdf.marginLeft + 15,
+        721,
+        8.5,
+        false,
+        PdfColors.GREY_TEXT
+      );
 
-      // Split text roughly if long
-      const textLines = this.wrapText(sec.content, 95);
-      let lineY = curY - 34;
-      for (const line of textLines.slice(0, 3)) {
-        pdf.drawText(line, pdf.marginLeft + 15, lineY, 8.5, false, PdfColors.DARK_TEXT);
-        lineY -= 12;
+      curY = 700;
+      for (const d of report.vimshottariDasha.timeline.slice(0, 9)) {
+        pdf.setFillColor(d.isCurrent ? PdfColors.WHITE : PdfColors.LIGHT_BG);
+        pdf.drawRect(pdf.marginLeft, curY - 14, pdf.contentWidth, 16, true, false);
+
+        pdf.drawText(d.planet, pdf.marginLeft + 15, curY - 10, 8.5, d.isCurrent, d.isCurrent ? PdfColors.ROSE : PdfColors.DARK_TEXT);
+        pdf.drawText(`${d.durationYears} Years`, pdf.marginLeft + 120, curY - 10, 8.5, false, PdfColors.DARK_TEXT);
+        pdf.drawText(`${d.startDate} to ${d.endDate}`, pdf.marginLeft + 240, curY - 10, 8.5, false, PdfColors.DARK_TEXT);
+        pdf.drawText(d.isCurrent ? 'ACTIVE NOW' : 'Scheduled', pdf.marginLeft + 440, curY - 10, 8, true, d.isCurrent ? PdfColors.ROSE : PdfColors.GREY_TEXT);
+
+        curY -= 16;
+      }
+      curY -= 15;
+    } else {
+      curY = 775;
+    }
+
+    if (report.doshaAnalysis) {
+      pdf.drawText('7. CLASSICAL DOSHA EVALUATION', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      curY -= 15;
+
+      const doshas = [
+        { name: 'Manglik Dosha', status: report.doshaAnalysis.manglik.isManglik ? `Active (${report.doshaAnalysis.manglik.severity})` : 'Not Present', desc: report.doshaAnalysis.manglik.description },
+        { name: 'Sade Sati Status', status: report.doshaAnalysis.sadeSati.isSadeSatiActive ? `Active (${report.doshaAnalysis.sadeSati.phaseName})` : 'Not Active', desc: report.doshaAnalysis.sadeSati.description },
+        { name: 'Kaal Sarp Yoga', status: report.doshaAnalysis.kaalSarp.isKaalSarpPresent ? report.doshaAnalysis.kaalSarp.typeName : 'Not Present', desc: report.doshaAnalysis.kaalSarp.description },
+      ];
+
+      for (const d of doshas) {
+        pdf.setFillColor(PdfColors.LIGHT_BG);
+        pdf.setStrokeColor(PdfColors.BORDER_GREY);
+        pdf.drawRect(pdf.marginLeft, curY - 45, pdf.contentWidth, 45, true, true);
+
+        pdf.drawText(d.name, pdf.marginLeft + 15, curY - 15, 9.5, true, PdfColors.NAVY);
+        pdf.drawText(`Status: ${d.status}`, pdf.marginLeft + 280, curY - 15, 9, true, d.status.includes('Active') || d.status.includes('Present') ? PdfColors.ROSE : PdfColors.PURPLE);
+        this.drawWrappedText(pdf, d.desc, pdf.marginLeft + 15, curY - 28, pdf.contentWidth - 30, 8.5, 11);
+
+        curY -= 52;
+      }
+    }
+
+    // Gemstone Recommendations Card
+    if (report.gemstoneRecommendations) {
+      if (curY < 180) {
+        pdf.addPage();
+        pdf.drawHeader('Gemstone Recommendations');
+        curY = 775;
       }
 
-      curY -= 80;
+      pdf.drawText('8. ASTRONOMICAL GEMSTONE RECOMMENDATIONS (TRIKONA LORDS)', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      curY -= 15;
+
+      const gems = [
+        { label: 'Life Stone (1st Lord)', item: report.gemstoneRecommendations.lagnaGem },
+        { label: 'Lucky Stone (5th Lord)', item: report.gemstoneRecommendations.luckyGem5th },
+        { label: 'Fortune Stone (9th Lord)', item: report.gemstoneRecommendations.fortuneGem9th },
+      ];
+
+      for (const g of gems) {
+        pdf.setFillColor(PdfColors.WHITE);
+        pdf.setStrokeColor(PdfColors.GOLD);
+        pdf.drawRect(pdf.marginLeft, curY - 42, pdf.contentWidth, 42, true, true);
+
+        pdf.drawText(`${g.label}: ${g.item.gemstone} (${g.item.sanskritName})`, pdf.marginLeft + 15, curY - 14, 9.5, true, PdfColors.NAVY);
+        pdf.drawText(`Ruler: ${g.item.rulingLord}  |  Finger: ${g.item.finger}  |  Metal: ${g.item.metal}`, pdf.marginLeft + 15, curY - 26, 8.5, false, PdfColors.DARK_TEXT);
+        pdf.drawText(`Caution: ${g.item.caution}`, pdf.marginLeft + 15, curY - 37, 7.5, false, PdfColors.GREY_TEXT);
+
+        curY -= 48;
+      }
     }
   }
 
-  // --- PLANETARY SUMMARY PDF BUILDER ---
+  // ---------------------------------------------------------------------------
+  // 2. MINI HOROSCOPE (PLANETARY TRANSIT FORECAST PDF BUILDER)
+  // ---------------------------------------------------------------------------
 
-  private buildPlanetaryPdf(pdf: PdfWriter, report: StructuredReportModel): void {
-    pdf.drawHeader('Planetary Summary Report');
+  private buildPlanetaryPdf(pdf: PdfWriter, report: any): void {
+    pdf.drawHeader('Mini Horoscope & Transit Forecast');
 
     // Header Banner Box
     pdf.setFillColor(PdfColors.NAVY);
@@ -466,7 +390,7 @@ export class ReportPdfService {
     pdf.drawText('ASTRO SUSHIL', pdf.marginLeft + 20, 755, 20, true, PdfColors.GOLD);
     pdf.drawText('PLANETARY DYNAMICS & FORCE SUMMARY', pdf.marginLeft + 20, 735, 14, true, PdfColors.WHITE);
     pdf.drawText(
-      `Profile: ${report.profile.name}  |  Generated: ${new Date(report.generatedAt).toLocaleDateString()}`,
+      `Profile: ${report.profile.name}  |  Forecast: Next 180 Days (6 Months)  |  Reference Date: ${new Date(report.generatedAt).toLocaleDateString()}`,
       pdf.marginLeft + 20,
       708,
       9,
@@ -476,95 +400,417 @@ export class ReportPdfService {
 
     let curY = 660;
 
-    // Detailed Planetary Table
-    pdf.drawText('PLANETARY BREAKDOWN & SPEEDS', pdf.marginLeft, curY, 12, true, PdfColors.INDIGO);
+    // Transits Table
+    const transits = report.miniHoroscopeData?.currentTransits || [];
+    if (transits.length > 0) {
+      pdf.drawText('1. CURRENT PLANETARY TRANSITS (GOCHARA)', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      curY -= 20;
+
+      pdf.setFillColor(PdfColors.INDIGO);
+      pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
+
+      const tCols = [
+        { name: 'Planet', x: pdf.marginLeft + 10 },
+        { name: 'Sign', x: pdf.marginLeft + 80 },
+        { name: 'Degrees', x: pdf.marginLeft + 150 },
+        { name: 'House from Moon', x: pdf.marginLeft + 225 },
+        { name: 'Influence', x: pdf.marginLeft + 340 },
+        { name: 'Status', x: pdf.marginLeft + 460 },
+      ];
+
+      for (const col of tCols) {
+        pdf.drawText(col.name, col.x, curY - 14, 9, true, PdfColors.WHITE);
+      }
+
+      curY -= 20;
+      let isAlt = false;
+      for (const t of transits) {
+        pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
+        pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
+
+        pdf.drawText(t.planet, tCols[0].x, curY - 12, 9, true, PdfColors.DARK_TEXT);
+        pdf.drawText(t.currentSign, tCols[1].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
+        pdf.drawText(`${t.currentDegree.toFixed(1)}°`, tCols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
+        pdf.drawText(`House ${t.houseFromMoon}`, tCols[3].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
+        pdf.drawText(t.status, tCols[4].x, curY - 12, 8.5, true, t.status === 'FAVORABLE' ? PdfColors.PURPLE : PdfColors.ROSE);
+        pdf.drawText(t.isRetrograde ? 'Retrograde' : 'Direct', tCols[5].x, curY - 12, 8, false, PdfColors.GREY_TEXT);
+
+        curY -= 18;
+        isAlt = !isAlt;
+      }
+    }
+
+    // Sade Sati Status Card
+    const sadeSati = report.miniHoroscopeData?.sadeSati;
+    if (sadeSati) {
+      curY -= 15;
+      pdf.drawText('2. SHANI SADE SATI & DHAIYYA EVALUATION', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      curY -= 15;
+
+      pdf.setFillColor(PdfColors.LIGHT_BG);
+      pdf.setStrokeColor(PdfColors.PURPLE);
+      pdf.drawRect(pdf.marginLeft, curY - 55, pdf.contentWidth, 55, true, true);
+
+      pdf.drawText(
+        `Status: ${sadeSati.isSadeSatiActive ? `Active (${sadeSati.phaseName})` : 'No Active Sade Sati'}`,
+        pdf.marginLeft + 15,
+        curY - 18,
+        10,
+        true,
+        sadeSati.isSadeSatiActive ? PdfColors.ROSE : PdfColors.NAVY
+      );
+      this.drawWrappedText(pdf, sadeSati.description, pdf.marginLeft + 15, curY - 32, pdf.contentWidth - 30, 8.5, 11);
+      curY -= 65;
+    }
+
+    // PAGE 2: 3-to-6 Month Transit Windows & Caution Periods
+    pdf.addPage();
+    pdf.drawHeader('Upcoming Transit Windows & Caution Periods');
+    curY = 775;
+
+    const windows = report.miniHoroscopeData?.transitWindows || [];
+    if (windows.length > 0) {
+      pdf.drawText('3. SIGNIFICANT 3-TO-6 MONTH TRANSIT WINDOWS', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      curY -= 15;
+
+      for (const w of windows) {
+        pdf.setFillColor(PdfColors.WHITE);
+        pdf.setStrokeColor(PdfColors.GOLD);
+        pdf.drawRect(pdf.marginLeft, curY - 60, pdf.contentWidth, 60, true, true);
+
+        pdf.drawText(`${w.planet}: ${w.event}`, pdf.marginLeft + 15, curY - 16, 9.5, true, PdfColors.NAVY);
+        pdf.drawText(`Window: ${w.startDate} to ${w.endDate}`, pdf.marginLeft + 310, curY - 16, 8.5, false, PdfColors.GREY_TEXT);
+        pdf.drawText(`Significance: ${w.significance}`, pdf.marginLeft + 15, curY - 30, 8.5, false, PdfColors.DARK_TEXT);
+        pdf.drawText(`Guidance: ${w.recommendation}`, pdf.marginLeft + 15, curY - 44, 8.5, false, PdfColors.PURPLE);
+
+        curY -= 68;
+      }
+    }
+
+    const cautions = report.miniHoroscopeData?.cautionPeriods || [];
+    if (cautions.length > 0) {
+      curY -= 10;
+      pdf.drawText('4. SENSITIVE TRANSIT WINDOWS & CAUTION PERIODS', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      curY -= 15;
+
+      for (const c of cautions) {
+        pdf.setFillColor(PdfColors.LIGHT_BG);
+        pdf.setStrokeColor(PdfColors.BORDER_GREY);
+        pdf.drawRect(pdf.marginLeft, curY - 42, pdf.contentWidth, 42, true, true);
+
+        pdf.drawText(`Caution Window: ${c.period} (${c.planet})`, pdf.marginLeft + 15, curY - 16, 9.5, true, PdfColors.ROSE);
+        this.drawWrappedText(pdf, c.caution, pdf.marginLeft + 15, curY - 28, pdf.contentWidth - 30, 8.5, 11);
+
+        curY -= 48;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. PRO HOROSCOPE (SHODASHVARGA & SHADBALA PDF BUILDER)
+  // ---------------------------------------------------------------------------
+
+  private buildProHoroscopePdf(pdf: PdfWriter, report: ProHoroscopeModel): void {
+    pdf.drawHeader('Pro Horoscope & Shodashvarga Dossier');
+
+    // Header Banner
+    pdf.setFillColor(PdfColors.NAVY);
+    pdf.setStrokeColor(PdfColors.GOLD);
+    pdf.setLineWidth(2);
+    pdf.drawRect(pdf.marginLeft, 690, pdf.contentWidth, 90, true, true);
+
+    pdf.drawText('ASTRO SUSHIL', pdf.marginLeft + 20, 755, 20, true, PdfColors.GOLD);
+    pdf.drawText('PRO HOROSCOPE & SHODASHVARGA MULTI-DIMENSIONAL DOSSIER', pdf.marginLeft + 20, 735, 12, true, PdfColors.WHITE);
+    pdf.drawText(
+      `Native: ${report.profile.name}  |  Generated: ${new Date(report.generatedAt).toLocaleDateString()}  |  Engine Version 1.0.0`,
+      pdf.marginLeft + 20,
+      712,
+      9,
+      false,
+      PdfColors.WHITE
+    );
+
+    let curY = 660;
+
+    // Multi-Divisional Varga Summary Table
+    pdf.drawText('1. SHODASHVARGA MULTI-DIVISIONAL SUMMARY', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
     curY -= 20;
 
     pdf.setFillColor(PdfColors.INDIGO);
     pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
 
-    const cols = [
-      { name: 'Planet', x: pdf.marginLeft + 10 },
-      { name: 'Sign', x: pdf.marginLeft + 90 },
-      { name: 'Degree', x: pdf.marginLeft + 170 },
-      { name: 'House', x: pdf.marginLeft + 250 },
-      { name: 'Nakshatra', x: pdf.marginLeft + 310 },
-      { name: 'Pada', x: pdf.marginLeft + 410 },
-      { name: 'Status', x: pdf.marginLeft + 465 },
+    const vCols = [
+      { name: 'Varga', x: pdf.marginLeft + 10 },
+      { name: 'Name', x: pdf.marginLeft + 65 },
+      { name: 'Lagna', x: pdf.marginLeft + 150 },
+      { name: 'Focus Area & Significance', x: pdf.marginLeft + 240 },
     ];
 
-    for (const col of cols) {
-      pdf.drawText(col.name, col.x, curY - 14, 9, true, PdfColors.WHITE);
+    for (const c of vCols) {
+      pdf.drawText(c.name, c.x, curY - 14, 9, true, PdfColors.WHITE);
     }
 
     curY -= 20;
     let isAlt = false;
-    for (const p of report.planets) {
-      if (curY < 100) {
-        pdf.addPage();
-        pdf.drawHeader('Planetary Summary Report');
-        curY = 760;
-      }
+    for (const v of report.vargas) {
+      pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
+      pdf.drawRect(pdf.marginLeft, curY - 20, pdf.contentWidth, 22, true, false);
 
+      pdf.drawText(v.vargaCode, vCols[0].x, curY - 13, 9, true, PdfColors.DARK_TEXT);
+      pdf.drawText(v.vargaName, vCols[1].x, curY - 13, 9, false, PdfColors.DARK_TEXT);
+      pdf.drawText(v.ascendantSign, vCols[2].x, curY - 13, 9, true, PdfColors.PURPLE);
+      pdf.drawText(v.focusArea, vCols[3].x, curY - 13, 8.5, false, PdfColors.DARK_TEXT);
+
+      curY -= 22;
+      isAlt = !isAlt;
+    }
+
+    // 6-Fold Shadbala Table
+    curY -= 15;
+    pdf.drawText('2. 6-FOLD SHADBALA PLANETARY STRENGTHS (BPHS CH. 27)', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+    curY -= 20;
+
+    pdf.setFillColor(PdfColors.INDIGO);
+    pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
+
+    const sCols = [
+      { name: 'Planet', x: pdf.marginLeft + 10 },
+      { name: 'Sthana', x: pdf.marginLeft + 70 },
+      { name: 'Dig', x: pdf.marginLeft + 130 },
+      { name: 'Kala', x: pdf.marginLeft + 185 },
+      { name: 'Cheshta', x: pdf.marginLeft + 240 },
+      { name: 'Total Rupas', x: pdf.marginLeft + 310 },
+      { name: 'Required', x: pdf.marginLeft + 395 },
+      { name: 'Strength', x: pdf.marginLeft + 465 },
+    ];
+
+    for (const c of sCols) {
+      pdf.drawText(c.name, c.x, curY - 14, 8.5, true, PdfColors.WHITE);
+    }
+
+    curY -= 20;
+    isAlt = false;
+    for (const s of report.shadbala) {
       pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
       pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
 
-      pdf.drawText(p.planet, cols[0].x, curY - 12, 9, true, PdfColors.DARK_TEXT);
-      pdf.drawText(p.sign, cols[1].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(`${(typeof p.degree === 'number' ? p.degree : 0).toFixed(2)} deg`, cols[2].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(`House ${p.house}`, cols[3].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(p.nakshatra, cols[4].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-      pdf.drawText(String(p.pada), cols[5].x, curY - 12, 9, false, PdfColors.DARK_TEXT);
-
-      if (p.isRetrograde) {
-        pdf.drawText('Retrograde (R)', cols[6].x, curY - 12, 8, true, PdfColors.ROSE);
-      } else {
-        pdf.drawText('Direct', cols[6].x, curY - 12, 8, false, PdfColors.GREY_TEXT);
-      }
+      pdf.drawText(s.planet, sCols[0].x, curY - 12, 8.5, true, PdfColors.DARK_TEXT);
+      pdf.drawText(s.sthanaBala.toFixed(1), sCols[1].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(s.digBala.toFixed(1), sCols[2].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(s.kalaBala.toFixed(1), sCols[3].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(s.cheshtaBala.toFixed(1), sCols[4].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(`${s.totalRupas.toFixed(2)} R`, sCols[5].x, curY - 12, 8.5, true, PdfColors.NAVY);
+      pdf.drawText(`${s.requiredRupas.toFixed(2)} R`, sCols[6].x, curY - 12, 8.5, false, PdfColors.GREY_TEXT);
+      pdf.drawText(s.isStrong ? 'STRONG' : 'DEFICIENT', sCols[7].x, curY - 12, 8, true, s.isStrong ? PdfColors.PURPLE : PdfColors.ROSE);
 
       curY -= 18;
       isAlt = !isAlt;
     }
 
-    if (curY < 140) {
-      pdf.addPage();
-      pdf.drawHeader('Planetary Summary Report');
-      curY = 760;
+    // PAGE 2: 12 Bhava Bala Strengths & Classical Remedies
+    pdf.addPage();
+    pdf.drawHeader('Bhava Bala & Classical Vedic Remedies');
+    curY = 775;
+
+    pdf.drawText('3. 12 BHAVA BALA HOUSE STRENGTHS (BPHS CH. 29)', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+    curY -= 20;
+
+    pdf.setFillColor(PdfColors.INDIGO);
+    pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
+
+    const bCols = [
+      { name: 'House', x: pdf.marginLeft + 10 },
+      { name: 'Sign', x: pdf.marginLeft + 75 },
+      { name: 'Lord', x: pdf.marginLeft + 155 },
+      { name: 'Lord Bala', x: pdf.marginLeft + 235 },
+      { name: 'Dig Bala', x: pdf.marginLeft + 315 },
+      { name: 'Total Rupas', x: pdf.marginLeft + 400 },
+      { name: 'Rank', x: pdf.marginLeft + 480 },
+    ];
+
+    for (const c of bCols) {
+      pdf.drawText(c.name, c.x, curY - 14, 8.5, true, PdfColors.WHITE);
     }
 
-    curY -= 25;
-    pdf.drawText('PLANETARY FORCE ANALYSIS', pdf.marginLeft, curY, 12, true, PdfColors.INDIGO);
+    curY -= 20;
+    isAlt = false;
+    for (const b of report.bhavaBala) {
+      pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
+      pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
+
+      pdf.drawText(`House ${b.houseNumber}`, bCols[0].x, curY - 12, 8.5, true, PdfColors.DARK_TEXT);
+      pdf.drawText(b.sign, bCols[1].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(b.lord, bCols[2].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(b.bhavadhipatiBala.toFixed(1), bCols[3].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(b.bhavaDigBala.toFixed(1), bCols[4].x, curY - 12, 8.5, false, PdfColors.DARK_TEXT);
+      pdf.drawText(`${b.totalRupas.toFixed(2)} R`, bCols[5].x, curY - 12, 8.5, true, PdfColors.NAVY);
+      pdf.drawText(`#${b.relativeRank}`, bCols[6].x, curY - 12, 8.5, false, PdfColors.PURPLE);
+
+      curY -= 18;
+      isAlt = !isAlt;
+    }
+
+    // Classical Remedies Card
+    curY -= 15;
+    pdf.drawText('4. GROUNDED VEDIC REMEDIES (MANTRAS & DANA)', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
     curY -= 15;
 
-    for (const sec of report.sections) {
-      if (curY < 100) {
-        pdf.addPage();
-        pdf.drawHeader('Planetary Summary Report');
-        curY = 760;
+    for (const r of report.remedies) {
+      pdf.setFillColor(PdfColors.WHITE);
+      pdf.setStrokeColor(PdfColors.GOLD);
+      pdf.drawRect(pdf.marginLeft, curY - 45, pdf.contentWidth, 45, true, true);
+
+      pdf.drawText(`[${r.type}] ${r.title}`, pdf.marginLeft + 15, curY - 15, 9.5, true, PdfColors.NAVY);
+      this.drawWrappedText(pdf, r.description, pdf.marginLeft + 15, curY - 27, pdf.contentWidth - 30, 8.5, 11);
+      if (r.mantraText) {
+        pdf.drawText(`Mantra: ${r.mantraText}`, pdf.marginLeft + 15, curY - 38, 8, true, PdfColors.PURPLE);
       }
 
-      pdf.setFillColor(PdfColors.LIGHT_BG);
-      pdf.setStrokeColor(PdfColors.BORDER_GREY);
-      pdf.drawRect(pdf.marginLeft, curY - 70, pdf.contentWidth, 70, true, true);
-
-      pdf.drawText(sec.title, pdf.marginLeft + 15, curY - 18, 10, true, PdfColors.PURPLE);
-
-      const textLines = this.wrapText(sec.content, 95);
-      let lineY = curY - 34;
-      for (const line of textLines.slice(0, 3)) {
-        pdf.drawText(line, pdf.marginLeft + 15, lineY, 8.5, false, PdfColors.DARK_TEXT);
-        lineY -= 12;
-      }
-
-      curY -= 80;
+      curY -= 52;
     }
   }
 
-  // --- NORTH INDIAN KUNDLI VECTOR CHART RENDERER ---
+  // ---------------------------------------------------------------------------
+  // 4. MATCHMAKING REPORT (ASHTAKOOTA GUNA MILAN PDF BUILDER)
+  // ---------------------------------------------------------------------------
+
+  private buildMatchmakingPdf(pdf: PdfWriter, report: MatchmakingReportModel): void {
+    pdf.drawHeader('Marriage Compatibility & Kundli Milan');
+
+    // Header Banner
+    pdf.setFillColor(PdfColors.NAVY);
+    pdf.setStrokeColor(PdfColors.GOLD);
+    pdf.setLineWidth(2);
+    pdf.drawRect(pdf.marginLeft, 690, pdf.contentWidth, 90, true, true);
+
+    pdf.drawText('ASTRO SUSHIL', pdf.marginLeft + 20, 755, 20, true, PdfColors.GOLD);
+    pdf.drawText('VEDIC KUNDLI MILAN & ASHTAKOOTA DOSSIER', pdf.marginLeft + 20, 735, 14, true, PdfColors.WHITE);
+    pdf.drawText(
+      `Groom: ${report.profile1.name}   &   Bride: ${report.profile2.name}   |   Date: ${new Date(report.generatedAt).toLocaleDateString()}`,
+      pdf.marginLeft + 20,
+      712,
+      9,
+      false,
+      PdfColors.WHITE
+    );
+
+    // Dual Profiles Card
+    let curY = 660;
+    pdf.setFillColor(PdfColors.LIGHT_BG);
+    pdf.setStrokeColor(PdfColors.BORDER_GREY);
+    pdf.drawRect(pdf.marginLeft, curY - 80, pdf.contentWidth, 80, true, true);
+
+    pdf.drawText('1. PARTNER PROFILES', pdf.marginLeft + 15, curY - 18, 11, true, PdfColors.INDIGO);
+
+    // Groom (Left)
+    pdf.drawText(`Groom: ${report.profile1.name}`, pdf.marginLeft + 15, curY - 36, 9.5, true, PdfColors.DARK_TEXT);
+    pdf.drawText(`Birth: ${report.profile1.dateOfBirth} ${report.profile1.timeOfBirth}`, pdf.marginLeft + 15, curY - 50, 9, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Place: ${report.profile1.placeName || 'Not Specified'}`, pdf.marginLeft + 15, curY - 64, 9, false, PdfColors.DARK_TEXT);
+
+    // Bride (Right)
+    pdf.drawText(`Bride: ${report.profile2.name}`, pdf.marginLeft + 280, curY - 36, 9.5, true, PdfColors.DARK_TEXT);
+    pdf.drawText(`Birth: ${report.profile2.dateOfBirth} ${report.profile2.timeOfBirth}`, pdf.marginLeft + 280, curY - 50, 9, false, PdfColors.DARK_TEXT);
+    pdf.drawText(`Place: ${report.profile2.placeName || 'Not Specified'}`, pdf.marginLeft + 280, curY - 64, 9, false, PdfColors.DARK_TEXT);
+
+    // Total Guna Milan Score Banner
+    curY -= 100;
+    pdf.setFillColor(PdfColors.WHITE);
+    pdf.setStrokeColor(PdfColors.GOLD);
+    pdf.setLineWidth(1.8);
+    pdf.drawRect(pdf.marginLeft, curY - 70, pdf.contentWidth, 70, true, true);
+
+    pdf.drawText(
+      `TOTAL ASHTAKOOTA SCORE: ${report.gunaMilan.totalScore} / ${report.gunaMilan.maxScore} POINTS`,
+      pdf.marginLeft + 15,
+      curY - 22,
+      14,
+      true,
+      PdfColors.NAVY
+    );
+    pdf.drawText(`VERDICT: ${report.gunaMilan.verdict}`, pdf.marginLeft + 15, curY - 40, 11, true, PdfColors.PURPLE);
+    this.drawWrappedText(pdf, report.gunaMilan.verdictDescription, pdf.marginLeft + 15, curY - 55, pdf.contentWidth - 30, 8.5, 11);
+
+    // Manglik Comparison Card
+    curY -= 90;
+    pdf.setFillColor(PdfColors.LIGHT_BG);
+    pdf.setStrokeColor(PdfColors.PURPLE);
+    pdf.drawRect(pdf.marginLeft, curY - 65, pdf.contentWidth, 65, true, true);
+
+    pdf.drawText('2. MANGLIK (KUJA DOSHA) COMPARATIVE VERDICT', pdf.marginLeft + 15, curY - 18, 11, true, PdfColors.PURPLE);
+    pdf.drawText(`Verdict: ${report.manglikComparison.verdict}`, pdf.marginLeft + 15, curY - 34, 10, true, PdfColors.NAVY);
+    this.drawWrappedText(pdf, report.manglikComparison.explanation, pdf.marginLeft + 15, curY - 48, pdf.contentWidth - 30, 8.5, 11);
+
+    // PAGE 2: Ashtakoota 8 Kootas Table & Synthesis
+    pdf.addPage();
+    pdf.drawHeader('Ashtakoota Components & Compatibility Synthesis');
+    curY = 775;
+
+    pdf.drawText('3. ASHTAKOOTA 8-FOLD BREAKDOWN (36 GUNA MILAN)', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+    curY -= 20;
+
+    pdf.setFillColor(PdfColors.INDIGO);
+    pdf.drawRect(pdf.marginLeft, curY - 18, pdf.contentWidth, 22, true, false);
+
+    const kCols = [
+      { name: 'Koota Name', x: pdf.marginLeft + 10 },
+      { name: 'Max', x: pdf.marginLeft + 150 },
+      { name: 'Obtained', x: pdf.marginLeft + 200 },
+      { name: 'Status', x: pdf.marginLeft + 270 },
+      { name: 'Significance & Meaning', x: pdf.marginLeft + 350 },
+    ];
+
+    for (const c of kCols) {
+      pdf.drawText(c.name, c.x, curY - 14, 8.5, true, PdfColors.WHITE);
+    }
+
+    curY -= 20;
+    let isAlt = false;
+    for (const k of report.gunaMilan.kootas) {
+      pdf.setFillColor(isAlt ? PdfColors.LIGHT_BG : PdfColors.WHITE);
+      pdf.drawRect(pdf.marginLeft, curY - 16, pdf.contentWidth, 18, true, false);
+
+      pdf.drawText(k.name, kCols[0].x, curY - 12, 8.5, true, PdfColors.DARK_TEXT);
+      pdf.drawText(String(k.maxPoints), kCols[1].x, curY - 12, 8.5, false, PdfColors.GREY_TEXT);
+      pdf.drawText(String(k.obtainedPoints), kCols[2].x, curY - 12, 8.5, true, PdfColors.NAVY);
+      pdf.drawText(k.status, kCols[3].x, curY - 12, 8, true, k.status === 'EXCELLENT' ? PdfColors.PURPLE : k.status === 'DOSHA' ? PdfColors.ROSE : PdfColors.DARK_TEXT);
+      pdf.drawText(k.description, kCols[4].x, curY - 12, 8, false, PdfColors.DARK_TEXT);
+
+      curY -= 18;
+      isAlt = !isAlt;
+    }
+
+    // Synthesis Card
+    curY -= 15;
+    pdf.drawText('4. COMPATIBILITY SYNTHESIS & HARMONY ANALYSIS', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+    curY -= 15;
+
+    const synItems = [
+      { title: 'Mental & Psychological Rapport', text: report.synthesis.mentalHarmony },
+      { title: 'Emotional & Affectional Bond', text: report.synthesis.emotionalHarmony },
+      { title: 'Biological & Progeny Vitality', text: report.synthesis.healthAndProgeny },
+      { title: 'Astrological Guidance & Synthesis', text: report.synthesis.remediesOrGuidance },
+    ];
+
+    for (const s of synItems) {
+      pdf.setFillColor(PdfColors.LIGHT_BG);
+      pdf.setStrokeColor(PdfColors.BORDER_GREY);
+      pdf.drawRect(pdf.marginLeft, curY - 40, pdf.contentWidth, 40, true, true);
+
+      pdf.drawText(s.title, pdf.marginLeft + 15, curY - 14, 9.5, true, PdfColors.NAVY);
+      this.drawWrappedText(pdf, s.text, pdf.marginLeft + 15, curY - 26, pdf.contentWidth - 30, 8.5, 11);
+
+      curY -= 46;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER: NORTH INDIAN KUNDLI VECTOR CHART RENDERER
+  // ---------------------------------------------------------------------------
 
   private renderNorthIndianChart(
     pdf: PdfWriter,
-    report: StructuredReportModel,
+    houses: ReportHouseDto[],
+    planets: any[],
     x0: number,
     y0: number,
     s: number
@@ -572,64 +818,56 @@ export class ReportPdfService {
     const x1 = x0 + s;
     const y1 = y0 + s;
 
-    // 1. Draw Background Tint & Outer Square
+    // Outer Square
     pdf.setFillColor(PdfColors.WHITE);
     pdf.setStrokeColor(PdfColors.INDIGO);
     pdf.setLineWidth(1.8);
     pdf.drawRect(x0, y0, s, s, true, true);
 
-    // 2. Draw Diagonals
+    // Diagonals
     pdf.setLineWidth(1.2);
     pdf.drawLine(x0, y1, x1, y0);
     pdf.drawLine(x1, y1, x0, y0);
 
-    // 3. Draw Inner Diamond (connecting side midpoints)
+    // Inner Diamond
     const midX = x0 + s / 2;
     const midY = y0 + s / 2;
 
     pdf.drawPoly([
-      { x: midX, y: y1 }, // Top-Mid
-      { x: x1, y: midY }, // Right-Mid
-      { x: midX, y: y0 }, // Bottom-Mid
-      { x: x0, y: midY }, // Left-Mid
+      { x: midX, y: y1 },
+      { x: x1, y: midY },
+      { x: midX, y: y0 },
+      { x: x0, y: midY },
     ]);
 
-    // 4. House Compartment Coordinates & Content Placement
+    // House Compartments
     const houseCenters = [
-      { h: 1, x: midX, y: y0 + s * 0.76 }, // Top Inner Diamond (Lagna)
-      { h: 2, x: x0 + s * 0.25, y: y0 + s * 0.88 }, // Top-Left Outer Triangle
-      { h: 3, x: x0 + s * 0.12, y: y0 + s * 0.65 }, // Left-Top Outer Triangle
-      { h: 4, x: x0 + s * 0.25, y: midY }, // Left Inner Diamond
-      { h: 5, x: x0 + s * 0.12, y: y0 + s * 0.35 }, // Left-Bottom Outer Triangle
-      { h: 6, x: x0 + s * 0.25, y: y0 + s * 0.12 }, // Bottom-Left Outer Triangle
-      { h: 7, x: midX, y: y0 + s * 0.25 }, // Bottom Inner Diamond
-      { h: 8, x: x0 + s * 0.75, y: y0 + s * 0.12 }, // Bottom-Right Outer Triangle
-      { h: 9, x: x0 + s * 0.88, y: y0 + s * 0.35 }, // Right-Bottom Outer Triangle
-      { h: 10, x: x0 + s * 0.75, y: midY }, // Right Inner Diamond
-      { h: 11, x: x0 + s * 0.88, y: y0 + s * 0.65 }, // Right-Top Outer Triangle
-      { h: 12, x: x0 + s * 0.75, y: y0 + s * 0.88 }, // Top-Right Outer Triangle
+      { h: 1, x: midX, y: y0 + s * 0.76 },
+      { h: 2, x: x0 + s * 0.25, y: y0 + s * 0.88 },
+      { h: 3, x: x0 + s * 0.12, y: y0 + s * 0.65 },
+      { h: 4, x: x0 + s * 0.25, y: midY },
+      { h: 5, x: x0 + s * 0.12, y: y0 + s * 0.35 },
+      { h: 6, x: x0 + s * 0.25, y: y0 + s * 0.12 },
+      { h: 7, x: midX, y: y0 + s * 0.25 },
+      { h: 8, x: x0 + s * 0.75, y: y0 + s * 0.12 },
+      { h: 9, x: x0 + s * 0.88, y: y0 + s * 0.35 },
+      { h: 10, x: x0 + s * 0.75, y: midY },
+      { h: 11, x: x0 + s * 0.88, y: y0 + s * 0.65 },
+      { h: 12, x: x0 + s * 0.75, y: y0 + s * 0.88 },
     ];
 
-    // Helper map for planet short names
     const planetShortMap: Record<string, string> = {
-      SUN: 'Su',
-      MOON: 'Mo',
-      MARS: 'Ma',
-      MERCURY: 'Me',
-      JUPITER: 'Ju',
-      VENUS: 'Ve',
-      SATURN: 'Sa',
-      RAHU: 'Ra',
-      KETU: 'Ke',
+      SUN: 'Su', MOON: 'Mo', MARS: 'Ma', MERCURY: 'Me',
+      JUPITER: 'Ju', VENUS: 'Ve', SATURN: 'Sa', RAHU: 'Ra', KETU: 'Ke',
     };
 
     for (const hc of houseCenters) {
-      const houseData = report.houses.find((h) => h.houseNumber === hc.h);
-      const planetsInHouse = report.planets
-        .filter((p) => p.house === hc.h)
-        .map((p) => (planetShortMap[p.planet] || p.planet.substring(0, 2)) + (p.isRetrograde ? '(R)' : ''));
+      const houseData = houses.find((h) => h.houseNumber === hc.h);
+      const planetsInHouse = planets
+        .filter((p: any) => p.house === hc.h)
+        .map((p: any) => (planetShortMap[p.planet] || p.planet.substring(0, 2)) + (p.isRetrograde ? '(R)' : ''));
 
-      // Draw House Number
+      // House Number
       pdf.drawText(
         String(hc.h),
         hc.x,
@@ -640,12 +878,12 @@ export class ReportPdfService {
         'center'
       );
 
-      // Draw Sign Name (rashi)
+      // Sign Name
       if (houseData) {
         pdf.drawText(houseData.sign.substring(0, 3), hc.x, hc.y, 7, false, PdfColors.GREY_TEXT, 'center');
       }
 
-      // Draw Occupant Planets
+      // Occupant Planets
       if (planetsInHouse.length > 0) {
         pdf.drawText(
           planetsInHouse.join(' '),
@@ -658,6 +896,24 @@ export class ReportPdfService {
         );
       }
     }
+  }
+
+  private drawWrappedText(
+    pdf: PdfWriter,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    fontSize: number,
+    lineHeight: number
+  ): number {
+    const lines = this.wrapText(text, Math.floor(maxWidth / (fontSize * 0.55)));
+    let currentY = y;
+    for (const line of lines) {
+      pdf.drawText(line, x, currentY, fontSize, false, PdfColors.DARK_TEXT);
+      currentY -= lineHeight;
+    }
+    return currentY;
   }
 
   private wrapText(text: string, maxCharsPerLine: number): string[] {

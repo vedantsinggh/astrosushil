@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@astro/shared": "*",
+    "@astro/astrology-engine": "*",
     "@astro/prediction-engine": "*",
     "latexto": "^0.1.0"
   },

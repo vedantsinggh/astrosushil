@@ -13,6 +13,9 @@ export const createReportSchema = z.object({
     errorMap: () => ({ message: 'Invalid reportType' }),
   }),
   orderId: z.string().uuid().optional(),
+  partnerProfileId: z.string().uuid({ message: 'partnerProfileId must be a valid UUID' }).optional(),
+  forceRegenerate: z.boolean().optional(),
+  async: z.boolean().optional(),
 });
 
 export type CreateReportInput = z.infer<typeof createReportSchema>;

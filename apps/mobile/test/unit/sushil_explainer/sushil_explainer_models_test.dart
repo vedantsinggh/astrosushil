@@ -136,5 +136,66 @@ void main() {
       expect(res3.headline, 'Ascendant Highlights');
       expect(mockClient.callCount, 2);
     });
+
+    test('5. ExplanationContext differentiates cache keys across modes, languages, and profile IDs', () {
+      const baseContext = ExplanationContext(
+        feature: 'course_detail',
+        screenTitle: 'Gupta Nadi Masterclass',
+        mode: 'standard',
+        language: 'en',
+        birthProfileId: 'profile_1',
+      );
+
+      final simpleContext = baseContext.copyWith(mode: 'simple');
+      final hindiContext = baseContext.copyWith(language: 'hi');
+      final user2Context = baseContext.copyWith(birthProfileId: 'profile_2');
+
+      expect(baseContext.cacheKey, isNot(equals(simpleContext.cacheKey)));
+      expect(baseContext.cacheKey, isNot(equals(hindiContext.cacheKey)));
+      expect(baseContext.cacheKey, isNot(equals(user2Context.cacheKey)));
+
+      expect(simpleContext.toJson()['mode'], 'simple');
+      expect(hindiContext.toJson()['language'], 'hi');
+      expect(user2Context.toJson()['birthProfileId'], 'profile_2');
+    });
+
+    test('6. SushilExplanationModel generates accurate Hindi fallbacks for empty and error states', () {
+      final hindiEmpty = SushilExplanationModel.emptyData(
+        feature: 'consultation_prep',
+        screenTitle: 'परामर्श की तैयारी',
+        language: 'hi',
+      );
+      expect(hindiEmpty.headline, 'डेटा उपलब्ध नहीं');
+      expect(hindiEmpty.message, contains('पर्याप्त जानकारी'));
+      expect(hindiEmpty.isEmptyData, isTrue);
+
+      final hindiError = SushilExplanationModel.error(
+        feature: 'shop_product',
+        screenTitle: 'रुद्राक्ष माला',
+        message: 'कनेक्शन त्रुटि',
+        language: 'hi',
+      );
+      expect(hindiError.headline, 'व्याख्या अनुपलब्ध');
+      expect(hindiError.isError, isTrue);
+      expect(hindiError.message, 'कनेक्शन त्रुटि');
+    });
+
+    test('7. ExplanationContext accurately handles Phase 8 features (courses, consultations, shop)', () {
+      const courseLessonCtx = ExplanationContext(
+        feature: 'course_lesson',
+        screenTitle: 'Karma Alignment Principle',
+        data: {'lessonId': 'lsn_123', 'duration': 1800},
+      );
+      expect(courseLessonCtx.toJson()['feature'], 'course_lesson');
+      expect(courseLessonCtx.toJson()['context']['astrologyData']['lessonId'], 'lsn_123');
+
+      const shopProductCtx = ExplanationContext(
+        feature: 'shop_product',
+        screenTitle: 'Shri Yantra Plate',
+        data: {'productId': 'prod_456', 'isPhysical': true},
+      );
+      expect(shopProductCtx.toJson()['feature'], 'shop_product');
+      expect(shopProductCtx.toJson()['context']['astrologyData']['isPhysical'], true);
+    });
   });
 }

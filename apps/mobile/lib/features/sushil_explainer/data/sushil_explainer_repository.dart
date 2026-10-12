@@ -15,12 +15,14 @@ class SushilExplainerRepository {
       return SushilExplanationModel.emptyData(
         feature: context.feature,
         screenTitle: context.screenTitle,
+        mode: context.mode,
+        language: context.language,
       );
     }
 
     if (kDebugMode) {
       developer.log(
-        '[SUSHIL EXPLAINER] Requesting explanation for feature: ${context.feature}, screen: ${context.screenTitle}',
+        '[SUSHIL EXPLAINER] Requesting explanation for feature: ${context.feature}, screen: ${context.screenTitle}, mode: ${context.mode}, lang: ${context.language}',
         name: 'SushilExplainerRepository',
       );
     }
@@ -37,6 +39,8 @@ class SushilExplainerRepository {
       data,
       feature: context.feature,
       screenTitle: context.screenTitle,
+      mode: context.mode,
+      language: context.language,
     );
   }
 }

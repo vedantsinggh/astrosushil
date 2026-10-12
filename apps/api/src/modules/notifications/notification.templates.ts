@@ -136,6 +136,94 @@ export function renderNotificationTemplate(
       };
     }
 
+    case 'BOOKING_CONFIRMED': {
+      const title = data.consultationTitle || 'Consultation with Astro Sushil';
+      const date = data.date || '';
+      const time = data.startTime || '';
+      const mode = data.mode || 'Audio';
+      const meetingLink = data.meetingLink || '';
+      return {
+        title: `🗓️ Consultation Confirmed: ${title}`,
+        body: `Your appointment is confirmed for ${date} at ${time} (${mode}). Tap for details.`,
+        emailSubject: `🗓️ Appointment Confirmed: ${title} on ${date}`,
+        emailText: `Hello ${userName},\n\nYour consultation "${title}" has been confirmed for ${date} at ${time} IST (${mode}).\n${meetingLink ? `Meeting link: ${meetingLink}\n` : ''}\nThank you for choosing Astro Sushil.`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #10B981; margin-top: 0;">🗓️ Consultation Confirmed</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>Your session with <strong>Astro Sushil</strong> has been confirmed.</p>
+            <div style="background: #1E293B; border-left: 4px solid #10B981; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0 0 8px 0;"><strong>Service:</strong> ${title}</p>
+              <p style="margin: 0 0 8px 0;"><strong>Date:</strong> ${date}</p>
+              <p style="margin: 0 0 8px 0;"><strong>Time:</strong> ${time} IST</p>
+              <p style="margin: 0;"><strong>Mode:</strong> ${mode}</p>
+            </div>
+            ${meetingLink ? `<p><a href="${meetingLink}" style="background: #10B981; color: #0F172A; font-weight: bold; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block;">Join Consultation</a></p>` : ''}
+            <p style="font-size: 12px; color: #94A3B8;">Astro Sushil Platform — Dedicated Astrological Guidance</p>
+          </div>
+        `,
+        route: 'OPEN_CONSULTATIONS',
+      };
+    }
+
+    case 'BOOKING_RESCHEDULED': {
+      const title = data.consultationTitle || 'Consultation with Astro Sushil';
+      const date = data.date || '';
+      const time = data.startTime || '';
+      return {
+        title: `🔄 Consultation Rescheduled: ${title}`,
+        body: `Your appointment has been rescheduled to ${date} at ${time} IST.`,
+        emailSubject: `🔄 Consultation Rescheduled: ${title}`,
+        emailText: `Hello ${userName},\n\nYour appointment "${title}" has been rescheduled to ${date} at ${time} IST.\n\nThank you for choosing Astro Sushil.`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #F59E0B; margin-top: 0;">🔄 Consultation Rescheduled</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>Your session has been rescheduled to <strong>${date}</strong> at <strong>${time} IST</strong>.</p>
+          </div>
+        `,
+        route: 'OPEN_CONSULTATIONS',
+      };
+    }
+
+    case 'BOOKING_CANCELLED': {
+      const title = data.consultationTitle || 'Consultation with Astro Sushil';
+      const reason = data.reason || 'Requested by user or administrator';
+      return {
+        title: `❌ Consultation Cancelled: ${title}`,
+        body: `Your appointment has been cancelled. Reason: ${reason}`,
+        emailSubject: `❌ Consultation Cancelled: ${title}`,
+        emailText: `Hello ${userName},\n\nYour appointment "${title}" has been cancelled.\nReason: ${reason}`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #EF4444; margin-top: 0;">❌ Consultation Cancelled</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>Your session "${title}" has been cancelled. ${reason ? `Reason: ${reason}` : ''}</p>
+          </div>
+        `,
+        route: 'OPEN_CONSULTATIONS',
+      };
+    }
+
+    case 'CONSULTATION_REMINDER': {
+      const title = data.consultationTitle || 'Consultation with Astro Sushil';
+      const time = data.startTime || '';
+      return {
+        title: `⏰ Upcoming Consultation Reminder`,
+        body: `Your session "${title}" starts in 30 minutes at ${time} IST.`,
+        emailSubject: `⏰ Reminder: Upcoming Consultation in 30 Minutes`,
+        emailText: `Hello ${userName},\n\nReminder that your session "${title}" starts in 30 minutes at ${time} IST.`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #38BDF8; margin-top: 0;">⏰ Upcoming Session Reminder</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>Your consultation with <strong>Astro Sushil</strong> starts soon at <strong>${time} IST</strong>.</p>
+          </div>
+        `,
+        route: 'OPEN_CONSULTATIONS',
+      };
+    }
+
     case 'PROMOTIONAL':
     case 'SYSTEM':
     default: {

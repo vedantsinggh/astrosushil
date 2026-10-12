@@ -11,7 +11,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     protectedRoutes.addHook('onRequest', fastify.authenticate);
 
     // 1. Get In-App Notifications
-    protectedRoutes.get('/notifications', {
+    protectedRoutes.get('/', {
       schema: { tags: ['Notifications'], summary: 'Get user in-app notifications' },
       handler: async (request, reply) => {
         const query = request.query as { page?: string; pageSize?: string };
@@ -23,7 +23,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 2. Get Unread Count
-    protectedRoutes.get('/notifications/unread-count', {
+    protectedRoutes.get('/unread-count', {
       schema: { tags: ['Notifications'], summary: 'Get unread notification count' },
       handler: async (request, reply) => {
         const result = await notificationService.getUnreadCount(request.user.id);
@@ -32,7 +32,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 3. Mark Notification as Read
-    protectedRoutes.patch('/notifications/:id/read', {
+    protectedRoutes.patch('/:id/read', {
       schema: { tags: ['Notifications'], summary: 'Mark single notification as read' },
       handler: async (request, reply) => {
         const { id } = request.params as { id: string };
@@ -42,7 +42,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 4. Mark All Notifications as Read
-    protectedRoutes.post('/notifications/read-all', {
+    protectedRoutes.post('/read-all', {
       schema: { tags: ['Notifications'], summary: 'Mark all notifications as read' },
       handler: async (request, reply) => {
         await notificationService.markAllAsRead(request.user.id);
@@ -51,7 +51,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 5. Register Device Token
-    protectedRoutes.post('/notifications/device-token', {
+    protectedRoutes.post('/device-token', {
       schema: { tags: ['Notifications'], summary: 'Register FCM device token' },
       handler: async (request, reply) => {
         const body = registerDeviceTokenSchema.parse(request.body);
@@ -61,7 +61,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 6. Delete / Deactivate Device Token on Logout
-    protectedRoutes.delete('/notifications/device-token', {
+    protectedRoutes.delete('/device-token', {
       schema: { tags: ['Notifications'], summary: 'Deactivate FCM device token' },
       handler: async (request, reply) => {
         const body = request.body as { fcmToken?: string } | undefined;
@@ -71,7 +71,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 7. Get Notification Preferences
-    protectedRoutes.get('/notifications/preferences', {
+    protectedRoutes.get('/preferences', {
       schema: { tags: ['Notifications'], summary: 'Get user notification preferences' },
       handler: async (request, reply) => {
         const preferences = await notificationService.getUserPreferences(request.user.id);
@@ -80,7 +80,7 @@ export async function notificationRoutes(fastify: FastifyInstance, _options: Fas
     });
 
     // 8. Update Notification Preferences
-    protectedRoutes.put('/notifications/preferences', {
+    protectedRoutes.put('/preferences', {
       schema: { tags: ['Notifications'], summary: 'Update user notification preferences' },
       handler: async (request, reply) => {
         const body = updateNotificationPreferencesSchema.parse(request.body);

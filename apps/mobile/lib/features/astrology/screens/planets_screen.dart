@@ -10,6 +10,9 @@ import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_empty_state.dart';
+import '../widgets/astrology_explanation_card.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../models/astro_chart_model.dart';
@@ -113,7 +116,14 @@ class PlanetsScreen extends ConsumerWidget {
                   poseAsset: AppAssets.sushilExplaining,
                 ),
 
-                const SizedBox(height: 16),
+                // Beginner Educational Explanation Card
+                AstrologyExplanationCard(
+                  title: context.l10n.explainPlanetsTitle,
+                  whatIsText: context.l10n.explainPlanetsWhatIs,
+                  howToReadText: context.l10n.explainPlanetsHowToRead,
+                ),
+
+                const SizedBox(height: 8),
                 if (chartAsync != null && chartAsync.isLoading)
                   const AstroLoaderCard(
                     message: AstroLoaderMessages.planetaryData,
@@ -139,7 +149,15 @@ class PlanetsScreen extends ConsumerWidget {
                         chartAsync.valueOrNull?.ascendant?.rashiIndex ?? 1,
                       ))
                 else
-                  ..._buildMockPlanetRows(context),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20.0),
+                    child: AstrologyEmptyState(
+                      title: context.l10n.dataNotAvailable,
+                      message: activeProfile != null
+                          ? 'No planetary placements calculated for ${activeProfile.name}.'
+                          : 'Please select or add a birth profile to view planetary positions.',
+                    ),
+                  ),
               ],
             ),
           ),
@@ -216,85 +234,6 @@ class PlanetsScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  List<Widget> _buildMockPlanetRows(BuildContext context) {
-    final mockPlanets = [
-      {'name': 'Sun', 'sign': 'Leo', 'degree': '18°24\'', 'house': 5, 'retro': false},
-      {'name': 'Moon', 'sign': 'Scorpio', 'degree': '02°14\'', 'house': 6, 'retro': false},
-      {'name': 'Mars', 'sign': 'Virgo', 'degree': '24°11\'', 'house': 4, 'retro': false},
-      {'name': 'Mercury', 'sign': 'Leo', 'degree': '09°33\'', 'house': 5, 'retro': false},
-      {'name': 'Jupiter', 'sign': 'Cancer', 'degree': '14°02\'', 'house': 2, 'retro': false},
-      {'name': 'Venus', 'sign': 'Gemini', 'degree': '27°41\'', 'house': 1, 'retro': false},
-      {'name': 'Saturn (R)', 'sign': 'Taurus', 'degree': '21°18\'', 'house': 12, 'retro': true},
-      {'name': 'Rahu', 'sign': 'Gemini', 'degree': '10°05\'', 'house': 1, 'retro': false},
-      {'name': 'Ketu', 'sign': 'Sagittarius', 'degree': '10°05\'', 'house': 7, 'retro': false},
-    ];
-
-    return mockPlanets.map((m) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10.0),
-        child: AstroCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => PlanetDetailScreen(
-                  planetName: m['name'] as String,
-                  signName: m['sign'] as String,
-                  degree: m['degree'] as String,
-                  houseNumber: m['house'] as int,
-                  isRetrograde: m['retro'] as bool,
-                ),
-              ),
-            );
-          },
-          child: Row(
-            children: [
-              _buildPlanetVisualIdentifier(m['name'] as String),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      m['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${m['sign']} • ${m['degree']}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.lightTextSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                'House ${m['house']}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.secondary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.lightTextMuted,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      );
-    }).toList();
   }
 
   Widget _buildPlanetVisualIdentifier(String name) {
