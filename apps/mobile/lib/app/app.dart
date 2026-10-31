@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/localization/locale_provider.dart';
 import '../features/splash/screens/splash_screen.dart';
+import '../shared/screens/not_found_screen.dart';
 import '../shared/theme/app_theme.dart';
 
 /// Root Application Widget for Astro Platform Mobile Client
@@ -28,6 +29,9 @@ class AstroMobileApp extends ConsumerWidget {
       ],
       supportedLocales: SupportedLocales.all,
       home: const SplashScreen(),
+      onUnknownRoute: (settings) => MaterialPageRoute(
+        builder: (_) => NotFoundScreen(routePath: settings.name),
+      ),
     );
   }
 }

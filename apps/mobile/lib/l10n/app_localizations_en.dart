@@ -48,6 +48,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noProfileSelected => 'No profile selected';
 
   @override
+  String get noProfileExplanation =>
+      'Select or create a birth profile to calculate personalized astrological charts.';
+
+  @override
   String get createProfilePrompt =>
       'Create a birth profile to calculate your Janma Kundli.';
 
@@ -217,6 +221,124 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get comingSoon => 'Coming Soon';
+
+  @override
+  String get reportsTabCatalogue => 'Browse Reports';
+
+  @override
+  String get reportsTabHistory => 'My Reports';
+
+  @override
+  String get reportCategoryComprehensive => 'Comprehensive Life Dossiers';
+
+  @override
+  String get reportCategoryFocused => 'Focused Astrological Analyses';
+
+  @override
+  String get reportCategoryCompatibility => 'Relationship & Compatibility';
+
+  @override
+  String get reportCategoryUpcoming => 'Upcoming Research Editions';
+
+  @override
+  String get reportProHoroscopeTitle => 'Pro Horoscope & Divisional Charts';
+
+  @override
+  String get reportProHoroscopeDesc =>
+      'Multi-divisional analysis, 6-fold planetary Shadbala, 12 Bhava Bala rank analysis, and classical remedial measures.';
+
+  @override
+  String get reportDetailTitle => 'Report Details';
+
+  @override
+  String get reportIncludedSections => 'Included Astrological Sections';
+
+  @override
+  String get reportPriceBreakdown => 'Price & Tax Breakdown';
+
+  @override
+  String get reportGstIncluded => '18% GST Included';
+
+  @override
+  String get reportPartnerProfileSelect => 'Select Partner Profile';
+
+  @override
+  String get reportPartnerProfileRequired => 'Partner Profile Required';
+
+  @override
+  String get reportPartnerProfilePrompt =>
+      'Kundli Milan requires two distinct birth profiles. Please select or add a partner birth profile.';
+
+  @override
+  String get reportHistoryEmptyTitle => 'No Reports Generated Yet';
+
+  @override
+  String get reportHistoryEmptySubtitle =>
+      'Your generated personalized astrology reports and vector PDF dossiers will be saved here permanently.';
+
+  @override
+  String get reportHistoryBrowseButton => 'Browse Report Catalogue';
+
+  @override
+  String get reportStatusQueued => 'In Queue';
+
+  @override
+  String get reportStatusCalculating => 'Calculating';
+
+  @override
+  String get reportStatusAnalyzing => 'Analyzing';
+
+  @override
+  String get reportStatusRendering => 'Rendering';
+
+  @override
+  String get reportStatusCompiling => 'Compiling PDF';
+
+  @override
+  String get reportStatusUploading => 'Securing PDF';
+
+  @override
+  String get reportStatusCompleted => 'Ready';
+
+  @override
+  String get reportStatusFailed => 'Failed';
+
+  @override
+  String get reportActionViewPdf => 'Open PDF';
+
+  @override
+  String get reportActionShare => 'Share';
+
+  @override
+  String get reportActionRetry => 'Retry';
+
+  @override
+  String get reportActionRegenerate => 'Regenerate';
+
+  @override
+  String get reportCompareTiersTitle => 'Compare Report Tiers';
+
+  @override
+  String get reportDeliveryInstant => 'Instant Digital PDF Delivery';
+
+  @override
+  String get reportDeliveryTime => 'Delivery: Instant Vector PDF';
+
+  @override
+  String reportRequiredProfiles(int count) {
+    return 'Required: $count Profile';
+  }
+
+  @override
+  String reportExistingCompletedNotice(String name) {
+    return 'You already have a completed report for $name';
+  }
+
+  @override
+  String get reportViewExisting => 'View Existing PDF';
+
+  @override
+  String get reportGenerateNew => 'Generate Fresh Version';
 
   @override
   String get consultTitle => 'Consult Sushil Sir';
@@ -441,6 +563,29 @@ class AppLocalizationsEn extends AppLocalizations {
       'The active Mahadasha (major period) sets the broader theme, while the Antardasha (sub-period) highlights daily focus. Check the start and end dates to understand active cycles.';
 
   @override
+  String get explainHousesTitle => 'Understanding the 12 Houses (Bhavas)';
+
+  @override
+  String get explainHousesWhatIs =>
+      'In Vedic astrology, the 12 houses divide your life into distinct spheres of experience, from self, wealth, and family to career, partnerships, and spiritual liberation.';
+
+  @override
+  String get explainHousesHowToRead =>
+      'House 1 (Tanu Bhava) represents your physical self and character. Houses with occupying planets emphasize those themes in your life, while unoccupied houses are guided by their ruling sign lord.';
+
+  @override
+  String get explainNakshatraTitle =>
+      'Understanding Nakshatras (Lunar Mansions)';
+
+  @override
+  String get explainNakshatraWhatIs =>
+      'Nakshatras are 27 lunar constellations that provide deeper psychological insight into your temperament, natural talents, and Vimshottari timing cycles.';
+
+  @override
+  String get explainNakshatraHowToRead =>
+      'Your Janma Nakshatra is where the Moon was positioned at birth. Its ruling planet sets your starting life dasha, and the Pada (quarter 1–4) indicates subtle inner strengths.';
+
+  @override
   String get explainPanchangaTitle => 'Understanding Daily Panchanga';
 
   @override
@@ -483,6 +628,98 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get explainAshtakavargaHowToRead =>
       'In Sarvashtakavarga (SAV), houses with 28 or more bindus represent strong, supportive life areas, while houses below 25 require patience and mindful effort.';
+
+  @override
+  String get explainDivisionalChartsTitle =>
+      'Understanding Divisional Charts (Vargas)';
+
+  @override
+  String get explainDivisionalChartsWhatIs =>
+      'Divisional charts (Shodashvarga) divide the 30° zodiac signs into microscopic harmonic segments to examine specialized life domains like marriage (D9), career (D10), and destiny (D60).';
+
+  @override
+  String get explainDivisionalChartsHowToRead =>
+      'D1 (Rashi) shows the physical manifestation, while higher vargas reveal specific karmic potentials. A strong planet in D1 that is also exalted or in its own sign in D9 (Vargottama) brings enduring favorable outcomes.';
+
+  @override
+  String get explainBhavaBalaTitle =>
+      'Understanding Bhava Bala (House Potency)';
+
+  @override
+  String get explainBhavaBalaWhatIs =>
+      'Bhava Bala evaluates the comprehensive strength of each of the 12 astrological houses based on Lord strength, directional cusp potency, aspects, and resident planets.';
+
+  @override
+  String get explainBhavaBalaHowToRead =>
+      'Houses with higher Rupas (typically 6.0+ or ranked 1–4) indicate areas of life that flourish with ease and resilience, while lower-ranked houses need conscious nurturing.';
+
+  @override
+  String get explainYogasTitle => 'Understanding Vedic Yogas';
+
+  @override
+  String get explainYogasWhatIs =>
+      'Yogas are special planetary combinations described in classical scriptures (Brihat Parashara Hora Shastra) that generate extraordinary strengths, wealth, leadership, or spiritual wisdom.';
+
+  @override
+  String get explainYogasHowToRead =>
+      'Active yogas are formed when planetary relationships meet exact scriptural conditions. Check the involved planets, house alignments, and condition checklist to understand how the yoga functions.';
+
+  @override
+  String get explainJaiminiTitle => 'Understanding Jaimini Astrology';
+
+  @override
+  String get explainJaiminiWhatIs =>
+      'Jaimini Sutras use seven or eight Chara Karakas (variable planetary significators determined by degrees) and sign-based aspects (Rashi Drishti) to reveal soul purpose and destiny.';
+
+  @override
+  String get explainJaiminiHowToRead =>
+      'Atmakaraka (AK) represents your soul\'s journey, Amatyakaraka (AmK) indicates career and advisors, and Darakaraka (DK) signifies partnerships and spouse. Arudha Lagna (AL) reflects your external societal image.';
+
+  @override
+  String get explainKpTitle => 'Understanding KP Astrology (Krishnamurti)';
+
+  @override
+  String get explainKpWhatIs =>
+      'Krishnamurti Padhdhati (KP) uses Placidus house cusps and a 4-tier sub-lord system (Sign Lord, Star Lord, Sub Lord, Sub-Sub Lord) to time events with pinpoint precision.';
+
+  @override
+  String get explainKpHowToRead =>
+      'In KP, a planet or cusp\'s primary outcome is determined by its Star Lord, while the final fruitful manifestation is governed by its Sub Lord. Examine the sub-lord connections for accurate event timing.';
+
+  @override
+  String get explainGocharaTitle => 'Understanding Gochara (Transits)';
+
+  @override
+  String get explainGocharaWhatIs =>
+      'Gochara evaluates current planetary movements in the sidereal sky relative to your natal Moon sign, Ascendant, and Ashtakavarga energy matrix.';
+
+  @override
+  String get explainGocharaHowToRead =>
+      'Benefic transits over houses with 28+ SAV bindus unlock opportunities, while challenging transits (like Saturn over 12th, 1st, or 2nd house during Sade Sati) require disciplined focus and caution.';
+
+  @override
+  String get explainSpecialPointsTitle =>
+      'Understanding Special Points & Upagrahas';
+
+  @override
+  String get explainSpecialPointsWhatIs =>
+      'Vedic astrology calculates subtle non-luminous energy centers including 5 shadow Upagrahas (Dhooma to Upaketu), time-based Gulika/Mandi, and Special Lagnas (Hora, Ghatika, Indu).';
+
+  @override
+  String get explainSpecialPointsHowToRead =>
+      'Indu Lagna reveals financial prosperity, Hora Lagna evaluates wealth timing, and 64th Navamsha / 22nd Drekkana highlight sensitive vulnerability degrees requiring spiritual remedies.';
+
+  @override
+  String get explainVarshaphalaTitle =>
+      'Understanding Varshaphala (Solar Return)';
+
+  @override
+  String get explainVarshaphalaWhatIs =>
+      'Varshaphala (Tajika system) calculates an annual horoscope for the precise moment the transiting Sun returns to its exact natal birth longitude.';
+
+  @override
+  String get explainVarshaphalaHowToRead =>
+      'The Year Lord (Varshesha) and the moving focus point (Muntha) set the primary annual theme, while Harsha Bala measures the year\'s psychological and material contentment.';
 
   @override
   String get matchmakingSameProfileWarning =>
@@ -591,6 +828,79 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cancellation releases slot capacity in accordance with policy.';
 
   @override
+  String get consultFilterAll => 'All';
+
+  @override
+  String get consultFilterVideo => 'Video';
+
+  @override
+  String get consultFilterAudio => 'Voice';
+
+  @override
+  String get consultFilterUrgent => 'Urgent';
+
+  @override
+  String get consultFilterSpecialized => 'Specialized';
+
+  @override
+  String get consultFilterInPerson => 'In-Person';
+
+  @override
+  String get consultFilterUpcoming => 'Upcoming';
+
+  @override
+  String get consultFilterPending => 'Pending';
+
+  @override
+  String get consultFilterCompleted => 'Completed';
+
+  @override
+  String get consultFilterCancelled => 'Cancelled';
+
+  @override
+  String get consultTimeZoneNotice =>
+      'All times are in Indian Standard Time (IST / UTC+05:30)';
+
+  @override
+  String get consultPrivacyReassurance =>
+      'Your birth details and life questions are strictly confidential, shared only with Astro Sushil.';
+
+  @override
+  String get consultBasePrice => 'Base Consultation Fee';
+
+  @override
+  String get consultGstAmount => 'GST (18% Included)';
+
+  @override
+  String get consultTotalAmount => 'Total Amount';
+
+  @override
+  String get consultNextStepsTitle => 'What Happens Next';
+
+  @override
+  String get consultNextStepsDesc =>
+      'Your appointment is confirmed. Live meeting room links will become active 15 minutes before the session.';
+
+  @override
+  String get consultViewAppointments => 'View in My Appointments';
+
+  @override
+  String get consultHowItWorksTitle => 'How Consultation Works';
+
+  @override
+  String get consultStep1 => '1. Select Format & Date';
+
+  @override
+  String get consultStep2 => '2. Confirm Slot & Queries';
+
+  @override
+  String get consultStep3 => '3. Meet Astro Sushil';
+
+  @override
+  String get consultLocationNotice =>
+      'Delhi / NCR office or client city location restrictions apply';
+
+  @override
   String get coursesNavTitle => 'Courses';
 
   @override
@@ -676,4 +986,575 @@ class AppLocalizationsEn extends AppLocalizations {
   String courseLessonCount(String count) {
     return '$count Lessons';
   }
+
+  @override
+  String get howCanWeGuideYou => 'How can we guide you today?';
+
+  @override
+  String get exploreHeroSubtitle =>
+      'Explore your birth chart, get insights, learn astrology and more.';
+
+  @override
+  String get myBirthProfile => 'My Birth Profile';
+
+  @override
+  String get viewChartButton => 'View Chart';
+
+  @override
+  String get transitsShort => 'Transits';
+
+  @override
+  String get matchmakingShort => 'Match Making';
+
+  @override
+  String get dashasShort => 'Dashas';
+
+  @override
+  String get askSushilSirBannerTitle => 'Let Sushil Sir explain this chart';
+
+  @override
+  String get askSushilSirBannerSubtitle =>
+      'Get simple, clear explanations of your astrology';
+
+  @override
+  String get askSushilSirButton => 'Ask Sushil Sir';
+
+  @override
+  String get coursesShortcutTitle => 'Astrology Courses';
+
+  @override
+  String get coursesShortcutSubtitle => 'Learn at your own pace';
+
+  @override
+  String get shopShortcutTitle => 'Shop';
+
+  @override
+  String get shopShortcutSubtitle => 'Books, gemstones, & more';
+
+  @override
+  String get quickInsightsTitle => 'Quick Insights';
+
+  @override
+  String get seeAll => 'See All';
+
+  @override
+  String get viewAll => 'View All';
+
+  @override
+  String get viewFull => 'View Full';
+
+  @override
+  String get auspiciousTime => 'Auspicious Time';
+
+  @override
+  String get goodForNewWork => 'Good for new work';
+
+  @override
+  String get avoidRahuKaal => 'Avoid Rahu Kaal';
+
+  @override
+  String get notSuitableForTasks => 'Not suitable for important tasks';
+
+  @override
+  String get emotionsStable => 'Emotions are stable today';
+
+  @override
+  String get lagnaAscendant => 'Lagna';
+
+  @override
+  String get moonSign => 'Moon Sign';
+
+  @override
+  String get currentDasha => 'Active Dasha';
+
+  @override
+  String get spiritualShopTitle => 'Spiritual Shop';
+
+  @override
+  String get spiritualShopSubtitle =>
+      'Consecrated spiritual remedies, sacred art, and digital wallpapers';
+
+  @override
+  String get allOfferings => 'All Offerings';
+
+  @override
+  String get wallpapersCategory => 'Wallpapers';
+
+  @override
+  String get sacredArtCategory => 'Sacred Art';
+
+  @override
+  String get kitsBundlesCategory => 'Kits & Bundles';
+
+  @override
+  String get ayodhyaHerbCategory => 'Ayodhya Herb';
+
+  @override
+  String get searchShopHint => 'Search wallpapers, sacred art, or herbs...';
+
+  @override
+  String get inclusiveGstBadge => '18% GST Included';
+
+  @override
+  String get physicalProduct => 'Physical Product';
+
+  @override
+  String get instantDownload => 'Instant Download';
+
+  @override
+  String get digitalBundle => 'Digital Bundle';
+
+  @override
+  String get addToCart => 'Add to Cart';
+
+  @override
+  String get buyNow => 'Buy Now';
+
+  @override
+  String get addedToCartSnackbar => 'Added to cart';
+
+  @override
+  String get shoppingCartTitle => 'Shopping Cart';
+
+  @override
+  String get cartEmptyTitle => 'Your cart is empty';
+
+  @override
+  String get cartEmptySubtitle =>
+      'Explore our consecrated wallpapers, sacred art, and spiritual remedies.';
+
+  @override
+  String get proceedToCheckout => 'Proceed to Checkout';
+
+  @override
+  String get orderSummary => 'Order Summary';
+
+  @override
+  String get basePrice => 'Base Price:';
+
+  @override
+  String get gstIncluded => 'GST (18% Included):';
+
+  @override
+  String get shippingFee => 'Shipping Fee:';
+
+  @override
+  String get freeShippingBadge => 'FREE';
+
+  @override
+  String get totalAmount => 'Total Amount:';
+
+  @override
+  String get deliveryAddress => 'Delivery Address';
+
+  @override
+  String get selectAddressPrompt =>
+      'Please select a delivery address for physical items';
+
+  @override
+  String get digitalDeliveryReassurance =>
+      'Instant Digital Access in My Library immediately after payment.';
+
+  @override
+  String get myOrdersTitle => 'My Orders & Purchases';
+
+  @override
+  String get orderDetailsTitle => 'Order Details';
+
+  @override
+  String get myDigitalLibraryTitle => 'My Digital Library';
+
+  @override
+  String get digitalLibrarySubtitle =>
+      'Secure 15-minute expiring downloads for your purchased digital products';
+
+  @override
+  String get downloadAsset => 'Download';
+
+  @override
+  String get reDownload => 'Re-generate Link';
+
+  @override
+  String get linkCopied => 'Download link copied to clipboard';
+
+  @override
+  String get trackingNumber => 'Tracking Number:';
+
+  @override
+  String get courierPartner => 'Courier Partner:';
+
+  @override
+  String get dispatchDate => 'Dispatch Date:';
+
+  @override
+  String get orderStatusProcessing => 'Processing';
+
+  @override
+  String get orderStatusDispatched => 'Dispatched';
+
+  @override
+  String get orderStatusDelivered => 'Delivered';
+
+  @override
+  String get orderStatusCancelled => 'Cancelled';
+
+  @override
+  String get orderStatusConfirmed => 'Confirmed';
+
+  @override
+  String get shippingAddressManage => 'Delivery Addresses';
+
+  @override
+  String get addNewAddress => 'Add New Address';
+
+  @override
+  String get saveAddress => 'Save Address';
+
+  @override
+  String get onboardingSkip => 'Skip';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get onboardingGetStarted => 'Get Started';
+
+  @override
+  String get onboardingTitle1Prefix => 'Know Your';
+
+  @override
+  String get onboardingTitle1Highlight => 'Chart';
+
+  @override
+  String get onboardingDesc1 =>
+      'Explore your birth chart, planets and houses in one clear, beautiful view.';
+
+  @override
+  String get onboardingTitle2Prefix => 'Find Your';
+
+  @override
+  String get onboardingTitle2Highlight => 'Direction';
+
+  @override
+  String get onboardingDesc2 =>
+      'Understand the patterns in your chart and explore the areas of life that matter to you.';
+
+  @override
+  String get onboardingTitle3Prefix => 'Go Beyond';
+
+  @override
+  String get onboardingTitle3Highlight => 'the Basics';
+
+  @override
+  String get onboardingDesc3 =>
+      'Unlock deeper insights and personalized reports built around your birth details.';
+
+  @override
+  String get onboardingWhyBirthDataTitle => 'Why We Ask For Birth Details';
+
+  @override
+  String get onboardingWhyBirthDataDesc =>
+      'Authentic Vedic astrology requires your precise birth date, time, and birthplace to calculate the exact planetary degrees and your Ascendant (Lagna). Your personal details remain strictly private and secure.';
+
+  @override
+  String get welcomeBack => 'Welcome to Astro Sushil';
+
+  @override
+  String get loginPhoneSubtitle =>
+      'Enter your phone number to receive a secure OTP';
+
+  @override
+  String get loginEmailSubtitle => 'Sign in with your email and password';
+
+  @override
+  String get phoneNumberLabel => 'Phone Number';
+
+  @override
+  String get phoneHint => '9876543210';
+
+  @override
+  String get sendOtp => 'Send OTP';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get exploreAsGuest => 'Explore as Guest';
+
+  @override
+  String get signInWithPassword => 'Sign in with Password';
+
+  @override
+  String get signInWithPhone => 'Sign in with Phone OTP';
+
+  @override
+  String get emailAddressLabel => 'Email Address';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get loginWithEmail => 'Login with Email';
+
+  @override
+  String get otpVerificationTitle => 'Enter Verification Code';
+
+  @override
+  String get otpSentToMessage => 'We\'ve sent a 6-digit verification code to';
+
+  @override
+  String resendCodeIn(Object seconds) {
+    return 'Resend code in ${seconds}s';
+  }
+
+  @override
+  String get resendOtp => 'Resend OTP';
+
+  @override
+  String get verifyAndContinue => 'Verify & Continue';
+
+  @override
+  String get invalidOtpMessage =>
+      'Please enter the full 6-digit verification code.';
+
+  @override
+  String get sessionExpiredTitle => 'Session Expired';
+
+  @override
+  String get sessionExpiredMessage => 'Session expired. Please sign in again.';
+
+  @override
+  String get birthProfileDetailsTitle => 'Birth Profile Details';
+
+  @override
+  String get birthDetailsSubtitle =>
+      'Accurate birth details are essential for authentic Vedic calculations.';
+
+  @override
+  String get birthNameLabel => 'Full Name';
+
+  @override
+  String get dateOfBirthLabel => 'Date of Birth';
+
+  @override
+  String get timeOfBirthLabel => 'Time of Birth';
+
+  @override
+  String get placeOfBirthLabel => 'Place of Birth';
+
+  @override
+  String get approximateTimeNote =>
+      'If exact minute is unknown, enter your closest approximate time.';
+
+  @override
+  String get setAsActiveProfile => 'Set as Active Profile';
+
+  @override
+  String get activeProfileBadge => 'Active Profile';
+
+  @override
+  String get editBirthDetails => 'Edit Birth Details';
+
+  @override
+  String get deleteBirthProfile => 'Delete Profile';
+
+  @override
+  String get deleteProfileConfirmTitle => 'Delete Birth Profile?';
+
+  @override
+  String get deleteProfileConfirmMessage =>
+      'Are you sure you want to delete this birth profile? Associated Kundli calculations and personalized insights will be removed.';
+
+  @override
+  String get birthDataImpactNotice =>
+      'Changes to birth date, time, or coordinates will automatically update your Ascendant and planetary calculations.';
+
+  @override
+  String get newProfileButton => 'New Profile';
+
+  @override
+  String get notificationsTitle => 'Notifications & Daily Alerts';
+
+  @override
+  String get notificationsSubtitle =>
+      'Configure astrological alerts and reminders';
+
+  @override
+  String get systemPermissionStatus => 'System Notification Permission:';
+
+  @override
+  String get permissionGranted => 'Enabled';
+
+  @override
+  String get permissionDenied => 'Disabled';
+
+  @override
+  String get dailyPanchangAlert => 'Daily Panchang & Muhurta';
+
+  @override
+  String get dailyPanchangAlertSubtitle =>
+      'Receive auspicious timings, Tithi, and Nakshatra updates';
+
+  @override
+  String get transitAlert => 'Planetary Transit (Gochara)';
+
+  @override
+  String get transitAlertSubtitle =>
+      'Alerts on major planet shifts affecting your Moon sign';
+
+  @override
+  String get consultationAlert => 'Consultation Reminders';
+
+  @override
+  String get consultationAlertSubtitle =>
+      'Appointment reminders 24h and 1h before your session';
+
+  @override
+  String get orderTrackingAlert => 'Order & Delivery Updates';
+
+  @override
+  String get orderTrackingAlertSubtitle =>
+      'Status updates for physical and digital shop orders';
+
+  @override
+  String get accountSecurityTitle => 'Account Security & Credentials';
+
+  @override
+  String get termsOfServiceTitle => 'Terms of Service';
+
+  @override
+  String get deleteAccountTitle => 'Delete Account & Data';
+
+  @override
+  String get deleteAccountSubtitle =>
+      'Permanently delete account credentials and revoke active sessions.';
+
+  @override
+  String get deleteAccountConfirm =>
+      'Are you sure you want to delete your account? This action will revoke all active sessions. In accordance with safety rules, existing past orders remain archived for tax compliance.';
+
+  @override
+  String get notificationsInbox => 'Notifications Inbox';
+
+  @override
+  String get markAllRead => 'Mark All as Read';
+
+  @override
+  String get allNotifications => 'All';
+
+  @override
+  String get panchangNotifications => 'Panchang';
+
+  @override
+  String get transitNotifications => 'Transits';
+
+  @override
+  String get orderNotifications => 'Orders';
+
+  @override
+  String get consultationNotifications => 'Consultations';
+
+  @override
+  String get noNotificationsTitle => 'No Notifications Yet';
+
+  @override
+  String get noNotificationsDesc =>
+      'Your daily panchang, planetary transit updates, and order milestones will appear here.';
+
+  @override
+  String get notificationDetailTitle => 'Notification Details';
+
+  @override
+  String get notificationDismiss => 'Dismiss';
+
+  @override
+  String get notificationTakeAction => 'Open Details';
+
+  @override
+  String get helpSupportHeader => 'How can we assist you?';
+
+  @override
+  String get helpSupportSubtitleText =>
+      'Get answers to common Vedic astrology questions or connect directly with our support team.';
+
+  @override
+  String get officialWhatsAppSupport => 'Official WhatsApp Support';
+
+  @override
+  String get supportOfficeHours => 'Monday – Saturday: 10:00 AM – 7:00 PM IST';
+
+  @override
+  String get copiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get frequentlyAskedQuestions => 'Frequently Asked Questions';
+
+  @override
+  String get sendFeedbackButton => 'Send Feedback or Question';
+
+  @override
+  String get feedbackPromptTitle => 'Share Your Feedback';
+
+  @override
+  String get feedbackPromptSubtitle =>
+      'Tell us how we can improve your Astro Sushil experience.';
+
+  @override
+  String get submitFeedback => 'Submit Feedback';
+
+  @override
+  String get feedbackThankYou =>
+      'Thank you for your feedback! Our team reviews all suggestions.';
+
+  @override
+  String get legalDocumentsHeader => 'Legal & Compliance';
+
+  @override
+  String get privacyPolicyTab => 'Privacy Policy';
+
+  @override
+  String get termsOfServiceTab => 'Terms of Service';
+
+  @override
+  String get refundPolicyTab => 'Refund Policy';
+
+  @override
+  String get shippingPolicyTab => 'Shipping Policy';
+
+  @override
+  String get astrologyDisclaimerTab => 'Astrology Disclaimer';
+
+  @override
+  String get systemMaintenanceTitle => 'System Maintenance';
+
+  @override
+  String get systemMaintenanceDesc =>
+      'Astro Sushil systems are undergoing scheduled maintenance. Astrological calculations will resume shortly.';
+
+  @override
+  String get systemMaintenanceOfflineNotice =>
+      'Your saved birth charts and library downloads remain fully accessible offline.';
+
+  @override
+  String get checkSystemStatus => 'Refresh Status';
+
+  @override
+  String get pageNotFoundTitle => 'Lost in the Cosmos';
+
+  @override
+  String get pageNotFoundDesc =>
+      'The planetary coordinates or screen you are searching for does not exist or has moved.';
+
+  @override
+  String get returnToHome => 'Return to Home';
+
+  @override
+  String get welcomeSuccessTitle => 'Welcome to Astro Sushil!';
+
+  @override
+  String get welcomeSuccessSubtitle =>
+      'Your account has been created successfully. Explore authentic Vedic astrology, reports, and consultations.';
+
+  @override
+  String get getStartedButton => 'Get Started';
 }

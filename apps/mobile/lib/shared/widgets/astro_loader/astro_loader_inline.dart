@@ -36,12 +36,14 @@ class AstroLoaderInline extends StatelessWidget {
         children: [
           loaderWidget,
           const SizedBox(width: 8),
-          Text(
-            message!,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: textColor,
+          Flexible(
+            child: Text(
+              message!,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textColor,
+              ),
             ),
           ),
         ],

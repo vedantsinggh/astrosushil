@@ -39,3 +39,4 @@ pnpm-debug.log*
 # Docker & Temp
 .docker/
 tmp/
+docs/audits/screenshots

@@ -43,6 +43,9 @@ void main() {
         birthProfilesListNotifierProvider.overrideWith(
           (ref) => TestBirthProfilesNotifier(profiles),
         ),
+        selectedBirthProfileProvider.overrideWith(
+          (ref) => profiles.isNotEmpty ? profiles.first : null,
+        ),
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -63,23 +66,21 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Birth Chart'), findsWidgets);
-      expect(find.text('Divisional Charts'), findsOneWidget);
+      expect(find.text('Birth Chart (Kundli)'), findsOneWidget);
+      expect(find.text('Divisional Charts (Vargas)'), findsOneWidget);
+      expect(find.text('Planetary Placements'), findsOneWidget);
       expect(find.text('Vimshottari Dasha'), findsOneWidget);
-      expect(find.text('Matchmaking'), findsWidgets);
-      expect(find.text('Daily Panchanga'), findsOneWidget);
-      expect(find.text('Planets'), findsOneWidget);
       expect(find.text('Transits (Gochara)'), findsOneWidget);
+      expect(find.text('Panchanga'), findsOneWidget);
       expect(find.text('Vedic Yogas'), findsOneWidget);
-      expect(find.text('Shadbala Strengths'), findsOneWidget);
-      expect(find.text('Bhava Bala'), findsOneWidget);
-      expect(find.text('Ashtakavarga'), findsOneWidget);
-      expect(find.text('Jaimini Sutras'), findsOneWidget);
-      expect(find.text('KP Astrology'), findsOneWidget);
-      expect(find.text('Varshaphala'), findsOneWidget);
-      expect(find.text('Prashna Shastra'), findsOneWidget);
-      expect(find.text('Special Points'), findsOneWidget);
-      expect(find.text('Vastu'), findsWidgets);
+      expect(find.text('Kundli Matchmaking (Guna Milan)'), findsOneWidget);
+      expect(find.textContaining('Planetary & House Strength'), findsOneWidget);
+      expect(find.textContaining('Advanced Astrological Systems'), findsOneWidget);
+      expect(find.textContaining('Shadbala'), findsWidgets);
+      expect(find.textContaining('Bhava Bala'), findsWidgets);
+      expect(find.textContaining('Ashtakavarga'), findsWidgets);
+      expect(find.textContaining('Jaimini'), findsWidgets);
+      expect(find.textContaining('KP Sub-Lords'), findsWidgets);
     });
 
     testWidgets('Category filter pills filter cards correctly', (WidgetTester tester) async {
@@ -93,36 +94,41 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Tap 'Charts & Kundli' filter
-      await tester.tap(find.text('Charts & Kundli'));
+      // Tap 'Charts & Kundli' filter pill
+      await tester.tap(find.text('Charts & Kundli').first);
       await tester.pumpAndSettle();
-      expect(find.text('Birth Chart'), findsWidgets);
-      expect(find.text('Divisional Charts'), findsOneWidget);
-      expect(find.text('Planets'), findsOneWidget);
-      expect(find.text('Special Points'), findsOneWidget);
+      expect(find.text('Birth Chart (Kundli)'), findsOneWidget);
+      expect(find.text('Divisional Charts (Vargas)'), findsOneWidget);
+      expect(find.text('Planetary Placements'), findsOneWidget);
 
       // Tap 'Timing & Dashas' filter
-      await tester.tap(find.text('Timing & Dashas'));
+      await tester.tap(find.text('Timing & Dashas').first);
       await tester.pumpAndSettle();
       expect(find.text('Vimshottari Dasha'), findsOneWidget);
       expect(find.text('Transits (Gochara)'), findsOneWidget);
-      expect(find.text('Daily Panchanga'), findsOneWidget);
+      expect(find.text('Panchanga'), findsOneWidget);
       expect(find.text('Vedic Yogas'), findsOneWidget);
 
-      // Tap 'Matchmaking' filter pill (first occurrence)
-      await tester.tap(find.text('Matchmaking').first);
+      // Tap 'Strengths' filter
+      await tester.tap(find.text('Strengths').first);
       await tester.pumpAndSettle();
-      expect(find.text('Matchmaking'), findsWidgets);
+      expect(find.text('Shadbala (षड्बल)'), findsOneWidget);
+      expect(find.text('Bhava Bala (भावबल)'), findsOneWidget);
+      expect(find.text('Ashtakavarga Matrix'), findsOneWidget);
 
       // Tap 'Advanced' filter
-      await tester.tap(find.text('Advanced'));
+      await tester.tap(find.text('Advanced').first);
       await tester.pumpAndSettle();
-      expect(find.text('Shadbala Strengths'), findsOneWidget);
-      expect(find.text('Bhava Bala'), findsOneWidget);
-      expect(find.text('Ashtakavarga'), findsOneWidget);
-      expect(find.text('Jaimini Sutras'), findsOneWidget);
-      expect(find.text('KP Astrology'), findsOneWidget);
-      expect(find.text('Prashna Shastra'), findsOneWidget);
+      expect(find.text('Jaimini Astrology'), findsOneWidget);
+      expect(find.text('KP System (Krishnamurti Padhdhati)'), findsOneWidget);
+      expect(find.text('Varshaphala (Solar Return)'), findsOneWidget);
+      expect(find.text('Prashna (Horary Astrology)'), findsOneWidget);
+      expect(find.text('Special Lagnas & Upagrahas'), findsOneWidget);
+
+      // Tap 'Matchmaking' filter pill
+      await tester.tap(find.text('Matchmaking').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Kundli Matchmaking (Guna Milan)'), findsOneWidget);
     });
 
     testWidgets('No-profile empty states render meaningful prompts without crashing', (WidgetTester tester) async {
@@ -136,9 +142,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Create Birth Profile'), findsWidgets);
-      expect(find.text('Add birth details to generate real Kundli'), findsOneWidget);
-      expect(find.text('Your D1 to D60 Vargas will appear here'), findsOneWidget);
+      expect(find.text('No Birth Profile Available'), findsOneWidget);
+      expect(find.text('Add Birth Profile'), findsOneWidget);
     });
   });
 }
@@ -203,6 +208,9 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 
   @override
   void clearError() {}
+
+  @override
+  Future<bool> deleteAccount({String? confirmation, String? password}) async => true;
 }
 
 class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>

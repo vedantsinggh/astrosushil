@@ -28,7 +28,7 @@ class VastuScreen extends ConsumerWidget {
           'idealDirection': c.idealDirection,
         }).toList(),
       },
-      importantValues: {
+      importantValues: const {
         'corePrinciple': 'Pancha Maha Bhootas spatial alignment',
       },
     );
@@ -113,10 +113,10 @@ class VastuScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.premiumAccent.withOpacity(0.3)),
+        border: Border.all(color: AppColors.premiumAccent.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.15),
+            color: AppColors.primary.withValues(alpha: 0.15),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -127,7 +127,7 @@ class VastuScreen extends ConsumerWidget {
         child: Stack(
           children: [
             // Background Vastu hero image if present
-            Positioned.fill(
+            const Positioned.fill(
               child: AstroImage(
                 assetPath: AppAssets.vastuHero,
                 fit: BoxFit.cover,
@@ -141,8 +141,8 @@ class VastuScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.primary.withOpacity(0.92),
-                    AppColors.primary.withOpacity(0.6),
+                    AppColors.primary.withValues(alpha: 0.92),
+                    AppColors.primary.withValues(alpha: 0.6),
                     Colors.transparent,
                   ],
                   begin: Alignment.centerLeft,
@@ -155,9 +155,9 @@ class VastuScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.premiumAccent.withOpacity(0.15),
+                      color: AppColors.premiumAccent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.premiumAccent.withOpacity(0.4)),
+                      border: Border.all(color: AppColors.premiumAccent.withValues(alpha: 0.4)),
                     ),
                     child: const Text(
                       'VASTU SHASTRA',
@@ -186,7 +186,7 @@ class VastuScreen extends ConsumerWidget {
                       'Align your home layout with five natural elements for peace, prosperity and health.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         height: 1.35,
                       ),
                     ),
@@ -241,9 +241,9 @@ class VastuScreen extends ConsumerWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.06),
+                  color: AppColors.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.08)),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),

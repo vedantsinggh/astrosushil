@@ -45,7 +45,7 @@ class AuthRepository {
       '/auth/phone/send-otp',
       data: {'phoneNumber': phoneNumber},
     );
-    return response as Map<String, dynamic>;
+    return response;
   }
 
   /// Verify phone OTP and save session tokens upon success
@@ -62,7 +62,7 @@ class AuthRepository {
         if (birthProfile != null) 'birthProfile': birthProfile,
       },
     );
-    final authResult = AuthResponseDto.fromJson(response as Map<String, dynamic>);
+    final authResult = AuthResponseDto.fromJson(response);
     await saveTokens(authResult.tokens);
     await saveUser(authResult.user);
     return authResult;
@@ -80,7 +80,7 @@ class AuthRepository {
         if (birthProfile != null) 'birthProfile': birthProfile,
       },
     );
-    final authResult = AuthResponseDto.fromJson(response as Map<String, dynamic>);
+    final authResult = AuthResponseDto.fromJson(response);
     await saveTokens(authResult.tokens);
     await saveUser(authResult.user);
     return authResult;
@@ -98,7 +98,7 @@ class AuthRepository {
         'otp': otp,
       },
     );
-    final user = UserModel.fromJson((response as Map<String, dynamic>)['user'] as Map<String, dynamic>);
+    final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
     await saveUser(user);
     return user;
   }
@@ -109,7 +109,7 @@ class AuthRepository {
       '/auth/link-google',
       data: {'idToken': idToken},
     );
-    final user = UserModel.fromJson((response as Map<String, dynamic>)['user'] as Map<String, dynamic>);
+    final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
     await saveUser(user);
     return user;
   }
@@ -306,5 +306,18 @@ class AuthRepository {
   Future<bool> hasToken() async {
     final token = await _storageService.read(key: StorageKeys.accessToken);
     return token != null && token.isNotEmpty;
+  }
+
+  /// Permanently delete authenticated user account on backend and wipe local storage
+  Future<Map<String, dynamic>> deleteAccount({String? confirmation, String? password}) async {
+    final response = await _apiClient.delete(
+      '/users/me',
+      data: {
+        'confirmation': confirmation ?? 'DELETE',
+        if (password != null && password.isNotEmpty) 'password': password,
+      },
+    );
+    await _storageService.clearAll();
+    return response;
   }
 }

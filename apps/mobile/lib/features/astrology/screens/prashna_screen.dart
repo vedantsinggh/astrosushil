@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../../shared/assets/app_assets.dart';
@@ -74,6 +75,7 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
     final prashnaState = ref.watch(prashnaProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       appBar: AstroAppBar(
         title: 'Prashna (Horary Astrology)',
         actions: [
@@ -116,9 +118,9 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: AppColors.cardSurfaceWarm,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                border: Border.all(color: AppColors.cardBorder),
               ),
               child: const Row(
                 children: [
@@ -419,29 +421,31 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withValues(alpha: 0.1),
-                AppColors.secondary.withValues(alpha: 0.06),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            gradient: AppGradients.heroCosmic,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.psychology_rounded, color: AppColors.primary, size: 24),
+                  const Icon(Icons.psychology_rounded, color: AppColors.accentGold, size: 24),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       result.questionText ?? 'Horary Question Analysis',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: AppColors.primary,
+                        fontSize: 16,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -452,23 +456,24 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
                 'Cast: ${result.timeDetails.formattedLocalTime} • ${result.location.placeName}',
                 style: const TextStyle(
                   fontSize: 12,
-                  color: AppColors.secondary,
+                  color: AppColors.cardSurfaceParchment,
                 ),
               ),
               if (result.questionNumberDetails != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
+                    color: AppColors.accentGold.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.4), width: 0.5),
                   ),
                   child: Text(
                     'Seed Number: ${result.questionNumberDetails!.number} (${result.questionNumberDetails!.system})',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
-                      color: AppColors.secondary,
+                      color: AppColors.accentGold,
                     ),
                   ),
                 ),

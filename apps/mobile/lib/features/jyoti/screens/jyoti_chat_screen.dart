@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../home/providers/home_provider.dart';
-import '../../../home/screens/reports_screen.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
@@ -204,11 +203,25 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
         return;
 
       case JyotiActionType.openBirthChart:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => hasProfile ? const BirthChartScreen(initialTabIndex: 0) : const CreateBirthProfileScreen(),
+          ),
+        );
+        return;
+
       case JyotiActionType.openHouses:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => hasProfile ? const BirthChartScreen(initialTabIndex: 2) : const CreateBirthProfileScreen(),
+          ),
+        );
+        return;
+
       case JyotiActionType.openNakshatra:
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => hasProfile ? const BirthChartScreen() : const CreateBirthProfileScreen(),
+            builder: (_) => hasProfile ? const BirthChartScreen(initialTabIndex: 3) : const CreateBirthProfileScreen(),
           ),
         );
         return;
@@ -364,7 +377,7 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: AppColors.warning.withOpacity(0.15),
+                color: AppColors.warning.withValues(alpha: 0.15),
                 child: const Row(
                   children: [
                     Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.primary),
@@ -523,8 +536,40 @@ class _JyotiChatHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
         children: [
-          const JyotiAvatar(size: 52),
-          const SizedBox(height: 12),
+          const JyotiAvatar(size: 56),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.tintVioletBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.tintVioletBorder,
+                width: 1,
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 13,
+                  color: AppColors.tintVioletText,
+                ),
+                SizedBox(width: 5),
+                Text(
+                  'AI ASTROLOGY ASSISTANT',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.tintVioletText,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
           const Text(
             JyotiMockData.initialGreetingTitle,
             style: TextStyle(
@@ -544,31 +589,50 @@ class _JyotiChatHeader extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 6),
+          Text(
+            'Automated AI Guidance · Based on Vedic Jyotish principles',
+            style: TextStyle(
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+              color: AppColors.lightTextMuted.withValues(alpha: 0.9),
+            ),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.cardSurfaceWarm,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.cardBorder,
+                width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: const Column(
               children: [
                 Text(
                   JyotiMockData.emptyStatePrompt,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
                 ),
-                SizedBox(height: 2),
+                SizedBox(height: 4),
                 Text(
                   JyotiMockData.emptyStateDesc,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
+                    height: 1.35,
                     color: AppColors.lightTextMuted,
                   ),
                   textAlign: TextAlign.center,

@@ -8,6 +8,8 @@ import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../astrology/screens/birth_chart_screen.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../models/birth_profile_model.dart';
 import '../providers/birth_profile_provider.dart';
 import 'create_birth_profile_screen.dart';
 
@@ -286,10 +288,165 @@ class BirthProfileDetailScreen extends ConsumerWidget {
                     }
                   },
                 ),
+                const SizedBox(height: 12),
+
+                // Set as Active Profile Action
+                Consumer(
+                  builder: (context, ref, _) {
+                    final active = ref.watch(selectedBirthProfileProvider);
+                    final isCurrentActive = active?.id == profile.id;
+                    if (isCurrentActive) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.premiumAccent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.premiumAccent.withOpacity(0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                            SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Current Active Profile',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.star_outline_rounded, color: AppColors.primary, size: 20),
+                        label: const Text(
+                          'Set as Active Profile',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primary, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          ref.read(selectedBirthProfileIdProvider.notifier).state = profile.id;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${profile.name} is now your active birth profile')),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Destructive Delete Profile Action
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                    label: const Text(
+                      'Delete Profile',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.error, width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _confirmAndDeleteProfile(context, ref, profile),
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _confirmAndDeleteProfile(BuildContext context, WidgetRef ref, BirthProfileModel profile) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Delete Birth Profile?',
+                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete the birth profile for "${profile.name}"? This action cannot be undone and will permanently remove associated local chart caches.',
+          style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final auth = ref.read(authStateProvider);
+                await ref
+                    .read(birthProfileRepositoryProvider)
+                    .deleteProfile(profile.id, isGuest: auth.isGuest);
+                await ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Birth profile for "${profile.name}" deleted.'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                  Navigator.of(context).pop();
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to delete birth profile. Please try again.'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Profile'),
+          ),
+        ],
       ),
     );
   }

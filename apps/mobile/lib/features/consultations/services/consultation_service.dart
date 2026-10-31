@@ -8,8 +8,26 @@ class ConsultationService {
 
   /// Fetch full verified consultation catalog from backend API
   Future<List<ConsultationOfferingModel>> fetchCatalog() async {
-    final response = await _apiClient.get('/consultations/catalog');
-    final items = response['items'] as List<dynamic>? ?? [];
+    dynamic response;
+    try {
+      response = await _apiClient.get('/consultations');
+    } catch (_) {
+      try {
+        response = await _apiClient.get('/consultations/catalog');
+      } catch (_) {
+        return [];
+      }
+    }
+    final List<dynamic> items;
+    if (response is Map) {
+      items = (response['data'] as List<dynamic>?) ??
+          (response['items'] as List<dynamic>?) ??
+          const <dynamic>[];
+    } else if (response is List) {
+      items = response;
+    } else {
+      items = const <dynamic>[];
+    }
     return items
         .map((e) => ConsultationOfferingModel.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -86,7 +104,9 @@ class ConsultationService {
   /// Fetch user's personalized consultation booking history
   Future<List<ConsultationBookingModel>> getMyBookings() async {
     final response = await _apiClient.get('/consultations/my-bookings');
-    final bookings = response['bookings'] as List<dynamic>? ?? [];
+    final List<dynamic> bookings = (response['bookings'] as List<dynamic>?) ??
+        (response['data'] as List<dynamic>?) ??
+        const <dynamic>[];
     return bookings
         .map((b) => ConsultationBookingModel.fromJson(b as Map<String, dynamic>))
         .toList();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -18,6 +19,9 @@ import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../../../shared/theme/app_typography.dart';
+import '../widgets/astrology_explanation_card.dart';
 import '../widgets/degree_value_display.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/kundli_chart_widget.dart';
@@ -75,7 +79,7 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
     final vargaInfo = DivisionalChartInfo.findByCode(_selectedVargaCode);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
+      backgroundColor: AppColors.canvas,
       appBar: AstroAppBar(
         title: 'Divisional Charts (वर्ग)',
         actions: [
@@ -94,7 +98,7 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
                     padding: const EdgeInsets.all(20.0),
                     child: AstrologyEmptyState(
                       title: 'No Active Birth Profile',
-                      message: 'Select or add a birth profile to calculate and inspect all 16 Vedic divisional charts.',
+                      message: context.l10n.noProfileExplanation,
                       actionLabel: 'Add Birth Profile',
                       onAction: () {
                         Navigator.of(context).push(
@@ -107,7 +111,10 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
               : Column(
                   children: [
                     // 1. TOP STICKY ACTIVE PROFILE BAR
-                    const ActiveBirthProfileSelector(isDark: false),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 12, 16, 6),
+                      child: ActiveBirthProfileSelector(isDark: false),
+                    ),
 
                     // 2. QUICK VARGA SELECTOR PILLS
                     _buildVargaSelectorBar(context),
@@ -130,10 +137,10 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: const BoxDecoration(
-        color: AppColors.lightSurface,
-        border: Border(bottom: BorderSide(color: AppColors.lightBorder, width: 1)),
+        color: AppColors.cardSurfaceParchment,
+        border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 1)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -148,14 +155,15 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
                   label: Text('${varga.code} ${varga.sanskritName.split(' ').first}'),
                   selected: isSelected,
                   selectedColor: AppColors.primary,
-                  backgroundColor: AppColors.lightBackground,
+                  backgroundColor: AppColors.cardSurfaceWarm,
                   labelStyle: TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
                     fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                     color: isSelected ? Colors.white : AppColors.primary,
                   ),
                   side: BorderSide(
-                    color: isSelected ? AppColors.primary : AppColors.lightBorder,
+                    color: isSelected ? AppColors.primary : AppColors.cardBorder,
                   ),
                   onSelected: (selected) {
                     if (selected) _onSelectVarga(varga.code);
@@ -173,6 +181,7 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
                   selected: true,
                   selectedColor: AppColors.secondary,
                   labelStyle: const TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -186,12 +195,13 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
               avatar: const Icon(Icons.tune_rounded, size: 14, color: AppColors.primary),
               label: const Text('All Vargas (16)'),
               labelStyle: const TextStyle(
+                fontFamily: AppTypography.bodyFamily,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
-              backgroundColor: AppColors.primary.withValues(alpha: 0.08),
-              side: const BorderSide(color: AppColors.primary, width: 1),
+              backgroundColor: AppColors.cardSurfaceWarm,
+              side: const BorderSide(color: AppColors.cardBorder, width: 1),
               onPressed: () => _openAllVargasModal(context),
             ),
           ],
@@ -266,6 +276,15 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 0. BEGINNER EDUCATIONAL GUIDANCE CARD
+              AstrologyExplanationCard(
+                title: context.l10n.explainDivisionalChartsTitle,
+                whatIsText: context.l10n.explainDivisionalChartsWhatIs,
+                howToReadText: context.l10n.explainDivisionalChartsHowToRead,
+              ),
+
+              const SizedBox(height: 12),
+
               // 1. SELECTED VARGA HEADER & LIFE DOMAIN SUMMARY
               _buildVargaInfoCard(vargaInfo),
 
@@ -300,11 +319,11 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
                     const SizedBox(height: 12),
                     if (chart.ascendant != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppColors.lightBackground,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.lightBorder),
+                          color: AppColors.cardSurfaceParchment,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.cardBorder),
                         ),
                         child: Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
@@ -314,11 +333,16 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
                             const Icon(Icons.wb_sunny_rounded, size: 16, color: AppColors.secondary),
                             Text(
                               '${vargaInfo.code} Lagna: ',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               '${chart.ascendant!.rashiName} (${chart.ascendant!.degreeInRashi.toStringAsFixed(2)}°)',
                               style: const TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
                                 fontSize: 12,
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600,
@@ -370,17 +394,11 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
   Widget _buildVargaInfoCard(DivisionalChartInfo vargaInfo) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primary.withValues(alpha: 0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
+        gradient: AppGradients.heroCosmic,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35), width: 1.0),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.2),
@@ -393,21 +411,22 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: AppColors.premiumAccent,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               vargaInfo.code,
               style: const TextStyle(
-                fontSize: 15,
+                fontFamily: AppTypography.headingFamily,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,17 +434,19 @@ class _DivisionalChartsScreenState extends ConsumerState<DivisionalChartsScreen>
                 Text(
                   vargaInfo.sanskritName,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontFamily: AppTypography.headingFamily,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   vargaInfo.lifeDomain,
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.premiumAccent,
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 12.5,
+                    color: AppColors.goldLight,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -493,7 +514,7 @@ class _AllVargasPickerModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.lightSurface,
+      color: AppColors.cardSurfaceWarm,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
@@ -508,7 +529,7 @@ class _AllVargasPickerModal extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.lightBorder,
+                color: AppColors.cardBorder,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -517,7 +538,7 @@ class _AllVargasPickerModal extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.grid_view_rounded, color: AppColors.primary, size: 20),
+                  const Icon(Icons.grid_view_rounded, color: AppColors.midnightNavy, size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -525,27 +546,27 @@ class _AllVargasPickerModal extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                        color: AppColors.textDark,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20),
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textMuted),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1, color: AppColors.lightBorder),
+            const Divider(height: 1, color: AppColors.cardBorder),
 
           Expanded(
             child: ListView.separated(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: DivisionalChartInfo.allVargas.length,
-              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.lightBorder),
+              separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.cardBorder),
               itemBuilder: (ctx, index) {
                 final varga = DivisionalChartInfo.allVargas[index];
                 final isSelected = varga.code == selectedCode;
@@ -553,16 +574,16 @@ class _AllVargasPickerModal extends StatelessWidget {
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
                   selected: isSelected,
-                  selectedTileColor: AppColors.primary.withValues(alpha: 0.06),
+                  selectedTileColor: AppColors.deepIndigo.withValues(alpha: 0.06),
                   leading: Container(
                     width: 44,
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.lightBackground,
+                      color: isSelected ? AppColors.midnightNavy : AppColors.cardSurfaceParchment,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : AppColors.lightBorder,
+                        color: isSelected ? AppColors.gold : AppColors.cardBorder,
                       ),
                     ),
                     child: Text(
@@ -570,7 +591,7 @@ class _AllVargasPickerModal extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : AppColors.primary,
+                        color: isSelected ? AppColors.gold : AppColors.textDark,
                       ),
                     ),
                   ),
@@ -581,7 +602,7 @@ class _AllVargasPickerModal extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                          color: AppColors.primary,
+                          color: AppColors.textDark,
                         ),
                       ),
                       if (varga.isPriority) ...[
@@ -589,15 +610,18 @@ class _AllVargasPickerModal extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.premiumAccent.withValues(alpha: 0.2),
+                            color: AppColors.gold.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: AppColors.gold.withValues(alpha: 0.5),
+                            ),
                           ),
                           child: const Text(
                             'CORE',
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.secondary,
+                              color: AppColors.deepIndigo,
                             ),
                           ),
                         ),
@@ -606,16 +630,16 @@ class _AllVargasPickerModal extends StatelessWidget {
                   ),
                   subtitle: Text(
                     varga.lifeDomain,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: AppColors.primary.withValues(alpha: 0.7),
+                      color: AppColors.textMuted,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
-                      : const Icon(Icons.chevron_right_rounded, color: AppColors.lightBorder, size: 20),
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.gold, size: 20)
+                      : const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
                   onTap: () => onSelected(varga.code),
                 );
               },

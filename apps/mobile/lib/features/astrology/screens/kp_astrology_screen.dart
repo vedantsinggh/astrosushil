@@ -15,6 +15,8 @@ import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen displaying Krishnamurti Padhdhati (KP) astrological calculations
 /// including 4-tier planetary lords, Placidus cusps, house significators, and ruling planets.
@@ -77,6 +79,7 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
     final kpAsync = ref.watch(activeProfileKPProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       appBar: const AstroAppBar(
         title: 'KP Astrology (Krishnamurti)',
       ),
@@ -84,6 +87,14 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
         child: Column(
           children: [
             const ActiveBirthProfileSelector(isDark: false),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+              child: AstrologyExplanationCard(
+                title: context.l10n.explainKpTitle,
+                whatIsText: context.l10n.explainKpWhatIs,
+                howToReadText: context.l10n.explainKpHowToRead,
+              ),
+            ),
             AstrologyTabBar(
               isScrollable: true,
               selectedIndex: _selectedTabIndex,
@@ -94,13 +105,13 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
             ),
             if (kpAsync.valueOrNull != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
                 child: SushilExplainerButton(
                   contextBuilder: () => _buildExplanationContext(kpAsync.valueOrNull!),
                   poseAsset: AppAssets.sushilExplaining,
                 ),
               ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Expanded(
               child: kpAsync.when(
                 loading: () => const AstrologyLoadingState(
@@ -189,9 +200,9 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+                    color: AppColors.cardSurfaceWarm,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.cardBorder),
                   ),
                   child: ExpansionTile(
                     tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
@@ -203,8 +214,8 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                           p.name,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppColors.primary,
+                            fontSize: 13.5,
+                            color: AppColors.midnightNavy,
                           ),
                         ),
                         if (p.isRetrograde)
@@ -213,7 +224,7 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                             child: Text(
                               '(R)',
                               style: TextStyle(
-                                color: Colors.redAccent,
+                                color: Color(0xFFC62828),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 11,
                               ),
@@ -223,8 +234,9 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                         Text(
                           '${p.signName} ${p.formattedDegree}',
                           style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.secondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.deepIndigo,
                           ),
                         ),
                       ],
@@ -309,9 +321,9 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+                    color: AppColors.cardSurfaceWarm,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.cardBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,15 +334,16 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
+                              color: AppColors.cardSurfaceParchment,
                               borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
                             ),
                             child: Text(
                               'Cusp ${c.cuspNumber}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
-                                color: AppColors.primary,
+                                color: AppColors.midnightNavy,
                               ),
                             ),
                           ),
@@ -339,7 +352,8 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                             '${c.signName} ${c.formattedDegree}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                              fontSize: 12.5,
+                              color: AppColors.textDark,
                             ),
                           ),
                           const Spacer(),
@@ -347,7 +361,7 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                             '${c.nakshatraName} (P${c.pada})',
                             style: const TextStyle(
                               fontSize: 11,
-                              color: AppColors.secondary,
+                              color: AppColors.textMuted,
                             ),
                           ),
                         ],
@@ -391,8 +405,8 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                 '• Level C: Planets in star of house lord\n'
                 '• Level D: Lord of the house',
                 style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.secondary,
+                  fontSize: 11.5,
+                  color: AppColors.textMuted,
                   height: 1.4,
                 ),
               ),
@@ -403,9 +417,9 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+                      color: AppColors.cardSurfaceWarm,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,17 +428,18 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
+                                color: AppColors.cardSurfaceParchment,
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: AppColors.cardBorder),
                               ),
                               child: Text(
                                 'House ${sig.house}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
-                                  color: AppColors.secondary,
+                                  color: AppColors.deepIndigo,
                                 ),
                               ),
                             ),
@@ -432,9 +447,9 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
                             Text(
                               'Cusp Sub-Lord: ${sig.cuspSubLord}',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.5,
+                                color: AppColors.midnightNavy,
                               ),
                             ),
                           ],
@@ -543,25 +558,26 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+        color: AppColors.cardSurfaceParchment,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         children: [
           Text(
             title,
             style: const TextStyle(
-              color: AppColors.secondary,
+              color: AppColors.textMuted,
               fontSize: 10,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             lord,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 11,
-              color: AppColors.primary,
+              fontSize: 11.5,
+              color: AppColors.midnightNavy,
             ),
           ),
         ],
@@ -581,7 +597,7 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
               label,
               style: const TextStyle(
                 fontSize: 11,
-                color: AppColors.secondary,
+                color: AppColors.textMuted,
               ),
             ),
           ),
@@ -591,7 +607,7 @@ class _KPAstrologyScreenState extends ConsumerState<KPAstrologyScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: planets.isEmpty ? AppColors.secondary : AppColors.primary,
+                color: planets.isEmpty ? AppColors.textMuted : AppColors.textDark,
               ),
             ),
           ),

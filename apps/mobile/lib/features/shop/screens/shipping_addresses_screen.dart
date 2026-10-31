@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/shipping_address_model.dart';
 import '../providers/cart_provider.dart';
 import '../providers/shop_provider.dart';
@@ -158,6 +159,7 @@ class _ShippingAddressesScreenState extends ConsumerState<ShippingAddressesScree
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       child: Text(addressToEdit != null ? 'Update Address' : 'Save Address'),
                     ),
@@ -179,15 +181,15 @@ class _ShippingAddressesScreenState extends ConsumerState<ShippingAddressesScree
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           'Saved Addresses',
-          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -196,111 +198,177 @@ class _ShippingAddressesScreenState extends ConsumerState<ShippingAddressesScree
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Add Address', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: addressesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (err, _) => Center(child: Text(err.toString())),
-        data: (addresses) {
-          if (addresses.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.location_on_outlined, size: 56, color: AppColors.secondary.withValues(alpha: 0.4)),
-                    const SizedBox(height: 16),
-                    const Text('No addresses saved yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Save your address for quick delivery of sanctified Ayurvedic herbs and physical items.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: addresses.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (ctx, idx) {
-              final addr = addresses[idx];
-              final isSelected = widget.isSelectionMode && selectedAddress?.id == addr.id;
-
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.lightBorder,
-                    width: isSelected ? 2 : 1,
+      body: SubtleCelestialBackground(
+        child: addressesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          error: (err, _) => Center(child: Text(err.toString())),
+          data: (addresses) {
+            if (addresses.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on_outlined, size: 56, color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No addresses saved yet',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.lightTextPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Save your address for quick delivery of sanctified Ayurvedic herbs and physical items.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13, height: 1.4),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: () => _openAddressForm(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add Address Now'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(180, 48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(addr.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        if (addr.isDefault)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text('DEFAULT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                          ),
-                      ],
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: addresses.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (ctx, idx) {
+                final addr = addresses[idx];
+                final isSelected = widget.isSelectionMode && selectedAddress?.id == addr.id;
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardSurfaceWarm,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.cardBorder,
+                      width: isSelected ? 2 : 1,
                     ),
-                    const SizedBox(height: 6),
-                    Text(addr.formattedAddress, style: const TextStyle(fontSize: 13, height: 1.4)),
-                    const SizedBox(height: 4),
-                    Text('Phone: ${addr.phoneNumber}', style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
-                    const Divider(height: 20, color: AppColors.lightBorder),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (widget.isSelectionMode)
-                          ElevatedButton(
-                            onPressed: () {
-                              ref.read(cartProvider.notifier).selectAddress(addr);
-                              Navigator.of(context).pop();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isSelected ? AppColors.success : AppColors.primary,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: Text(isSelected ? 'Selected' : 'Deliver Here'),
-                          )
-                        else ...[
-                          TextButton.icon(
-                            onPressed: () => _openAddressForm(addr),
-                            icon: const Icon(Icons.edit, size: 16),
-                            label: const Text('Edit'),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.home_outlined, size: 18, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                addr.fullName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.lightTextPrimary),
+                              ),
+                            ],
                           ),
-                          TextButton.icon(
-                            onPressed: () async {
-                              await ref.read(shopServiceProvider).deleteShippingAddress(addr.id);
-                              ref.invalidate(shippingAddressesProvider);
-                            },
-                            icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
-                            label: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                          if (addr.isDefault)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.premiumAccent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppColors.premiumAccent.withValues(alpha: 0.4)),
+                              ),
+                              child: const Text(
+                                'DEFAULT',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        addr.formattedAddress,
+                        style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.lightTextPrimary),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_outlined, size: 14, color: AppColors.lightTextSecondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            addr.phoneNumber,
+                            style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                           ),
                         ],
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                      ),
+                      const Divider(height: 20, color: AppColors.cardBorder),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (widget.isSelectionMode)
+                            ElevatedButton(
+                              onPressed: () {
+                                ref.read(cartProvider.notifier).selectAddress(addr);
+                                Navigator.of(context).pop();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isSelected ? AppColors.success : AppColors.primary,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(120, 48),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: Text(isSelected ? 'Selected' : 'Deliver Here'),
+                            )
+                          else ...[
+                            TextButton.icon(
+                              onPressed: () => _openAddressForm(addr),
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              label: const Text('Edit'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                minimumSize: const Size(64, 48),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () async {
+                                await ref.read(shopServiceProvider).deleteShippingAddress(addr.id);
+                                ref.invalidate(shippingAddressesProvider);
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                              label: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(64, 48),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

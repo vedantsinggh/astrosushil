@@ -48,12 +48,12 @@ export class FeatureAccessService {
     const latestStatusLog = await prisma.auditLog.findFirst({
       where: {
         resource: `User:${userId}`,
-        action: { in: ['USER_SUSPENDED', 'USER_ACTIVATED'] },
+        action: { in: ['USER_SUSPENDED', 'USER_ACTIVATED', 'USER_ACCOUNT_DELETED'] },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return latestStatusLog?.action === 'USER_SUSPENDED';
+    return latestStatusLog?.action === 'USER_SUSPENDED' || latestStatusLog?.action === 'USER_ACCOUNT_DELETED';
   }
 
   /**

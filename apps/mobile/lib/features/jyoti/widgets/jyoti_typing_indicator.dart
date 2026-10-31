@@ -41,10 +41,10 @@ class _JyotiTypingIndicatorState extends State<JyotiTypingIndicator>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.cardSurfaceWarm,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppColors.secondary.withOpacity(0.15),
+                color: AppColors.cardBorder,
                 width: 1,
               ),
             ),

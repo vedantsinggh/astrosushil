@@ -4,13 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../models/course_models.dart';
 import '../providers/courses_provider.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 
 /// Player screen for Course Lesson playback with progress tracking and LMS integration
+/// Redesigned in Phase 7 according to the Astro Sushil Design System.
 class CoursePlayerScreen extends ConsumerStatefulWidget {
   final String lessonId;
 
@@ -59,7 +62,7 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
           ? playbackData.lesson.durationSeconds
           : (playbackData.lesson.durationMinutes * 60);
       _currentSeconds = playbackData.lesson.durationSeconds > 0
-          ? (playbackData.lesson.durationSeconds ~/ 4) // resume position
+          ? (playbackData.lesson.durationSeconds ~/ 4)
           : 0;
       _isCompleted = playbackData.lesson.isCompleted;
     }
@@ -89,7 +92,6 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
         setState(() {
           _currentSeconds++;
         });
-        // Auto-save progress every 15 seconds
         if (_currentSeconds % 15 == 0) {
           _saveProgressQuietly();
         }
@@ -215,6 +217,7 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
           onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
         title: Text(
           playbackAsync.valueOrNull?.lesson.courseTitle ?? 'Lesson Player',
@@ -263,8 +266,9 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
                 ElevatedButton(
                   onPressed: () => ref.refresh(lessonPlaybackProvider(widget.lessonId)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.premiumAccent,
+                    backgroundColor: AppColors.gold,
                     foregroundColor: AppColors.primary,
+                    minimumSize: const Size(0, 48),
                   ),
                   child: const Text('Retry Playback'),
                 ),
@@ -278,9 +282,9 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
 
           return Column(
             children: [
-              // Media Player Surface Area
+              // 1. Media Player Surface Area
               Container(
-                height: 230,
+                height: 235,
                 width: double.infinity,
                 color: Colors.black,
                 child: playbackData.isAvailable
@@ -305,220 +309,211 @@ class _CoursePlayerScreenState extends ConsumerState<CoursePlayerScreen>
                       ),
               ),
 
-              // Lesson Details & Action Controls
+              // 2. Lesson Details & Action Controls
               Expanded(
                 child: Container(
-                  color: AppColors.lightBackground,
-                  child: ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      // Section Header Tag
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              lesson.sectionTitle ?? 'Curriculum',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.secondary,
-                              ),
-                            ),
-                          ),
-                          if (lesson.isFreePreview) ...[
-                            const SizedBox(width: 8),
+                  color: AppColors.canvas,
+                  child: SubtleCelestialBackground(
+                    child: ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        // Section Header Tag
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.premiumAccent.withOpacity(0.2),
+                                color: AppColors.secondary.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppColors.cardBorder),
                               ),
                               child: Text(
-                                l10n.courseFreePreview,
+                                lesson.sectionTitle ?? 'Curriculum',
                                 style: const TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                                  color: AppColors.secondary,
                                 ),
                               ),
                             ),
+                            if (lesson.isFreePreview)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppColors.gold, width: 0.8),
+                                ),
+                                child: Text(
+                                  l10n.courseFreePreview,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Lesson Title
-                      Text(
-                        lesson.getLocalizedTitle(langCode),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.lightTextPrimary,
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 12),
 
-                      // Description
-                      if (lesson.description != null && lesson.description!.isNotEmpty) ...[
+                        // Lesson Title
                         Text(
-                          lesson.description!,
+                          lesson.getLocalizedTitle(langCode),
                           style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.lightTextSecondary,
-                            height: 1.5,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.lightTextPrimary,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Description
+                        if (lesson.description != null && lesson.description!.isNotEmpty) ...[
+                          Text(
+                            lesson.description!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.lightTextSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Sushil Sir Contextual Lesson Explainer
+                        SushilExplainerButton(
+                          label: langCode == 'hi'
+                              ? 'सुशील सर से यह पाठ समझें'
+                              : 'Let Sushil Sir explain this lesson',
+                          contextData: ExplanationContext(
+                            feature: 'course_lesson',
+                            screenTitle: lesson.getLocalizedTitle(langCode),
+                            data: {
+                              'lessonId': lesson.id,
+                              'courseTitle': lesson.courseTitle,
+                              'sectionTitle': lesson.sectionTitle,
+                              'lessonTitle': lesson.getLocalizedTitle(langCode),
+                              'description': lesson.description,
+                            },
                           ),
                         ),
                         const SizedBox(height: 16),
-                      ],
 
-                      // Sushil Sir Contextual Lesson Explainer
-                      SushilExplainerButton(
-                        label: langCode == 'hi'
-                            ? 'सुशील सर से यह पाठ समझें'
-                            : 'Let Sushil Sir explain this lesson',
-                        contextData: ExplanationContext(
-                          feature: 'course_lesson',
-                          screenTitle: lesson.getLocalizedTitle(langCode),
-                          data: {
-                            'lessonId': lesson.id,
-                            'courseTitle': lesson.courseTitle,
-                            'sectionTitle': lesson.sectionTitle,
-                            'lessonTitle': lesson.getLocalizedTitle(langCode),
-                            'description': lesson.description,
-                          },
+                        // Completion Toggle Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardSurfaceWarm,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 10,
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isCompleted
+                                        ? 'Completed Lesson'
+                                        : 'Mark as Finished',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.lightTextPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _isCompleted
+                                        ? 'Tracked in your course progress'
+                                        : 'Updates your masterclass completion rate',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.lightTextMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: _markCompleted,
+                                icon: Icon(
+                                  _isCompleted ? Icons.check_circle_rounded : Icons.check_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(_isCompleted ? 'Done' : 'Complete'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      _isCompleted ? AppColors.success : AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(0, 48),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 20),
 
-                      // Completion Toggle Card
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.lightBorder),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Lesson Navigation Controls (Next & Previous)
+                        Row(
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _isCompleted
-                                      ? 'Completed Lesson'
-                                      : 'Mark as Finished',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.lightTextPrimary,
+                            if (playbackData.prevLessonId != null)
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => CoursePlayerScreen(lessonId: playbackData.prevLessonId!),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                                  label: Text(l10n.coursePreviousLesson),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(color: AppColors.cardBorder),
+                                    minimumSize: const Size(0, 48),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _isCompleted
-                                      ? 'Tracked in your course progress'
-                                      : 'Updates your masterclass completion rate',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.lightTextMuted,
+                              ),
+                            if (playbackData.prevLessonId != null && playbackData.nextLessonId != null)
+                              const SizedBox(width: 12),
+                            if (playbackData.nextLessonId != null)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => CoursePlayerScreen(lessonId: playbackData.nextLessonId!),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                                  label: Text(l10n.courseNextLesson),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size(0, 48),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                 ),
-                              ],
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: _markCompleted,
-                              icon: Icon(
-                                _isCompleted ? Icons.check_circle_rounded : Icons.check_rounded,
-                                size: 18,
                               ),
-                              label: Text(_isCompleted ? 'Done' : 'Complete'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    _isCompleted ? AppColors.success : AppColors.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-
-              // Bottom Navigation Bar (Prev / Next Lesson)
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  children: [
-                    if (playbackData.prevLessonId != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    CoursePlayerScreen(lessonId: playbackData.prevLessonId!),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                          label: Text(
-                            l10n.coursePreviousLesson,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.lightTextPrimary,
-                            side: const BorderSide(color: AppColors.lightBorder),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      const Spacer(),
-                    const SizedBox(width: 12),
-                    if (playbackData.nextLessonId != null)
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    CoursePlayerScreen(lessonId: playbackData.nextLessonId!),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                          label: Text(
-                            l10n.courseNextLesson,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
                 ),
               ),
             ],
@@ -560,24 +555,19 @@ class _DirectVideoPlayerSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Simulated video background surface
+        // Simulated video background graphic
         Container(
-          color: Colors.black,
-          alignment: Alignment.center,
-          child: Opacity(
-            opacity: 0.15,
-            child: Image.asset(
-              'assets/images/vedic_constellation.png',
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.auto_stories,
-                size: 80,
-                color: Colors.white30,
-              ),
+          color: const Color(0xFF0A0B1A),
+          child: Center(
+            child: Icon(
+              Icons.ondemand_video_rounded,
+              size: 80,
+              color: Colors.white.withValues(alpha: 0.12),
             ),
           ),
         ),
 
-        // Centered Play/Pause & Seek Controls
+        // Center Controls Overlay
         Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -585,15 +575,16 @@ class _DirectVideoPlayerSurface extends StatelessWidget {
               IconButton(
                 onPressed: onSeekBack,
                 icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 36),
+                tooltip: 'Rewind 10s',
               ),
               const SizedBox(width: 16),
               GestureDetector(
                 onTap: onPlayPause,
                 child: Container(
-                  width: 60,
-                  height: 60,
+                  width: 64,
+                  height: 64,
                   decoration: const BoxDecoration(
-                    color: AppColors.premiumAccent,
+                    color: AppColors.gold,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -607,6 +598,7 @@ class _DirectVideoPlayerSurface extends StatelessWidget {
               IconButton(
                 onPressed: onSeekForward,
                 icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 36),
+                tooltip: 'Forward 10s',
               ),
             ],
           ),
@@ -645,7 +637,7 @@ class _DirectVideoPlayerSurface extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -655,8 +647,8 @@ class _DirectVideoPlayerSurface extends StatelessWidget {
               children: [
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    thumbColor: AppColors.premiumAccent,
-                    activeTrackColor: AppColors.premiumAccent,
+                    thumbColor: AppColors.gold,
+                    activeTrackColor: AppColors.gold,
                     inactiveTrackColor: Colors.white30,
                     trackHeight: 3,
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
@@ -707,57 +699,68 @@ class _ProtectedStreamSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.tertiary, AppColors.background],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        gradient: AppGradients.heroCosmic,
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.lock_rounded,
-            color: AppColors.premiumAccent,
-            size: 38,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Official Masterclass Protected Stream',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            unavailableNotice,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 14),
-          if (platformUrl != null && platformUrl!.isNotEmpty)
-            ElevatedButton.icon(
-              onPressed: onOpenPortal,
-              icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text('Open in Learning Portal'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.premiumAccent,
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_rounded,
+                  color: AppColors.gold,
+                  size: 26,
                 ),
               ),
-            ),
-        ],
+              const SizedBox(height: 6),
+              const Text(
+                'Official Masterclass Protected Stream',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                unavailableNotice,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 11,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (platformUrl != null && platformUrl!.isNotEmpty)
+                ElevatedButton.icon(
+                  onPressed: onOpenPortal,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('Open in Learning Portal'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.gold,
+                    foregroundColor: AppColors.primary,
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

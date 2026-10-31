@@ -11,8 +11,11 @@ import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.d
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/home/widgets/hero_astrology_card.dart';
 import 'package:astro_mobile/home/widgets/home_bottom_navigation.dart';
+import 'package:astro_mobile/features/reports/providers/reports_provider.dart';
+import 'package:astro_mobile/features/consultations/providers/consultation_provider.dart';
+import 'package:astro_mobile/features/consultations/services/consultation_service.dart';
+import 'package:astro_mobile/features/consultations/models/consultation_models.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
-
 import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -49,6 +52,8 @@ void main() {
         birthProfilesListNotifierProvider.overrideWith(
           (ref) => TestBirthProfilesNotifier(profiles),
         ),
+        userReportsProvider.overrideWith((ref) => Future.value([])),
+        consultationServiceProvider.overrideWithValue(_MockHomeScreenConsultationService()),
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -250,6 +255,9 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 
   @override
   void clearError() {}
+
+  @override
+  Future<bool> deleteAccount({String? confirmation, String? password}) async => true;
 }
 
 class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>
@@ -266,3 +274,69 @@ class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>
   @override
   Future<BirthProfileModel?> migrateGuestProfile(CreateBirthProfileDto dto) async => null;
 }
+
+class _MockHomeScreenConsultationService implements ConsultationService {
+  @override
+  Future<List<ConsultationOfferingModel>> fetchCatalog() async => const [
+        ConsultationOfferingModel(
+          sku: 'consult-budget-friendly',
+          title: 'Consult Sushil Sir',
+          description: '15-minute voice call session with Astro Sushil.',
+          mode: 'ONLINE_VOICE',
+          durationMinutes: 15,
+          pricePaise: 500000,
+          responseDaysNotice: 15,
+          category: 'Audio Consultation',
+        ),
+      ];
+
+  @override
+  Future<List<AppointmentSlotModel>> fetchSlots({
+    required String date,
+    required String mode,
+    String? practitionerId,
+  }) async =>
+      const [];
+
+  @override
+  Future<Map<String, dynamic>> bookAppointment({
+    required String slotId,
+    required String consultationSku,
+    required String consultationMode,
+    String? birthProfileId,
+    String? query,
+  }) async =>
+      {};
+
+  @override
+  Future<ConsultationBookingModel> verifyPayment({
+    required String bookingId,
+    required String orderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<ConsultationBookingModel>> getMyBookings() async => const [];
+
+  @override
+  Future<ConsultationBookingModel> getBookingDetails(String bookingId) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<ConsultationBookingModel> rescheduleBooking({
+    required String bookingId,
+    required String newSlotId,
+    String? reason,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<ConsultationBookingModel> cancelBooking({
+    required String bookingId,
+    String? reason,
+  }) async =>
+      throw UnimplementedError();
+}
+

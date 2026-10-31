@@ -7,6 +7,12 @@ class GlobalErrorBoundary extends StatefulWidget {
 
   const GlobalErrorBoundary({super.key, required this.child});
 
+  static void initializeGlobalErrorHandlers() {
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+    };
+  }
+
   @override
   State<GlobalErrorBoundary> createState() => _GlobalErrorBoundaryState();
 }
@@ -17,12 +23,6 @@ class _GlobalErrorBoundaryState extends State<GlobalErrorBoundary> {
   @override
   void initState() {
     super.initState();
-  }
-
-  static void initializeGlobalErrorHandlers() {
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-    };
   }
 
   @override

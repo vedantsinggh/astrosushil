@@ -14,7 +14,6 @@ import '../providers/astrology_provider.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../widgets/astrology_explanation_card.dart';
 import '../widgets/astrology_data_table.dart';
-import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';

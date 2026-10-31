@@ -235,6 +235,9 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 
   @override
   void clearError() {}
+
+  @override
+  Future<bool> deleteAccount({String? confirmation, String? password}) async => true;
 }
 
 class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>

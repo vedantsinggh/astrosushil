@@ -23,7 +23,7 @@ class JyotiFloatingButton extends StatelessWidget {
         color: Colors.transparent,
         shape: const StadiumBorder(),
         elevation: 6,
-        shadowColor: AppColors.primary.withOpacity(0.4),
+        shadowColor: AppColors.primary.withValues(alpha: 0.4),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(30),
@@ -49,7 +49,7 @@ class JyotiFloatingButton extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.premiumAccent.withOpacity(0.3),
+                  color: AppColors.premiumAccent.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 3),
                 ),

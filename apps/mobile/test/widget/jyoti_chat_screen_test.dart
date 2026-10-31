@@ -5,8 +5,48 @@ import 'package:astro_mobile/core/auth/auth_required_sheet.dart';
 import 'package:astro_mobile/features/jyoti/screens/jyoti_chat_screen.dart';
 import 'package:astro_mobile/features/jyoti/widgets/home_jyoti_card.dart';
 import 'package:astro_mobile/features/jyoti/widgets/jyoti_floating_button.dart';
+import 'package:astro_mobile/features/jyoti/data/jyoti_api_repository.dart';
+import 'package:astro_mobile/features/jyoti/data/jyoti_local_chat_repository.dart';
+import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
+import 'package:astro_mobile/features/jyoti/models/jyoti_message.dart';
+import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
+
+class MockJyotiApiRepository extends Fake implements JyotiApiRepository {
+  @override
+  Future<List<JyotiMessageModel>> sendMessage({
+    required String message,
+    required List<JyotiMessageModel> recentHistory,
+    String? currentScreen,
+    String? birthProfileId,
+  }) async {
+    return JyotiMockData.generateMockResponse(message);
+  }
+}
+
+class MockJyotiLocalChatRepository extends Fake implements JyotiLocalChatRepository {
+  @override
+  Future<List<JyotiMessageModel>> loadMessages() async => [];
+
+  @override
+  Future<void> saveMessages(List<JyotiMessageModel> messages) async {}
+
+  @override
+  Future<void> clearChat() async {}
+}
 
 void main() {
+  Widget buildChatScreen() {
+    return ProviderScope(
+      overrides: [
+        jyotiApiRepositoryProvider.overrideWithValue(MockJyotiApiRepository()),
+        jyotiLocalChatRepositoryProvider.overrideWithValue(MockJyotiLocalChatRepository()),
+      ],
+      child: const MaterialApp(
+        home: JyotiChatScreen(),
+      ),
+    );
+  }
+
   group('Jyoti UI Shell Widget Tests', () {
     testWidgets('HomeJyotiCard renders branding title, subtitle and icon', (tester) async {
       bool tapped = false;
@@ -74,13 +114,7 @@ void main() {
     });
 
     testWidgets('JyotiChatScreen renders top app bar, header greeting, and input bar', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: JyotiChatScreen(),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildChatScreen());
 
       // Verify app bar title
       expect(find.text('Jyoti'), findsWidgets);
@@ -95,18 +129,12 @@ void main() {
 
       // Verify suggestion chips presence
       expect(find.text('Generate my Kundli'), findsOneWidget);
-      expect(find.text('Explain my birth chart'), findsOneWidget);
       expect(find.text('Explain this screen'), findsOneWidget);
+      expect(find.text('Show my planets'), findsOneWidget);
     });
 
     testWidgets('Tapping a suggestion chip inputs message and shows response', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: JyotiChatScreen(),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildChatScreen());
 
       await tester.tap(find.text('Generate my Kundli'));
       await tester.pump(); // Start sending message
@@ -116,20 +144,15 @@ void main() {
 
       // Fast forward past thinking timer
       await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
 
       // Verify action card appears
       expect(find.text('✦ Birth Chart & Kundli'), findsOneWidget);
       expect(find.text('Open Birth Chart →'), findsOneWidget);
     });
 
-    testWidgets('Tapping microphone icon triggers Voice input coming soon notification', (tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: JyotiChatScreen(),
-          ),
-        ),
-      );
+    testWidgets('Tapping microphone icon triggers Voice input disabled notification', (tester) async {
+      await tester.pumpWidget(buildChatScreen());
 
       final micFinder = find.byIcon(Icons.mic_none_rounded);
       expect(micFinder, findsOneWidget);
@@ -137,7 +160,7 @@ void main() {
       await tester.tap(micFinder);
       await tester.pump();
 
-      expect(find.text('Voice input coming soon'), findsOneWidget);
+      expect(find.text('Voice input is currently disabled'), findsOneWidget);
     });
   });
 }

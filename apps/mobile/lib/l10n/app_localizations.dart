@@ -170,6 +170,12 @@ abstract class AppLocalizations {
   /// **'No profile selected'**
   String get noProfileSelected;
 
+  /// No description provided for @noProfileExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Select or create a birth profile to calculate personalized astrological charts.'**
+  String get noProfileExplanation;
+
   /// No description provided for @createProfilePrompt.
   ///
   /// In en, this message translates to:
@@ -487,6 +493,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Coming Soon'**
   String get comingSoon;
+
+  /// No description provided for @reportsTabCatalogue.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse Reports'**
+  String get reportsTabCatalogue;
+
+  /// No description provided for @reportsTabHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'My Reports'**
+  String get reportsTabHistory;
+
+  /// No description provided for @reportCategoryComprehensive.
+  ///
+  /// In en, this message translates to:
+  /// **'Comprehensive Life Dossiers'**
+  String get reportCategoryComprehensive;
+
+  /// No description provided for @reportCategoryFocused.
+  ///
+  /// In en, this message translates to:
+  /// **'Focused Astrological Analyses'**
+  String get reportCategoryFocused;
+
+  /// No description provided for @reportCategoryCompatibility.
+  ///
+  /// In en, this message translates to:
+  /// **'Relationship & Compatibility'**
+  String get reportCategoryCompatibility;
+
+  /// No description provided for @reportCategoryUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming Research Editions'**
+  String get reportCategoryUpcoming;
+
+  /// No description provided for @reportProHoroscopeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Horoscope & Divisional Charts'**
+  String get reportProHoroscopeTitle;
+
+  /// No description provided for @reportProHoroscopeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-divisional analysis, 6-fold planetary Shadbala, 12 Bhava Bala rank analysis, and classical remedial measures.'**
+  String get reportProHoroscopeDesc;
+
+  /// No description provided for @reportDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Details'**
+  String get reportDetailTitle;
+
+  /// No description provided for @reportIncludedSections.
+  ///
+  /// In en, this message translates to:
+  /// **'Included Astrological Sections'**
+  String get reportIncludedSections;
+
+  /// No description provided for @reportPriceBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Price & Tax Breakdown'**
+  String get reportPriceBreakdown;
+
+  /// No description provided for @reportGstIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'18% GST Included'**
+  String get reportGstIncluded;
+
+  /// No description provided for @reportPartnerProfileSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Partner Profile'**
+  String get reportPartnerProfileSelect;
+
+  /// No description provided for @reportPartnerProfileRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner Profile Required'**
+  String get reportPartnerProfileRequired;
+
+  /// No description provided for @reportPartnerProfilePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Kundli Milan requires two distinct birth profiles. Please select or add a partner birth profile.'**
+  String get reportPartnerProfilePrompt;
+
+  /// No description provided for @reportHistoryEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Reports Generated Yet'**
+  String get reportHistoryEmptyTitle;
+
+  /// No description provided for @reportHistoryEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your generated personalized astrology reports and vector PDF dossiers will be saved here permanently.'**
+  String get reportHistoryEmptySubtitle;
+
+  /// No description provided for @reportHistoryBrowseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse Report Catalogue'**
+  String get reportHistoryBrowseButton;
+
+  /// No description provided for @reportStatusQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'In Queue'**
+  String get reportStatusQueued;
+
+  /// No description provided for @reportStatusCalculating.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculating'**
+  String get reportStatusCalculating;
+
+  /// No description provided for @reportStatusAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing'**
+  String get reportStatusAnalyzing;
+
+  /// No description provided for @reportStatusRendering.
+  ///
+  /// In en, this message translates to:
+  /// **'Rendering'**
+  String get reportStatusRendering;
+
+  /// No description provided for @reportStatusCompiling.
+  ///
+  /// In en, this message translates to:
+  /// **'Compiling PDF'**
+  String get reportStatusCompiling;
+
+  /// No description provided for @reportStatusUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Securing PDF'**
+  String get reportStatusUploading;
+
+  /// No description provided for @reportStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get reportStatusCompleted;
+
+  /// No description provided for @reportStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get reportStatusFailed;
+
+  /// No description provided for @reportActionViewPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Open PDF'**
+  String get reportActionViewPdf;
+
+  /// No description provided for @reportActionShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get reportActionShare;
+
+  /// No description provided for @reportActionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get reportActionRetry;
+
+  /// No description provided for @reportActionRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get reportActionRegenerate;
+
+  /// No description provided for @reportCompareTiersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare Report Tiers'**
+  String get reportCompareTiersTitle;
+
+  /// No description provided for @reportDeliveryInstant.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant Digital PDF Delivery'**
+  String get reportDeliveryInstant;
+
+  /// No description provided for @reportDeliveryTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery: Instant Vector PDF'**
+  String get reportDeliveryTime;
+
+  /// No description provided for @reportRequiredProfiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Required: {count} Profile'**
+  String reportRequiredProfiles(int count);
+
+  /// No description provided for @reportExistingCompletedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have a completed report for {name}'**
+  String reportExistingCompletedNotice(String name);
+
+  /// No description provided for @reportViewExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'View Existing PDF'**
+  String get reportViewExisting;
+
+  /// No description provided for @reportGenerateNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Fresh Version'**
+  String get reportGenerateNew;
 
   /// No description provided for @consultTitle.
   ///
@@ -884,6 +1112,42 @@ abstract class AppLocalizations {
   /// **'The active Mahadasha (major period) sets the broader theme, while the Antardasha (sub-period) highlights daily focus. Check the start and end dates to understand active cycles.'**
   String get explainDashaHowToRead;
 
+  /// No description provided for @explainHousesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding the 12 Houses (Bhavas)'**
+  String get explainHousesTitle;
+
+  /// No description provided for @explainHousesWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'In Vedic astrology, the 12 houses divide your life into distinct spheres of experience, from self, wealth, and family to career, partnerships, and spiritual liberation.'**
+  String get explainHousesWhatIs;
+
+  /// No description provided for @explainHousesHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'House 1 (Tanu Bhava) represents your physical self and character. Houses with occupying planets emphasize those themes in your life, while unoccupied houses are guided by their ruling sign lord.'**
+  String get explainHousesHowToRead;
+
+  /// No description provided for @explainNakshatraTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Nakshatras (Lunar Mansions)'**
+  String get explainNakshatraTitle;
+
+  /// No description provided for @explainNakshatraWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Nakshatras are 27 lunar constellations that provide deeper psychological insight into your temperament, natural talents, and Vimshottari timing cycles.'**
+  String get explainNakshatraWhatIs;
+
+  /// No description provided for @explainNakshatraHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Janma Nakshatra is where the Moon was positioned at birth. Its ruling planet sets your starting life dasha, and the Pada (quarter 1–4) indicates subtle inner strengths.'**
+  String get explainNakshatraHowToRead;
+
   /// No description provided for @explainPanchangaTitle.
   ///
   /// In en, this message translates to:
@@ -955,6 +1219,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In Sarvashtakavarga (SAV), houses with 28 or more bindus represent strong, supportive life areas, while houses below 25 require patience and mindful effort.'**
   String get explainAshtakavargaHowToRead;
+
+  /// No description provided for @explainDivisionalChartsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Divisional Charts (Vargas)'**
+  String get explainDivisionalChartsTitle;
+
+  /// No description provided for @explainDivisionalChartsWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Divisional charts (Shodashvarga) divide the 30° zodiac signs into microscopic harmonic segments to examine specialized life domains like marriage (D9), career (D10), and destiny (D60).'**
+  String get explainDivisionalChartsWhatIs;
+
+  /// No description provided for @explainDivisionalChartsHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'D1 (Rashi) shows the physical manifestation, while higher vargas reveal specific karmic potentials. A strong planet in D1 that is also exalted or in its own sign in D9 (Vargottama) brings enduring favorable outcomes.'**
+  String get explainDivisionalChartsHowToRead;
+
+  /// No description provided for @explainBhavaBalaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Bhava Bala (House Potency)'**
+  String get explainBhavaBalaTitle;
+
+  /// No description provided for @explainBhavaBalaWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Bhava Bala evaluates the comprehensive strength of each of the 12 astrological houses based on Lord strength, directional cusp potency, aspects, and resident planets.'**
+  String get explainBhavaBalaWhatIs;
+
+  /// No description provided for @explainBhavaBalaHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Houses with higher Rupas (typically 6.0+ or ranked 1–4) indicate areas of life that flourish with ease and resilience, while lower-ranked houses need conscious nurturing.'**
+  String get explainBhavaBalaHowToRead;
+
+  /// No description provided for @explainYogasTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Vedic Yogas'**
+  String get explainYogasTitle;
+
+  /// No description provided for @explainYogasWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Yogas are special planetary combinations described in classical scriptures (Brihat Parashara Hora Shastra) that generate extraordinary strengths, wealth, leadership, or spiritual wisdom.'**
+  String get explainYogasWhatIs;
+
+  /// No description provided for @explainYogasHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Active yogas are formed when planetary relationships meet exact scriptural conditions. Check the involved planets, house alignments, and condition checklist to understand how the yoga functions.'**
+  String get explainYogasHowToRead;
+
+  /// No description provided for @explainJaiminiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Jaimini Astrology'**
+  String get explainJaiminiTitle;
+
+  /// No description provided for @explainJaiminiWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Jaimini Sutras use seven or eight Chara Karakas (variable planetary significators determined by degrees) and sign-based aspects (Rashi Drishti) to reveal soul purpose and destiny.'**
+  String get explainJaiminiWhatIs;
+
+  /// No description provided for @explainJaiminiHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Atmakaraka (AK) represents your soul\'s journey, Amatyakaraka (AmK) indicates career and advisors, and Darakaraka (DK) signifies partnerships and spouse. Arudha Lagna (AL) reflects your external societal image.'**
+  String get explainJaiminiHowToRead;
+
+  /// No description provided for @explainKpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding KP Astrology (Krishnamurti)'**
+  String get explainKpTitle;
+
+  /// No description provided for @explainKpWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Krishnamurti Padhdhati (KP) uses Placidus house cusps and a 4-tier sub-lord system (Sign Lord, Star Lord, Sub Lord, Sub-Sub Lord) to time events with pinpoint precision.'**
+  String get explainKpWhatIs;
+
+  /// No description provided for @explainKpHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'In KP, a planet or cusp\'s primary outcome is determined by its Star Lord, while the final fruitful manifestation is governed by its Sub Lord. Examine the sub-lord connections for accurate event timing.'**
+  String get explainKpHowToRead;
+
+  /// No description provided for @explainGocharaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Gochara (Transits)'**
+  String get explainGocharaTitle;
+
+  /// No description provided for @explainGocharaWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Gochara evaluates current planetary movements in the sidereal sky relative to your natal Moon sign, Ascendant, and Ashtakavarga energy matrix.'**
+  String get explainGocharaWhatIs;
+
+  /// No description provided for @explainGocharaHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Benefic transits over houses with 28+ SAV bindus unlock opportunities, while challenging transits (like Saturn over 12th, 1st, or 2nd house during Sade Sati) require disciplined focus and caution.'**
+  String get explainGocharaHowToRead;
+
+  /// No description provided for @explainSpecialPointsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Special Points & Upagrahas'**
+  String get explainSpecialPointsTitle;
+
+  /// No description provided for @explainSpecialPointsWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Vedic astrology calculates subtle non-luminous energy centers including 5 shadow Upagrahas (Dhooma to Upaketu), time-based Gulika/Mandi, and Special Lagnas (Hora, Ghatika, Indu).'**
+  String get explainSpecialPointsWhatIs;
+
+  /// No description provided for @explainSpecialPointsHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Indu Lagna reveals financial prosperity, Hora Lagna evaluates wealth timing, and 64th Navamsha / 22nd Drekkana highlight sensitive vulnerability degrees requiring spiritual remedies.'**
+  String get explainSpecialPointsHowToRead;
+
+  /// No description provided for @explainVarshaphalaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Understanding Varshaphala (Solar Return)'**
+  String get explainVarshaphalaTitle;
+
+  /// No description provided for @explainVarshaphalaWhatIs.
+  ///
+  /// In en, this message translates to:
+  /// **'Varshaphala (Tajika system) calculates an annual horoscope for the precise moment the transiting Sun returns to its exact natal birth longitude.'**
+  String get explainVarshaphalaWhatIs;
+
+  /// No description provided for @explainVarshaphalaHowToRead.
+  ///
+  /// In en, this message translates to:
+  /// **'The Year Lord (Varshesha) and the moving focus point (Muntha) set the primary annual theme, while Harsha Bala measures the year\'s psychological and material contentment.'**
+  String get explainVarshaphalaHowToRead;
 
   /// No description provided for @matchmakingSameProfileWarning.
   ///
@@ -1142,6 +1550,144 @@ abstract class AppLocalizations {
   /// **'Cancellation releases slot capacity in accordance with policy.'**
   String get consultCancellationPolicy;
 
+  /// No description provided for @consultFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get consultFilterAll;
+
+  /// No description provided for @consultFilterVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get consultFilterVideo;
+
+  /// No description provided for @consultFilterAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get consultFilterAudio;
+
+  /// No description provided for @consultFilterUrgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Urgent'**
+  String get consultFilterUrgent;
+
+  /// No description provided for @consultFilterSpecialized.
+  ///
+  /// In en, this message translates to:
+  /// **'Specialized'**
+  String get consultFilterSpecialized;
+
+  /// No description provided for @consultFilterInPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'In-Person'**
+  String get consultFilterInPerson;
+
+  /// No description provided for @consultFilterUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get consultFilterUpcoming;
+
+  /// No description provided for @consultFilterPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get consultFilterPending;
+
+  /// No description provided for @consultFilterCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get consultFilterCompleted;
+
+  /// No description provided for @consultFilterCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get consultFilterCancelled;
+
+  /// No description provided for @consultTimeZoneNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'All times are in Indian Standard Time (IST / UTC+05:30)'**
+  String get consultTimeZoneNotice;
+
+  /// No description provided for @consultPrivacyReassurance.
+  ///
+  /// In en, this message translates to:
+  /// **'Your birth details and life questions are strictly confidential, shared only with Astro Sushil.'**
+  String get consultPrivacyReassurance;
+
+  /// No description provided for @consultBasePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Consultation Fee'**
+  String get consultBasePrice;
+
+  /// No description provided for @consultGstAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'GST (18% Included)'**
+  String get consultGstAmount;
+
+  /// No description provided for @consultTotalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Amount'**
+  String get consultTotalAmount;
+
+  /// No description provided for @consultNextStepsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What Happens Next'**
+  String get consultNextStepsTitle;
+
+  /// No description provided for @consultNextStepsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your appointment is confirmed. Live meeting room links will become active 15 minutes before the session.'**
+  String get consultNextStepsDesc;
+
+  /// No description provided for @consultViewAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'View in My Appointments'**
+  String get consultViewAppointments;
+
+  /// No description provided for @consultHowItWorksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How Consultation Works'**
+  String get consultHowItWorksTitle;
+
+  /// No description provided for @consultStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Select Format & Date'**
+  String get consultStep1;
+
+  /// No description provided for @consultStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Confirm Slot & Queries'**
+  String get consultStep2;
+
+  /// No description provided for @consultStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Meet Astro Sushil'**
+  String get consultStep3;
+
+  /// No description provided for @consultLocationNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Delhi / NCR office or client city location restrictions apply'**
+  String get consultLocationNotice;
+
   /// No description provided for @coursesNavTitle.
   ///
   /// In en, this message translates to:
@@ -1303,6 +1849,1080 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} Lessons'**
   String courseLessonCount(String count);
+
+  /// No description provided for @howCanWeGuideYou.
+  ///
+  /// In en, this message translates to:
+  /// **'How can we guide you today?'**
+  String get howCanWeGuideYou;
+
+  /// No description provided for @exploreHeroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore your birth chart, get insights, learn astrology and more.'**
+  String get exploreHeroSubtitle;
+
+  /// No description provided for @myBirthProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'My Birth Profile'**
+  String get myBirthProfile;
+
+  /// No description provided for @viewChartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'View Chart'**
+  String get viewChartButton;
+
+  /// No description provided for @transitsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Transits'**
+  String get transitsShort;
+
+  /// No description provided for @matchmakingShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Match Making'**
+  String get matchmakingShort;
+
+  /// No description provided for @dashasShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashas'**
+  String get dashasShort;
+
+  /// No description provided for @askSushilSirBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Let Sushil Sir explain this chart'**
+  String get askSushilSirBannerTitle;
+
+  /// No description provided for @askSushilSirBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get simple, clear explanations of your astrology'**
+  String get askSushilSirBannerSubtitle;
+
+  /// No description provided for @askSushilSirButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Sushil Sir'**
+  String get askSushilSirButton;
+
+  /// No description provided for @coursesShortcutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Astrology Courses'**
+  String get coursesShortcutTitle;
+
+  /// No description provided for @coursesShortcutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn at your own pace'**
+  String get coursesShortcutSubtitle;
+
+  /// No description provided for @shopShortcutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop'**
+  String get shopShortcutTitle;
+
+  /// No description provided for @shopShortcutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Books, gemstones, & more'**
+  String get shopShortcutSubtitle;
+
+  /// No description provided for @quickInsightsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Insights'**
+  String get quickInsightsTitle;
+
+  /// No description provided for @seeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'See All'**
+  String get seeAll;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View All'**
+  String get viewAll;
+
+  /// No description provided for @viewFull.
+  ///
+  /// In en, this message translates to:
+  /// **'View Full'**
+  String get viewFull;
+
+  /// No description provided for @auspiciousTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Auspicious Time'**
+  String get auspiciousTime;
+
+  /// No description provided for @goodForNewWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Good for new work'**
+  String get goodForNewWork;
+
+  /// No description provided for @avoidRahuKaal.
+  ///
+  /// In en, this message translates to:
+  /// **'Avoid Rahu Kaal'**
+  String get avoidRahuKaal;
+
+  /// No description provided for @notSuitableForTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Not suitable for important tasks'**
+  String get notSuitableForTasks;
+
+  /// No description provided for @emotionsStable.
+  ///
+  /// In en, this message translates to:
+  /// **'Emotions are stable today'**
+  String get emotionsStable;
+
+  /// No description provided for @lagnaAscendant.
+  ///
+  /// In en, this message translates to:
+  /// **'Lagna'**
+  String get lagnaAscendant;
+
+  /// No description provided for @moonSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Moon Sign'**
+  String get moonSign;
+
+  /// No description provided for @currentDasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Dasha'**
+  String get currentDasha;
+
+  /// No description provided for @spiritualShopTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Spiritual Shop'**
+  String get spiritualShopTitle;
+
+  /// No description provided for @spiritualShopSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Consecrated spiritual remedies, sacred art, and digital wallpapers'**
+  String get spiritualShopSubtitle;
+
+  /// No description provided for @allOfferings.
+  ///
+  /// In en, this message translates to:
+  /// **'All Offerings'**
+  String get allOfferings;
+
+  /// No description provided for @wallpapersCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallpapers'**
+  String get wallpapersCategory;
+
+  /// No description provided for @sacredArtCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Sacred Art'**
+  String get sacredArtCategory;
+
+  /// No description provided for @kitsBundlesCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Kits & Bundles'**
+  String get kitsBundlesCategory;
+
+  /// No description provided for @ayodhyaHerbCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Ayodhya Herb'**
+  String get ayodhyaHerbCategory;
+
+  /// No description provided for @searchShopHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search wallpapers, sacred art, or herbs...'**
+  String get searchShopHint;
+
+  /// No description provided for @inclusiveGstBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'18% GST Included'**
+  String get inclusiveGstBadge;
+
+  /// No description provided for @physicalProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Physical Product'**
+  String get physicalProduct;
+
+  /// No description provided for @instantDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant Download'**
+  String get instantDownload;
+
+  /// No description provided for @digitalBundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Digital Bundle'**
+  String get digitalBundle;
+
+  /// No description provided for @addToCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Cart'**
+  String get addToCart;
+
+  /// No description provided for @buyNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy Now'**
+  String get buyNow;
+
+  /// No description provided for @addedToCartSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to cart'**
+  String get addedToCartSnackbar;
+
+  /// No description provided for @shoppingCartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shopping Cart'**
+  String get shoppingCartTitle;
+
+  /// No description provided for @cartEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty'**
+  String get cartEmptyTitle;
+
+  /// No description provided for @cartEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore our consecrated wallpapers, sacred art, and spiritual remedies.'**
+  String get cartEmptySubtitle;
+
+  /// No description provided for @proceedToCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Proceed to Checkout'**
+  String get proceedToCheckout;
+
+  /// No description provided for @orderSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Summary'**
+  String get orderSummary;
+
+  /// No description provided for @basePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Price:'**
+  String get basePrice;
+
+  /// No description provided for @gstIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'GST (18% Included):'**
+  String get gstIncluded;
+
+  /// No description provided for @shippingFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipping Fee:'**
+  String get shippingFee;
+
+  /// No description provided for @freeShippingBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'FREE'**
+  String get freeShippingBadge;
+
+  /// No description provided for @totalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Amount:'**
+  String get totalAmount;
+
+  /// No description provided for @deliveryAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Address'**
+  String get deliveryAddress;
+
+  /// No description provided for @selectAddressPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a delivery address for physical items'**
+  String get selectAddressPrompt;
+
+  /// No description provided for @digitalDeliveryReassurance.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant Digital Access in My Library immediately after payment.'**
+  String get digitalDeliveryReassurance;
+
+  /// No description provided for @myOrdersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My Orders & Purchases'**
+  String get myOrdersTitle;
+
+  /// No description provided for @orderDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Details'**
+  String get orderDetailsTitle;
+
+  /// No description provided for @myDigitalLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My Digital Library'**
+  String get myDigitalLibraryTitle;
+
+  /// No description provided for @digitalLibrarySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure 15-minute expiring downloads for your purchased digital products'**
+  String get digitalLibrarySubtitle;
+
+  /// No description provided for @downloadAsset.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get downloadAsset;
+
+  /// No description provided for @reDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-generate Link'**
+  String get reDownload;
+
+  /// No description provided for @linkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Download link copied to clipboard'**
+  String get linkCopied;
+
+  /// No description provided for @trackingNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking Number:'**
+  String get trackingNumber;
+
+  /// No description provided for @courierPartner.
+  ///
+  /// In en, this message translates to:
+  /// **'Courier Partner:'**
+  String get courierPartner;
+
+  /// No description provided for @dispatchDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch Date:'**
+  String get dispatchDate;
+
+  /// No description provided for @orderStatusProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get orderStatusProcessing;
+
+  /// No description provided for @orderStatusDispatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatched'**
+  String get orderStatusDispatched;
+
+  /// No description provided for @orderStatusDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get orderStatusDelivered;
+
+  /// No description provided for @orderStatusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get orderStatusCancelled;
+
+  /// No description provided for @orderStatusConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get orderStatusConfirmed;
+
+  /// No description provided for @shippingAddressManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Addresses'**
+  String get shippingAddressManage;
+
+  /// No description provided for @addNewAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Add New Address'**
+  String get addNewAddress;
+
+  /// No description provided for @saveAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Address'**
+  String get saveAddress;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardingGetStarted;
+
+  /// No description provided for @onboardingTitle1Prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Know Your'**
+  String get onboardingTitle1Prefix;
+
+  /// No description provided for @onboardingTitle1Highlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Chart'**
+  String get onboardingTitle1Highlight;
+
+  /// No description provided for @onboardingDesc1.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore your birth chart, planets and houses in one clear, beautiful view.'**
+  String get onboardingDesc1;
+
+  /// No description provided for @onboardingTitle2Prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Your'**
+  String get onboardingTitle2Prefix;
+
+  /// No description provided for @onboardingTitle2Highlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Direction'**
+  String get onboardingTitle2Highlight;
+
+  /// No description provided for @onboardingDesc2.
+  ///
+  /// In en, this message translates to:
+  /// **'Understand the patterns in your chart and explore the areas of life that matter to you.'**
+  String get onboardingDesc2;
+
+  /// No description provided for @onboardingTitle3Prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Go Beyond'**
+  String get onboardingTitle3Prefix;
+
+  /// No description provided for @onboardingTitle3Highlight.
+  ///
+  /// In en, this message translates to:
+  /// **'the Basics'**
+  String get onboardingTitle3Highlight;
+
+  /// No description provided for @onboardingDesc3.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock deeper insights and personalized reports built around your birth details.'**
+  String get onboardingDesc3;
+
+  /// No description provided for @onboardingWhyBirthDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Why We Ask For Birth Details'**
+  String get onboardingWhyBirthDataTitle;
+
+  /// No description provided for @onboardingWhyBirthDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentic Vedic astrology requires your precise birth date, time, and birthplace to calculate the exact planetary degrees and your Ascendant (Lagna). Your personal details remain strictly private and secure.'**
+  String get onboardingWhyBirthDataDesc;
+
+  /// No description provided for @welcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Astro Sushil'**
+  String get welcomeBack;
+
+  /// No description provided for @loginPhoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your phone number to receive a secure OTP'**
+  String get loginPhoneSubtitle;
+
+  /// No description provided for @loginEmailSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your email and password'**
+  String get loginEmailSubtitle;
+
+  /// No description provided for @phoneNumberLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get phoneNumberLabel;
+
+  /// No description provided for @phoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'9876543210'**
+  String get phoneHint;
+
+  /// No description provided for @sendOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Send OTP'**
+  String get sendOtp;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @exploreAsGuest.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore as Guest'**
+  String get exploreAsGuest;
+
+  /// No description provided for @signInWithPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Password'**
+  String get signInWithPassword;
+
+  /// No description provided for @signInWithPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Phone OTP'**
+  String get signInWithPhone;
+
+  /// No description provided for @emailAddressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Address'**
+  String get emailAddressLabel;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// No description provided for @loginWithEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Login with Email'**
+  String get loginWithEmail;
+
+  /// No description provided for @otpVerificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Verification Code'**
+  String get otpVerificationTitle;
+
+  /// No description provided for @otpSentToMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ve sent a 6-digit verification code to'**
+  String get otpSentToMessage;
+
+  /// No description provided for @resendCodeIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code in {seconds}s'**
+  String resendCodeIn(Object seconds);
+
+  /// No description provided for @resendOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend OTP'**
+  String get resendOtp;
+
+  /// No description provided for @verifyAndContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify & Continue'**
+  String get verifyAndContinue;
+
+  /// No description provided for @invalidOtpMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the full 6-digit verification code.'**
+  String get invalidOtpMessage;
+
+  /// No description provided for @sessionExpiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Expired'**
+  String get sessionExpiredTitle;
+
+  /// No description provided for @sessionExpiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Session expired. Please sign in again.'**
+  String get sessionExpiredMessage;
+
+  /// No description provided for @birthProfileDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth Profile Details'**
+  String get birthProfileDetailsTitle;
+
+  /// No description provided for @birthDetailsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accurate birth details are essential for authentic Vedic calculations.'**
+  String get birthDetailsSubtitle;
+
+  /// No description provided for @birthNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get birthNameLabel;
+
+  /// No description provided for @dateOfBirthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of Birth'**
+  String get dateOfBirthLabel;
+
+  /// No description provided for @timeOfBirthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Time of Birth'**
+  String get timeOfBirthLabel;
+
+  /// No description provided for @placeOfBirthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Place of Birth'**
+  String get placeOfBirthLabel;
+
+  /// No description provided for @approximateTimeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'If exact minute is unknown, enter your closest approximate time.'**
+  String get approximateTimeNote;
+
+  /// No description provided for @setAsActiveProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as Active Profile'**
+  String get setAsActiveProfile;
+
+  /// No description provided for @activeProfileBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Profile'**
+  String get activeProfileBadge;
+
+  /// No description provided for @editBirthDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Birth Details'**
+  String get editBirthDetails;
+
+  /// No description provided for @deleteBirthProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile'**
+  String get deleteBirthProfile;
+
+  /// No description provided for @deleteProfileConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Birth Profile?'**
+  String get deleteProfileConfirmTitle;
+
+  /// No description provided for @deleteProfileConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this birth profile? Associated Kundli calculations and personalized insights will be removed.'**
+  String get deleteProfileConfirmMessage;
+
+  /// No description provided for @birthDataImpactNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes to birth date, time, or coordinates will automatically update your Ascendant and planetary calculations.'**
+  String get birthDataImpactNotice;
+
+  /// No description provided for @newProfileButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New Profile'**
+  String get newProfileButton;
+
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications & Daily Alerts'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure astrological alerts and reminders'**
+  String get notificationsSubtitle;
+
+  /// No description provided for @systemPermissionStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'System Notification Permission:'**
+  String get systemPermissionStatus;
+
+  /// No description provided for @permissionGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get permissionGranted;
+
+  /// No description provided for @permissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get permissionDenied;
+
+  /// No description provided for @dailyPanchangAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Panchang & Muhurta'**
+  String get dailyPanchangAlert;
+
+  /// No description provided for @dailyPanchangAlertSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive auspicious timings, Tithi, and Nakshatra updates'**
+  String get dailyPanchangAlertSubtitle;
+
+  /// No description provided for @transitAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Planetary Transit (Gochara)'**
+  String get transitAlert;
+
+  /// No description provided for @transitAlertSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts on major planet shifts affecting your Moon sign'**
+  String get transitAlertSubtitle;
+
+  /// No description provided for @consultationAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation Reminders'**
+  String get consultationAlert;
+
+  /// No description provided for @consultationAlertSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointment reminders 24h and 1h before your session'**
+  String get consultationAlertSubtitle;
+
+  /// No description provided for @orderTrackingAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Order & Delivery Updates'**
+  String get orderTrackingAlert;
+
+  /// No description provided for @orderTrackingAlertSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Status updates for physical and digital shop orders'**
+  String get orderTrackingAlertSubtitle;
+
+  /// No description provided for @accountSecurityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Security & Credentials'**
+  String get accountSecurityTitle;
+
+  /// No description provided for @termsOfServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get termsOfServiceTitle;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account & Data'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @deleteAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete account credentials and revoke active sessions.'**
+  String get deleteAccountSubtitle;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete your account? This action will revoke all active sessions. In accordance with safety rules, existing past orders remain archived for tax compliance.'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @notificationsInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications Inbox'**
+  String get notificationsInbox;
+
+  /// No description provided for @markAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark All as Read'**
+  String get markAllRead;
+
+  /// No description provided for @allNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allNotifications;
+
+  /// No description provided for @panchangNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Panchang'**
+  String get panchangNotifications;
+
+  /// No description provided for @transitNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Transits'**
+  String get transitNotifications;
+
+  /// No description provided for @orderNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get orderNotifications;
+
+  /// No description provided for @consultationNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultations'**
+  String get consultationNotifications;
+
+  /// No description provided for @noNotificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Notifications Yet'**
+  String get noNotificationsTitle;
+
+  /// No description provided for @noNotificationsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Your daily panchang, planetary transit updates, and order milestones will appear here.'**
+  String get noNotificationsDesc;
+
+  /// No description provided for @notificationDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Details'**
+  String get notificationDetailTitle;
+
+  /// No description provided for @notificationDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get notificationDismiss;
+
+  /// No description provided for @notificationTakeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Details'**
+  String get notificationTakeAction;
+
+  /// No description provided for @helpSupportHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'How can we assist you?'**
+  String get helpSupportHeader;
+
+  /// No description provided for @helpSupportSubtitleText.
+  ///
+  /// In en, this message translates to:
+  /// **'Get answers to common Vedic astrology questions or connect directly with our support team.'**
+  String get helpSupportSubtitleText;
+
+  /// No description provided for @officialWhatsAppSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Official WhatsApp Support'**
+  String get officialWhatsAppSupport;
+
+  /// No description provided for @supportOfficeHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Monday – Saturday: 10:00 AM – 7:00 PM IST'**
+  String get supportOfficeHours;
+
+  /// No description provided for @copiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get copiedToClipboard;
+
+  /// No description provided for @frequentlyAskedQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequently Asked Questions'**
+  String get frequentlyAskedQuestions;
+
+  /// No description provided for @sendFeedbackButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Feedback or Question'**
+  String get sendFeedbackButton;
+
+  /// No description provided for @feedbackPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share Your Feedback'**
+  String get feedbackPromptTitle;
+
+  /// No description provided for @feedbackPromptSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us how we can improve your Astro Sushil experience.'**
+  String get feedbackPromptSubtitle;
+
+  /// No description provided for @submitFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Feedback'**
+  String get submitFeedback;
+
+  /// No description provided for @feedbackThankYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you for your feedback! Our team reviews all suggestions.'**
+  String get feedbackThankYou;
+
+  /// No description provided for @legalDocumentsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal & Compliance'**
+  String get legalDocumentsHeader;
+
+  /// No description provided for @privacyPolicyTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicyTab;
+
+  /// No description provided for @termsOfServiceTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get termsOfServiceTab;
+
+  /// No description provided for @refundPolicyTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Policy'**
+  String get refundPolicyTab;
+
+  /// No description provided for @shippingPolicyTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipping Policy'**
+  String get shippingPolicyTab;
+
+  /// No description provided for @astrologyDisclaimerTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Astrology Disclaimer'**
+  String get astrologyDisclaimerTab;
+
+  /// No description provided for @systemMaintenanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'System Maintenance'**
+  String get systemMaintenanceTitle;
+
+  /// No description provided for @systemMaintenanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Astro Sushil systems are undergoing scheduled maintenance. Astrological calculations will resume shortly.'**
+  String get systemMaintenanceDesc;
+
+  /// No description provided for @systemMaintenanceOfflineNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Your saved birth charts and library downloads remain fully accessible offline.'**
+  String get systemMaintenanceOfflineNotice;
+
+  /// No description provided for @checkSystemStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh Status'**
+  String get checkSystemStatus;
+
+  /// No description provided for @pageNotFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost in the Cosmos'**
+  String get pageNotFoundTitle;
+
+  /// No description provided for @pageNotFoundDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The planetary coordinates or screen you are searching for does not exist or has moved.'**
+  String get pageNotFoundDesc;
+
+  /// No description provided for @returnToHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to Home'**
+  String get returnToHome;
+
+  /// No description provided for @welcomeSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Astro Sushil!'**
+  String get welcomeSuccessTitle;
+
+  /// No description provided for @welcomeSuccessSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been created successfully. Explore authentic Vedic astrology, reports, and consultations.'**
+  String get welcomeSuccessSubtitle;
+
+  /// No description provided for @getStartedButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get getStartedButton;
 }
 
 class _AppLocalizationsDelegate

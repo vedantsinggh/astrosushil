@@ -1,4 +1,5 @@
 /// Domain models for Phase 6: Courses & Learning Platform
+library course_models;
 
 enum CourseLevelEnum {
   beginner,

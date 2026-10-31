@@ -94,7 +94,7 @@ class ActiveBirthProfileHeaderCard extends StatelessWidget {
                         ),
                       ),
                       subtitle: Text(
-                        '${p.dateOfBirth} • ${p.placeName ?? "Vedic Chart"}',
+                        '${p.dateOfBirth} • ${p.placeName.isNotEmpty ? p.placeName : "Vedic Chart"}',
                         style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
                       ),
                       trailing: isSelected

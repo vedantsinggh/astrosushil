@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
+import '../../../shared/widgets/astro_button.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../providers/career_report_provider.dart';
 
@@ -65,18 +67,12 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: Text(
-          'Career Report - ${widget.clientName}',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        backgroundColor: AppColors.lightSurface,
-        foregroundColor: AppColors.lightTextPrimary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Career Report - ${widget.clientName}',
         actions: [
           if (_pdfBytes != null)
             IconButton(
-              icon: const Icon(Icons.share_rounded),
+              icon: const Icon(Icons.share_rounded, color: AppColors.primary),
               tooltip: 'Share PDF',
               onPressed: () {
                 Printing.sharePdf(bytes: _pdfBytes!, filename: filename);
@@ -112,14 +108,10 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        ElevatedButton.icon(
+                        AstroButton(
+                          label: 'Retry',
+                          variant: AstroButtonVariant.primary,
                           onPressed: _loadPdf,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('Retry'),
                         ),
                       ],
                     ),

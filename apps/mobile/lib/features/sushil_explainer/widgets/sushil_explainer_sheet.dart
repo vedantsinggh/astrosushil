@@ -137,7 +137,8 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final maxHeight = mediaQuery.size.height * 0.88;
+    final screenHeight = mediaQuery.size.height > 0 ? mediaQuery.size.height : 800.0;
+    final maxHeight = screenHeight * 0.88;
     final isHindi = (widget.explanationContext.language == 'hi') ||
         (ref.watch(localeProvider).languageCode == 'hi');
 
@@ -233,7 +234,10 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         Text(
                           isHindi ? 'सुशील सर (AI मार्गदर्शक)' : 'AI Sushil Sir',
@@ -244,7 +248,6 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                             letterSpacing: 0.2,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -277,11 +280,13 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                   ],
                 ),
               ),
-              // Close Button
+              // Close Button (>= 48x48dp target)
               IconButton(
-                icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
+                icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 22),
                 onPressed: () => Navigator.of(context).pop(),
-                splashRadius: 20,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                splashRadius: 24,
+                tooltip: isHindi ? 'बंद करें' : 'Close',
               ),
             ],
           ),
@@ -417,6 +422,7 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.premiumAccent,
             foregroundColor: AppColors.primary,
+            minimumSize: const Size(160, 48),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             textStyle: const TextStyle(fontWeight: FontWeight.w700),
@@ -549,8 +555,9 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.premiumAccent,
-                side: const BorderSide(color: AppColors.premiumAccent),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                side: const BorderSide(color: AppColors.premiumAccent, width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                minimumSize: const Size(0, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -694,13 +701,15 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
                 size: 18,
               ),
               const SizedBox(width: 6),
-              Text(
-                isHindi ? 'मुख्य बिंदु' : 'KEY TAKEAWAYS',
-                style: TextStyle(
-                  color: AppColors.premiumAccent.withValues(alpha: 0.95),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+              Expanded(
+                child: Text(
+                  isHindi ? 'मुख्य बिंदु' : 'KEY TAKEAWAYS',
+                  style: TextStyle(
+                    color: AppColors.premiumAccent.withValues(alpha: 0.95),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
             ],
@@ -770,15 +779,15 @@ class _SushilExplainerSheetState extends ConsumerState<SushilExplainerSheet>
 
         const SizedBox(height: 18),
 
-        // "Got It" Confirmation Button
+        // "Got It" Confirmation Button (>= 48dp target)
         SizedBox(
           width: double.infinity,
+          height: 50,
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.premiumAccent,
               foregroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),

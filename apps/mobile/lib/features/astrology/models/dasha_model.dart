@@ -238,6 +238,9 @@ class DashaPeriodModel {
 
   /// Remaining duration from now until period end
   String remainingDuration([DateTime? now]) {
+    if (startDate.millisecondsSinceEpoch == 0 || endDate.millisecondsSinceEpoch == 0) {
+      return 'Dates unavailable';
+    }
     final currentTime = now ?? DateTime.now();
     if (currentTime.isAfter(endDate)) {
       return 'Completed';
@@ -338,7 +341,7 @@ class DashaTreeModel {
         return md;
       }
     }
-    return mahadashas.isNotEmpty ? mahadashas.first : null;
+    return null;
   }
 
   /// Retrieves the current active Antardasha period
@@ -351,7 +354,7 @@ class DashaTreeModel {
         return ad;
       }
     }
-    return md.subPeriods.isNotEmpty ? md.subPeriods.first : null;
+    return null;
   }
 
   /// Retrieves the current active Pratyantardasha period
@@ -364,6 +367,6 @@ class DashaTreeModel {
         return pd;
       }
     }
-    return ad.subPeriods.isNotEmpty ? ad.subPeriods.first : null;
+    return null;
   }
 }

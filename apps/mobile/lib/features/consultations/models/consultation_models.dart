@@ -63,7 +63,7 @@ class ConsultationOfferingModel {
         const [];
 
     return ConsultationOfferingModel(
-      sku: json['sku'] as String? ?? '',
+      sku: json['sku'] as String? ?? json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
       hindiTitle: json['hindiTitle'] as String?,
       description: json['description'] as String? ?? '',
@@ -71,7 +71,9 @@ class ConsultationOfferingModel {
       mode: json['mode'] as String? ?? 'ONLINE_VIDEO',
       durationMinutes: json['durationMinutes'] as int? ?? 30,
       pricePaise: json['pricePaise'] as int? ?? 0,
-      responseDaysNotice: json['responseDaysNotice'] as int? ?? 7,
+      responseDaysNotice: json['responseDaysNotice'] as int? ??
+          json['responseDays'] as int? ??
+          7,
       category: json['category'] as String? ?? 'General',
       isAvailable: json['isAvailable'] as bool? ?? true,
       practitioners: practitionersList,

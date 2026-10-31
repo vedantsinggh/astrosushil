@@ -1,4 +1,5 @@
 /// Strongly typed models for AstroChart API response
+library;
 
 double _parseDouble(dynamic val, [double defaultValue = 0.0]) {
   if (val == null) return defaultValue;
@@ -95,6 +96,7 @@ class PlanetModel {
   final String nakshatraName;
   final int pada;
   final String nakshatraLord;
+  final String? dignity;
 
   const PlanetModel({
     required this.planet,
@@ -109,6 +111,7 @@ class PlanetModel {
     required this.nakshatraName,
     required this.pada,
     required this.nakshatraLord,
+    this.dignity,
   });
 
   factory PlanetModel.fromJson(Map<String, dynamic> json) {
@@ -210,6 +213,7 @@ class PlanetModel {
       nakshatraName: effectiveNakshatraName,
       pada: _parseInt(json['pada'], 1),
       nakshatraLord: effectiveNakshatraLord,
+      dignity: json['dignity'] as String?,
     );
   }
 
@@ -227,7 +231,26 @@ class PlanetModel {
       'nakshatraName': nakshatraName,
       'pada': pada,
       'nakshatraLord': nakshatraLord,
+      if (dignity != null) 'dignity': dignity,
     };
+  }
+
+  /// Format dignity to clean label (e.g. 'Exalted', 'Debilitated', 'Own Sign')
+  String get formattedDignity {
+    if (dignity == null || dignity!.isEmpty) return '';
+    final d = dignity!.toUpperCase();
+    switch (d) {
+      case 'EXALTED': return 'Exalted';
+      case 'DEBILITATED': return 'Debilitated';
+      case 'OWN_SIGN': return 'Own Sign';
+      case 'MOOLATRIKONA': return 'Moolatrikona';
+      case 'GREAT_FRIEND': return 'Great Friend';
+      case 'FRIEND': return 'Friendly';
+      case 'NEUTRAL': return 'Neutral';
+      case 'ENEMY': return 'Enemy';
+      case 'GREAT_ENEMY': return 'Great Enemy';
+      default: return dignity!;
+    }
   }
 
   /// Format planet symbol to clean title-cased name
@@ -367,6 +390,9 @@ class HouseModel {
   final double cuspLongitude;
   final double endLongitude;
   final String rashiName;
+  final String? lord;
+  final int? rashiIndex;
+  final List<String> occupants;
 
   const HouseModel({
     required this.houseNumber,
@@ -374,15 +400,41 @@ class HouseModel {
     required this.cuspLongitude,
     required this.endLongitude,
     required this.rashiName,
+    this.lord,
+    this.rashiIndex,
+    this.occupants = const [],
   });
 
   factory HouseModel.fromJson(Map<String, dynamic> json) {
+    final rawNumber = _parseInt(
+      json['houseNumber'] ?? json['house_number'] ?? json['house'] ?? json['number'],
+      1,
+    );
+    final rawRashi = json['rashiName'] as String? ??
+        json['rashi'] as String? ??
+        json['rashi_name'] as String? ??
+        json['sign'] as String? ??
+        '';
+    final rawLord = json['lord'] as String? ??
+        json['rashiLord'] as String? ??
+        json['rashi_lord'] as String?;
+    final rawRashiIndex = json['rashiIndex'] != null
+        ? _parseInt(json['rashiIndex'])
+        : (json['rashi_index'] != null ? _parseInt(json['rashi_index']) : null);
+    final rawOccupants = (json['occupants'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
+
     return HouseModel(
-      houseNumber: _parseInt(json['houseNumber'] ?? json['house_number'] ?? json['house'], 1),
+      houseNumber: rawNumber,
       startLongitude: _parseDouble(json['startLongitude'] ?? json['start_longitude']),
       cuspLongitude: _parseDouble(json['cuspLongitude'] ?? json['cusp_longitude']),
       endLongitude: _parseDouble(json['endLongitude'] ?? json['end_longitude']),
-      rashiName: json['rashiName'] as String? ?? json['rashi'] as String? ?? json['rashi_name'] as String? ?? '',
+      rashiName: rawRashi,
+      lord: rawLord,
+      rashiIndex: rawRashiIndex,
+      occupants: rawOccupants,
     );
   }
 
@@ -393,6 +445,9 @@ class HouseModel {
       'cuspLongitude': cuspLongitude,
       'endLongitude': endLongitude,
       'rashiName': rashiName,
+      if (lord != null) 'lord': lord,
+      if (rashiIndex != null) 'rashiIndex': rashiIndex,
+      if (occupants.isNotEmpty) 'occupants': occupants,
     };
   }
 }

@@ -91,13 +91,17 @@ class SushilExplainerButton extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                effectiveLabel,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
+              Flexible(
+                child: Text(
+                  effectiveLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),

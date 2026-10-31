@@ -12,7 +12,6 @@ import '../providers/auth_provider.dart';
 import '../widgets/auth_header_backdrop.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_password_screen.dart';
-import 'register_screen.dart';
 import 'verification_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {

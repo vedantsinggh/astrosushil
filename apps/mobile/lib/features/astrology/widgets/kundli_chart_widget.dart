@@ -1,66 +1,151 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_typography.dart';
 import '../models/astro_chart_model.dart';
 
 /// Reusable North Indian Style Kundli Chart visualization widget.
 /// Draws a responsive custom-painted Kundli diamond layout with real astronomical
-/// placements, Rashi indices, and planet locations.
+/// placements, Rashi indices, Lagna, and planet locations.
 class KundliChartWidget extends StatelessWidget {
   final AstroChartModel? chart;
   final double size;
   final bool showTitle;
+  final bool showLegend;
 
   const KundliChartWidget({
     super.key,
     this.chart,
-    this.size = 320,
+    this.size = 300,
     this.showTitle = false,
+    this.showLegend = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.0,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.lightBorder, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            if (showTitle) ...[
-              Text(
-                'KUNDLI (NORTH INDIAN STYLE)',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary.withOpacity(0.8),
-                  letterSpacing: 1.2,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurfaceWarm,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder, width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showTitle) ...[
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.star_rate_rounded, size: 12, color: AppColors.gold),
+                SizedBox(width: 6),
+                Text(
+                  'JANMA KUNDLI (NORTH INDIAN)',
+                  style: TextStyle(
+                    fontFamily: AppTypography.headingFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    letterSpacing: 1.1,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            Expanded(
-              child: Center(
+                SizedBox(width: 6),
+                Icon(Icons.star_rate_rounded, size: 12, color: AppColors.gold),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final chartDim = math.min(constraints.maxWidth, size);
+              return SizedBox(
+                width: chartDim,
+                height: chartDim,
                 child: CustomPaint(
-                  size: Size.square(size),
+                  size: Size.square(chartDim),
                   painter: _NorthIndianKundliPainter(chart: chart),
                 ),
+              );
+            },
+          ),
+          if (showLegend) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.canvasSecondary,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.cardBorderSubtle, width: 0.8),
+              ),
+              child: const Wrap(
+                alignment: WrapAlignment.spaceAround,
+                spacing: 10,
+                runSpacing: 6,
+                children: [
+                  _LegendItem(
+                    color: AppColors.gold,
+                    label: 'Top Diamond = Lagna (H1)',
+                  ),
+                  _LegendItem(
+                    color: AppColors.secondary,
+                    label: '1–12 = Zodiac Signs',
+                  ),
+                  _LegendItem(
+                    color: AppColors.primary,
+                    label: 'Grahas = Placements',
+                  ),
+                  _LegendItem(
+                    color: AppColors.saffron,
+                    label: '(R) = Retrograde',
+                  ),
+                ],
               ),
             ),
           ],
-        ),
+        ],
       ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendItem({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontFamily: AppTypography.bodyFamily,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -75,21 +160,25 @@ class _NorthIndianKundliPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
 
+    // 0. Warm Canvas Background
+    final bgPaint = Paint()..color = AppColors.cardSurfaceWarm;
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), bgPaint);
+
     // 1. Line Paints
     final borderPaint = Paint()
       ..color = AppColors.primary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 2.0;
 
     final linePaint = Paint()
-      ..color = AppColors.primary.withOpacity(0.7)
+      ..color = AppColors.primary.withValues(alpha: 0.80)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 1.3;
 
     final goldHighlightPaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.3)
+      ..color = AppColors.gold.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.8;
 
     // 2. Draw Outer Box Square
     final outerRect = Rect.fromLTWH(0, 0, width, height);
@@ -108,17 +197,19 @@ class _NorthIndianKundliPainter extends CustomPainter {
       ..close();
     canvas.drawPath(path, linePaint);
 
-    // Highlight Lagna / 1st House Top Center Diamond with subtle gold line
+    // Highlight Lagna / 1st House Top Center Diamond with gold tint & stroke
     final lagnaPath = Path()
       ..moveTo(width / 4, height / 4)
       ..lineTo(width / 2, 0)
       ..lineTo(3 * width / 4, height / 4)
       ..lineTo(width / 2, height / 2)
       ..close();
+    final lagnaFillPaint = Paint()..color = AppColors.gold.withValues(alpha: 0.10);
+    canvas.drawPath(lagnaPath, lagnaFillPaint);
     canvas.drawPath(lagnaPath, goldHighlightPaint);
 
-    // 5. Calculate Rashi Numbers and House Placements from real chart or fallback
-    final ascendantRashiIndex = chart?.ascendant?.rashiIndex ?? 3; // Default Gemini (3) if mock
+    // 5. Calculate Rashi Numbers and House Placements from real chart
+    final ascendantRashiIndex = chart?.ascendant?.rashiIndex ?? 1;
 
     // Map house index (1..12) to house center offsets on canvas
     final houseCenterOffsets = <int, Offset>{
@@ -143,33 +234,41 @@ class _NorthIndianKundliPainter extends CustomPainter {
     }
 
     if (chart != null) {
-      // Add Ascendant to House 1
+      // Add Ascendant label to House 1
       housePlanetsMap[1]!.add('As');
 
       if (chart!.planets.isNotEmpty) {
         for (final p in chart!.planets) {
           final houseNum = p.calculateHouseNumber(ascendantRashiIndex);
           final abbr = _getPlanetAbbr(p.planet, p.isRetrograde);
-          housePlanetsMap[houseNum]?.add(abbr);
+          if (abbr.isNotEmpty) {
+            housePlanetsMap[houseNum]?.add(abbr);
+          }
         }
       }
     }
 
-    // Draw Rashi indices & planet strings into each house
-    const rashiStyle = TextStyle(
-      fontSize: 10,
+    // Dynamic font sizing proportional to canvas dimensions
+    final rashiFontSize = (width * 0.034).clamp(8.5, 12.0);
+    final planetFontSize = (width * 0.036).clamp(9.0, 12.5);
+
+    final rashiStyle = TextStyle(
+      fontFamily: AppTypography.bodyFamily,
+      fontSize: rashiFontSize,
       fontWeight: FontWeight.bold,
       color: AppColors.secondary,
     );
 
-    const planetStyle = TextStyle(
-      fontSize: 11,
+    final planetStyle = TextStyle(
+      fontFamily: AppTypography.bodyFamily,
+      fontSize: planetFontSize,
       fontWeight: FontWeight.w700,
       color: AppColors.primary,
     );
 
-    const goldPlanetStyle = TextStyle(
-      fontSize: 11,
+    final lagnaPlanetStyle = TextStyle(
+      fontFamily: AppTypography.bodyFamily,
+      fontSize: planetFontSize,
       fontWeight: FontWeight.w800,
       color: AppColors.primary,
     );
@@ -187,7 +286,7 @@ class _NorthIndianKundliPainter extends CustomPainter {
       textPainter.layout();
       textPainter.paint(
         canvas,
-        Offset(centerOffset.dx - textPainter.width / 2, centerOffset.dy - 12),
+        Offset(centerOffset.dx - textPainter.width / 2, centerOffset.dy - (rashiFontSize + 3)),
       );
 
       // Draw Planets String below Rashi Index
@@ -196,7 +295,7 @@ class _NorthIndianKundliPainter extends CustomPainter {
         final planetStr = planets.join(' ');
         textPainter.text = TextSpan(
           text: planetStr,
-          style: h == 1 ? goldPlanetStyle : planetStyle,
+          style: h == 1 ? lagnaPlanetStyle : planetStyle,
         );
         textPainter.layout();
         textPainter.paint(

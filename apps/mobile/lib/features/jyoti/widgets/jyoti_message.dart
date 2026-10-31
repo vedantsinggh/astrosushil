@@ -23,13 +23,13 @@ class JyotiMessage extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const JyotiAvatar(size: 32),
-          const SizedBox(width: 8),
+          const JyotiAvatar(size: 34),
+          const SizedBox(width: 10),
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.cardSurfaceWarm,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(4),
                   topRight: Radius.circular(18),
@@ -37,13 +37,13 @@ class JyotiMessage extends StatelessWidget {
                   bottomRight: Radius.circular(18),
                 ),
                 border: Border.all(
-                  color: AppColors.secondary.withOpacity(0.15),
-                  width: 1,
+                  color: AppColors.cardBorder,
+                  width: 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 6,
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -52,6 +52,49 @@ class JyotiMessage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Jyoti',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.premiumAccent.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'AI GUIDE',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.goldDark,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        timeStr,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.lightTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   JyotiMarkdownText(
                     text: message.text,
                     style: const TextStyle(
@@ -59,14 +102,6 @@ class JyotiMessage extends StatelessWidget {
                       height: 1.45,
                       color: AppColors.lightTextPrimary,
                       fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    timeStr,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.lightTextMuted,
                     ),
                   ),
                 ],

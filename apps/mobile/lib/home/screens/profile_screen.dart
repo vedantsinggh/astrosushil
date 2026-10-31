@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/locale_provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -10,106 +8,22 @@ import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/courses/screens/courses_hub_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/settings/screens/app_settings_screen.dart';
 import '../../features/reports/providers/career_report_provider.dart';
 import '../../features/shop/screens/shop_catalog_screen.dart';
 import '../../features/shop/screens/order_history_screen.dart';
 import '../../features/shop/screens/digital_downloads_screen.dart';
 import '../../features/shop/screens/shipping_addresses_screen.dart';
-import '../../features/shop/providers/shop_provider.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/widgets/subtle_celestial_background.dart';
+import '../../features/support/screens/help_support_screen.dart';
+import '../../features/legal/screens/legal_documents_screen.dart';
+import 'consult_screen.dart';
+import 'reports_screen.dart';
 
 /// Screen shell for Account / Profile tab in Bottom Navigation
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
-
-  Future<void> _launchWhatsApp(BuildContext context) async {
-    const phone = '919621127233';
-    final message = Uri.encodeComponent(
-      'Namaste Astro Sushil Support, I need assistance with the mobile app.',
-    );
-    final uri = Uri.parse('https://wa.me/$phone?text=$message');
-
-    try {
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && context.mounted) {
-        _showSupportDialog(context);
-      }
-    } catch (_) {
-      if (context.mounted) {
-        _showSupportDialog(context);
-      }
-    }
-  }
-
-  void _showSupportDialog(BuildContext context) {
-    final l10n = context.l10n;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.support_agent_rounded, color: AppColors.primary, size: 26),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                l10n.helpSupportTitle,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.consultOfficeDetails,
-              style: const TextStyle(fontSize: 14, color: AppColors.lightTextPrimary, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            const Divider(color: AppColors.lightBorder),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(const ClipboardData(text: '+919621127233'));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Support phone copied to clipboard')),
-                    );
-                  },
-                  icon: const Icon(Icons.copy, size: 16),
-                  label: const Text('Copy Phone'),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(const ClipboardData(text: 'connect@astrosushil.com'));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Support email copied to clipboard')),
-                    );
-                  },
-                  icon: const Icon(Icons.copy, size: 16),
-                  label: const Text('Copy Email'),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-            child: Text(l10n.close),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showLanguageSelector(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -280,10 +194,10 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           l10n.accountTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: AppColors.lightSurface,
-        foregroundColor: AppColors.lightTextPrimary,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: SubtleCelestialBackground(
@@ -299,9 +213,9 @@ class ProfileScreen extends ConsumerWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.cardSurfaceWarm,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.lightBorder),
+                    border: Border.all(color: AppColors.cardBorder),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.02),
@@ -520,6 +434,18 @@ class ProfileScreen extends ConsumerWidget {
                     );
                   },
                 ),
+
+                const SizedBox(height: 22),
+
+                // 3. Learning & Consultations
+                Text(
+                  isHindi ? 'शिक्षा एवं परामर्श सेवाएं' : 'Learning & Consultations',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.lightTextPrimary,
+                  ),
+                ),
                 const SizedBox(height: 10),
 
                 // My Learning (Purchased Courses)
@@ -546,10 +472,36 @@ class ProfileScreen extends ConsumerWidget {
                     );
                   },
                 ),
+                const SizedBox(height: 10),
+
+                // My Consultations
+                _ProfileTile(
+                  icon: Icons.calendar_month_outlined,
+                  title: isHindi ? 'मेरे ज्योतिष परामर्श' : 'My Consultations & Appointments',
+                  subtitle: isHindi ? 'सुशील सर एवं विशेषज्ञ ज्योतिषियों से परामर्श' : 'Book and view consultation sessions',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ConsultScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // My Kundli Reports
+                _ProfileTile(
+                  icon: Icons.description_outlined,
+                  title: isHindi ? 'मेरी जन्म कुंडलियां एवं रिपोर्ट्स' : 'My Kundli Reports & Analysis',
+                  subtitle: isHindi ? 'विस्तृत पीडीएफ रिपोर्ट्स एवं भविष्यवाणियां' : 'Career, marriage & planetary reports',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                    );
+                  },
+                ),
 
                 const SizedBox(height: 22),
 
-                // 3. Profiles & Astrology Section
+                // 4. Profiles & Astrology Section
                 Text(
                   isHindi ? 'जन्म कुंडलियां एवं प्रोफाइल' : 'Saved Profiles & Astrology',
                   style: const TextStyle(
@@ -587,7 +539,7 @@ class ProfileScreen extends ConsumerWidget {
 
                 const SizedBox(height: 22),
 
-                // 4. Preferences & Settings
+                // 5. Preferences & Settings
                 Text(
                   l10n.appSettingsTitle,
                   style: const TextStyle(
@@ -606,10 +558,23 @@ class ProfileScreen extends ConsumerWidget {
                   trailingText: currentLocale.languageCode == 'hi' ? 'हिन्दी' : 'English',
                   onTap: () => _showLanguageSelector(context, ref),
                 ),
+                const SizedBox(height: 10),
+
+                // Settings & Preferences Full Hub
+                _ProfileTile(
+                  icon: Icons.settings_outlined,
+                  title: isHindi ? 'ऐप सेटिंग्स एवं नोटिफिकेशन' : 'App Settings & Notifications',
+                  subtitle: isHindi ? 'भाषा, गोचर अलर्ट, सुरक्षा एवं डेटा प्रबंधन' : 'Notification alerts, device permissions & security',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AppSettingsScreen()),
+                    );
+                  },
+                ),
 
                 const SizedBox(height: 22),
 
-                // 5. Support & Policies
+                // 6. Support & Policies
                 Text(
                   l10n.helpSupportTitle,
                   style: const TextStyle(
@@ -620,12 +585,18 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
 
-                // WhatsApp Support
+                // WhatsApp Support & FAQs
                 _ProfileTile(
                   icon: Icons.chat_bubble_outline_rounded,
                   title: l10n.helpSupportTitle,
                   subtitle: l10n.helpSupportSubtitle,
-                  onTap: () => _launchWhatsApp(context),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const HelpSupportScreen(),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 10),
 
@@ -635,12 +606,10 @@ class ProfileScreen extends ConsumerWidget {
                   title: isHindi ? 'शिपिंग एवं डिलीवरी नीति' : 'Shipping & Delivery Policy',
                   subtitle: isHindi ? '48-72 घंटे में डिस्पैच, ₹2,000+ पर मुफ्त डिलीवरी' : 'Pan-India delivery details & tracking terms',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isHindi
-                              ? 'अयोध्या धाम से 48-72 घंटे में एक्सप्रेस डिस्पैच। ₹2,000 से ऊपर मुफ्त शिपिंग।'
-                              : 'Dispatched within 48-72h from Ayodhya Dham. Free shipping on orders above ₹2,000.',
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LegalDocumentsScreen(
+                          initialDocument: LegalDocumentType.shipping,
                         ),
                       ),
                     );
@@ -653,12 +622,10 @@ class ProfileScreen extends ConsumerWidget {
                   title: isHindi ? 'रिफंड एवं वापसी नीति' : 'Refund & Cancellation Policy',
                   subtitle: isHindi ? 'पारदर्शी एवं निष्पक्ष रिफंड नियम' : 'Terms for digital & physical returns',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          isHindi
-                              ? 'डिजिटल डाउनलोड नॉन-रिफंडेबल हैं। क्षतिग्रस्त भौतिक उत्पाद पर 7 दिन में सहायता।'
-                              : 'Digital downloads non-refundable once accessed. Physical damaged items eligible within 7 days.',
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LegalDocumentsScreen(
+                          initialDocument: LegalDocumentType.refund,
                         ),
                       ),
                     );
@@ -672,8 +639,12 @@ class ProfileScreen extends ConsumerWidget {
                   title: l10n.privacyPolicyTitle,
                   subtitle: l10n.privacyPolicySubtitle,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.privacyPolicySubtitle)),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LegalDocumentsScreen(
+                          initialDocument: LegalDocumentType.privacy,
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -689,7 +660,7 @@ class ProfileScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // 4. Logout / Exit Guest Mode
+                // 7. Logout / Exit Guest Mode
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -736,7 +707,7 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.cardSurfaceWarm,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -746,7 +717,7 @@ class _ProfileTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.lightBorder),
+            border: Border.all(color: AppColors.cardBorder),
           ),
           child: Row(
             children: [

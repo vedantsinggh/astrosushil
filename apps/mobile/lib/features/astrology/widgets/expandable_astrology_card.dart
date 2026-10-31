@@ -50,6 +50,14 @@ class _ExpandableAstrologyCardState extends State<ExpandableAstrologyCard>
     _isExpanded = widget.initiallyExpanded;
   }
 
+  @override
+  void didUpdateWidget(covariant ExpandableAstrologyCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initiallyExpanded != oldWidget.initiallyExpanded) {
+      _isExpanded = widget.initiallyExpanded;
+    }
+  }
+
   void _toggleExpansion() {
     setState(() {
       _isExpanded = !_isExpanded;

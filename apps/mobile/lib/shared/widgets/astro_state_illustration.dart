@@ -111,13 +111,6 @@ class _AstroStateVectorPainter extends CustomPainter {
     c.drawCircle(pos, r, p);
   }
 
-  // ── Helper: 4-point sparkle ─────────────────────────────────────────────
-
-  void _drawSparkle(Canvas c, Offset pos, double r, Paint stroke) {
-    c.drawLine(pos + Offset(0, -r), pos + Offset(0, r), stroke);
-    c.drawLine(pos + Offset(-r, 0), pos + Offset(r, 0), stroke);
-  }
-
   // ── Helper: crescent moon ───────────────────────────────────────────────
 
   void _drawCrescent(Canvas c, Offset center, double r, Paint fill) {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:astro_mobile/core/localization/locale_provider.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/home/screens/consult_screen.dart';

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_theme_tokens.dart';
+import '../../../shared/theme/app_typography.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -60,7 +62,7 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
+      backgroundColor: AppColors.canvas,
       appBar: const AstroAppBar(
         title: 'Vimshottari Dasha (दशा)',
       ),
@@ -209,21 +211,18 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
   ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary,
-            AppColors.primary.withValues(alpha: 0.88),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        gradient: AppGradients.heroCosmic,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.35),
+          width: 1.2,
         ),
-        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 12,
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -236,10 +235,10 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.premiumAccent,
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppColors.gold,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -249,6 +248,7 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                     Text(
                       'ACTIVE PERIOD',
                       style: TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
@@ -258,77 +258,98 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                   ],
                 ),
               ),
-              if (currentMd != null)
-                Flexible(
-                  child: Text(
-                    currentMd.remainingDuration(now),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.premiumAccent,
-                    ),
-                    textAlign: TextAlign.right,
-                    overflow: TextOverflow.ellipsis,
+              Flexible(
+                child: Text(
+                  currentMd != null ? currentMd.remainingDuration(now) : 'Unavailable',
+                  style: const TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.gold,
                   ),
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Active planetary path label
           Text(
             'Current Dasha Influence',
             style: TextStyle(
+              fontFamily: AppTypography.bodyFamily,
               fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.75),
+              color: Colors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
-          // Primary active path display
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              if (currentMd != null) ...[
+          if (currentMd == null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: const Text(
+                'No active Dasha period identified for the current date.',
+                style: TextStyle(
+                  fontFamily: AppTypography.bodyFamily,
+                  fontSize: 12,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+          ] else ...[
+            // Primary active path display
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
+              children: [
                 _buildActivePlanetPill(currentMd.displayName, 'Mahadasha', true),
+                if (currentAd != null) ...[
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.gold),
+                  _buildActivePlanetPill(currentAd.displayName, 'Antardasha', false),
+                ],
+                if (currentPd != null) ...[
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.gold),
+                  _buildActivePlanetPill(currentPd.displayName, 'Pratyantar', false),
+                ],
               ],
-              if (currentAd != null) ...[
-                const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.premiumAccent),
-                _buildActivePlanetPill(currentAd.displayName, 'Antardasha', false),
-              ],
-              if (currentPd != null) ...[
-                const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.premiumAccent),
-                _buildActivePlanetPill(currentPd.displayName, 'Pratyantar', false),
-              ],
-            ],
-          ),
+            ),
+          ],
 
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Colors.white24),
+          const SizedBox(height: 16),
+          Divider(height: 1, color: Colors.white.withValues(alpha: 0.15)),
           const SizedBox(height: 12),
 
           // Date span
-          if (currentMd != null)
-            Row(
-              children: [
-                const Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.premiumAccent),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${currentMd.displayName} Mahadasha: ${currentMd.formattedDateRange}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                    overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.gold),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  currentMd != null
+                      ? '${currentMd.displayName} Mahadasha: ${currentMd.formattedDateRange}'
+                      : 'Operating period dates not available',
+                  style: TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -336,12 +357,12 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
 
   Widget _buildActivePlanetPill(String name, String level, bool isPrimary) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: isPrimary ? AppColors.secondary : Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: isPrimary ? AppColors.primary : Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isPrimary ? AppColors.premiumAccent : Colors.white24,
+          color: isPrimary ? AppColors.gold : Colors.white.withValues(alpha: 0.22),
           width: 1,
         ),
       ),
@@ -352,6 +373,7 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
           Text(
             name,
             style: const TextStyle(
+              fontFamily: AppTypography.bodyFamily,
               fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -360,8 +382,10 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
           Text(
             level,
             style: TextStyle(
-              fontSize: 8.5,
-              color: isPrimary ? AppColors.premiumAccent : Colors.white70,
+              fontFamily: AppTypography.bodyFamily,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+              color: isPrimary ? AppColors.gold : Colors.white70,
             ),
           ),
         ],
@@ -379,20 +403,27 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isMdActive ? AppColors.primary.withValues(alpha: 0.04) : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(12),
+        color: isMdActive ? AppColors.goldLight.withValues(alpha: 0.2) : AppColors.cardSurfaceWarm,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isMdActive ? AppColors.primary : AppColors.lightBorder,
+          color: isMdActive ? AppColors.gold : AppColors.cardBorder,
           width: isMdActive ? 1.5 : 1.0,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
           InkWell(
             onTap: () => _toggleMahadasha(md.order),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
               child: Row(
                 children: [
                   PlanetChip(
@@ -406,12 +437,13 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                       children: [
                         Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 6,
+                          spacing: 4,
                           runSpacing: 2,
                           children: [
                             Text(
                               '${md.displayName} Mahadasha',
                               style: const TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -419,17 +451,18 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                             ),
                             if (isMdActive)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary,
+                                  color: AppColors.gold,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
                                   'NOW',
                                   style: TextStyle(
-                                    fontSize: 8.5,
+                                    fontFamily: AppTypography.bodyFamily,
+                                    fontSize: 8,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: AppColors.primary,
                                   ),
                                 ),
                               ),
@@ -438,9 +471,10 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                         const SizedBox(height: 2),
                         Text(
                           md.formattedDateRange,
-                          style: TextStyle(
+                          style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 10.5,
-                            color: AppColors.primary.withValues(alpha: 0.7),
+                            color: AppColors.textSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -448,19 +482,26 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    md.formattedDuration,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.primary,
-                    size: 18,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        md.formattedDuration,
+                        style: const TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Icon(
+                        isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -469,10 +510,10 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
 
           // EXPANDED ANTARDASHAS (LEVEL 2)
           if (isExpanded) ...[
-            const Divider(height: 1, color: AppColors.lightBorder),
+            const Divider(height: 1, color: AppColors.cardBorder),
             Container(
-              padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8, top: 6),
-              color: AppColors.lightBackground.withValues(alpha: 0.5),
+              padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10, top: 8),
+              color: AppColors.canvasSecondary.withValues(alpha: 0.5),
               child: Column(
                 children: md.subPeriods.map((ad) {
                   final isAdActive = ad.isActive || ad.isCurrent(now);
@@ -501,12 +542,12 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
     final hasPratyantar = ad.subPeriods.isNotEmpty;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 3),
+      margin: const EdgeInsets.symmetric(vertical: 3.5),
       decoration: BoxDecoration(
-        color: isAdActive ? AppColors.secondary.withValues(alpha: 0.08) : Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        color: isAdActive ? AppColors.goldLight.withValues(alpha: 0.25) : AppColors.cardSurfaceWarm,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isAdActive ? AppColors.secondary : AppColors.lightBorder,
+          color: isAdActive ? AppColors.gold : AppColors.cardBorder,
           width: isAdActive ? 1.2 : 0.8,
         ),
       ),
@@ -514,20 +555,20 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
         children: [
           InkWell(
             onTap: hasPratyantar ? () => _toggleAntardasha(adKey) : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
                 children: [
                   Container(
-                    width: 5,
-                    height: 5,
+                    width: 6,
+                    height: 6,
                     decoration: BoxDecoration(
-                      color: isAdActive ? AppColors.secondary : AppColors.primary.withValues(alpha: 0.4),
+                      color: isAdActive ? AppColors.gold : AppColors.secondary,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,10 +580,11 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                           children: [
                             Text(
                               '${md.displayName} – ${ad.displayName}',
-                              style: TextStyle(
-                                fontSize: 11.5,
+                              style: const TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isAdActive ? AppColors.secondary : AppColors.primary,
+                                color: AppColors.primary,
                               ),
                             ),
                             if (isAdActive)
@@ -554,38 +596,61 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                                 ),
                                 child: const Text(
                                   'ACTIVE',
-                                  style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                  style: TextStyle(
+                                    fontFamily: AppTypography.bodyFamily,
+                                    fontSize: 7.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
                         Text(
                           ad.formattedDateRange,
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            color: AppColors.primary.withValues(alpha: 0.65),
+                          style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    ad.formattedDuration,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: isAdActive ? AppColors.secondary : AppColors.primary,
+                  const SizedBox(width: 6),
+                  if (hasPratyantar)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          ad.formattedDuration,
+                          style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isAdActive ? AppColors.secondary : AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Icon(
+                          isAdExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                          size: 16,
+                          color: AppColors.secondary,
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      ad.formattedDuration,
+                      style: TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: isAdActive ? AppColors.secondary : AppColors.primary,
+                      ),
                     ),
-                  ),
-                  if (hasPratyantar) ...[
-                    const SizedBox(width: 2),
-                    Icon(
-                      isAdExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      size: 15,
-                      color: AppColors.secondary,
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -593,31 +658,32 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
 
           // LEVEL 3: PRATYANTARDASHAS
           if (isAdExpanded && hasPratyantar) ...[
-            const Divider(height: 1, color: AppColors.lightBorder),
+            const Divider(height: 1, color: AppColors.cardBorder),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: AppColors.lightSurface,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              color: AppColors.cardSurfaceParchment,
               child: Column(
                 children: ad.subPeriods.map((pd) {
                   final isPdActive = pd.isActive || pd.isCurrent(now);
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.5),
+                    padding: const EdgeInsets.symmetric(vertical: 3.0),
                     child: Row(
                       children: [
                         const SizedBox(width: 8),
                         Icon(
                           Icons.subdirectory_arrow_right_rounded,
-                          size: 11,
-                          color: isPdActive ? AppColors.secondary : AppColors.lightBorder,
+                          size: 12,
+                          color: isPdActive ? AppColors.gold : AppColors.textMuted,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             '${ad.displayName} – ${pd.displayName}',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontFamily: AppTypography.bodyFamily,
+                              fontSize: 11,
                               fontWeight: isPdActive ? FontWeight.bold : FontWeight.w500,
-                              color: isPdActive ? AppColors.secondary : AppColors.primary,
+                              color: isPdActive ? AppColors.primary : AppColors.primary,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -626,9 +692,10 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                         Flexible(
                           child: Text(
                             pd.formattedDateRange,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: AppColors.primary.withValues(alpha: 0.6),
+                            style: const TextStyle(
+                              fontFamily: AppTypography.bodyFamily,
+                              fontSize: 9.5,
+                              color: AppColors.textSecondary,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -636,14 +703,19 @@ class _VimshottariDashaScreenState extends ConsumerState<VimshottariDashaScreen>
                         if (isPdActive) ...[
                           const SizedBox(width: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
-                              color: AppColors.premiumAccent,
+                              color: AppColors.gold,
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: const Text(
                               'NOW',
-                              style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              style: TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
+                                fontSize: 7.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
                         ],

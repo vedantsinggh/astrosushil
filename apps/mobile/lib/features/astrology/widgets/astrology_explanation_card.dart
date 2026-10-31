@@ -16,12 +16,15 @@ class AstrologyExplanationCard extends StatefulWidget {
   const AstrologyExplanationCard({
     super.key,
     required this.title,
-    required this.whatIsText,
-    required this.howToReadText,
+    String? whatIsText,
+    String? whatIs,
+    String? howToReadText,
+    String? howToRead,
     this.limitationsText,
     this.initiallyExpanded = false,
     this.margin = const EdgeInsets.only(bottom: 16.0),
-  });
+  })  : whatIsText = whatIsText ?? whatIs ?? '',
+        howToReadText = howToReadText ?? howToRead ?? '';
 
   @override
   State<AstrologyExplanationCard> createState() => _AstrologyExplanationCardState();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
@@ -110,17 +111,11 @@ class CareerReportOverviewScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text(
-          'Career & Professional Life',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.lightSurface,
-        foregroundColor: AppColors.lightTextPrimary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Career & Professional Life',
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_rounded),
+            icon: const Icon(Icons.share_rounded, color: AppColors.primary),
             tooltip: 'Share Report',
             onPressed: () {
               ref
@@ -147,7 +142,7 @@ class CareerReportOverviewScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
@@ -162,7 +157,7 @@ class CareerReportOverviewScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.premiumAccent.withOpacity(0.2),
+                              color: AppColors.premiumAccent.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(
@@ -182,7 +177,7 @@ class CareerReportOverviewScreen extends ConsumerWidget {
                                 : 'v1.0.0',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -205,18 +200,17 @@ class CareerReportOverviewScreen extends ConsumerWidget {
                         'Born: ${profile.dateOfBirth} at ${profile.timeOfBirth}',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                         ),
                       ),
 
-                      if (profile.placeName != null &&
-                          profile.placeName!.isNotEmpty) ...[
+                      if (profile.placeName.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
-                          profile.placeName!,
+                          profile.placeName,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -411,7 +405,7 @@ class CareerReportOverviewScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.12),
+              color: accentColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: accentColor, size: 20),

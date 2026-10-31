@@ -2,12 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/screens/login_screen.dart';
-import '../../onboarding/providers/onboarding_provider.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
 import '../../../home/screens/home_screen.dart';
 
@@ -114,7 +111,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       body: Stack(
         children: [
           // Background 1: Image Asset or Custom Painted Celestial Night Sky Fallback
-          Positioned.fill(
+          const Positioned.fill(
             child: AstroImage(
               assetPath: AppAssets.splashBackground,
               fit: BoxFit.cover,
@@ -124,7 +121,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           ),
 
           // Background 2: Subtle Zodiac Wheel Overlay
-          Positioned.fill(
+          const Positioned.fill(
             child: Opacity(
               opacity: 0.35,
               child: AstroImage(
@@ -137,7 +134,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           ),
 
           // Background 3: Constellations Overlay
-          Positioned.fill(
+          const Positioned.fill(
             child: Opacity(
               opacity: 0.25,
               child: AstroImage(
@@ -166,18 +163,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.secondary.withOpacity(0.4),
+                            color: AppColors.secondary.withValues(alpha: 0.4),
                             blurRadius: 40,
                             spreadRadius: 10,
                           ),
                           BoxShadow(
-                            color: goldColor.withOpacity(0.2),
+                            color: goldColor.withValues(alpha: 0.2),
                             blurRadius: 20,
                             spreadRadius: 2,
                           ),
                         ],
                       ),
-                      child: Center(
+                      child: const Center(
                         child: AstroImage(
                           assetPath: AppAssets.logoAs,
                           width: 85,
@@ -201,12 +198,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                         color: goldColor,
                         shadows: [
                           Shadow(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             offset: const Offset(0, 2),
                             blurRadius: 8,
                           ),
                           Shadow(
-                            color: goldColor.withOpacity(0.4),
+                            color: goldColor.withValues(alpha: 0.4),
                             blurRadius: 12,
                           ),
                         ],
@@ -227,7 +224,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                                 gradient: LinearGradient(
                                   colors: [
                                     Colors.transparent,
-                                    goldColor.withOpacity(0.7),
+                                    goldColor.withValues(alpha: 0.7),
                                   ],
                                 ),
                               ),
@@ -247,7 +244,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    goldColor.withOpacity(0.7),
+                                    goldColor.withValues(alpha: 0.7),
                                     Colors.transparent,
                                   ],
                                 ),
@@ -266,43 +263,4 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       ),
     );
   }
-}
-
-/// Fallback custom painter for celestial night sky when asset images are loading
-class _CelestialBackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-
-    final bgGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        AppColors.background,
-        AppColors.primary,
-        AppColors.tertiary,
-        AppColors.supportingAccent.withOpacity(0.4),
-      ],
-      stops: const [0.0, 0.4, 0.85, 1.0],
-    );
-
-    final bgPaint = Paint()..shader = bgGradient.createShader(rect);
-    canvas.drawRect(rect, bgPaint);
-
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        center: Alignment.bottomCenter,
-        radius: 0.8,
-        colors: [
-          AppColors.secondary.withOpacity(0.5),
-          AppColors.tertiary.withOpacity(0.2),
-          Colors.transparent,
-        ],
-      ).createShader(rect);
-
-    canvas.drawRect(rect, glowPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

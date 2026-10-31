@@ -7,6 +7,7 @@ import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../astrology/screens/birth_chart_screen.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/birth_profile_model.dart';
 import '../models/location_model.dart';
 import '../providers/birth_profile_provider.dart';
@@ -181,14 +182,23 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
         isResolved: true,
       );
 
-      final createdProfile = await ref
-          .read(birthProfilesListNotifierProvider.notifier)
-          .createProfile(dto);
+      BirthProfileModel? savedProfile;
+      if (widget.existingProfile != null) {
+        final auth = ref.read(authStateProvider);
+        savedProfile = await ref
+            .read(birthProfileRepositoryProvider)
+            .updateProfile(widget.existingProfile!.id, dto, isGuest: auth.isGuest);
+        await ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
+      } else {
+        savedProfile = await ref
+            .read(birthProfilesListNotifierProvider.notifier)
+            .createProfile(dto);
+      }
 
-      if (createdProfile != null && mounted) {
+      if (savedProfile != null && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => BirthChartScreen(profile: createdProfile),
+            builder: (_) => BirthChartScreen(profile: savedProfile!),
           ),
         );
       }
@@ -226,16 +236,49 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Accurate birth date, time, and verified location calculate your exact ascendant, houses, and planetary positions.',
-                    style: TextStyle(
+                  Text(
+                    isEditing
+                        ? 'Updating your birth details will recalculate all planetary positions, kundli charts, and dasha timelines across the app.'
+                        : 'Accurate birth date, time, and verified location calculate your exact ascendant, houses, and planetary positions.',
+                    style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.lightTextSecondary,
                       height: 1.4,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+
+                  // Explanatory Info Card
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.auto_awesome, color: AppColors.premiumAccent, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            isEditing
+                                ? 'Notice: Any existing PDF reports generated with earlier coordinates will remain archived in your report library.'
+                                : 'Why do we need this? Vedic Astrology (Jyotish) and Gupta Nadi calculations use exact solar alignment and horizon tilt at the precise minute of your birth.',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.lightTextPrimary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
 
                   if (state.errorMessage != null) ...[
                     ErrorBanner(message: state.errorMessage!),
@@ -385,6 +428,23 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                             ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        const Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.secondary),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'If exact birth time is approximate, use 12:00 PM (Noon) or check hospital birth records.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.lightTextSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
 
                         const SizedBox(height: 18),
 
@@ -422,12 +482,14 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                   color: AppColors.secondary,
                                 ),
                                 const SizedBox(width: 4),
-                                const Text(
-                                  'Resolved Coordinates (Lat/Long/TZ)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.secondary,
+                                const Expanded(
+                                  child: Text(
+                                    'Resolved Coordinates (Lat/Long/TZ)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.secondary,
+                                    ),
                                   ),
                                 ),
                               ],

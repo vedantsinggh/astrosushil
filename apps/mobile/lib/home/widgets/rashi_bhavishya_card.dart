@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../shared/theme/app_colors.dart';
+import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/astro_section_header.dart';
 import '../models/home_models.dart';
 
 /// Section and preview card for Today's Rashi Bhavishya
@@ -21,42 +23,13 @@ class RashiBhavishyaSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Section Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Expanded(
-                child: Text(
-                  "Today's Rashi Bhavishya",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: onViewAllTap ?? onReadTap,
-                borderRadius: BorderRadius.circular(8),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                  child: Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AstroSectionHeader(
+          title: "Today's Rashi Bhavishya",
+          leadingIcon: Icons.auto_awesome_rounded,
+          actionLabel: 'View All',
+          onActionTap: onViewAllTap ?? onReadTap,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         RashiBhavishyaCard(
           preview: preview,
           onReadTap: onReadTap,
@@ -106,123 +79,123 @@ class RashiBhavishyaCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardSurfaceWarm,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.lightBorder, width: 1),
+        border: Border.all(color: AppColors.cardBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: AppColors.primary.withValues(alpha: 0.03),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Content
-          Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              onTap: onReadTap,
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Left Sign Icon Circle Container (Dark Navy + Gold Zodiac Glyph)
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          glyph,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            color: AppColors.premiumAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onReadTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Left Sign Icon Circle Container (Dark Navy + Gold Zodiac Glyph)
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.gold,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      glyph,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        color: AppColors.gold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                  ),
+                ),
 
-                    const SizedBox(width: 14),
+                const SizedBox(width: 14),
 
-                    // Middle Details Column
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Middle Details Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                rashiTitle,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD98A2B).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'TODAY',
-                                  style: TextStyle(
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFB45309),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Daily Transit Planetary Influence',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.lightTextSecondary,
+                          Text(
+                            rashiTitle,
+                            style: AppTypography.titleMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'A favorable period for analytical focus and methodical progress. Beneficial planetary transits support strategic initiatives.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.lightTextSecondary,
-                              height: 1.35,
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.tintAmberBg,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppColors.tintAmberBorder,
+                                width: 0.8,
+                              ),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            child: Text(
+                              'TODAY',
+                              style: AppTypography.caption.copyWith(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.tintAmberText,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Right Arrow Indicator
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 22,
-                      color: AppColors.primary,
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        'Daily Transit Planetary Influence',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.lightTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        'A favorable period for analytical focus and methodical progress. Beneficial planetary transits support strategic initiatives.',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.lightTextSecondary,
+                          height: 1.35,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(width: 8),
+
+                // Right Arrow Indicator
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

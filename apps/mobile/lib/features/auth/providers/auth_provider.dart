@@ -395,6 +395,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthState.unauthenticated();
   }
 
+  /// Permanently delete account on backend, wipe local credentials, and transition to unauthenticated
+  Future<bool> deleteAccount({String? confirmation, String? password}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.deleteAccount(confirmation: confirmation, password: password);
+      await _storage.delete(key: StorageKeys.isGuestMode);
+      state = AuthState.unauthenticated();
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
   /// Handle session expiration when refresh fails
   Future<void> handleSessionExpired() async {
     await _storage.delete(key: StorageKeys.accessToken);

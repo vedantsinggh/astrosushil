@@ -31,12 +31,12 @@ class JyotiAvatar extends StatelessWidget {
           ],
         ),
         border: Border.all(
-          color: AppColors.premiumAccent.withOpacity(0.8),
+          color: AppColors.premiumAccent.withValues(alpha: 0.8),
           width: size > 40 ? 2.0 : 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.2),
+            color: AppColors.primary.withValues(alpha: 0.2),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

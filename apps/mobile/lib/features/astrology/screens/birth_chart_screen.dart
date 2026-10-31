@@ -1,33 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/app_exception.dart';
-import '../../../core/network/api_exception.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_card.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/astro_chart_model.dart';
 import '../providers/astrology_provider.dart';
 import '../services/kundli_pdf_service.dart';
+import '../widgets/astrology_explanation_card.dart';
 import '../widgets/kundli_chart_widget.dart';
 import 'divisional_charts_screen.dart';
 import 'planet_detail_screen.dart';
-import '../../sushil_explainer/models/explanation_context.dart';
-import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
-import '../../../core/localization/locale_provider.dart';
-import '../widgets/astrology_explanation_card.dart';
 
+/// Redesigned Birth Chart Screen (Janma Kundli)
+/// Prominent North Indian Kundli chart using real calculated placements,
+/// interactive tabs for Chart, Planets, Houses, and Nakshatra,
+/// and complete beginner educational layer.
 class BirthChartScreen extends ConsumerStatefulWidget {
   final BirthProfileModel? profile;
+  final int initialTabIndex;
 
   const BirthChartScreen({
     super.key,
     this.profile,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -35,9 +38,15 @@ class BirthChartScreen extends ConsumerStatefulWidget {
 }
 
 class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
-  int _selectedControlIndex = 0; // 0 = Chart, 1 = Planets, 2 = Houses, 3 = Nakshatra
+  late int _selectedControlIndex; // 0 = Chart, 1 = Planets, 2 = Houses, 3 = Nakshatra
   bool _isDownloadingPdf = false;
   BirthProfileModel? _selectedProfileOverride;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedControlIndex = widget.initialTabIndex;
+  }
 
   Future<void> _downloadKundliPdf(BirthProfileModel profile, AstroChartModel chart) async {
     setState(() => _isDownloadingPdf = true);
@@ -94,44 +103,36 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         top: false,
         child: activeProfile == null
             ? _buildNoProfileState(context)
-            : Column(
-                children: [
-                  // 1. EXPANDED SCROLLABLE CONTENT AREA
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        children: [
-                          // A. COSMIC TOP HEADER & PROFILE DROPDOWN SELECTOR
-                          _buildCosmicTopSection(
-                            context,
-                            activeProfile,
-                            profilesState.profiles,
-                            chartAsync?.valueOrNull,
-                          ),
-
-                          // B. LIGHT CONTENT CONTAINER
-                          _buildLightContentArea(
-                            context,
-                            activeProfile,
-                            chartAsync,
-                          ),
-
-                          // Bottom padding to ensure final content isn't hidden behind the fixed bottom card
-                          const SizedBox(height: 110),
-                        ],
-                      ),
+            : SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
+                    // A. COSMIC TOP HEADER & PROFILE DROPDOWN SELECTOR
+                    _buildCosmicTopSection(
+                      context,
+                      activeProfile,
+                      profilesState.profiles,
+                      chartAsync?.valueOrNull,
                     ),
-                  ),
 
-                  // 2. FIXED BOTTOM INSIGHT CARD (NEVER SCROLLS)
-                  _buildFixedBottomInsightCard(context, activeProfile),
-                ],
+                    // B. MAIN CONTENT CONTAINER
+                    _buildLightContentArea(
+                      context,
+                      activeProfile,
+                      chartAsync,
+                    ),
+
+                    // C. INTEGRATED CLOSING INSIGHT BANNER
+                    _buildClosingInsightCard(context, activeProfile),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
       ),
     );
@@ -139,24 +140,42 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
 
   Widget _buildNoProfileState(BuildContext context) {
     return Container(
-      color: AppColors.lightBackground,
+      color: AppColors.canvas,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.person_search_rounded, size: 64, color: AppColors.secondary),
-              const SizedBox(height: 16),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+                ),
+                child: const Icon(Icons.person_search_rounded, size: 44, color: AppColors.primary),
+              ),
+              const SizedBox(height: 20),
               const Text(
                 'No Birth Profile Selected',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: TextStyle(
+                  fontFamily: AppTypography.headingFamily,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Add your birth details to generate your Kundli.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.lightTextSecondary),
+                style: TextStyle(
+                  fontFamily: AppTypography.bodyFamily,
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -166,14 +185,24 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.premiumAccent,
-                  foregroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.gold,
+                  minimumSize: const Size(200, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: AppColors.gold.withValues(alpha: 0.4)),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Text(
+                  'Add Birth Details',
+                  style: TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                child: const Text('Add Birth Details', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -192,9 +221,16 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+      decoration: BoxDecoration(
+        gradient: AppGradients.heroCosmic,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(16, topPadding + 8, 16, 20),
@@ -205,49 +241,60 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-                Column(
-                  children: [
-                    const Text(
-                      'Your Birth Chart',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(color: AppColors.premiumAccent, shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'North Indian Style',
+                const Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Your Birth Chart',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.premiumAccent,
-                            fontWeight: FontWeight.w500,
+                            fontFamily: AppTypography.headingFamily,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(color: AppColors.premiumAccent, shape: BoxShape.circle),
+                      ),
+                      SizedBox(height: 3),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DecoratedBox(
+                              decoration: BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+                              child: SizedBox(width: 5, height: 5),
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'North Indian Style',
+                              style: TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
+                                fontSize: 12,
+                                color: AppColors.gold,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            DecoratedBox(
+                              decoration: BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+                              child: SizedBox(width: 5, height: 5),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   icon: _isDownloadingPdf
                       ? const AstroLoaderInline(size: 18, isDark: true)
                       : const Icon(Icons.download_rounded, color: Colors.white, size: 22),
@@ -264,11 +311,11 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
             // COMPACT PREMIUM BIRTH PROFILE CARD WITH PROFILE SELECTOR
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.tertiary,
+                color: AppColors.cardSurfaceDark.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
+                border: Border.all(color: AppColors.gold.withValues(alpha: 0.28), width: 1.0),
               ),
               child: Row(
                 children: [
@@ -276,10 +323,11 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.3),
+                      color: AppColors.primary,
                       shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.gold.withValues(alpha: 0.4), width: 1.5),
                     ),
-                    child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
+                    child: const Icon(Icons.person_rounded, color: AppColors.gold, size: 22),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -289,24 +337,31 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                         Text(
                           activeProfile.name,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${activeProfile.dateOfBirth}  •  ${activeProfile.timeOfBirth}',
                           style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.85),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           activeProfile.placeName,
                           style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 11,
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.65),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -314,17 +369,17 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
 
                   // DROPDOWN SELECTOR FOR PROFILE SWITCHING
                   PopupMenuButton<dynamic>(
-                    color: AppColors.tertiary,
+                    color: AppColors.cardSurfaceDark,
                     elevation: 10,
                     tooltip: 'Change Profile',
-                    offset: const Offset(0, 42),
+                    offset: const Offset(0, 44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(color: AppColors.premiumAccent.withOpacity(0.4), width: 1.5),
+                      side: BorderSide(color: AppColors.gold.withValues(alpha: 0.4), width: 1.5),
                     ),
                     onSelected: (value) {
                       if (value is BirthProfileModel) {
@@ -350,11 +405,11 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppColors.premiumAccent.withOpacity(0.15)
+                                    ? AppColors.gold.withValues(alpha: 0.15)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(10),
                                 border: isSelected
-                                    ? Border.all(color: AppColors.premiumAccent.withOpacity(0.4))
+                                    ? Border.all(color: AppColors.gold.withValues(alpha: 0.4))
                                     : null,
                               ),
                               child: Row(
@@ -364,7 +419,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                                         ? Icons.check_circle_rounded
                                         : Icons.person_outline_rounded,
                                     size: 20,
-                                    color: isSelected ? AppColors.premiumAccent : const Color(0xFFA0A0C0),
+                                    color: isSelected ? AppColors.gold : const Color(0xFFA0A0C0),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -375,6 +430,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                                         Text(
                                           p.name,
                                           style: TextStyle(
+                                            fontFamily: AppTypography.bodyFamily,
                                             fontSize: 14,
                                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                             color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
@@ -384,9 +440,10 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                                         Text(
                                           '${p.dateOfBirth} • ${p.placeName}',
                                           style: TextStyle(
+                                            fontFamily: AppTypography.bodyFamily,
                                             fontSize: 11,
                                             color: isSelected
-                                                ? AppColors.premiumAccent
+                                                ? AppColors.gold
                                                 : const Color(0xFF94A3B8),
                                           ),
                                           maxLines: 1,
@@ -411,14 +468,15 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                             padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             child: Row(
                               children: [
-                                Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.premiumAccent),
+                                Icon(Icons.add_circle_outline_rounded, size: 20, color: AppColors.gold),
                                 SizedBox(width: 10),
                                 Text(
                                   'Add New Profile',
                                   style: TextStyle(
+                                    fontFamily: AppTypography.bodyFamily,
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.premiumAccent,
+                                    color: AppColors.gold,
                                   ),
                                 ),
                               ],
@@ -430,28 +488,30 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                       return items;
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      constraints: const BoxConstraints(minHeight: 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.6),
+                        color: AppColors.primary.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.premiumAccent, width: 1),
+                        border: Border.all(color: AppColors.gold, width: 1),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Change Profile',
+                            'Change',
                             style: TextStyle(
+                              fontFamily: AppTypography.bodyFamily,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.premiumAccent,
+                              color: AppColors.gold,
                             ),
                           ),
-                          SizedBox(width: 4),
+                          SizedBox(width: 2),
                           Icon(
                             Icons.arrow_drop_down_rounded,
                             size: 18,
-                            color: AppColors.premiumAccent,
+                            color: AppColors.gold,
                           ),
                         ],
                       ),
@@ -481,8 +541,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   ) {
     return Container(
       width: double.infinity,
-      color: AppColors.lightBackground,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      color: AppColors.canvas,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         children: [
           // 1. SEGMENTED NAVIGATION CONTROLS (CHART | PLANETS | HOUSES | NAKSHATRA)
@@ -545,8 +605,16 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.06),
+        color: AppColors.cardSurfaceWarm,
         borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppColors.cardBorder, width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -561,14 +629,15 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
               borderRadius: BorderRadius.circular(24),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                constraints: const BoxConstraints(minHeight: 48),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.2),
+                            color: AppColors.primary.withValues(alpha: 0.22),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -580,16 +649,23 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                   children: [
                     Icon(
                       item['icon'] as IconData,
-                      size: 14,
-                      color: isSelected ? AppColors.premiumAccent : AppColors.lightTextSecondary,
+                      size: 15,
+                      color: isSelected ? AppColors.gold : AppColors.textSecondary,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      item['label'] as String,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.lightTextSecondary,
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          item['label'] as String,
+                          style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                        ),
                       ),
                     ),
                   ],
@@ -602,7 +678,6 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     );
   }
 
-  /// Builds tab-specific content view based on currently selected control index
   Widget _buildTabContent(BuildContext context, BirthProfileModel profile, AstroChartModel chart) {
     switch (_selectedControlIndex) {
       case 0:
@@ -634,31 +709,33 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const SizedBox(height: 14),
 
         // 1. SINGLE CLEAR CHART HEADING
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        const Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 4,
           children: [
-            Icon(Icons.star_rate_rounded, size: 12, color: AppColors.premiumAccent),
-            SizedBox(width: 8),
+            Icon(Icons.star_rate_rounded, size: 12, color: AppColors.gold),
             Text(
               'Kundli',
               style: TextStyle(
-                fontSize: 14,
+                fontFamily: AppTypography.headingFamily,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.0,
                 color: AppColors.primary,
               ),
             ),
-            SizedBox(width: 6),
             Text(
               '•  North Indian Style',
               style: TextStyle(
+                fontFamily: AppTypography.bodyFamily,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: AppColors.lightTextSecondary,
+                color: AppColors.textSecondary,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.star_rate_rounded, size: 12, color: AppColors.premiumAccent),
+            Icon(Icons.star_rate_rounded, size: 12, color: AppColors.gold),
           ],
         ),
 
@@ -669,10 +746,11 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
           key: const ValueKey('kundli_canvas'),
           chart: chart,
           size: 320,
-          showTitle: false, // Single clear title rendered above
+          showTitle: false,
+          showLegend: true,
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
         // 2.5 DIVISIONAL CHARTS (VARGAS) 1-TAP ACTION BUTTON
         InkWell(
@@ -681,44 +759,62 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
               MaterialPageRoute(builder: (_) => const DivisionalChartsScreen()),
             );
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.cardSurfaceWarm,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                width: 1,
+                color: AppColors.cardBorder,
+                width: 1.0,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 20),
-                SizedBox(width: 10),
-                Expanded(
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Divisional Charts (वर्ग D1–D60)',
                         style: TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
                         ),
                       ),
+                      SizedBox(height: 1),
                       Text(
                         'Explore Navamsha (D9), Dashamsha (D10) & 16 Vargas',
                         style: TextStyle(
-                          fontSize: 10.5,
-                          color: AppColors.lightTextSecondary,
+                          fontFamily: AppTypography.bodyFamily,
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
               ],
             ),
           ),
@@ -746,41 +842,13 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
     final ascendantSign = chart.ascendant?.rashiName ?? 'N/A';
     final ascDegreeStr = chart.ascendant != null ? _formatDegree(chart.ascendant!.degreeInRashi) : 'N/A';
 
-    final moonPlanet = chart.planets.firstWhere(
+    final moonPlanet = chart.planets.where(
       (p) => p.planet.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA' || p.displayName.toUpperCase() == 'MOON',
-      orElse: () => const PlanetModel(
-        planet: 'MOON',
-        longitude: 0,
-        latitude: 0,
-        speedLongitude: 0,
-        isRetrograde: false,
-        rashiIndex: 1,
-        rashiName: 'N/A',
-        degreeInRashi: 0,
-        nakshatraIndex: 1,
-        nakshatraName: 'N/A',
-        pada: 1,
-        nakshatraLord: 'N/A',
-      ),
-    );
+    ).firstOrNull;
 
-    final sunPlanet = chart.planets.firstWhere(
+    final sunPlanet = chart.planets.where(
       (p) => p.planet.toUpperCase() == 'SUN' || p.planet.toUpperCase() == 'SURYA' || p.displayName.toUpperCase() == 'SUN',
-      orElse: () => const PlanetModel(
-        planet: 'SUN',
-        longitude: 0,
-        latitude: 0,
-        speedLongitude: 0,
-        isRetrograde: false,
-        rashiIndex: 1,
-        rashiName: 'N/A',
-        degreeInRashi: 0,
-        nakshatraIndex: 1,
-        nakshatraName: 'N/A',
-        pada: 1,
-        nakshatraLord: 'N/A',
-      ),
-    );
+    ).firstOrNull;
 
     final items = [
       {
@@ -791,20 +859,20 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
       },
       {
         'label': 'Moon Sign',
-        'val': moonPlanet.rashiName,
-        'sub': _formatDegree(moonPlanet.degreeInRashi),
+        'val': moonPlanet?.rashiName ?? 'N/A',
+        'sub': moonPlanet != null ? _formatDegree(moonPlanet.degreeInRashi) : '—',
         'icon': Icons.nights_stay_rounded,
       },
       {
         'label': 'Sun Sign',
-        'val': sunPlanet.rashiName,
-        'sub': _formatDegree(sunPlanet.degreeInRashi),
+        'val': sunPlanet?.rashiName ?? 'N/A',
+        'sub': sunPlanet != null ? _formatDegree(sunPlanet.degreeInRashi) : '—',
         'icon': Icons.wb_sunny_rounded,
       },
       {
         'label': 'Birth Nakshatra',
-        'val': moonPlanet.nakshatraName,
-        'sub': 'Pada ${moonPlanet.pada} • ${moonPlanet.nakshatraLord}',
+        'val': moonPlanet != null && moonPlanet.nakshatraName.isNotEmpty ? moonPlanet.nakshatraName : 'N/A',
+        'sub': moonPlanet != null ? 'Pada ${moonPlanet.pada} • ${moonPlanet.nakshatraLord}' : '—',
         'icon': Icons.auto_awesome_rounded,
       },
     ];
@@ -815,7 +883,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const Text(
           'At a Glance',
           style: TextStyle(
-            fontSize: 16,
+            fontFamily: AppTypography.headingFamily,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
           ),
@@ -826,27 +895,39 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 2.2,
+            childAspectRatio: 1.35,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            return AstroCard(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceWarm,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.cardBorder, width: 1.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   Container(
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.06),
+                      color: AppColors.primary.withValues(alpha: 0.06),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(item['icon'] as IconData, size: 18, color: AppColors.premiumAccent),
+                    child: Icon(item['icon'] as IconData, size: 17, color: AppColors.gold),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,15 +936,18 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                         Text(
                           item['label'] as String,
                           style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.lightTextMuted,
+                            letterSpacing: 0.5,
+                            color: AppColors.textMuted,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           item['val'] as String,
                           style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
@@ -874,8 +958,9 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                         Text(
                           item['sub'] as String,
                           style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 10,
-                            color: AppColors.lightTextSecondary,
+                            color: AppColors.textSecondary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -902,41 +987,13 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         ? _formatDegree(chart.ascendant!.degreeInRashi)
         : '0°00\'';
 
-    final sunPlanet = chart.planets.firstWhere(
+    final sunPlanet = chart.planets.where(
       (p) => p.planet.toUpperCase() == 'SUN' || p.planet.toUpperCase() == 'SURYA',
-      orElse: () => const PlanetModel(
-        planet: 'SUN',
-        longitude: 0,
-        latitude: 0,
-        speedLongitude: 0,
-        isRetrograde: false,
-        rashiIndex: 1,
-        rashiName: 'N/A',
-        degreeInRashi: 0,
-        nakshatraIndex: 1,
-        nakshatraName: 'N/A',
-        pada: 1,
-        nakshatraLord: 'N/A',
-      ),
-    );
+    ).firstOrNull;
 
-    final moonPlanet = chart.planets.firstWhere(
+    final moonPlanet = chart.planets.where(
       (p) => p.planet.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA',
-      orElse: () => const PlanetModel(
-        planet: 'MOON',
-        longitude: 0,
-        latitude: 0,
-        speedLongitude: 0,
-        isRetrograde: false,
-        rashiIndex: 1,
-        rashiName: 'N/A',
-        degreeInRashi: 0,
-        nakshatraIndex: 1,
-        nakshatraName: 'N/A',
-        pada: 1,
-        nakshatraLord: 'N/A',
-      ),
-    );
+    ).firstOrNull;
 
     final ascRashiIndex = chart.ascendant?.rashiIndex ?? 1;
 
@@ -950,16 +1007,16 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
       },
       {
         'title': 'SUN',
-        'sign': sunPlanet.rashiName,
-        'degree': _formatDegree(sunPlanet.degreeInRashi),
-        'house': 'House ${sunPlanet.calculateHouseNumber(ascRashiIndex)}',
+        'sign': sunPlanet?.rashiName ?? 'N/A',
+        'degree': sunPlanet != null ? _formatDegree(sunPlanet.degreeInRashi) : '—',
+        'house': sunPlanet != null ? 'House ${sunPlanet.calculateHouseNumber(ascRashiIndex)}' : '—',
         'icon': Icons.wb_sunny_rounded,
       },
       {
         'title': 'MOON',
-        'sign': moonPlanet.rashiName,
-        'degree': _formatDegree(moonPlanet.degreeInRashi),
-        'house': 'House ${moonPlanet.calculateHouseNumber(ascRashiIndex)}',
+        'sign': moonPlanet?.rashiName ?? 'N/A',
+        'degree': moonPlanet != null ? _formatDegree(moonPlanet.degreeInRashi) : '—',
+        'house': moonPlanet != null ? 'House ${moonPlanet.calculateHouseNumber(ascRashiIndex)}' : '—',
         'icon': Icons.nights_stay_rounded,
       },
     ];
@@ -970,30 +1027,38 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Key Placements',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+            const Expanded(
+              child: Text(
+                'Key Placements',
+                style: TextStyle(
+                  fontFamily: AppTypography.headingFamily,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             GestureDetector(
               onTap: () {
                 setState(() => _selectedControlIndex = 1); // Switch to Planets tab
               },
-              child: const Row(
-                children: [
-                  Text(
-                    'View All Planets',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondary,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: Row(
+                  children: [
+                    Text(
+                      'View All Planets',
+                      style: TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondary,
+                      ),
                     ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.secondary),
-                ],
+                    Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.secondary),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1003,51 +1068,74 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
           children: placements.map((item) {
             return Expanded(
               child: Container(
-                margin: const EdgeInsets.only(right: 8),
-                child: AstroCard(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Icon(item['icon'] as IconData, size: 20, color: AppColors.premiumAccent),
-                      const SizedBox(height: 6),
-                      Text(
-                        item['title'] as String,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: AppColors.lightTextMuted,
-                        ),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardSurfaceWarm,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.cardBorder, width: 1.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Icon(item['icon'] as IconData, size: 20, color: AppColors.gold),
+                    const SizedBox(height: 6),
+                    Text(
+                      item['title'] as String,
+                      style: const TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        color: AppColors.textMuted,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item['sign'] as String,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item['sign'] as String,
+                      style: const TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
                       ),
-                      Text(
-                        item['degree'] as String,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.lightTextSecondary,
-                        ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      item['degree'] as String,
+                      style: const TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
                         item['house'] as String,
                         style: const TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: AppColors.secondary,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -1066,7 +1154,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const Text(
           'Planetary Overview',
           style: TextStyle(
-            fontSize: 16,
+            fontFamily: AppTypography.headingFamily,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
           ),
@@ -1082,15 +1171,25 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   // ==========================================
   Widget _buildPlanetsTabContent(BuildContext context, AstroChartModel chart) {
     final ascRashiIndex = chart.ascendant?.rashiIndex ?? 1;
+    final retroCount = chart.planets.where((p) => p.isRetrograde).length;
 
     return Column(
       key: const ValueKey('tab_planets'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainPlanetsTitle,
+          whatIsText: context.l10n.explainPlanetsWhatIs,
+          howToReadText: context.l10n.explainPlanetsHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         const Text(
           'Planetary Positions',
           style: TextStyle(
-            fontSize: 16,
+            fontFamily: AppTypography.headingFamily,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
           ),
@@ -1099,12 +1198,60 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const Text(
           'Complete astronomical breakdown of all 9 planets at your time of birth.',
           style: TextStyle(
+            fontFamily: AppTypography.bodyFamily,
             fontSize: 13,
-            color: AppColors.lightTextSecondary,
+            color: AppColors.textSecondary,
           ),
         ),
+        const SizedBox(height: 12),
+
+        // Metrics Summary Row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.canvasSecondary,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.cardBorder, width: 0.8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatPill('Total Grahas', '${chart.planets.length}', AppColors.primary),
+              _buildStatPill('Retrograde (वक्री)', '$retroCount', retroCount > 0 ? AppColors.tintRoseText : AppColors.textSecondary),
+              _buildStatPill('Ascendant (लग्न)', chart.ascendant?.rashiName ?? 'N/A', AppColors.gold),
+            ],
+          ),
+        ),
+
         const SizedBox(height: 16),
         ...chart.planets.map((p) => _buildPlanetRow(context, p, ascRashiIndex)),
+      ],
+    );
+  }
+
+  Widget _buildStatPill(String title, String value, Color valueColor) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontFamily: AppTypography.bodyFamily,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMuted,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: AppTypography.bodyFamily,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
       ],
     );
   }
@@ -1117,8 +1264,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
-      child: AstroCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: InkWell(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -1133,97 +1279,149 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
             ),
           );
         },
-        child: Row(
-          children: [
-            // Planet emblem image or fallback vector
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.lightBackground,
-                border: Border.all(color: AppColors.lightBorder),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.cardSurfaceWarm,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.cardBorder, width: 1.0),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: ClipOval(
-                child: assetPath != null
-                    ? AstroImage(
-                        assetPath: assetPath,
-                        fit: BoxFit.cover,
-                        fallback: AstroImageFallback.icon,
-                        semanticLabel: '$cleanName planet',
-                      )
-                    : const Icon(Icons.circle, size: 18, color: AppColors.premiumAccent),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Planet emblem image or fallback vector
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: ClipOval(
+                  child: assetPath != null
+                      ? AstroImage(
+                          assetPath: assetPath,
+                          fit: BoxFit.cover,
+                          fallback: AstroImageFallback.icon,
+                          semanticLabel: '$cleanName planet',
+                        )
+                      : const Icon(Icons.circle, size: 18, color: AppColors.gold),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-            // Planet details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        cleanName,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      if (p.isRetrograde) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.supportingAccent.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
+              // Planet details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
+                        Text(
+                          cleanName,
+                          style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
-                          child: const Text(
-                            'RETRO',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.supportingAccent,
+                        ),
+                        if (p.isRetrograde)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.tintRoseBg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.tintRoseBorder, width: 0.8),
+                            ),
+                            child: const Text(
+                              'RETRO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.tintRoseText,
+                              ),
                             ),
                           ),
-                        ),
+                        if (p.formattedDignity.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _getDignityBgColor(p.dignity),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: _getDignityBorderColor(p.dignity), width: 0.8),
+                            ),
+                            child: Text(
+                              p.formattedDignity,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: _getDignityTextColor(p.dignity),
+                              ),
+                            ),
+                          ),
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${p.rashiName} • $degreeStr',
-                    style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
-                  ),
-                  if (p.nakshatraName.isNotEmpty)
-                    Text(
-                      '${p.nakshatraName} • Pada ${p.pada}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
                     ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${p.rashiName} • $degreeStr',
+                      style: const TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (p.nakshatraName.isNotEmpty)
+                      Text(
+                        '${p.nakshatraName} • Pada ${p.pada}',
+                        style: const TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
 
-            Text(
-              'House $houseNum',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondary,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'House $houseNum',
+                  style: const TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.lightTextMuted),
-          ],
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     );
   }
 
   // ==========================================
-  // TAB 2: HOUSES TAB
+  // TAB 2: HOUSES TAB (BHAVAS)
   // ==========================================
   Widget _buildHousesTabContent(BuildContext context, AstroChartModel chart) {
     final ascRashiIndex = chart.ascendant?.rashiIndex ?? 1;
@@ -1242,10 +1440,19 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
       key: const ValueKey('tab_houses'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainHousesTitle,
+          whatIsText: context.l10n.explainHousesWhatIs,
+          howToReadText: context.l10n.explainHousesHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         const Text(
           '12 Houses (Bhavas)',
           style: TextStyle(
-            fontSize: 16,
+            fontFamily: AppTypography.headingFamily,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
           ),
@@ -1254,24 +1461,55 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const Text(
           'Explore how the 12 astrological houses define key aspects of your life.',
           style: TextStyle(
+            fontFamily: AppTypography.bodyFamily,
             fontSize: 13,
-            color: AppColors.lightTextSecondary,
+            color: AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 16),
+
         ...List.generate(12, (index) {
           final houseNum = index + 1;
           final rashiIndex = ((ascRashiIndex + houseNum - 2) % 12) + 1;
-          final rashiName = _getRashiName(rashiIndex);
-          final rashiLord = _getRashiLord(rashiIndex);
+
+          // Read calculated house output from engine if available
+          final engineHouse = chart.houses.where((h) => h.houseNumber == houseNum).firstOrNull;
+          final rashiName = (engineHouse != null && engineHouse.rashiName.isNotEmpty)
+              ? engineHouse.rashiName
+              : _getRashiName(rashiIndex);
+          final rashiLord = (engineHouse != null && engineHouse.lord != null && engineHouse.lord!.isNotEmpty)
+              ? engineHouse.lord!
+              : _getRashiLord(rashiIndex);
+
           final planetsInHouse = housePlanetsMap[houseNum] ?? [];
           final houseInfo = _getHouseSignifications(houseNum);
           final rashiAsset = AppAssets.getRashiAsset(rashiIndex);
 
+          final isFirstHouse = houseNum == 1;
+          final isKendra = houseNum == 1 || houseNum == 4 || houseNum == 7 || houseNum == 10;
+          final isTrikona = houseNum == 1 || houseNum == 5 || houseNum == 9;
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: AstroCard(
+            child: Container(
               padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceWarm,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isFirstHouse
+                      ? AppColors.gold.withValues(alpha: 0.6)
+                      : (isKendra ? AppColors.secondary.withValues(alpha: 0.3) : AppColors.cardBorder),
+                  width: isFirstHouse ? 1.4 : 1.0,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1279,21 +1517,23 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                     children: [
                       // House badge
                       Container(
-                        width: 36,
-                        height: 36,
+                        width: 38,
+                        height: 38,
                         decoration: BoxDecoration(
-                          color: houseNum == 1
-                              ? AppColors.premiumAccent.withOpacity(0.2)
-                              : AppColors.primary.withOpacity(0.08),
+                          color: isFirstHouse
+                              ? AppColors.gold.withValues(alpha: 0.2)
+                              : AppColors.primary.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
+                          border: isFirstHouse ? Border.all(color: AppColors.gold, width: 1.2) : null,
                         ),
                         child: Center(
                           child: Text(
                             '$houseNum',
-                            style: TextStyle(
+                            style: const TextStyle(
+                              fontFamily: AppTypography.bodyFamily,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: houseNum == 1 ? AppColors.primary : AppColors.primary,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
@@ -1304,19 +1544,81 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              houseInfo['title']!,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    houseInfo['title']!,
+                                    style: const TextStyle(
+                                      fontFamily: AppTypography.bodyFamily,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isFirstHouse)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.gold.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: AppColors.gold, width: 0.8),
+                                    ),
+                                    child: const Text(
+                                      'LAGNA',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  )
+                                else if (isTrikona)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.tintVioletBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: AppColors.tintVioletBorder, width: 0.8),
+                                    ),
+                                    child: const Text(
+                                      'TRIKONA',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.tintVioletText,
+                                      ),
+                                    ),
+                                  )
+                                else if (isKendra)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.tintSkyBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: AppColors.tintSkyBorder, width: 0.8),
+                                    ),
+                                    child: const Text(
+                                      'KENDRA',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.tintSkyText,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               '$rashiName • Lord: $rashiLord',
                               style: const TextStyle(
+                                fontFamily: AppTypography.bodyFamily,
                                 fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.secondary,
                               ),
                             ),
@@ -1324,7 +1626,8 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                         ),
                       ),
 
-                      if (rashiAsset != null)
+                      if (rashiAsset != null) ...[
+                        const SizedBox(width: 8),
                         ClipOval(
                           child: AstroImage(
                             assetPath: rashiAsset,
@@ -1335,14 +1638,18 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                             semanticLabel: '$rashiName sign',
                           ),
                         ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 10),
+
+                  // Calculated Facts vs Meaning Separation
                   Text(
                     houseInfo['desc']!,
                     style: const TextStyle(
+                      fontFamily: AppTypography.bodyFamily,
                       fontSize: 12,
-                      color: AppColors.lightTextSecondary,
+                      color: AppColors.textSecondary,
                       height: 1.35,
                     ),
                   ),
@@ -1350,13 +1657,18 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
 
                   // Occupying planets
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Planets in House: ',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.lightTextMuted,
+                      const Padding(
+                        padding: EdgeInsets.only(top: 3),
+                        child: Text(
+                          'Planets in House: ',
+                          style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                       Expanded(
@@ -1368,12 +1680,14 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.08),
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: AppColors.primary.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppColors.cardBorder, width: 0.8),
                                     ),
                                     child: Text(
                                       p.displayNameWithRetro,
                                       style: const TextStyle(
+                                        fontFamily: AppTypography.bodyFamily,
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primary,
@@ -1382,12 +1696,16 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                                   );
                                 }).toList(),
                               )
-                            : const Text(
-                                'None (Empty House)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                  color: AppColors.lightTextMuted,
+                            : const Padding(
+                                padding: EdgeInsets.only(top: 3),
+                                child: Text(
+                                  'None (Empty House)',
+                                  style: TextStyle(
+                                    fontFamily: AppTypography.bodyFamily,
+                                    fontSize: 11,
+                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.textMuted,
+                                  ),
                                 ),
                               ),
                       ),
@@ -1403,35 +1721,31 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   }
 
   // ==========================================
-  // TAB 3: NAKSHATRA TAB
+  // TAB 3: NAKSHATRA TAB (LUNAR MANSIOINS)
   // ==========================================
   Widget _buildNakshatraTabContent(BuildContext context, AstroChartModel chart) {
-    final moonPlanet = chart.planets.firstWhere(
-      (p) => p.planet.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA',
-      orElse: () => chart.planets.isNotEmpty ? chart.planets.first : const PlanetModel(
-        planet: 'MOON',
-        longitude: 0,
-        latitude: 0,
-        speedLongitude: 0,
-        isRetrograde: false,
-        rashiIndex: 1,
-        rashiName: 'N/A',
-        degreeInRashi: 0,
-        nakshatraIndex: 1,
-        nakshatraName: 'N/A',
-        pada: 1,
-        nakshatraLord: 'N/A',
-      ),
-    );
+    // Strictly find the Moon planet for Janma Nakshatra (never substitute other planets)
+    final moonPlanet = chart.planets.where(
+      (p) => p.planet.toUpperCase() == 'MOON' || p.displayName.toUpperCase() == 'MOON' || p.planet.toUpperCase() == 'CHANDRA',
+    ).firstOrNull;
 
     return Column(
       key: const ValueKey('tab_nakshatra'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainNakshatraTitle,
+          whatIsText: context.l10n.explainNakshatraWhatIs,
+          howToReadText: context.l10n.explainNakshatraHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         const Text(
           'Nakshatra Profile',
           style: TextStyle(
-            fontSize: 16,
+            fontFamily: AppTypography.headingFamily,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
           ),
@@ -1440,80 +1754,108 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const Text(
           'Lunar mansions that reveal deeper psychological and karmic attributes.',
           style: TextStyle(
+            fontFamily: AppTypography.bodyFamily,
             fontSize: 13,
-            color: AppColors.lightTextSecondary,
+            color: AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 16),
 
-        // PROMINENT BIRTH NAKSHATRA CARD
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.premiumAccent.withOpacity(0.4)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.2),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.premiumAccent.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'BIRTH NAKSHATRA (JANMA NAKSHATRA)',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.premiumAccent,
-                        letterSpacing: 0.8,
+        // PROMINENT BIRTH NAKSHATRA HERO CARD
+        if (moonPlanet != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: AppGradients.heroCosmic,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.4), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.gold.withValues(alpha: 0.5), width: 1.0),
+                      ),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'BIRTH NAKSHATRA (JANMA NAKSHATRA)',
+                          style: TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.gold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  moonPlanet.nakshatraName.isNotEmpty ? moonPlanet.nakshatraName : 'N/A',
+                  style: const TextStyle(
+                    fontFamily: AppTypography.headingFamily,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                moonPlanet.nakshatraName,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Pada ${moonPlanet.pada}  •  Nakshatra Lord: ${moonPlanet.nakshatraLord}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.premiumAccent,
+                const SizedBox(height: 4),
+                Text(
+                  'Pada ${moonPlanet.pada}  •  Nakshatra Lord: ${moonPlanet.nakshatraLord}',
+                  style: const TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Moon Sign: ${moonPlanet.rashiName} (${_formatDegree(moonPlanet.degreeInRashi)})',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.8),
+                const SizedBox(height: 6),
+                Text(
+                  'Moon Sign: ${moonPlanet.rashiName} (${_formatDegree(moonPlanet.degreeInRashi)})',
+                  style: TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
                 ),
+              ],
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.cardSurfaceWarm,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: const Text(
+              'Moon placement is unavailable in this calculation. Please verify birth details.',
+              style: TextStyle(
+                fontFamily: AppTypography.bodyFamily,
+                fontSize: 13,
+                color: AppColors.textSecondary,
               ),
-            ],
+            ),
           ),
-        ),
 
         const SizedBox(height: 20),
 
@@ -1522,21 +1864,34 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
           const Text(
             'Ascendant Nakshatra',
             style: TextStyle(
+              fontFamily: AppTypography.headingFamily,
               fontSize: 15,
               fontWeight: FontWeight.bold,
               color: AppColors.primary,
             ),
           ),
           const SizedBox(height: 8),
-          AstroCard(
+          Container(
             padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.cardSurfaceWarm,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder, width: 1.0),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: AppColors.secondary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.flare_rounded, color: AppColors.secondary, size: 20),
@@ -1549,6 +1904,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                       Text(
                         chart.ascendant!.nakshatraName,
                         style: const TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
@@ -1557,8 +1913,9 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                       Text(
                         'Pada ${chart.ascendant!.pada} • Lord: ${chart.ascendant!.nakshatraLord}',
                         style: const TextStyle(
+                          fontFamily: AppTypography.bodyFamily,
                           fontSize: 12,
-                          color: AppColors.lightTextSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1567,6 +1924,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                 Text(
                   chart.ascendant!.rashiName,
                   style: const TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
@@ -1582,6 +1940,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         const Text(
           'All Planetary Nakshatras',
           style: TextStyle(
+            fontFamily: AppTypography.headingFamily,
             fontSize: 15,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
@@ -1594,16 +1953,29 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
-            child: AstroCard(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceWarm,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.cardBorder, width: 1.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const BoxDecoration(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.lightBackground,
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: ClipOval(
                       child: assetPath != null
@@ -1613,7 +1985,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                               fallback: AstroImageFallback.icon,
                               semanticLabel: '$cleanName planet',
                             )
-                          : const Icon(Icons.circle, size: 16, color: AppColors.premiumAccent),
+                          : const Icon(Icons.circle, size: 16, color: AppColors.gold),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1622,6 +1994,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                     child: Text(
                       cleanName + (p.isRetrograde ? ' (R)' : ''),
                       style: const TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
@@ -1636,6 +2009,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                         Text(
                           p.nakshatraName.isNotEmpty ? p.nakshatraName : 'N/A',
                           style: const TextStyle(
+                            fontFamily: AppTypography.bodyFamily,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.primary,
@@ -1645,8 +2019,9 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                           Text(
                             'Lord: ${p.nakshatraLord}',
                             style: const TextStyle(
+                              fontFamily: AppTypography.bodyFamily,
                               fontSize: 10,
-                              color: AppColors.lightTextMuted,
+                              color: AppColors.textMuted,
                             ),
                           ),
                       ],
@@ -1658,6 +2033,7 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                       'Pada ${p.pada}',
                       textAlign: TextAlign.end,
                       style: const TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.secondary,
@@ -1674,31 +2050,28 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
   }
 
   // ==========================================
-  // FIXED BOTTOM INSIGHT CARD (NEVER SCROLLS)
+  // CLOSING INSIGHT BANNER (SCROLLABLE)
   // ==========================================
-  Widget _buildFixedBottomInsightCard(BuildContext context, BirthProfileModel profile) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.lightBackground,
-      padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 8),
+  Widget _buildClosingInsightCard(BuildContext context, BirthProfileModel profile) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: GestureDetector(
         onTap: () {
           setState(() {
-            // Cycle through tabs on bottom card tap
             _selectedControlIndex = (_selectedControlIndex + 1) % 4;
           });
         },
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.premiumAccent.withOpacity(0.3)),
+            gradient: AppGradients.heroCosmic,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 16,
-                offset: const Offset(0, -4),
+                color: AppColors.primary.withValues(alpha: 0.20),
+                blurRadius: 14,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -1708,36 +2081,38 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppColors.tertiary,
+                  color: AppColors.cardSurfaceDark,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.premiumAccent.withOpacity(0.4)),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
                 ),
                 child: const Icon(
                   Icons.explore_rounded,
-                  color: AppColors.premiumAccent,
+                  color: AppColors.gold,
                   size: 22,
                 ),
               ),
               const SizedBox(width: 14),
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Your chart is a map of your potential.',
                       style: TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       'Explore each placement to understand your unique journey.',
                       style: TextStyle(
+                        fontFamily: AppTypography.bodyFamily,
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white70,
                       ),
                     ),
                   ],
@@ -1748,13 +2123,13 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.premiumAccent.withOpacity(0.15),
+                  color: AppColors.gold.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.premiumAccent.withOpacity(0.4)),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
                 ),
                 child: const Icon(
                   Icons.arrow_forward_rounded,
-                  color: AppColors.premiumAccent,
+                  color: AppColors.gold,
                   size: 16,
                 ),
               ),
@@ -1763,6 +2138,33 @@ class _BirthChartScreenState extends ConsumerState<BirthChartScreen> {
         ),
       ),
     );
+  }
+
+  Color _getDignityBgColor(String? dignity) {
+    final d = dignity?.toUpperCase() ?? '';
+    if (d.contains('EXALT') || d.contains('UCHA')) return AppColors.tintSageBg;
+    if (d.contains('DEBIL') || d.contains('NICHA')) return AppColors.tintRoseBg;
+    if (d.contains('OWN') || d.contains('SWA')) return AppColors.tintAmberBg;
+    if (d.contains('MOOLA')) return AppColors.tintVioletBg;
+    return AppColors.cardSurfaceParchment;
+  }
+
+  Color _getDignityTextColor(String? dignity) {
+    final d = dignity?.toUpperCase() ?? '';
+    if (d.contains('EXALT') || d.contains('UCHA')) return AppColors.tintSageText;
+    if (d.contains('DEBIL') || d.contains('NICHA')) return AppColors.tintRoseText;
+    if (d.contains('OWN') || d.contains('SWA')) return AppColors.tintAmberText;
+    if (d.contains('MOOLA')) return AppColors.tintVioletText;
+    return AppColors.textSecondary;
+  }
+
+  Color _getDignityBorderColor(String? dignity) {
+    final d = dignity?.toUpperCase() ?? '';
+    if (d.contains('EXALT') || d.contains('UCHA')) return AppColors.tintSageBorder;
+    if (d.contains('DEBIL') || d.contains('NICHA')) return AppColors.tintRoseBorder;
+    if (d.contains('OWN') || d.contains('SWA')) return AppColors.tintAmberBorder;
+    if (d.contains('MOOLA')) return AppColors.tintVioletBorder;
+    return AppColors.cardBorder;
   }
 
   // ==========================================

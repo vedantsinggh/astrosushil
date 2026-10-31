@@ -18,6 +18,7 @@ class AstrologySectionCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
   final VoidCallback? onTap;
+  final AstroCardVariant variant;
 
   const AstrologySectionCard({
     super.key,
@@ -34,6 +35,7 @@ class AstrologySectionCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.margin = const EdgeInsets.only(bottom: 16),
     this.onTap,
+    this.variant = AstroCardVariant.warm,
   });
 
   @override
@@ -43,6 +45,7 @@ class AstrologySectionCard extends StatelessWidget {
       child: AstroCard(
         padding: padding,
         onTap: onTap,
+        variant: variant,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,

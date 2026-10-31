@@ -29,22 +29,22 @@ class _JyotiExplanationCardWidgetState
     return Container(
       margin: const EdgeInsets.only(left: 52, right: 16, top: 4, bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardSurfaceWarm,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.secondary.withOpacity(0.2),
-          width: 1,
+          color: AppColors.cardBorder,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppColors.primary.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -53,15 +53,16 @@ class _JyotiExplanationCardWidgetState
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.tertiary.withOpacity(0.08),
+                color: AppColors.tintAmberBg,
                 borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.tintAmberBorder, width: 0.8),
               ),
               child: Text(
                 exp.category.toUpperCase(),
                 style: const TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.tintAmberText,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -95,10 +96,11 @@ class _JyotiExplanationCardWidgetState
             if (_isExpanded) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.lightBackground,
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.canvas,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.cardBorderSubtle),
                 ),
                 child: Text(
                   exp.detailedText,
@@ -111,28 +113,31 @@ class _JyotiExplanationCardWidgetState
               ),
             ],
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                // Read More / Show Less Toggle
+                // Read More / Show Less Toggle (>= 48dp target)
                 InkWell(
                   onTap: () {
                     setState(() {
                       _isExpanded = !_isExpanded;
                     });
                   },
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           _isExpanded ? 'Show less' : 'Read more',
                           style: const TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: AppColors.secondary,
                           ),
@@ -149,35 +154,28 @@ class _JyotiExplanationCardWidgetState
                   ),
                 ),
 
-                // Optional Direct Action Button
+                // Optional Direct Action Button (>= 48dp target)
                 if (exp.actionType != null &&
                     widget.onExecuteAction != null &&
                     exp.actionButtonText != null)
-                  TextButton(
+                  TextButton.icon(
                     onPressed: () => widget.onExecuteAction!(exp.actionType!),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      minimumSize: const Size(0, 48),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          exp.actionButtonText!,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
-                      ],
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      exp.actionButtonText!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
               ],
