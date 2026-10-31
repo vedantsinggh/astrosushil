@@ -10,6 +10,34 @@ export const birthProfileInputSchema = z.object({
   placeName: z.string().optional(),
 });
 
+// Phone Number + OTP Schemas
+export const phoneSendOtpSchema = z.object({
+  phoneNumber: z.string().min(8, 'Phone number is required'),
+});
+
+export const phoneVerifyOtpSchema = z.object({
+  phoneNumber: z.string().min(8, 'Phone number is required'),
+  otp: z.string().min(4, 'OTP must be at least 4 digits').max(8, 'OTP must not exceed 8 digits'),
+  birthProfile: birthProfileInputSchema.optional(),
+});
+
+// Google Sign-In Schemas
+export const googleAuthSchema = z.object({
+  idToken: z.string().min(1, 'Google ID token is required'),
+  birthProfile: birthProfileInputSchema.optional(),
+});
+
+// Account Linking Schemas
+export const linkPhoneSchema = z.object({
+  phoneNumber: z.string().min(8, 'Phone number is required'),
+  otp: z.string().min(4, 'OTP must be at least 4 digits').max(8, 'OTP must not exceed 8 digits'),
+});
+
+export const linkGoogleSchema = z.object({
+  idToken: z.string().min(1, 'Google ID token is required'),
+});
+
+// Legacy Email Auth Schemas (Preserved for compatibility)
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address format').toLowerCase().trim(),
   password: z
@@ -62,6 +90,11 @@ export const logoutSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
+export type PhoneSendOtpInput = z.infer<typeof phoneSendOtpSchema>;
+export type PhoneVerifyOtpInput = z.infer<typeof phoneVerifyOtpSchema>;
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
+export type LinkPhoneInput = z.infer<typeof linkPhoneSchema>;
+export type LinkGoogleInput = z.infer<typeof linkGoogleSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;

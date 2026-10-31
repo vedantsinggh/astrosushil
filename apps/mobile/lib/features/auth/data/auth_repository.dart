@@ -4,16 +4,20 @@ import '../../../core/storage/secure_storage_service.dart';
 import '../models/auth_tokens_model.dart';
 import '../models/user_model.dart';
 
-/// DTO for responses that may require email verification before returning tokens
+/// DTO for responses that may require verification before returning tokens
 class AuthRegistrationResult {
   final bool requiresEmailVerification;
-  final String email;
+  final bool requiresPhoneVerification;
+  final String? email;
+  final String? phoneNumber;
   final String message;
   final AuthResponseDto? authData;
 
   const AuthRegistrationResult({
-    required this.requiresEmailVerification,
-    required this.email,
+    this.requiresEmailVerification = false,
+    this.requiresPhoneVerification = false,
+    this.email,
+    this.phoneNumber,
     required this.message,
     this.authData,
   });
@@ -35,7 +39,82 @@ class AuthRepository {
     _apiClient.setOnUnauthenticatedCallback(callback);
   }
 
-  /// Register a new user with email, password, and optional birth profile
+  /// Request OTP code sent to user's phone number
+  Future<Map<String, dynamic>> sendPhoneOtp(String phoneNumber) async {
+    final response = await _apiClient.post(
+      '/auth/phone/send-otp',
+      data: {'phoneNumber': phoneNumber},
+    );
+    return response;
+  }
+
+  /// Verify phone OTP and save session tokens upon success
+  Future<AuthResponseDto> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+    Map<String, dynamic>? birthProfile,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/phone/verify-otp',
+      data: {
+        'phoneNumber': phoneNumber,
+        'otp': otp,
+        if (birthProfile != null) 'birthProfile': birthProfile,
+      },
+    );
+    final authResult = AuthResponseDto.fromJson(response);
+    await saveTokens(authResult.tokens);
+    await saveUser(authResult.user);
+    return authResult;
+  }
+
+  /// Authenticate with Google credential token (idToken)
+  Future<AuthResponseDto> signInWithGoogle(
+    String idToken, {
+    Map<String, dynamic>? birthProfile,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/google',
+      data: {
+        'idToken': idToken,
+        if (birthProfile != null) 'birthProfile': birthProfile,
+      },
+    );
+    final authResult = AuthResponseDto.fromJson(response);
+    await saveTokens(authResult.tokens);
+    await saveUser(authResult.user);
+    return authResult;
+  }
+
+  /// Link phone number to currently authenticated account
+  Future<UserModel> linkPhone({
+    required String phoneNumber,
+    required String otp,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/link-phone',
+      data: {
+        'phoneNumber': phoneNumber,
+        'otp': otp,
+      },
+    );
+    final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
+    await saveUser(user);
+    return user;
+  }
+
+  /// Link Google identity to currently authenticated account
+  Future<UserModel> linkGoogle(String idToken) async {
+    final response = await _apiClient.post(
+      '/auth/link-google',
+      data: {'idToken': idToken},
+    );
+    final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
+    await saveUser(user);
+    return user;
+  }
+
+  /// Register a new user with email, password, and optional birth profile (legacy/fallback)
   Future<AuthRegistrationResult> register({
     required String email,
     required String password,
@@ -73,7 +152,7 @@ class AuthRepository {
     );
   }
 
-  /// Verify email OTP and save session tokens
+  /// Verify email OTP and save session tokens (legacy/fallback)
   Future<AuthResponseDto> verifyEmail({
     required String email,
     required String otp,
@@ -91,7 +170,7 @@ class AuthRepository {
     return authResult;
   }
 
-  /// Login user with email and password
+  /// Login user with email and password (legacy/fallback)
   Future<AuthRegistrationResult> login({
     required String email,
     required String password,
@@ -227,5 +306,18 @@ class AuthRepository {
   Future<bool> hasToken() async {
     final token = await _storageService.read(key: StorageKeys.accessToken);
     return token != null && token.isNotEmpty;
+  }
+
+  /// Permanently delete authenticated user account on backend and wipe local storage
+  Future<Map<String, dynamic>> deleteAccount({String? confirmation, String? password}) async {
+    final response = await _apiClient.delete(
+      '/users/me',
+      data: {
+        'confirmation': confirmation ?? 'DELETE',
+        if (password != null && password.isNotEmpty) 'password': password,
+      },
+    );
+    await _storageService.clearAll();
+    return response;
   }
 }

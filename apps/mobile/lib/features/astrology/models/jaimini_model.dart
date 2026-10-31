@@ -24,35 +24,39 @@ class JaiminiReportModel {
   });
 
   factory JaiminiReportModel.fromJson(Map<String, dynamic> json) {
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
+
     return JaiminiReportModel(
-      scheme: json['scheme'] as String? ?? 'SEVEN_KARAKA',
-      charaKarakas: (json['charaKarakas'] as List<dynamic>?)
-              ?.map((e) => CharaKarakaDetailModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      arudhaPadas: (json['arudhaPadas'] as List<dynamic>?)
-              ?.map((e) => ArudhaPadaPlacementModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      arudhaLagna: json['arudhaLagna'] != null
-          ? ArudhaPadaPlacementModel.fromJson(json['arudhaLagna'] as Map<String, dynamic>)
+      scheme: root['scheme'] as String? ?? 'SEVEN_KARAKA',
+      charaKarakas: (root['charaKarakas'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => CharaKarakaDetailModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      arudhaPadas: (root['arudhaPadas'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => ArudhaPadaPlacementModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      arudhaLagna: root['arudhaLagna'] is Map
+          ? ArudhaPadaPlacementModel.fromJson(Map<String, dynamic>.from(root['arudhaLagna'] as Map))
           : null,
-      upapadaLagna: json['upapadaLagna'] != null
-          ? ArudhaPadaPlacementModel.fromJson(json['upapadaLagna'] as Map<String, dynamic>)
+      upapadaLagna: root['upapadaLagna'] is Map
+          ? ArudhaPadaPlacementModel.fromJson(Map<String, dynamic>.from(root['upapadaLagna'] as Map))
           : null,
-      darapada: json['darapada'] != null
-          ? ArudhaPadaPlacementModel.fromJson(json['darapada'] as Map<String, dynamic>)
+      darapada: root['darapada'] is Map
+          ? ArudhaPadaPlacementModel.fromJson(Map<String, dynamic>.from(root['darapada'] as Map))
           : null,
-      rashiDrishtis: (json['rashiDrishtis'] as List<dynamic>?)
-              ?.map((e) => RashiDrishtiDetailModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      argalas: (json['argalas'] as List<dynamic>?)
-              ?.map((e) => ArgalaDetailModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      karakamsha: json['karakamsha'] != null
-          ? KarakamshaReportModel.fromJson(json['karakamsha'] as Map<String, dynamic>)
+      rashiDrishtis: (root['rashiDrishtis'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => RashiDrishtiDetailModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      argalas: (root['argalas'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => ArgalaDetailModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      karakamsha: root['karakamsha'] is Map
+          ? KarakamshaReportModel.fromJson(Map<String, dynamic>.from(root['karakamsha'] as Map))
           : null,
     );
   }

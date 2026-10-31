@@ -56,7 +56,7 @@ describe('Reports API & PDF Generation Integration Tests', () => {
     });
 
     (vi.spyOn(prisma.report, 'create') as any).mockImplementation(async ({ data }: any) => {
-      const id = `report-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const id = data.id || crypto.randomUUID();
       const record = {
         id,
         userId: data.userId,
@@ -82,6 +82,15 @@ describe('Reports API & PDF Generation Integration Tests', () => {
 
     (vi.spyOn(prisma.report, 'findMany') as any).mockImplementation(async ({ where }: any) => {
       return Array.from(reportsDb.values()).filter((r) => r.userId === where.userId);
+    });
+
+    (vi.spyOn(prisma.report, 'findFirst') as any).mockImplementation(async ({ where }: any) => {
+      return Array.from(reportsDb.values()).find((r) => {
+        if (where.userId && r.userId !== where.userId) return false;
+        if (where.birthProfileId && r.birthProfileId !== where.birthProfileId) return false;
+        if (where.reportType && r.reportType !== where.reportType) return false;
+        return true;
+      }) || null;
     });
 
     app = buildApp();

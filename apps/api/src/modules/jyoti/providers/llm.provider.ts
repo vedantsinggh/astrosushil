@@ -19,6 +19,10 @@ export interface LLMResponse {
   message: string;
   actions?: JyotiActionPayload[];
   explanation?: JyotiExplanationPayload;
+  headline?: string;
+  keyPoints?: string[];
+  disclaimer?: string;
+  rawJson?: Record<string, any>;
 }
 
 export interface LLMProviderOptions {

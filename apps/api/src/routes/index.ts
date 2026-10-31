@@ -14,6 +14,11 @@ import { reportsRoutes } from '../modules/reports/reports.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
 import { notificationsRoutes } from '../modules/notifications/notifications.routes';
 import { jyotiRoutes } from '../modules/jyoti/jyoti.routes';
+import { locationsRoutes } from '../modules/locations/locations.routes';
+import { consultationsRoutes } from '../modules/consultations/consultations.routes';
+import { coursesRoutes } from '../modules/courses/courses.routes';
+import { productsRoutes } from '../modules/products/products.routes';
+import { accountRoutes } from '../modules/products/account.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -26,6 +31,7 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(authRoutes, { prefix: '/auth' });
       await v1.register(usersRoutes, { prefix: '/users' });
       await v1.register(birthProfilesRoutes, { prefix: '/birth-profiles' });
+      await v1.register(locationsRoutes, { prefix: '/locations' });
       await v1.register(astrologyRoutes, { prefix: '/astrology' });
       await v1.register(rashiBhavishyaRoutes, { prefix: '/rashi-bhavishya' });
       await v1.register(vastuRoutes, { prefix: '/vastu' });
@@ -34,6 +40,13 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(paymentsRoutes, { prefix: '/payments' });
       await v1.register(webhooksRoutes, { prefix: '/webhooks' });
       await v1.register(reportsRoutes, { prefix: '/reports' });
+      await v1.register(consultationsRoutes, { prefix: '/consultations' });
+      await v1.register(consultationsRoutes, { prefix: '/consultation' });
+      await v1.register(coursesRoutes, { prefix: '/courses' });
+      await v1.register(coursesRoutes, { prefix: '/course' });
+      await v1.register(productsRoutes, { prefix: '/products' });
+      await v1.register(productsRoutes, { prefix: '/shop' });
+      await v1.register(accountRoutes, { prefix: '/account' });
       await v1.register(adminRoutes, { prefix: '/admin' });
       await v1.register(notificationsRoutes, { prefix: '/notifications' });
       await v1.register(jyotiRoutes, { prefix: '/jyoti' });

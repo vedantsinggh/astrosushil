@@ -15,10 +15,13 @@ void main() {
       ),
     );
 
-    // Initial pump shows checking session / loading indicator or login
-    await tester.pumpAndSettle();
+    // Initial pump shows checking session / splash branding
+    await tester.pump();
 
-    // Verify root screen navigates to LoginScreen when unauthenticated
-    expect(find.text('Welcome to Astro Platform'), findsOneWidget);
+    // Verify root screen mounts Astro Sushil splash branding
+    expect(find.text('ASTRO SUSHIL'), findsOneWidget);
+
+    // Advance timer past splash duration
+    await tester.pump(const Duration(milliseconds: 2600));
   });
 }

@@ -26,26 +26,27 @@ class ActiveBirthProfileSelector extends ConsumerWidget {
     if (activeProfile == null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.tertiary : Colors.white,
+          color: isDark ? AppColors.tertiary : AppColors.cardSurfaceWarm,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDark ? AppColors.secondary.withValues(alpha: 0.3) : AppColors.lightBorder,
+            color: isDark ? AppColors.secondary.withValues(alpha: 0.3) : AppColors.cardBorder,
+            width: 1.0,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: AppColors.premiumAccent.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.person_add_rounded, color: AppColors.premiumAccent, size: 18),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'No birth profile selected',
@@ -65,12 +66,11 @@ class ActiveBirthProfileSelector extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.premiumAccent,
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                minimumSize: const Size(48, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('Add Profile', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              child: const Text('Add Profile', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -81,10 +81,11 @@ class ActiveBirthProfileSelector extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.tertiary : Colors.white,
+        color: isDark ? AppColors.tertiary : AppColors.cardSurfaceWarm,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? AppColors.secondary.withValues(alpha: 0.35) : AppColors.lightBorder,
+          color: isDark ? AppColors.secondary.withValues(alpha: 0.35) : AppColors.cardBorder,
+          width: 1.0,
         ),
         boxShadow: isDark
             ? null

@@ -5,8 +5,6 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_loader/astro_loader_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../birth_profile/models/birth_profile_model.dart';
-import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_text_field.dart';
 import 'login_screen.dart';
@@ -447,8 +445,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
 
           // Login Link
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Text(
                 'Already have an account? ',
@@ -489,12 +488,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           color: isMet ? AppColors.success : AppColors.lightTextMuted,
         ),
         const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
-            color: isMet ? AppColors.primary : AppColors.lightTextSecondary,
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+              color: isMet ? AppColors.primary : AppColors.lightTextSecondary,
+            ),
           ),
         ),
       ],

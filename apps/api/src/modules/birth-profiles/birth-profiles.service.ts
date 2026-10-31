@@ -25,6 +25,10 @@ export class BirthProfilesService {
       longitude: input.longitude,
       timezone: input.timezone,
       placeName: input.placeName,
+      country: input.country,
+      countryCode: input.countryCode,
+      state: input.state,
+      isResolved: input.isResolved ?? true,
     });
 
     const profile = await prisma.birthProfile.create({
@@ -37,6 +41,10 @@ export class BirthProfilesService {
         longitude: normalized.longitude,
         timezone: normalized.timezone,
         placeName: normalized.placeName ?? null,
+        country: normalized.country ?? null,
+        countryCode: normalized.countryCode ?? null,
+        state: normalized.state ?? null,
+        isResolved: normalized.isResolved ?? true,
       },
     });
 
@@ -67,7 +75,7 @@ export class BirthProfilesService {
 
     if (duplicate) {
       return {
-        ...duplicate,
+        ...mapBirthProfileToResponseDto(duplicate),
         normalizedDetails: normalizeBirthProfile({
           id: duplicate.id,
           name: duplicate.name,
@@ -77,6 +85,10 @@ export class BirthProfilesService {
           longitude: duplicate.longitude,
           timezone: duplicate.timezone,
           placeName: duplicate.placeName,
+          country: duplicate.country,
+          countryCode: duplicate.countryCode,
+          state: duplicate.state,
+          isResolved: duplicate.isResolved,
         }),
       };
     }
@@ -106,6 +118,10 @@ export class BirthProfilesService {
           longitude: p.longitude,
           timezone: p.timezone,
           placeName: p.placeName,
+          country: p.country,
+          countryCode: p.countryCode,
+          state: p.state,
+          isResolved: p.isResolved,
         }),
       };
     });
@@ -141,6 +157,10 @@ export class BirthProfilesService {
         longitude: profile.longitude,
         timezone: profile.timezone,
         placeName: profile.placeName,
+        country: profile.country,
+        countryCode: profile.countryCode,
+        state: profile.state,
+        isResolved: profile.isResolved,
       }),
     };
   }
@@ -163,6 +183,10 @@ export class BirthProfilesService {
       throw new NotFoundError('Birth profile not found');
     }
 
+    // Atomic location update logic: if placeName is being modified, coordinates and timezone must update together
+    const isLocationModified =
+      input.placeName !== undefined || input.latitude !== undefined || input.longitude !== undefined;
+
     const merged = {
       name: input.name ?? existing.name,
       dateOfBirth: input.dateOfBirth ?? existing.dateOfBirth,
@@ -171,6 +195,10 @@ export class BirthProfilesService {
       longitude: input.longitude ?? existing.longitude,
       timezone: input.timezone ?? existing.timezone,
       placeName: input.placeName !== undefined ? input.placeName : existing.placeName,
+      country: input.country !== undefined ? input.country : (isLocationModified ? null : existing.country),
+      countryCode: input.countryCode !== undefined ? input.countryCode : (isLocationModified ? null : existing.countryCode),
+      state: input.state !== undefined ? input.state : (isLocationModified ? null : existing.state),
+      isResolved: input.isResolved !== undefined ? input.isResolved : (isLocationModified ? true : existing.isResolved),
     };
 
     // Re-validate and normalize merged data
@@ -183,6 +211,10 @@ export class BirthProfilesService {
       longitude: merged.longitude,
       timezone: merged.timezone,
       placeName: merged.placeName,
+      country: merged.country,
+      countryCode: merged.countryCode,
+      state: merged.state,
+      isResolved: merged.isResolved,
     });
 
     const updated = await prisma.birthProfile.update({
@@ -195,6 +227,10 @@ export class BirthProfilesService {
         longitude: normalized.longitude,
         timezone: normalized.timezone,
         placeName: normalized.placeName ?? null,
+        country: normalized.country ?? null,
+        countryCode: normalized.countryCode ?? null,
+        state: normalized.state ?? null,
+        isResolved: normalized.isResolved ?? true,
       },
     });
 

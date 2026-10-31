@@ -35,6 +35,19 @@ export function buildApp(): FastifyInstance {
     },
   });
 
+  // Retain raw body for webhook HMAC signature verification while parsing JSON
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+    try {
+      const rawString = body.toString('utf8');
+      (req as any).rawBody = rawString;
+      const parsed = rawString.trim() ? JSON.parse(rawString) : {};
+      done(null, parsed);
+    } catch (err: any) {
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  });
+
   // Register CORS Plugin first so preflight and headers apply to all hooks & errors
   app.register(registerCors);
 

@@ -96,6 +96,43 @@ export class RedisQueueService {
 
     return null;
   }
+
+  /**
+   * Health probe checking connectivity to configured Redis broker
+   */
+  public async checkHealth(): Promise<boolean> {
+    if (!this.isConfigured) return true;
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      try {
+        const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/ping`, {
+          headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` },
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    }
+    if (this.redisUrl) {
+      try {
+        const { default: Redis } = await import('ioredis').catch(() => ({ default: null as any }));
+        if (!Redis) return true;
+        const client = new Redis(this.redisUrl, { maxRetriesPerRequest: 1, connectTimeout: 1000 });
+        const pong = await client.ping();
+        await client.quit();
+        return pong === 'PONG';
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Graceful connection close
+   */
+  public async closeConnection(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 export const redisQueueService = new RedisQueueService();

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/varshaphala_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
@@ -11,6 +17,7 @@ import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen displaying Varshaphala (Tajika Solar Return) calculations
 /// including astronomical return snapshot, Varsha Lagna, Muntha, Panchadhikari,
@@ -41,17 +48,52 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
     super.dispose();
   }
 
+  ExplanationContext _buildExplanationContext(
+    VarshaphalaChartModel chart,
+    int selectedYear,
+  ) {
+    return ExplanationContext(
+      feature: 'varshaphala',
+      screenTitle: 'Varshaphala $selectedYear',
+      purpose: 'Explain the annual Solar Return (Tajika) horoscope themes, Year Lord (${chart.varshesha.planet}), and Muntha focus.',
+      astrologyData: {
+        'year': selectedYear,
+        'varshaLagna': {
+          'sign': chart.varshaLagna.rashiName,
+          'degree': chart.varshaLagna.degreeInRashi,
+        },
+        'muntha': {
+          'sign': chart.muntha.rashiName,
+          'house': chart.muntha.houseInVarshaChart,
+          'lord': chart.muntha.lord,
+        },
+        'varshesha': {
+          'planet': chart.varshesha.planet,
+          'selectionReason': chart.varshesha.selectionReason,
+          'harshaBala': chart.varshesha.harshaBalaScore,
+        },
+        'tajikaYogas': chart.tajikaYogas.map((y) => {
+          'name': y.name,
+          'planets': y.participatingPlanets,
+          'type': y.type,
+        }).toList(),
+      },
+      importantValues: {
+        'yearLord': chart.varshesha.planet,
+        'munthaHouse': chart.muntha.houseInVarshaChart,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final varshaAsync = ref.watch(activeProfileVarshaphalaProvider);
     final selectedYear = ref.watch(selectedVarshaphalaYearProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Varshaphala (Solar Return)'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: const AstroAppBar(
+        title: 'Varshaphala (Solar Return)',
       ),
       body: SubtleCelestialBackground(
         child: Column(
@@ -66,7 +108,18 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
               },
               tabs: _tabs,
             ),
-            const SizedBox(height: 8),
+            if (varshaAsync.valueOrNull != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(
+                    varshaAsync.valueOrNull!,
+                    selectedYear,
+                  ),
+                  poseAsset: AppAssets.sushilExplaining,
+                ),
+              ),
+            const SizedBox(height: 6),
             Expanded(
               child: varshaAsync.when(
                 loading: () => const AstrologyLoadingState(
@@ -107,11 +160,18 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
 
   Widget _buildYearSelector(int selectedYear) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurfaceWarm,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: const Icon(Icons.chevron_left, color: AppColors.primary),
             onPressed: () {
               ref.read(selectedVarshaphalaYearProvider.notifier).state =
@@ -143,6 +203,7 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
             ),
           ),
           IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: const Icon(Icons.chevron_right, color: AppColors.primary),
             onPressed: () {
               ref.read(selectedVarshaphalaYearProvider.notifier).state =
@@ -163,21 +224,36 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        AstrologyExplanationCard(
+          title: context.l10n.explainVarshaphalaTitle,
+          whatIs: context.l10n.explainVarshaphalaWhatIs,
+          howToRead: context.l10n.explainVarshaphalaHowToRead,
+        ),
+        const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withValues(alpha: 0.1),
-                AppColors.secondary.withValues(alpha: 0.06),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            gradient: AppGradients.heroCosmic,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              const Icon(Icons.wb_sunny_rounded, color: Colors.orange, size: 32),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.wb_sunny_rounded, color: AppColors.accentGold, size: 28),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -188,14 +264,15 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: AppColors.primary,
+                        color: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Exact Return: ${ret.returnTimestamp}',
                       style: const TextStyle(
                         fontSize: 12,
-                        color: AppColors.secondary,
+                        color: AppColors.cardSurfaceParchment,
                       ),
                     ),
                   ],

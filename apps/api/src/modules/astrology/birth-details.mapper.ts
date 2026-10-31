@@ -9,6 +9,9 @@ export interface PrismaBirthProfileInput {
   longitude: number;
   timezone: string;
   placeName?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  state?: string | null;
 }
 
 /**

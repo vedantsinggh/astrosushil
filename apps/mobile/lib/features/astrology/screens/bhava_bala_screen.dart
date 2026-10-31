@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/strength_model.dart';
@@ -15,6 +20,8 @@ import '../widgets/astrology_section_card.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
 import '../widgets/sign_chip.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Bhava Bala (12-House Potency & Strength)
 /// Evaluated deterministically via Fastify backend /astrology/strength
@@ -48,14 +55,12 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Bhava Bala (भावबल)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: AstroAppBar(
+        title: 'Bhava Bala (भावबल)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
             tooltip: 'About Bhava Bala',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -122,6 +127,37 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    BhavaBalaReportModel report,
+    HouseBhavaBalaModel selectedHouseData,
+  ) {
+    return ExplanationContext(
+      feature: 'bhava_bala',
+      screenTitle: 'Bhava Bala (House Strength)',
+      purpose: 'Explain the 12-house potency scores and the strength of selected House ${selectedHouseData.houseNumber}.',
+      astrologyData: {
+        'selectedHouse': {
+          'houseNumber': selectedHouseData.houseNumber,
+          'totalRupas': selectedHouseData.totalRupas,
+          'totalShashtiamsas': selectedHouseData.totalShashtiamsas,
+          'rank': selectedHouseData.rank,
+          'sign': selectedHouseData.sign,
+          'lord': selectedHouseData.lord,
+        },
+        'allHouses': report.houses.map((h) => {
+          'house': h.houseNumber,
+          'rupas': h.totalRupas,
+          'rank': h.rank,
+          'lord': h.lord,
+        }).toList(),
+      },
+      importantValues: {
+        'selectedHouseRupas': selectedHouseData.totalRupas,
+        'selectedHouseRank': selectedHouseData.rank,
+      },
+    );
+  }
+
   Widget _buildBhavaBalaContent(BuildContext context, BhavaBalaReportModel report) {
     final houses = report.houses;
     final selectedHouseData = houses.firstWhere(
@@ -133,8 +169,25 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainBhavaBalaTitle,
+          whatIsText: context.l10n.explainBhavaBalaWhatIs,
+          howToReadText: context.l10n.explainBhavaBalaHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         // 1. HORIZONTAL 12-HOUSE SELECTOR
         _buildHouseSelector(houses),
+
+        const SizedBox(height: 12),
+
+        // Sushil Sir Explainer Button
+        SushilExplainerButton(
+          contextBuilder: () => _buildExplanationContext(report, selectedHouseData),
+          poseAsset: AppAssets.sushilExplaining,
+        ),
+
         const SizedBox(height: 14),
 
         // 2. SELECTED HOUSE HERO CARD
@@ -160,7 +213,7 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
             '• Bhava Dig Bala: Directional strength conferred by the zodiacal sign presiding on the house cusp.\n'
             '• Bhava Drishti Bala: Net aspectual score resulting from benefic and malefic graha aspects on the cusp.\n'
             '• Bhava Occupant Bala: Direct strength contributed by planets resident within the house.',
-            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.primary),
+            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.textDark),
           ),
         ),
       ],
@@ -169,7 +222,7 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
 
   Widget _buildHouseSelector(List<HouseBhavaBalaModel> houses) {
     return SizedBox(
-      height: 42,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -179,15 +232,18 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
           final h = houses[index];
           final isSelected = h.houseNumber == _selectedHouse;
 
-          return GestureDetector(
+          return InkWell(
             onTap: () => setState(() => _selectedHouse = h.houseNumber),
+            borderRadius: BorderRadius.circular(10),
             child: Container(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : AppColors.lightSurface,
+                color: isSelected ? AppColors.midnightNavy : AppColors.cardSurfaceWarm,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.lightBorder,
+                  color: isSelected ? AppColors.gold : AppColors.cardBorder,
+                  width: isSelected ? 1.5 : 1.0,
                 ),
               ),
               child: Row(
@@ -196,18 +252,18 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
                   Text(
                     'H-${h.houseNumber}',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.5,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                      color: isSelected ? Colors.white : AppColors.primary,
+                      color: isSelected ? Colors.white : AppColors.textDark,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
                     '#${h.rank}',
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? AppColors.premiumAccent : AppColors.secondary,
+                      color: isSelected ? AppColors.gold : AppColors.deepIndigo,
                     ),
                   ),
                 ],
@@ -225,16 +281,16 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
         : '';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
+        gradient: AppGradients.heroCosmic,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppColors.midnightNavy.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -244,61 +300,68 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.12),
+                  color: AppColors.gold.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
                 ),
                 child: Text(
                   'H-${h.houseNumber}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
+                    color: AppColors.gold,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '${_getHouseOrdinal(h.houseNumber)} Bhava',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Sign: ${h.sign} • Lord: ${h.lord}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.lightTextMuted),
+                      style: const TextStyle(fontSize: 12, color: AppColors.goldLight),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppColors.gold.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   'RANK #${h.rank}',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: AppColors.gold,
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             significance,
-            style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.lightTextMuted),
+            style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.lavenderMuted),
           ),
 
-          const Divider(height: 20, color: AppColors.lightBorder),
+          const Divider(height: 22, color: Colors.white24),
 
           Row(
             children: [
@@ -306,10 +369,11 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Total Virupas', style: TextStyle(fontSize: 11, color: AppColors.lightTextMuted)),
+                    const Text('Total Virupas', style: TextStyle(fontSize: 11, color: AppColors.lavenderMuted)),
+                    const SizedBox(height: 2),
                     Text(
                       '${h.totalShashtiamsas.toStringAsFixed(1)} V',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ],
                 ),
@@ -318,10 +382,11 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Total Rupas', style: TextStyle(fontSize: 11, color: AppColors.lightTextMuted)),
+                    const Text('Total Rupas', style: TextStyle(fontSize: 11, color: AppColors.lavenderMuted)),
+                    const SizedBox(height: 2),
                     Text(
                       '${h.totalRupas.toStringAsFixed(2)} Rupas',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.goldLight),
                     ),
                   ],
                 ),
@@ -340,26 +405,50 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
       icon: Icons.pie_chart_outline_rounded,
       child: Column(
         children: [
-          AstrologyInfoRow(
-            label: '1. Bhavadhipati Bala (Lord ${h.lord})',
-            value: '${h.bhavadhipatiBala.toStringAsFixed(1)} V',
-            isBold: true,
+          _buildComponentBar('1. Bhavadhipati Bala (Lord ${h.lord})', h.bhavadhipatiBala, 450.0),
+          _buildComponentBar('2. Bhava Dig Bala (Directional)', h.bhavaDigBala, 60.0),
+          _buildComponentBar('3. Bhava Drishti Bala (Aspectual)', h.bhavaDrishtiBala, 60.0),
+          _buildComponentBar('4. Bhava Occupant Bala', h.bhavaOccupantBala, 120.0, showBorder: false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComponentBar(String label, double value, double benchmark, {bool showBorder = true}) {
+    final double progress = (value / (benchmark > 0 ? benchmark : 1.0)).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: showBorder ? const Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.8)) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                ),
+              ),
+              Text(
+                '${value.toStringAsFixed(1)} V',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
+              ),
+            ],
           ),
-          AstrologyInfoRow(
-            label: '2. Bhava Dig Bala (Directional)',
-            value: '${h.bhavaDigBala.toStringAsFixed(1)} V',
-            isBold: true,
-          ),
-          AstrologyInfoRow(
-            label: '3. Bhava Drishti Bala (Aspectual)',
-            value: '${h.bhavaDrishtiBala.toStringAsFixed(1)} V',
-            isBold: true,
-          ),
-          AstrologyInfoRow(
-            label: '4. Bhava Occupant Bala',
-            value: '${h.bhavaOccupantBala.toStringAsFixed(1)} V',
-            isBold: true,
-            showBorder: false,
+          const SizedBox(height: 5),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: AppColors.cardSurfaceParchment,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.deepIndigo),
+            ),
           ),
         ],
       ),
@@ -383,18 +472,18 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
           return [
             Text(
               'H-${h.houseNumber}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
             ),
             SignChip(signName: h.sign, isCompact: true),
             PlanetChip(planetName: h.lord, isCompact: true),
             Text(
               h.totalRupas.toStringAsFixed(2),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
               textAlign: TextAlign.center,
             ),
             Text(
               '#${h.rank}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
               textAlign: TextAlign.right,
             ),
           ];

@@ -60,7 +60,7 @@ class ReportsSection extends StatelessWidget {
 
         // Horizontal Carousel of Report Cards
         SizedBox(
-          height: 225,
+          height: 235,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -94,12 +94,12 @@ class _ReportCardItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Style configurations based on report index for distinct color accents
     final Color iconBgColor;
     final Color iconColor;
     final Color btnBgColor;
     final Color btnTextColor;
     final IconData cardIcon;
+    final String pageCount;
 
     if (report.id.contains('career')) {
       iconBgColor = const Color(0xFFEAE8F4);
@@ -107,29 +107,32 @@ class _ReportCardItem extends StatelessWidget {
       btnBgColor = const Color(0xFFEAE8F4);
       btnTextColor = AppColors.secondary;
       cardIcon = Icons.work_outline_rounded;
+      pageCount = '68 Pages';
     } else if (report.id.contains('marriage') || report.id.contains('relationship')) {
       iconBgColor = const Color(0xFFFBE8EE);
       iconColor = AppColors.supportingAccent;
       btnBgColor = const Color(0xFFFBE8EE);
       btnTextColor = AppColors.supportingAccent;
       cardIcon = Icons.favorite_border_rounded;
+      pageCount = '45 Pages';
     } else {
       iconBgColor = const Color(0xFFFAF3DC);
       iconColor = const Color(0xFFB38E22);
       btnBgColor = const Color(0xFFFAF3DC);
       btnTextColor = const Color(0xFFB38E22);
-      cardIcon = Icons.child_care_rounded;
+      cardIcon = Icons.menu_book_rounded;
+      pageCount = '52 Pages';
     }
 
     return Container(
-      width: 215,
+      width: 220,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.lightBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -142,17 +145,26 @@ class _ReportCardItem extends StatelessWidget {
             top: 14,
             right: 14,
             child: Container(
-              width: 24,
-              height: 24,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF8EC),
-                shape: BoxShape.circle,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8EC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.3), width: 0.6),
               ),
-              child: const Center(
-                child: Text(
-                  '👑',
-                  style: TextStyle(fontSize: 12),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('👑', style: TextStyle(fontSize: 9)),
+                  const SizedBox(width: 3),
+                  Text(
+                    pageCount,
+                    style: const TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF92400E),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -172,8 +184,8 @@ class _ReportCardItem extends StatelessWidget {
                   children: [
                     // Top Icon Container
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: iconBgColor,
                         shape: BoxShape.circle,
@@ -181,13 +193,13 @@ class _ReportCardItem extends StatelessWidget {
                       child: Center(
                         child: Icon(
                           cardIcon,
-                          size: 22,
+                          size: 20,
                           color: iconColor,
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
                     // Title & Description
                     Column(
@@ -196,7 +208,7 @@ class _ReportCardItem extends StatelessWidget {
                         Text(
                           report.title,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
                             height: 1.25,
@@ -208,7 +220,7 @@ class _ReportCardItem extends StatelessWidget {
                         Text(
                           report.description,
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             color: AppColors.lightTextSecondary,
                             height: 1.3,
                           ),
@@ -218,12 +230,12 @@ class _ReportCardItem extends StatelessWidget {
                       ],
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
                     // View Report Button Pill
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 7),
                       decoration: BoxDecoration(
                         color: btnBgColor,
                         borderRadius: BorderRadius.circular(20),
@@ -232,7 +244,7 @@ class _ReportCardItem extends StatelessWidget {
                         child: Text(
                           report.ctaText,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.bold,
                             color: btnTextColor,
                           ),

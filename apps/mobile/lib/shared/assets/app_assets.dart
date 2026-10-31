@@ -162,4 +162,76 @@ class AppAssets {
         return null;
     }
   }
+
+  // 6. Sushil Sir Explainer Assets (Concept Art Reference)
+  static const String sushilAvatar = '$assetDir/sushil_avatar.png';
+  static const String sushilAvatarNeutral = '$assetDir/sushil_avatar_neutral.png';
+  static const String sushilAvatarThinking = '$assetDir/sushil_avatar_thinking.png';
+  static const String sushilAvatarGuiding = '$assetDir/sushil_avatar_guiding.png';
+  static const String sushilThinking = '$assetDir/sushil_thinking.png';
+  static const String sushilExplaining = '$assetDir/sushil_explaining.png';
+  static const String sushilExplainingChart = '$assetDir/sushil_explaining_chart.png';
+  static const String sushilPointing = '$assetDir/sushil_pointing.png';
+  static const String sushilFriendly = '$assetDir/sushil_friendly.png';
+  static const String sushilConfident = '$assetDir/sushil_confident.png';
+  static const String sushilHappy = '$assetDir/sushil_happy.png';
+  static const String sushilChatting = '$assetDir/sushil_chatting.png';
+  static const String sushilGuiding = '$assetDir/sushil_guiding.png';
+  static const String sushilHero = '$assetDir/sushil_hero.png';
+
+  // 7. Official Course Covers (Downloaded from official astrosushil.com CDN)
+  static const String courseGuptNadi = '$assetDir/course_gupt_nadi.webp';
+  static const String courseMarriageMoney = '$assetDir/course_marriage_money.webp';
+  static const String courseDashMahavidya = '$assetDir/course_dash_mahavidya.webp';
+
+  /// Helper method to resolve official course cover asset by course SKU or ID
+  static String? getCourseAsset(String? sku) {
+    if (sku == null) return null;
+    final normalized = sku.trim().toLowerCase();
+    if (normalized.contains('gupt') || normalized.contains('nadi')) {
+      return courseGuptNadi;
+    }
+    if (normalized.contains('marriage') || normalized.contains('money') || normalized.contains('rao')) {
+      return courseMarriageMoney;
+    }
+    if (normalized.contains('dash') || normalized.contains('mahavidya')) {
+      return courseDashMahavidya;
+    }
+    return null;
+  }
+
+  // 8. Official Spiritual Product Covers (Downloaded from official astrosushil.com CDN)
+  static const String productMaaLakshmi = '$assetDir/product_maa_lakshmi.webp';
+  static const String productSacredHerb = '$assetDir/product_sacred_herb.webp';
+  static const String productDhanVarsha = '$assetDir/product_dhan_varsha.webp';
+
+  /// Helper method to resolve official spiritual product image asset by slug, catalogId or category
+  static String? getProductAsset(String? slugOrCatalogId) {
+    if (slugOrCatalogId == null) return null;
+    final normalized = slugOrCatalogId.trim().toLowerCase();
+    if (normalized.contains('herb') ||
+        normalized.contains('ayodhya') ||
+        normalized.contains('sacred') ||
+        normalized.contains('wealth')) {
+      return productSacredHerb;
+    }
+    if (normalized.contains('dhan-varsha') ||
+        normalized.contains('bundle') ||
+        normalized.contains('kit')) {
+      return productDhanVarsha;
+    }
+    if (normalized.contains('lakshmi') ||
+        normalized.contains('darbar') ||
+        normalized.contains('wallpaper') ||
+        normalized.contains('art') ||
+        normalized.contains('siddh') ||
+        normalized.contains('garbh') ||
+        normalized.contains('focus') ||
+        normalized.contains('court') ||
+        normalized.contains('prapti')) {
+      return productMaaLakshmi;
+    }
+    return productMaaLakshmi;
+  }
 }
+

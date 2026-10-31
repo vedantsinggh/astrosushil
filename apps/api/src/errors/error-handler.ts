@@ -26,10 +26,37 @@ export function globalErrorHandler(error: FastifyError | AppError | Error, reque
     });
   }
 
+  // Handle Incomplete Astrology Data Error (422)
+  if (
+    error.name === 'IncompleteAstrologyDataError' ||
+    (error as any).code === 'INCOMPLETE_ASTROLOGY_DATA' ||
+    error.message?.includes('Incomplete astrology data')
+  ) {
+    return reply.status(422).send({
+      error: {
+        code: 'INCOMPLETE_ASTROLOGY_DATA',
+        message: 'Complete chart data is currently unavailable. Please try again.',
+        requestId,
+      },
+    });
+  }
+
+  // Handle Prisma Database Conflict / Concurrency Errors (409)
+  if ((error as any).code === 'P2002' || (error as any).code === 'P2034') {
+    return reply.status(409).send({
+      error: {
+        code: 'CONFLICT',
+        message: 'A resource conflict occurred. This record or slot has already been reserved.',
+        requestId,
+      },
+    });
+  }
+
   // Handle Prisma Database Connection Failures
   const isPrismaDbError =
     error.name === 'PrismaClientInitializationError' ||
-    error.name === 'PrismaClientKnownRequestError' ||
+    (error as any).code === 'P1001' ||
+    (error as any).code === 'P1002' ||
     (error.message && (error.message.includes('Can\'t reach database') || error.message.includes('P1001') || error.message.includes('P1002')));
 
   if (isPrismaDbError) {

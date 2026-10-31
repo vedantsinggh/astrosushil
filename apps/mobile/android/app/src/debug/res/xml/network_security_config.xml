@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+      Development-Only Network Security Configuration.
+      Applies strictly to Debug builds (src/debug) for local device testing.
+      Allows cleartext HTTP traffic specifically to the local development laptop and ADB bridge.
+      Production release builds strictly enforce HTTPS.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Local Wi-Fi IP address of the Ubuntu development laptop -->
+        <domain includeSubdomains="true">192.168.1.10</domain>
+        <!-- Standard Android 192.168.1.x subnet fallback -->
+        <domain includeSubdomains="true">192.168.1.1</domain>
+        <!-- ADB Reverse socket connection on physical device -->
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <!-- Android Emulator loopback alias (if testing with an emulator) -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+
+    <!-- Enforce HTTPS for all external production endpoints -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

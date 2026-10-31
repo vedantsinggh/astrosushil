@@ -18,6 +18,7 @@ enum AppFeature {
   guptaNadi,
   savedProfilesSync,
   payments,
+  courses,
 }
 
 class FeatureAccessService {
@@ -42,6 +43,7 @@ class FeatureAccessService {
       case AppFeature.guptaNadi:
       case AppFeature.savedProfilesSync:
       case AppFeature.payments:
+      case AppFeature.courses:
         return true;
     }
   }

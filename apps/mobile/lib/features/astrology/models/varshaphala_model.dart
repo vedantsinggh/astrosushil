@@ -30,42 +30,56 @@ class VarshaphalaChartModel {
   });
 
   factory VarshaphalaChartModel.fromJson(Map<String, dynamic> json) {
-    final rawPlanets = json['planets'] as Map<String, dynamic>? ?? {};
-    final parsedPlanets = rawPlanets.map((key, value) =>
-        MapEntry(key, AnnualPlanetModel.fromJson(value as Map<String, dynamic>)));
+    final root = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
 
-    final rawHarsha = json['harshaBala'] as Map<String, dynamic>? ?? {};
-    final parsedHarsha = rawHarsha.map((key, value) =>
-        MapEntry(key, PlanetHarshaBalaModel.fromJson(value as Map<String, dynamic>)));
+    final rawPlanets = root['planets'] as Map? ?? {};
+    final parsedPlanets = <String, AnnualPlanetModel>{};
+    rawPlanets.forEach((key, value) {
+      if (value is Map) {
+        parsedPlanets[key.toString()] =
+            AnnualPlanetModel.fromJson(Map<String, dynamic>.from(value));
+      }
+    });
+
+    final rawHarsha = root['harshaBala'] as Map? ?? {};
+    final parsedHarsha = <String, PlanetHarshaBalaModel>{};
+    rawHarsha.forEach((key, value) {
+      if (value is Map) {
+        parsedHarsha[key.toString()] =
+            PlanetHarshaBalaModel.fromJson(Map<String, dynamic>.from(value));
+      }
+    });
 
     return VarshaphalaChartModel(
-      calculationVersion: json['calculationVersion'] as String? ?? '1.1.0',
+      calculationVersion: root['calculationVersion'] as String? ?? '1.1.0',
       solarReturn: SolarReturnDetailsModel.fromJson(
-          json['solarReturn'] as Map<String, dynamic>? ?? {}),
+          root['solarReturn'] is Map ? Map<String, dynamic>.from(root['solarReturn'] as Map) : {}),
       varshaLagna: VarshaLagnaModel.fromJson(
-          json['varshaLagna'] as Map<String, dynamic>? ?? {}),
+          root['varshaLagna'] is Map ? Map<String, dynamic>.from(root['varshaLagna'] as Map) : {}),
       planets: parsedPlanets,
-      houses: (json['houses'] as List<dynamic>?)
-              ?.map((e) => AnnualHouseModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      houses: (root['houses'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => AnnualHouseModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       muntha: MunthaDetailsModel.fromJson(
-          json['muntha'] as Map<String, dynamic>? ?? {}),
+          root['muntha'] is Map ? Map<String, dynamic>.from(root['muntha'] as Map) : {}),
       panchadhikari: PanchadhikariDetailsModel.fromJson(
-          json['panchadhikari'] as Map<String, dynamic>? ?? {}),
+          root['panchadhikari'] is Map ? Map<String, dynamic>.from(root['panchadhikari'] as Map) : {}),
       varshesha: VarsheshaDetailsModel.fromJson(
-          json['varshesha'] as Map<String, dynamic>? ?? {}),
+          root['varshesha'] is Map ? Map<String, dynamic>.from(root['varshesha'] as Map) : {}),
       harshaBala: parsedHarsha,
-      tajikaYogas: (json['tajikaYogas'] as List<dynamic>?)
-              ?.map((e) => TajikaYogaModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      sahams: (json['sahams'] as List<dynamic>?)
-              ?.map((e) => SahamResultModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      muddaDasha: json['muddaDasha'] != null
-          ? MuddaDashaTreeModel.fromJson(json['muddaDasha'] as Map<String, dynamic>)
+      tajikaYogas: (root['tajikaYogas'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => TajikaYogaModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      sahams: (root['sahams'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => SahamResultModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      muddaDasha: root['muddaDasha'] is Map
+          ? MuddaDashaTreeModel.fromJson(Map<String, dynamic>.from(root['muddaDasha'] as Map))
           : null,
     );
   }

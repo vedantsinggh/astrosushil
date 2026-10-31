@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/jaimini_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
@@ -11,6 +15,8 @@ import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen displaying deterministic Jaimini astrology calculations
 /// including 7/8 Chara Karakas, 12 Arudha Padas (AL, UL, A10), Rashi Drishti, Argala, and Karakamsha.
@@ -31,66 +37,128 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
     AstrologyTabItem(label: 'Argala & KL', icon: Icons.shield_rounded),
   ];
 
+  ExplanationContext _buildExplanationContext(
+    JaiminiReportModel jaimini,
+    String activeScheme,
+  ) {
+    return ExplanationContext(
+      feature: 'jaimini',
+      screenTitle: 'Jaimini Astrology',
+      purpose: 'Explain the user\'s Jaimini Chara Karakas (Atmakaraka, Amatyakaraka, Darakaraka) and Arudha Padas.',
+      astrologyData: {
+        'scheme': activeScheme,
+        'charaKarakas': jaimini.charaKarakas.map((k) => {
+          'karaka': k.roleName,
+          'code': k.roleCode,
+          'planet': k.planet,
+          'rashi': k.rashiName,
+          'significance': k.significance,
+        }).toList(),
+        'arudhaPadas': jaimini.arudhaPadas.map((a) => {
+          'house': a.houseNumber,
+          'padaCode': a.code,
+          'name': a.name,
+          'sign': a.signName,
+        }).toList(),
+        'karakamsha': jaimini.karakamsha != null ? {
+          'sign': jaimini.karakamsha!.karakamshaRashiName,
+          'atmakaraka': jaimini.karakamsha!.atmakarakaPlanet,
+          'houseOffset': jaimini.karakamsha!.karakamshaHouseFromLagna,
+        } : null,
+      },
+      importantValues: {
+        'scheme': activeScheme,
+        'karakaCount': jaimini.charaKarakas.length,
+        'atmakaraka': jaimini.atmakaraka?.planet,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final jaiminiAsync = ref.watch(activeProfileJaiminiProvider);
     final activeScheme = ref.watch(selectedJaiminiSchemeProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Jaimini Astrology'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: const AstroAppBar(
+        title: 'Jaimini Astrology',
       ),
       body: SubtleCelestialBackground(
         child: Column(
           children: [
             const ActiveBirthProfileSelector(isDark: false),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Text(
-                    'Scheme:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: SegmentedButton<String>(
-                      style: SegmentedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.cardSurfaceWarm,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Scheme:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                        color: AppColors.midnightNavy,
                       ),
-                      segments: const [
-                        ButtonSegment(
-                          value: 'SEVEN_KARAKA',
-                          label: Text(
-                            '7 Karaka',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        ButtonSegment(
-                          value: 'EIGHT_KARAKA',
-                          label: Text(
-                            '8 Karaka',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                      selected: {activeScheme},
-                      onSelectionChanged: (Set<String> selection) {
-                        ref.read(selectedJaiminiSchemeProvider.notifier).state =
-                            selection.first;
-                      },
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SegmentedButton<String>(
+                        style: ButtonStyle(
+                          visualDensity: VisualDensity.standard,
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                          backgroundColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                              return AppColors.midnightNavy;
+                            }
+                            return AppColors.cardSurfaceParchment;
+                          }),
+                          foregroundColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.selected)) {
+                              return AppColors.gold;
+                            }
+                            return AppColors.textDark;
+                          }),
+                        ),
+                        segments: const [
+                          ButtonSegment(
+                            value: 'SEVEN_KARAKA',
+                            label: Text(
+                              '7 Karaka (Parasara)',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          ButtonSegment(
+                            value: 'EIGHT_KARAKA',
+                            label: Text(
+                              '8 Karaka (+Rahu)',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                        selected: {activeScheme},
+                        onSelectionChanged: (Set<String> selection) {
+                          ref.read(selectedJaiminiSchemeProvider.notifier).state =
+                              selection.first;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+              child: AstrologyExplanationCard(
+                title: context.l10n.explainJaiminiTitle,
+                whatIsText: context.l10n.explainJaiminiWhatIs,
+                howToReadText: context.l10n.explainJaiminiHowToRead,
               ),
             ),
             AstrologyTabBar(
@@ -101,7 +169,18 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
               },
               tabs: _tabs,
             ),
-            const SizedBox(height: 8),
+            if (jaiminiAsync.valueOrNull != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+                child: SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(
+                    jaiminiAsync.valueOrNull!,
+                    activeScheme,
+                  ),
+                  poseAsset: AppAssets.sushilGuiding,
+                ),
+              ),
+            const SizedBox(height: 4),
             Expanded(
               child: jaiminiAsync.when(
                 loading: () => const AstrologyLoadingState(
@@ -155,7 +234,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   planet: jaimini.atmakaraka!.planet,
                   details:
                       '${jaimini.atmakaraka!.rashiName} (${jaimini.atmakaraka!.formattedDegree}) • ${jaimini.atmakaraka!.nakshatraName} P${jaimini.atmakaraka!.pada}',
-                  accentColor: AppColors.primary,
+                  accentColor: AppColors.midnightNavy,
                 ),
               const SizedBox(height: 8),
               if (jaimini.amatyakaraka != null)
@@ -164,7 +243,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   planet: jaimini.amatyakaraka!.planet,
                   details:
                       '${jaimini.amatyakaraka!.rashiName} (${jaimini.amatyakaraka!.formattedDegree}) • ${jaimini.amatyakaraka!.nakshatraName} P${jaimini.amatyakaraka!.pada}',
-                  accentColor: AppColors.secondary,
+                  accentColor: AppColors.deepIndigo,
                 ),
               const SizedBox(height: 8),
               if (jaimini.darakaraka != null)
@@ -173,7 +252,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   planet: jaimini.darakaraka!.planet,
                   details:
                       '${jaimini.darakaraka!.rashiName} (${jaimini.darakaraka!.formattedDegree}) • ${jaimini.darakaraka!.nakshatraName} P${jaimini.darakaraka!.pada}',
-                  accentColor: AppColors.supportingAccent,
+                  accentColor: const Color(0xFFC2185B),
                 ),
             ],
           ),
@@ -190,18 +269,21 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.cardSurfaceWarm,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+                    border: Border.all(color: AppColors.cardBorder),
                   ),
                   child: Row(
                     children: [
                       Container(
                         width: 50,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 5),
                         decoration: BoxDecoration(
-                          color: _getRoleColor(karaka.roleCode).withValues(alpha: 0.12),
+                          color: AppColors.cardSurfaceParchment,
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: _getRoleColor(karaka.roleCode).withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Center(
                           child: Text(
@@ -224,13 +306,14 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
+                                color: AppColors.textDark,
                               ),
                             ),
                             Text(
                               '${karaka.rashiName} • ${karaka.nakshatraName} (P${karaka.pada})',
                               style: const TextStyle(
                                 fontSize: 11,
-                                color: AppColors.secondary,
+                                color: AppColors.textMuted,
                               ),
                             ),
                           ],
@@ -244,14 +327,15 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
-                              color: AppColors.primary,
+                              color: AppColors.midnightNavy,
                             ),
                           ),
                           Text(
                             karaka.formattedDegree,
                             style: const TextStyle(
                               fontSize: 11,
-                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.deepIndigo,
                             ),
                           ),
                         ],
@@ -340,7 +424,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                 '• Dual signs aspect all other Dual signs',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.secondary,
+                  color: AppColors.textMuted,
                   height: 1.4,
                 ),
               ),
@@ -351,9 +435,9 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.cardSurfaceWarm,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+                      border: Border.all(color: AppColors.cardBorder),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +449,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                color: AppColors.primary,
+                                color: AppColors.textDark,
                               ),
                             ),
                             const Spacer(),
@@ -375,7 +459,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.secondary,
+                                  color: AppColors.deepIndigo,
                                 ),
                               ),
                           ],
@@ -385,18 +469,20 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                           'Aspects: ${drishti.aspectedSigns.join(", ")}',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: AppColors.secondary,
+                            color: AppColors.textMuted,
                           ),
                         ),
-                        if (drishti.aspectedPlanets.isNotEmpty)
+                        if (drishti.aspectedPlanets.isNotEmpty) ...[
+                          const SizedBox(height: 2),
                           Text(
                             'Aspected Planets: ${drishti.aspectedPlanets.join(", ")}',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.supportingAccent,
+                              color: AppColors.goldDark,
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -459,9 +545,9 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.cardSurfaceWarm,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+                          border: Border.all(color: AppColors.cardBorder),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,6 +559,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
+                                    color: AppColors.textDark,
                                   ),
                                 ),
                                 const Spacer(),
@@ -481,16 +568,21 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: argala.isObstructed
-                                        ? Colors.red.withValues(alpha: 0.12)
-                                        : Colors.green.withValues(alpha: 0.12),
+                                        ? const Color(0xFFC62828).withValues(alpha: 0.12)
+                                        : const Color(0xFF2E7D32).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: argala.isObstructed
+                                          ? const Color(0xFFC62828).withValues(alpha: 0.3)
+                                          : const Color(0xFF2E7D32).withValues(alpha: 0.3),
+                                    ),
                                   ),
                                   child: Text(
                                     argala.isObstructed ? 'Obstructed' : 'Unobstructed',
                                     style: TextStyle(
                                       color: argala.isObstructed
-                                          ? Colors.red[700]
-                                          : Colors.green[700],
+                                          ? const Color(0xFFC62828)
+                                          : const Color(0xFF2E7D32),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 10,
                                     ),
@@ -503,17 +595,19 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                               'Argala: ${argala.argalaPlanets.join(", ")} (${argala.argalaType} H${argala.argalaHouse})',
                               style: const TextStyle(
                                 fontSize: 11,
-                                color: AppColors.secondary,
+                                color: AppColors.deepIndigo,
                               ),
                             ),
-                            if (argala.obstructionPlanets.isNotEmpty)
+                            if (argala.obstructionPlanets.isNotEmpty) ...[
+                              const SizedBox(height: 2),
                               Text(
                                 'Virodha (Obstruction): ${argala.obstructionPlanets.join(", ")} (H${argala.obstructionHouse})',
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  color: Colors.redAccent,
+                                  color: Color(0xFFC62828),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),
@@ -534,9 +628,16 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+        color: AppColors.cardSurfaceWarm,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accentColor.withValues(alpha: 0.35)),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadowWarm,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -548,7 +649,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 12.5,
                     color: accentColor,
                   ),
                 ),
@@ -557,7 +658,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   details,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: AppColors.secondary,
+                    color: AppColors.textMuted,
                   ),
                 ),
               ],
@@ -585,18 +686,19 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
+        color: AppColors.cardSurfaceWarm,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.midnightNavy,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
             ),
             child: Center(
               child: Text(
@@ -604,7 +706,7 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: AppColors.primary,
+                  color: AppColors.gold,
                 ),
               ),
             ),
@@ -619,13 +721,14 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
+                    color: AppColors.textDark,
                   ),
                 ),
                 Text(
                   meaning,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: AppColors.secondary,
+                    color: AppColors.textMuted,
                   ),
                 ),
               ],
@@ -639,14 +742,14 @@ class _JaiminiScreenState extends ConsumerState<JaiminiScreen> {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
-                  color: AppColors.primary,
+                  color: AppColors.midnightNavy,
                 ),
               ),
               Text(
                 'Lord: ${placement.lord}',
                 style: const TextStyle(
                   fontSize: 11,
-                  color: AppColors.secondary,
+                  color: AppColors.deepIndigo,
                 ),
               ),
             ],

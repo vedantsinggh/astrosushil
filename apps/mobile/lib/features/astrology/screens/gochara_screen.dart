@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -17,6 +23,7 @@ import '../widgets/degree_value_display.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
 import '../widgets/sign_chip.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Gochara (Planetary Transits) relative to natal chart
 /// Calculated deterministically via Fastify backend /astrology/gochara
@@ -35,14 +42,12 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Gochara (गोचर / Transits)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: AstroAppBar(
+        title: 'Gochara (गोचर / Transits)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
             tooltip: 'About Gochara',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -107,6 +112,36 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     );
   }
 
+  ExplanationContext _buildExplanationContext(
+    TransitSnapshotModel snapshot,
+    BirthProfileModel profile,
+  ) {
+    return ExplanationContext(
+      feature: 'gochara',
+      screenTitle: 'Gochara (Transits)',
+      purpose: 'Explain the current real-time planetary transits relative to natal Moon and Ascendant for ${profile.name}.',
+      astrologyData: {
+        'transitDate': snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso,
+        'planets': snapshot.planets.entries.map((e) => {
+          'planet': e.key,
+          'sign': e.value.rashiName,
+          'degree': e.value.degreeInRashi,
+          'isRetrograde': e.value.isRetrograde,
+          'houseFromMoon': snapshot.getMoonRelationship(e.key)?.houseFromMoon,
+          'houseFromLagna': snapshot.getLagnaRelationship(e.key)?.houseFromLagna,
+        }).toList(),
+        'selectedPlanet': _selectedPlanet,
+      },
+      importantValues: {
+        'selectedPlanet': _selectedPlanet,
+        'selectedHouseFromMoon': snapshot.getMoonRelationship(_selectedPlanet)?.houseFromMoon,
+      },
+      userProfileContext: {
+        'name': profile.name,
+      },
+    );
+  }
+
   Widget _buildGocharaContent(
     BuildContext context,
     BirthProfileModel profile,
@@ -123,8 +158,25 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainGocharaTitle,
+          whatIs: context.l10n.explainGocharaWhatIs,
+          howToRead: context.l10n.explainGocharaHowToRead,
+        ),
+        const SizedBox(height: 12),
+
         // 1. CONTEXT BANNER
         _buildContextBanner(snapshot, profile),
+
+        const SizedBox(height: 12),
+
+        // Sushil Sir Explainer Button
+        SushilExplainerButton(
+          contextBuilder: () => _buildExplanationContext(snapshot, profile),
+          poseAsset: AppAssets.sushilExplaining,
+        ),
+
         const SizedBox(height: 14),
 
         // 2. HORIZONTAL PLANET SELECTOR
@@ -167,9 +219,9 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
+        color: AppColors.cardSurfaceWarm,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.lightBorder),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,7 +257,11 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Calculated at: ${snapshot.localIso.isNotEmpty ? snapshot.localIso.replaceFirst('T', ' ').substring(0, 16) : snapshot.utcIso.replaceFirst('T', ' ').substring(0, 16)} (${snapshot.timezone})',
+                  'Calculated at: ${() {
+                    final raw = snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso;
+                    final displayDate = raw.replaceFirst('T', ' ');
+                    return displayDate.length > 16 ? displayDate.substring(0, 16) : displayDate;
+                  }()} (${snapshot.timezone})',
                   style: const TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -219,7 +275,7 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
 
   Widget _buildPlanetSelector(List<TransitPlanetPositionModel> planets) {
     return SizedBox(
-      height: 42,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -232,18 +288,19 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
           return GestureDetector(
             onTap: () => setState(() => _selectedPlanet = p.planet.toUpperCase()),
             child: Container(
+              constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : AppColors.lightSurface,
+                color: isSelected ? AppColors.accentGold : AppColors.cardSurfaceWarm,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.lightBorder,
+                  color: isSelected ? AppColors.accentGold : AppColors.cardBorder,
                   width: 1,
                 ),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.2),
+                          color: AppColors.accentGold.withValues(alpha: 0.3),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -260,7 +317,7 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? Colors.white : AppColors.primary,
+                      color: isSelected ? AppColors.textPrimaryDark : AppColors.primary,
                     ),
                   ),
                 ],
@@ -280,14 +337,14 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
+        gradient: AppGradients.heroCosmic,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder),
+        border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.35)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -305,12 +362,12 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
                   children: [
                     Text(
                       'Transit ${p.planet}',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '${p.nakshatraName} • Pada ${p.pada}',
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.lightTextMuted),
+                      style: const TextStyle(fontSize: 12, color: AppColors.cardSurfaceParchment),
                     ),
                   ],
                 ),
@@ -320,30 +377,32 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   margin: const EdgeInsets.only(right: 4),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.15),
+                    color: Colors.deepOrange.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.deepOrange.shade300, width: 0.5),
                   ),
                   child: const Text(
                     'RETROGRADE',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.deepOrange),
+                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
                   ),
                 ),
               if (p.isCombust)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.15),
+                    color: AppColors.error.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.redAccent, width: 0.5),
                   ),
                   child: const Text(
                     'COMBUST',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.error),
+                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.redAccent),
                   ),
                 ),
             ],
           ),
 
-          const Divider(height: 20, color: AppColors.lightBorder),
+          const Divider(height: 20, color: Colors.white24),
 
           // 3-Column Metrics: Position, From Moon, From Lagna
           Row(
@@ -354,7 +413,7 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
                   value: p.rashiName,
                   subvalue: p.formattedDegree,
                   icon: Icons.explore_rounded,
-                  color: AppColors.secondary,
+                  color: AppColors.accentGold,
                 ),
               ),
               const SizedBox(width: 8),
@@ -364,7 +423,7 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
                   value: moonRel != null ? 'H-${moonRel.houseFromMoon}' : 'H-${p.house}',
                   subvalue: moonRel != null ? '${moonRel.signDistance} signs' : 'Direct',
                   icon: Icons.nightlight_round,
-                  color: Colors.indigo,
+                  color: const Color(0xFF90CAF9),
                 ),
               ),
               const SizedBox(width: 8),
@@ -374,7 +433,7 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
                   value: lagnaRel != null ? 'H-${lagnaRel.houseFromLagna}' : 'H-${p.house}',
                   subvalue: lagnaRel != null ? '${lagnaRel.signDistance} signs' : 'Direct',
                   icon: Icons.wb_twilight_rounded,
-                  color: Colors.deepOrange,
+                  color: const Color(0xFFFFCC80),
                 ),
               ),
             ],
@@ -394,21 +453,21 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
+        color: AppColors.cardSurfaceWarm.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 12, color: color),
+              Icon(icon, size: 12, color: AppColors.primary),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

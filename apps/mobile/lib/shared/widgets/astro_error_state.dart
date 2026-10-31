@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'astro_state_illustration.dart';
 
 /// Reusable generic server / application error state component
@@ -33,7 +34,7 @@ class AstroErrorState extends StatelessWidget {
               title,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF121440),
+                color: AppColors.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -41,7 +42,7 @@ class AstroErrorState extends StatelessWidget {
             Text(
               message,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF61568C),
+                color: AppColors.textSecondary,
                 height: 1.4,
               ),
               textAlign: TextAlign.center,
@@ -53,8 +54,8 @@ class AstroErrorState extends StatelessWidget {
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: const Text('Retry'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF121440),
-                  side: const BorderSide(color: Color(0xFF121440), width: 1.5),
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
                   padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -68,3 +69,4 @@ class AstroErrorState extends StatelessWidget {
     );
   }
 }
+

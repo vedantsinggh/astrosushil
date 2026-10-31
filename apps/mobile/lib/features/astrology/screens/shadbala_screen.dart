@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -14,6 +16,10 @@ import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Shadbala (Sixfold Planetary Strength)
 /// Evaluated deterministically via Fastify backend /astrology/strength
@@ -32,14 +38,12 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Shadbala (षड्बल)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: AstroAppBar(
+        title: 'Shadbala (षड्बल)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
             tooltip: 'About Shadbala',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -114,8 +118,24 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainShadbalaTitle,
+          whatIsText: context.l10n.explainShadbalaWhatIs,
+          howToReadText: context.l10n.explainShadbalaHowToRead,
+        ),
+        const SizedBox(height: 14),
+
         // 1. HORIZONTAL PLANET SELECTOR
         _buildPlanetSelector(rankedList),
+        const SizedBox(height: 14),
+
+        // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+        SushilExplainerButton(
+          contextData: _buildShadbalaExplanationContext(report, selectedShadbala, rankedList),
+          label: 'Let Sushil Sir explain this Strength',
+          isCompact: false,
+        ),
         const SizedBox(height: 14),
 
         // 2. SELECTED PLANET HERO CARD
@@ -145,7 +165,7 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
             '• Cheshta Bala (Motional): Derived from planetary speed, retrograde status, and stationary points.\n'
             '• Naisargika Bala (Natural): Inherent astronomical luminosity (Sun is brightest, Saturn least).\n'
             '• Drik Bala (Aspectual): Net benefic vs. malefic aspects cast upon the planet.',
-            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.primary),
+            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.textDark),
           ),
         ),
       ],
@@ -154,7 +174,7 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
 
   Widget _buildPlanetSelector(List<PlanetShadbalaModel> planets) {
     return SizedBox(
-      height: 42,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -164,28 +184,31 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
           final p = planets[index];
           final isSelected = p.planet.toUpperCase() == _selectedPlanet.toUpperCase();
 
-          return GestureDetector(
+          return InkWell(
             onTap: () => setState(() => _selectedPlanet = p.planet.toUpperCase()),
+            borderRadius: BorderRadius.circular(10),
             child: Container(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : AppColors.lightSurface,
+                color: isSelected ? AppColors.midnightNavy : AppColors.cardSurfaceWarm,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.lightBorder,
+                  color: isSelected ? AppColors.gold : AppColors.cardBorder,
+                  width: isSelected ? 1.5 : 1.0,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   PlanetChip(planetName: p.planet, isCompact: true),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     '#${p.rank}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? AppColors.premiumAccent : AppColors.secondary,
+                      color: isSelected ? AppColors.gold : AppColors.deepIndigo,
                     ),
                   ),
                 ],
@@ -198,17 +221,19 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
   }
 
   Widget _buildSelectedPlanetHero(PlanetShadbalaModel p) {
+    final bool isStrong = p.isStrong;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
+        gradient: AppGradients.heroCosmic,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder),
-        boxShadow: [
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppColors.cardShadowWarm,
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -217,42 +242,56 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
         children: [
           Row(
             children: [
-              PlanetChip(planetName: p.planet, isCompact: false),
-              const SizedBox(width: 12),
+              PlanetChip(planetName: p.planet, isCompact: true),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '${p.planet} Shadbala',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Rank #${p.rank} of 7 Grahas',
-                      style: const TextStyle(fontSize: 12, color: AppColors.lightTextMuted),
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.goldLight),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (p.isStrong ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
+                  color: isStrong
+                      ? const Color(0xFF2E7D32).withValues(alpha: 0.25)
+                      : const Color(0xFFC62828).withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isStrong ? const Color(0xFF66BB6A) : const Color(0xFFEF5350),
+                    width: 1,
+                  ),
                 ),
                 child: Text(
-                  p.isStrong ? 'STRONG (≥1.0)' : 'DEFICIENT (<1.0)',
+                  isStrong ? 'STRONG (≥1.0)' : 'DEFICIENT (<1.0)',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.bold,
-                    color: p.isStrong ? AppColors.success : AppColors.error,
+                    color: isStrong ? const Color(0xFFA5D6A7) : const Color(0xFFFFCDD2),
                   ),
                 ),
               ),
             ],
           ),
 
-          const Divider(height: 20, color: AppColors.lightBorder),
+          const Divider(height: 20, color: Colors.white24),
 
           Row(
             children: [
@@ -260,33 +299,40 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Total Strength', style: TextStyle(fontSize: 11, color: AppColors.lightTextMuted)),
+                    const Text('Total Strength', style: TextStyle(fontSize: 10.5, color: AppColors.lavenderMuted)),
+                    const SizedBox(height: 2),
                     Text(
                       '${p.totalShashtiamsas.toStringAsFixed(1)} Virupas',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '${p.totalRupas.toStringAsFixed(2)} Rupas',
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.goldLight),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Required Min', style: TextStyle(fontSize: 11, color: AppColors.lightTextMuted)),
+                    const Text('Required Min', style: TextStyle(fontSize: 10.5, color: AppColors.lavenderMuted)),
+                    const SizedBox(height: 2),
                     Text(
                       '${p.minimumRequirement.toStringAsFixed(1)} Virupas',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       'Ratio: ${(p.ratio * 100).toStringAsFixed(0)}%',
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
-                        color: p.isStrong ? AppColors.success : AppColors.error,
+                        color: isStrong ? const Color(0xFFA5D6A7) : const Color(0xFFFFCDD2),
                       ),
                     ),
                   ],
@@ -306,36 +352,54 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
       icon: Icons.shield_rounded,
       child: Column(
         children: [
-          AstrologyInfoRow(
-            label: '1. Sthana Bala (Positional)',
-            value: '${p.sthanaBala.total.toStringAsFixed(1)} V',
-            isBold: true,
+          _buildStrengthComponentRow('1. Sthana Bala (Positional)', p.sthanaBala.total, 180.0),
+          _buildStrengthComponentRow('2. Dig Bala (Directional)', p.digBala, 60.0),
+          _buildStrengthComponentRow('3. Kala Bala (Temporal)', p.kalaBala.total, 120.0),
+          _buildStrengthComponentRow('4. Cheshta Bala (Motional)', p.cheshtaBala, 60.0),
+          _buildStrengthComponentRow('5. Naisargika Bala (Natural)', p.naisargikaBala, 60.0),
+          _buildStrengthComponentRow('6. Drik Bala (Aspectual)', p.drikBala, 60.0, showBorder: false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStrengthComponentRow(String label, double value, double benchmark, {bool showBorder = true}) {
+    final double progress = (value / (benchmark > 0 ? benchmark : 1.0)).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: showBorder ? const Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.8)) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                ),
+              ),
+              Text(
+                '${value.toStringAsFixed(1)} V',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
+              ),
+            ],
           ),
-          AstrologyInfoRow(
-            label: '2. Dig Bala (Directional)',
-            value: '${p.digBala.toStringAsFixed(1)} V',
-            isBold: true,
-          ),
-          AstrologyInfoRow(
-            label: '3. Kala Bala (Temporal)',
-            value: '${p.kalaBala.total.toStringAsFixed(1)} V',
-            isBold: true,
-          ),
-          AstrologyInfoRow(
-            label: '4. Cheshta Bala (Motional)',
-            value: '${p.cheshtaBala.toStringAsFixed(1)} V',
-            isBold: true,
-          ),
-          AstrologyInfoRow(
-            label: '5. Naisargika Bala (Natural)',
-            value: '${p.naisargikaBala.toStringAsFixed(1)} V',
-            isBold: true,
-          ),
-          AstrologyInfoRow(
-            label: '6. Drik Bala (Aspectual)',
-            value: '${p.drikBala.toStringAsFixed(1)} V',
-            isBold: true,
-            showBorder: false,
+          const SizedBox(height: 5),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: AppColors.cardSurfaceParchment,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                progress >= 0.7 ? AppColors.deepIndigo : AppColors.gold,
+              ),
+            ),
           ),
         ],
       ),
@@ -355,16 +419,17 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
           AstrologyTableColumn(header: 'Ratio', flex: 2, alignment: TextAlign.right),
         ],
         rows: planets.map((p) {
+          final isStrong = p.isStrong;
           return [
             Text(
               '#${p.rank}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
               textAlign: TextAlign.center,
             ),
             PlanetChip(planetName: p.planet, isCompact: true),
             Text(
               p.totalRupas.toStringAsFixed(2),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
               textAlign: TextAlign.center,
             ),
             Text(
@@ -372,7 +437,7 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: p.isStrong ? AppColors.success : AppColors.error,
+                color: isStrong ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
               ),
               textAlign: TextAlign.right,
             ),
@@ -381,4 +446,51 @@ class _ShadbalaScreenState extends ConsumerState<ShadbalaScreen> {
       ),
     );
   }
+
+  ExplanationContext _buildShadbalaExplanationContext(
+    ShadbalaReportModel report,
+    PlanetShadbalaModel? selectedShadbala,
+    List<PlanetShadbalaModel> rankedList,
+  ) {
+    final strongest = rankedList.firstOrNull;
+    final weakest = rankedList.lastOrNull;
+
+    return ExplanationContext(
+      feature: 'shadbala',
+      screenTitle: 'Planetary Strength (Shadbala)',
+      purpose: 'Explain sixfold planetary potencies, strongest planets, and practical life strengths',
+      astrologyData: {
+        'selectedPlanet': selectedShadbala != null
+            ? {
+                'planet': selectedShadbala.planet,
+                'totalRupas': selectedShadbala.totalRupas,
+                'ratio': selectedShadbala.ratio,
+                'rank': selectedShadbala.rank,
+                'isStrong': selectedShadbala.isStrong,
+                'sthanaBala': selectedShadbala.sthanaBala.total,
+                'digBala': selectedShadbala.digBala,
+                'kalaBala': selectedShadbala.kalaBala.total,
+                'cheshtaBala': selectedShadbala.cheshtaBala,
+                'naisargikaBala': selectedShadbala.naisargikaBala,
+                'drikBala': selectedShadbala.drikBala,
+              }
+            : null,
+        'allPlanets': rankedList
+            .map((p) => {
+                  'planet': p.planet,
+                  'totalRupas': p.totalRupas,
+                  'ratio': p.ratio,
+                  'rank': p.rank,
+                  'isStrong': p.isStrong,
+                })
+            .toList(),
+      },
+      importantValues: {
+        'strongestPlanet': strongest?.planet,
+        'weakestPlanet': weakest?.planet,
+        'selectedPlanet': selectedShadbala?.planet,
+      },
+    );
+  }
 }
+

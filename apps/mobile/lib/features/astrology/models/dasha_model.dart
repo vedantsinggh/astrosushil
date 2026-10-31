@@ -24,8 +24,8 @@ class ActiveDashaPeriodSummary {
     return ActiveDashaPeriodSummary(
       level: (json['level'] as num?)?.toInt() ?? 1,
       lord: json['lord'] as String? ?? json['planet'] as String? ?? 'Unknown',
-      startDate: DateTime.tryParse(json['startDateIso'] as String? ?? json['startDate'] as String? ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['endDateIso'] as String? ?? json['endDate'] as String? ?? '') ?? DateTime.now(),
+      startDate: DateTime.tryParse(json['startDateIso'] as String? ?? json['startDate'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+      endDate: DateTime.tryParse(json['endDateIso'] as String? ?? json['endDate'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
       durationYears: (json['durationYears'] as num?)?.toDouble() ?? 0.0,
       nominalYears: (json['nominalYears'] as num?)?.toDouble() ?? 0.0,
     );
@@ -65,7 +65,7 @@ class ActiveDashaInfo {
     final rawPath = json['path'] as List? ?? [];
 
     return ActiveDashaInfo(
-      targetDate: DateTime.tryParse(json['targetDateIso'] as String? ?? json['targetDate'] as String? ?? '') ?? DateTime.now(),
+      targetDate: DateTime.tryParse(json['targetDateIso'] as String? ?? json['targetDate'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
       mahadasha: ActiveDashaPeriodSummary.fromJson(rawMahadasha),
       antardasha: rawAntardasha != null ? ActiveDashaPeriodSummary.fromJson(rawAntardasha) : null,
       pratyantardasha: rawPratyantardasha != null ? ActiveDashaPeriodSummary.fromJson(rawPratyantardasha) : null,
@@ -145,13 +145,16 @@ class DashaPeriodModel {
       level: levelStr,
       levelNumber: levelNum,
       order: (json['order'] as num?)?.toInt() ?? 1,
-      startDate: DateTime.tryParse(json['startDateIso'] as String? ?? json['startDate'] as String? ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['endDateIso'] as String? ?? json['endDate'] as String? ?? '') ?? DateTime.now(),
+      startDate: DateTime.tryParse(json['startDateIso'] as String? ?? json['startDate'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+      endDate: DateTime.tryParse(json['endDateIso'] as String? ?? json['endDate'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
       durationYears: (json['durationYears'] as num?)?.toDouble() ?? 0.0,
       nominalYears: (json['nominalYears'] as num?)?.toDouble() ?? 0.0,
       isBirthDasha: json['isBirthDasha'] as bool? ?? false,
       isActive: json['isActive'] as bool? ?? false,
-      subPeriods: rawSub.whereType<Map<String, dynamic>>().map((s) => DashaPeriodModel.fromJson(s)).toList(),
+      subPeriods: rawSub
+          .whereType<Map>()
+          .map((s) => DashaPeriodModel.fromJson(Map<String, dynamic>.from(s)))
+          .toList(),
     );
   }
 
@@ -206,12 +209,16 @@ class DashaPeriodModel {
   }
 
   bool isCurrent([DateTime? now]) {
+    if (startDate.millisecondsSinceEpoch == 0 || endDate.millisecondsSinceEpoch == 0) return false;
     final checkTime = now ?? DateTime.now();
     return checkTime.isAfter(startDate) && checkTime.isBefore(endDate);
   }
 
   /// Formatted date range like "15 May 2021 – 15 May 2027"
   String get formattedDateRange {
+    if (startDate.millisecondsSinceEpoch == 0 || endDate.millisecondsSinceEpoch == 0) {
+      return 'Dates not available';
+    }
     final formatter = DateFormat('d MMM yyyy');
     return '${formatter.format(startDate)} – ${formatter.format(endDate)}';
   }
@@ -231,6 +238,9 @@ class DashaPeriodModel {
 
   /// Remaining duration from now until period end
   String remainingDuration([DateTime? now]) {
+    if (startDate.millisecondsSinceEpoch == 0 || endDate.millisecondsSinceEpoch == 0) {
+      return 'Dates unavailable';
+    }
     final currentTime = now ?? DateTime.now();
     if (currentTime.isAfter(endDate)) {
       return 'Completed';
@@ -307,8 +317,8 @@ class DashaTreeModel {
       balanceAtBirthYears: (treeMap['balanceAtBirthYears'] as num?)?.toDouble(),
       startingLord: treeMap['startingLord'] as String?,
       mahadashas: rawMahadashas
-          .whereType<Map<String, dynamic>>()
-          .map((m) => DashaPeriodModel.fromJson(m))
+          .whereType<Map>()
+          .map((m) => DashaPeriodModel.fromJson(Map<String, dynamic>.from(m)))
           .toList(),
       activeDasha: parsedActiveDasha,
     );
@@ -331,7 +341,7 @@ class DashaTreeModel {
         return md;
       }
     }
-    return mahadashas.isNotEmpty ? mahadashas.first : null;
+    return null;
   }
 
   /// Retrieves the current active Antardasha period
@@ -344,7 +354,7 @@ class DashaTreeModel {
         return ad;
       }
     }
-    return md.subPeriods.isNotEmpty ? md.subPeriods.first : null;
+    return null;
   }
 
   /// Retrieves the current active Pratyantardasha period
@@ -357,6 +367,6 @@ class DashaTreeModel {
         return pd;
       }
     }
-    return ad.subPeriods.isNotEmpty ? ad.subPeriods.first : null;
+    return null;
   }
 }

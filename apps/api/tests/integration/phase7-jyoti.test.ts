@@ -59,6 +59,26 @@ describe('Phase 7 Jyoti AI Assistant Integration Test Suite', () => {
       return null;
     }) as any);
 
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: 'Your Ascendant is Leo and Sun is in the 10th House.',
+                  actions: [{ type: 'OPEN_BIRTH_CHART', title: 'Birth Chart' }],
+                }),
+              },
+            },
+          ],
+        }),
+      })
+    );
+
     app = await buildApp();
     await app.ready();
 

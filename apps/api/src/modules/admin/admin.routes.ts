@@ -1,6 +1,9 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { adminService } from './admin.service';
 import { liveSessionService } from './live-session.service';
+import { consultationsService } from '../consultations/consultations.service';
+import { coursesService } from '../courses/courses.service';
+import { productsService } from '../products/products.service';
 import { analyticsService } from './analytics.service';
 import { notificationService } from '../notifications/notification.service';
 import { sendTestNotificationSchema } from '../notifications/notification.schemas';
@@ -713,6 +716,192 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         const { userId } = request.params as { userId: string };
         const result = await liveSessionService.getClientSessionHistory(userId, request.user);
         return reply.status(200).send(result);
+      },
+    });
+
+    // ----------------------------------------------------
+    // CONSULTATION BOOKING MANAGEMENT (PHASE 5)
+    // ----------------------------------------------------
+
+    // List Bookings
+    protectedRoutes.get('/consultations', {
+      preHandler: [checkPermission('live_sessions:read')],
+      schema: { tags: ['Admin Consultations'], summary: 'List all consultation bookings' },
+      handler: async (request, reply) => {
+        const query = request.query as any;
+        const result = await consultationsService.adminListBookings(query);
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    // Get Booking Details
+    protectedRoutes.get('/consultations/:id', {
+      preHandler: [checkPermission('live_sessions:read')],
+      schema: { tags: ['Admin Consultations'], summary: 'Get booking details by ID' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const result = await consultationsService.getBookingById(request.user.id, id, true);
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    // Start Live Session for Booking
+    protectedRoutes.post('/consultations/:id/start-session', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Consultations'], summary: 'Start a Live Session associated with a consultation booking' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const result = await consultationsService.adminStartLiveSession(request.user, id);
+        return reply.status(201).send({ statusCode: 201, success: true, data: result });
+      },
+    });
+
+    // Admin Reschedule
+    protectedRoutes.post('/consultations/:id/reschedule', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Consultations'], summary: 'Admin reschedule consultation booking' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as any;
+        const result = await consultationsService.rescheduleBooking(request.user.id, id, body, true);
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    // Admin Cancel
+    protectedRoutes.post('/consultations/:id/cancel', {
+      preHandler: [checkPermission('live_sessions:write')],
+      schema: { tags: ['Admin Consultations'], summary: 'Admin cancel consultation booking' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as any;
+        const result = await consultationsService.cancelBooking(request.user.id, id, body?.reason, true);
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    // ----------------------------------------------------
+    // COURSE MANAGEMENT & ENTITLEMENTS (PHASE 6)
+    // ----------------------------------------------------
+
+    // List all courses (Admin)
+    protectedRoutes.get('/courses', {
+      preHandler: [checkPermission('dashboard:read')],
+      schema: { tags: ['Admin Courses'], summary: 'List courses for admin management' },
+      handler: async (request, reply) => {
+        const query = request.query as any;
+        const result = await coursesService.listCourses(request.user.id, query);
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    // Grant Course Entitlement
+    const grantHandler = async (request: any, reply: any) => {
+      const { id } = request.params as { id: string };
+      const { userId, expiresAt } = request.body as { userId: string; expiresAt?: string };
+      const result = await coursesService.adminGrantEntitlement(
+        request.user.id,
+        id,
+        userId,
+        'ADMIN_GRANT',
+        expiresAt ? new Date(expiresAt) : undefined
+      );
+      await adminService.logAction({
+        adminId: request.user.id,
+        adminEmail: (request.user as any).email || request.user.id,
+        action: 'GRANT_COURSE_ENTITLEMENT',
+        resource: `course:${id}:user:${userId}`,
+        details: JSON.stringify({ courseId: id, targetUserId: userId }),
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      });
+      return reply.status(200).send({ statusCode: 200, success: true, data: result });
+    };
+
+    protectedRoutes.post('/courses/:id/grant-access', {
+      preHandler: [checkPermission('entitlements:grant')],
+      schema: { tags: ['Admin Courses'], summary: 'Grant course access to user' },
+      handler: grantHandler,
+    });
+
+    protectedRoutes.post('/courses/:id/grant', {
+      preHandler: [checkPermission('entitlements:grant')],
+      schema: { tags: ['Admin Courses'], summary: 'Grant course access to user' },
+      handler: grantHandler,
+    });
+
+    // -------------------------------------------------------------------------
+    // Phase 7: Orders & Product Fulfillment
+    // -------------------------------------------------------------------------
+    protectedRoutes.get('/orders', {
+      preHandler: [checkPermission('orders:read')],
+      schema: { tags: ['Admin Orders'], summary: 'List customer orders with filtering' },
+      handler: async (request, reply) => {
+        const query = request.query as any;
+        const result = await productsService.adminListOrders(query);
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    protectedRoutes.put('/orders/:id/fulfillment', {
+      preHandler: [checkPermission('orders:fulfill')],
+      schema: { tags: ['Admin Orders'], summary: 'Update physical product order fulfillment status' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as any;
+        const adminProfile = await adminService.getProfile(request.user.id);
+        const result = await productsService.adminUpdateFulfillment(
+          { id: request.user.id, email: adminProfile.email },
+          id,
+          body
+        );
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    protectedRoutes.put('/products/:id/stock', {
+      preHandler: [checkPermission('products:manage')],
+      schema: { tags: ['Admin Products'], summary: 'Update product inventory stock and availability' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const body = request.body as any;
+        const adminProfile = await adminService.getProfile(request.user.id);
+        const result = await productsService.adminUpdateStock(
+          { id: request.user.id, email: adminProfile.email },
+          id,
+          body
+        );
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    protectedRoutes.post('/products/entitlements/grant', {
+      preHandler: [checkPermission('entitlements:grant')],
+      schema: { tags: ['Admin Products'], summary: 'Grant digital product entitlement to user' },
+      handler: async (request, reply) => {
+        const body = request.body as any;
+        const adminProfile = await adminService.getProfile(request.user.id);
+        const result = await productsService.adminGrantEntitlement(
+          { id: request.user.id, email: adminProfile.email },
+          body
+        );
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
+      },
+    });
+
+    protectedRoutes.post('/products/entitlements/:id/revoke', {
+      preHandler: [checkPermission('entitlements:revoke')],
+      schema: { tags: ['Admin Products'], summary: 'Revoke digital product entitlement' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const { reason } = (request.body as any) || {};
+        const adminProfile = await adminService.getProfile(request.user.id);
+        const result = await productsService.adminRevokeEntitlement(
+          { id: request.user.id, email: adminProfile.email },
+          id,
+          reason
+        );
+        return reply.status(200).send({ statusCode: 200, success: true, data: result });
       },
     });
   });

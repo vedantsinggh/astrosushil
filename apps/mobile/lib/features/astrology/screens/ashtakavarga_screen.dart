@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_gradients.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -15,6 +17,10 @@ import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Vedic Ashtakavarga charts (SAV, BAV, Shodhana & Shodhya Pindas)
 /// Evaluated deterministically via Fastify backend /astrology/ashtakavarga
@@ -52,14 +58,12 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Ashtakavarga (अष्टकवर्ग)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: AstroAppBar(
+        title: 'Ashtakavarga (अष्टकवर्ग)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
             tooltip: 'About Ashtakavarga',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -134,34 +138,43 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
   Widget _buildTabContent(BuildContext context, AshtakavargaResultModel report) {
     switch (_selectedTabIndex) {
       case 0:
-        return _buildSarvashtakavargaView(report.sav);
+        return _buildSarvashtakavargaView(context, report.sav);
       case 1:
         return _buildBhinnashtakavargaView(report.bav);
       case 2:
         return _buildShodhanaAndPindasView(report);
       default:
-        return _buildSarvashtakavargaView(report.sav);
+        return _buildSarvashtakavargaView(context, report.sav);
     }
   }
 
   // ==========================================
   // TAB 1: SARVASHTAKAVARGA (SAV)
   // ==========================================
-  Widget _buildSarvashtakavargaView(SarvashtakavargaModel sav) {
+  Widget _buildSarvashtakavargaView(BuildContext context, SarvashtakavargaModel sav) {
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        // Educational Explanation Card
+        AstrologyExplanationCard(
+          title: context.l10n.explainAshtakavargaTitle,
+          whatIsText: context.l10n.explainAshtakavargaWhatIs,
+          howToReadText: context.l10n.explainAshtakavargaHowToRead,
+        ),
+        const SizedBox(height: 12),
+
         // Grand Total Hero Card
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            gradient: AppGradients.heroCosmic,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.25),
-                blurRadius: 10,
+                color: AppColors.midnightNavy.withValues(alpha: 0.3),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -171,10 +184,11 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.15),
+                  color: AppColors.gold.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
                 ),
-                child: const Icon(Icons.stars_rounded, color: AppColors.premiumAccent, size: 28),
+                child: const Icon(Icons.stars_rounded, color: AppColors.gold, size: 28),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -186,29 +200,38 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.premiumAccent,
+                        color: AppColors.goldLight,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       '${sav.grandTotal} Bindus',
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     const Text(
-                      'Aggregated across all 7 classical planetary charts',
-                      style: TextStyle(fontSize: 11, color: Colors.white70),
+                      'Aggregated across all 7 classical planetary charts (benchmark: 337)',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.lavenderMuted),
                     ),
                   ],
                 ),
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+        SushilExplainerButton(
+          contextData: _buildSavExplanationContext(sav),
+          label: 'Let Sushil Sir explain this Ashtakavarga',
+          isCompact: false,
         ),
 
         const SizedBox(height: 16),
@@ -226,25 +249,44 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               crossAxisCount: 3,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: 0.88,
+              childAspectRatio: 0.92,
             ),
             itemBuilder: (ctx, idx) {
               final signIndex = idx + 1;
               final score = sav.getScoreForRashi(signIndex);
-              final isFavorable = score >= 28;
+              final isHigh = score >= 28;
+              final isAverage = score >= 25 && score < 28;
+
+              final Color bgColor = isHigh
+                  ? const Color(0xFF1B5E20).withValues(alpha: 0.08)
+                  : isAverage
+                      ? AppColors.gold.withValues(alpha: 0.1)
+                      : const Color(0xFFB71C1C).withValues(alpha: 0.07);
+
+              final Color borderColor = isHigh
+                  ? const Color(0xFF2E7D32).withValues(alpha: 0.35)
+                  : isAverage
+                      ? AppColors.gold.withValues(alpha: 0.35)
+                      : const Color(0xFFD32F2F).withValues(alpha: 0.3);
+
+              final Color scoreColor = isHigh
+                  ? const Color(0xFF2E7D32)
+                  : isAverage
+                      ? AppColors.deepIndigo
+                      : const Color(0xFFC62828);
+
+              final String tierLabel = isHigh
+                  ? 'Strong'
+                  : isAverage
+                      ? 'Balanced'
+                      : 'Low';
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isFavorable
-                      ? AppColors.success.withValues(alpha: 0.08)
-                      : AppColors.lightBackground,
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isFavorable
-                        ? AppColors.success.withValues(alpha: 0.3)
-                        : AppColors.lightBorder,
-                  ),
+                  border: Border.all(color: borderColor),
                 ),
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -256,26 +298,26 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: AppColors.textDark,
                         ),
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         '$score',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 19,
                           fontWeight: FontWeight.bold,
-                          color: isFavorable ? AppColors.success : AppColors.secondary,
+                          color: scoreColor,
                         ),
                       ),
                       Text(
-                        isFavorable ? 'High' : 'Moderate',
+                        tierLabel,
                         style: TextStyle(
                           fontSize: 9.5,
-                          fontWeight: FontWeight.w500,
-                          color: isFavorable ? AppColors.success : AppColors.lightTextMuted,
+                          fontWeight: FontWeight.w600,
+                          color: scoreColor,
                         ),
                       ),
                     ],
@@ -299,7 +341,7 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
             '• 28–29 Points: Balanced, steady energetic foundation.\n'
             '• 25–27 Points: Average strength; demands conscious karmic effort.\n'
             '• Under 25 Points: Sensitive sign; challenges manifest during major transits.',
-            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.primary),
+            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.textDark),
           ),
         ),
       ],
@@ -317,9 +359,9 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        // Horizontal Planet Selector
+        // Horizontal Planet Selector with min 48dp touch target
         SizedBox(
-          height: 42,
+          height: 48,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -329,28 +371,31 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               final p = planets[index];
               final isSelected = p == _selectedPlanet;
 
-              return GestureDetector(
+              return InkWell(
                 onTap: () => setState(() => _selectedPlanet = p),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : AppColors.lightSurface,
+                    color: isSelected ? AppColors.midnightNavy : AppColors.cardSurfaceWarm,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.lightBorder,
+                      color: isSelected ? AppColors.gold : AppColors.cardBorder,
+                      width: isSelected ? 1.5 : 1.0,
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       PlanetChip(planetName: p, isCompact: true),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text(
                         p,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : AppColors.primary,
+                          color: isSelected ? AppColors.gold : AppColors.textDark,
                         ),
                       ),
                     ],
@@ -366,27 +411,43 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
         if (activeBav != null) ...[
           // Planet BAV Hero Card
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.lightSurface,
+              color: AppColors.cardSurfaceWarm,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.lightBorder),
+              border: Border.all(color: AppColors.cardBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppColors.cardShadowWarm,
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 PlanetChip(planetName: activeBav.planet, isCompact: false),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${activeBav.planet} BAV Total',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textDark,
+                        ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         '${activeBav.totalPoints} Benefic Bindus',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.deepIndigo,
+                        ),
                       ),
                     ],
                   ),
@@ -410,7 +471,7 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
                 crossAxisCount: 3,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
-                childAspectRatio: 0.88,
+                childAspectRatio: 0.92,
               ),
               itemBuilder: (ctx, idx) {
                 final signIndex = idx + 1;
@@ -418,16 +479,16 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
                 final isFavorable = score >= 4;
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   decoration: BoxDecoration(
                     color: isFavorable
-                        ? AppColors.secondary.withValues(alpha: 0.08)
-                        : AppColors.lightBackground,
+                        ? const Color(0xFF1B5E20).withValues(alpha: 0.08)
+                        : AppColors.cardSurfaceParchment,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: isFavorable
-                          ? AppColors.secondary.withValues(alpha: 0.3)
-                          : AppColors.lightBorder,
+                          ? const Color(0xFF2E7D32).withValues(alpha: 0.3)
+                          : AppColors.cardBorder,
                     ),
                   ),
                   child: FittedBox(
@@ -440,18 +501,18 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                            color: AppColors.textDark,
                           ),
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           '$score / 8',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: isFavorable ? AppColors.secondary : AppColors.lightTextMuted,
+                            color: isFavorable ? const Color(0xFF2E7D32) : AppColors.textMuted,
                           ),
                         ),
                       ],
@@ -493,18 +554,18 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               return [
                 PlanetChip(planetName: p, isCompact: true),
                 Text(
-                  '${pinda?.rashiPinda ?? 0}',
+                  pinda?.rashiPinda != null ? '${pinda!.rashiPinda}' : '—',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  '${pinda?.grahaPinda ?? 0}',
+                  pinda?.grahaPinda != null ? '${pinda!.grahaPinda}' : '—',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  '${pinda?.shodhyaPinda ?? 0}',
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                  pinda?.shodhyaPinda != null ? '${pinda!.shodhyaPinda}' : '—',
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
                   textAlign: TextAlign.right,
                 ),
               ];
@@ -530,13 +591,13 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               return [
                 PlanetChip(planetName: p, isCompact: true),
                 Text(
-                  '${shodhana?.totalTrikonaPoints ?? 0}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  shodhana?.totalTrikonaPoints != null ? '${shodhana!.totalTrikonaPoints}' : '—',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  '${shodhana?.totalEkadhipatyaPoints ?? 0}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  shodhana?.totalEkadhipatyaPoints != null ? '${shodhana!.totalEkadhipatyaPoints}' : '—',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
                   textAlign: TextAlign.right,
                 ),
               ];
@@ -546,4 +607,22 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
       ],
     );
   }
+
+  ExplanationContext _buildSavExplanationContext(SarvashtakavargaModel sav) {
+    return ExplanationContext(
+      feature: 'ashtakavarga',
+      screenTitle: 'Sarvashtakavarga (SAV)',
+      purpose: 'Explain 8-contributor benefic bindu distributions, favorable signs, and transit vitality',
+      astrologyData: {
+        'grandTotal': sav.grandTotal,
+        'signScores': sav.signs,
+        'averagePerSign': (sav.grandTotal / 12).toStringAsFixed(1),
+      },
+      importantValues: {
+        'grandTotal': sav.grandTotal,
+        'benchmarkAverage': 28,
+      },
+    );
+  }
 }
+

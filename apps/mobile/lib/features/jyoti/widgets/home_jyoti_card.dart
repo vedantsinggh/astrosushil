@@ -18,15 +18,15 @@ class HomeJyotiCard extends StatelessWidget {
       button: true,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.cardSurfaceWarm,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.premiumAccent.withOpacity(0.5),
+            color: AppColors.premiumAccent.withValues(alpha: 0.4),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.05),
+              color: AppColors.primary.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -70,7 +70,7 @@ class HomeJyotiCard extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.premiumAccent.withOpacity(0.15),
+                                color: AppColors.premiumAccent.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
@@ -102,7 +102,7 @@ class HomeJyotiCard extends StatelessWidget {
                       color: AppColors.lightBackground,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.secondary.withOpacity(0.2),
+                        color: AppColors.secondary.withValues(alpha: 0.2),
                       ),
                     ),
                     child: const Icon(

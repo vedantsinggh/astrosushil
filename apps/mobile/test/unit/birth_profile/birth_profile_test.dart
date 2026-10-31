@@ -15,6 +15,10 @@ void main() {
         'longitude': 77.2090,
         'timezone': 'Asia/Kolkata',
         'placeName': 'New Delhi, India',
+        'country': 'India',
+        'countryCode': 'IN',
+        'state': 'Delhi',
+        'isResolved': true,
         'createdAt': '2026-08-15T08:33:00.000Z',
         'updatedAt': '2026-08-15T08:33:00.000Z',
         'normalizedDetails': {
@@ -27,6 +31,10 @@ void main() {
           'latitude': 28.6139,
           'longitude': 77.2090,
           'placeName': 'New Delhi, India',
+          'country': 'India',
+          'countryCode': 'IN',
+          'state': 'Delhi',
+          'isResolved': true,
         },
       };
 
@@ -36,6 +44,9 @@ void main() {
       expect(profile.name, equals('Sushil Kumar'));
       expect(profile.latitude, equals(28.6139));
       expect(profile.longitude, equals(77.2090));
+      expect(profile.country, equals('India'));
+      expect(profile.countryCode, equals('IN'));
+      expect(profile.isResolved, isTrue);
       expect(profile.normalizedDetails, isNotNull);
       expect(profile.normalizedDetails!.timezoneOffsetMinutes, equals(330));
     });
@@ -49,6 +60,10 @@ void main() {
         longitude: 72.8777,
         timezone: 'Asia/Kolkata',
         placeName: 'Mumbai, India',
+        country: 'India',
+        countryCode: 'IN',
+        state: 'Maharashtra',
+        isResolved: true,
       );
 
       final json = dto.toJson();
@@ -60,6 +75,9 @@ void main() {
       expect(json['longitude'], equals(72.8777));
       expect(json['timezone'], equals('Asia/Kolkata'));
       expect(json['placeName'], equals('Mumbai, India'));
+      expect(json['country'], equals('India'));
+      expect(json['countryCode'], equals('IN'));
+      expect(json['isResolved'], isTrue);
     });
 
     test('Formatters format coordinates correctly', () {

@@ -28,7 +28,10 @@ export type Permission =
   | 'notifications:test'
   | 'live_sessions:read'
   | 'live_sessions:write'
-  | 'live_sessions:delete';
+  | 'live_sessions:delete'
+  | 'orders:read'
+  | 'orders:fulfill'
+  | 'products:manage';
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   SUPER_ADMIN: [
@@ -60,6 +63,9 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'live_sessions:read',
     'live_sessions:write',
     'live_sessions:delete',
+    'orders:read',
+    'orders:fulfill',
+    'products:manage',
   ],
   ADMIN: [
     'dashboard:read',
@@ -87,6 +93,9 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'live_sessions:read',
     'live_sessions:write',
     'live_sessions:delete',
+    'orders:read',
+    'orders:fulfill',
+    'products:manage',
   ],
   SUPPORT: [
     'dashboard:read',
@@ -100,6 +109,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'analytics:read',
     'notifications:read',
     'live_sessions:read',
+    'orders:read',
   ],
 };
 

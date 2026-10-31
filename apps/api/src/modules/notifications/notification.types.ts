@@ -8,7 +8,11 @@ export type NotificationType =
   | 'WELCOME_EMAIL'
   | 'PASSWORD_RESET'
   | 'PROMOTIONAL'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  | 'BOOKING_CONFIRMED'
+  | 'BOOKING_RESCHEDULED'
+  | 'BOOKING_CANCELLED'
+  | 'CONSULTATION_REMINDER';
 
 export interface SendNotificationOptions {
   userId: string;

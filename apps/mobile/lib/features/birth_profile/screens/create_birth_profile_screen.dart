@@ -7,11 +7,16 @@ import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../astrology/screens/birth_chart_screen.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/birth_profile_model.dart';
+import '../models/location_model.dart';
 import '../providers/birth_profile_provider.dart';
+import '../widgets/location_autocomplete_field.dart';
 
 class CreateBirthProfileScreen extends ConsumerStatefulWidget {
-  const CreateBirthProfileScreen({super.key});
+  final BirthProfileModel? existingProfile;
+
+  const CreateBirthProfileScreen({super.key, this.existingProfile});
 
   @override
   ConsumerState<CreateBirthProfileScreen> createState() => _CreateBirthProfileScreenState();
@@ -20,29 +25,51 @@ class CreateBirthProfileScreen extends ConsumerStatefulWidget {
 class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nameController = TextEditingController();
-  final _dateController = TextEditingController();
-  final _timeController = TextEditingController();
-  final _latitudeController = TextEditingController(text: '28.6139');
-  final _longitudeController = TextEditingController(text: '77.2090');
-  final _placeNameController = TextEditingController(text: 'New Delhi, India');
+  late final TextEditingController _nameController;
+  late final TextEditingController _dateController;
+  late final TextEditingController _timeController;
+  late final TextEditingController _latitudeController;
+  late final TextEditingController _longitudeController;
 
+  LocationModel? _selectedLocation;
   String _selectedTimezone = 'Asia/Kolkata';
   bool _showAdvancedCoordinates = false;
 
-  static const List<String> _commonTimezones = [
-    'Asia/Kolkata',
-    'UTC',
-    'America/New_York',
-    'America/Los_Angeles',
-    'Europe/London',
-    'Asia/Dubai',
-    'Asia/Singapore',
-    'Australia/Sydney',
-  ];
-
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+
+  @override
+  void initState() {
+    super.initState();
+    final profile = widget.existingProfile;
+
+    _nameController = TextEditingController(text: profile?.name ?? '');
+    _dateController = TextEditingController(text: profile?.dateOfBirth ?? '');
+    _timeController = TextEditingController(text: profile?.timeOfBirth ?? '');
+    _latitudeController = TextEditingController(
+      text: profile != null ? profile.latitude.toString() : '28.6139',
+    );
+    _longitudeController = TextEditingController(
+      text: profile != null ? profile.longitude.toString() : '77.2090',
+    );
+
+    if (profile != null) {
+      _selectedTimezone = profile.timezone;
+      if (profile.placeName.isNotEmpty) {
+        _selectedLocation = LocationModel(
+          id: 'existing-location',
+          name: profile.placeName,
+          displayName: profile.placeName,
+          country: profile.country ?? '',
+          countryCode: profile.countryCode ?? '',
+          state: profile.state,
+          latitude: profile.latitude,
+          longitude: profile.longitude,
+          timezone: profile.timezone,
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -51,15 +78,19 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
     _timeController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
-    _placeNameController.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final initial = _selectedDate ??
+        (widget.existingProfile != null && widget.existingProfile!.dateOfBirth.isNotEmpty
+            ? DateTime.tryParse(widget.existingProfile!.dateOfBirth) ?? DateTime(1998, 8, 15)
+            : DateTime(1998, 8, 15));
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime(1998, 8, 15),
+      initialDate: initial,
       firstDate: DateTime(1900),
       lastDate: now,
       builder: (context, child) {
@@ -112,28 +143,62 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
     }
   }
 
+  void _onLocationSelected(LocationModel? location) {
+    setState(() {
+      _selectedLocation = location;
+      if (location != null) {
+        _selectedTimezone = location.timezone;
+        _latitudeController.text = location.latitude.toString();
+        _longitudeController.text = location.longitude.toString();
+      }
+    });
+  }
+
   void _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
+      if (_selectedLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please search and select a verified birthplace from suggestions'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
       FocusScope.of(context).unfocus();
 
       final dto = CreateBirthProfileDto(
         name: _nameController.text.trim(),
         dateOfBirth: _dateController.text.trim(),
         timeOfBirth: _timeController.text.trim(),
-        latitude: double.parse(_latitudeController.text.trim()),
-        longitude: double.parse(_longitudeController.text.trim()),
-        timezone: _selectedTimezone,
-        placeName: _placeNameController.text.trim(),
+        latitude: _selectedLocation!.latitude,
+        longitude: _selectedLocation!.longitude,
+        timezone: _selectedLocation!.timezone,
+        placeName: _selectedLocation!.displayName,
+        country: _selectedLocation!.country.isNotEmpty ? _selectedLocation!.country : null,
+        countryCode: _selectedLocation!.countryCode.isNotEmpty ? _selectedLocation!.countryCode : null,
+        state: _selectedLocation!.state,
+        isResolved: true,
       );
 
-      final createdProfile = await ref
-          .read(birthProfilesListNotifierProvider.notifier)
-          .createProfile(dto);
+      BirthProfileModel? savedProfile;
+      if (widget.existingProfile != null) {
+        final auth = ref.read(authStateProvider);
+        savedProfile = await ref
+            .read(birthProfileRepositoryProvider)
+            .updateProfile(widget.existingProfile!.id, dto, isGuest: auth.isGuest);
+        await ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
+      } else {
+        savedProfile = await ref
+            .read(birthProfilesListNotifierProvider.notifier)
+            .createProfile(dto);
+      }
 
-      if (createdProfile != null && mounted) {
+      if (savedProfile != null && mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => BirthChartScreen(profile: createdProfile),
+            builder: (_) => BirthChartScreen(profile: savedProfile!),
           ),
         );
       }
@@ -143,11 +208,12 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(birthProfilesListNotifierProvider);
+    final isEditing = widget.existingProfile != null;
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: const AstroAppBar(
-        title: 'Your Birth Details',
+      appBar: AstroAppBar(
+        title: isEditing ? 'Edit Birth Details' : 'Your Birth Details',
       ),
       body: SubtleCelestialBackground(
         child: SafeArea(
@@ -160,9 +226,9 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. HEADER TITLE & SUBTITLE
-                  const Text(
-                    'Your Birth Details',
-                    style: TextStyle(
+                  Text(
+                    isEditing ? 'Confirm & Update Birth Details' : 'Your Birth Details',
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -170,16 +236,49 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Accurate birth details help us calculate your exact planetary positions and Kundli chart.',
-                    style: TextStyle(
+                  Text(
+                    isEditing
+                        ? 'Updating your birth details will recalculate all planetary positions, kundli charts, and dasha timelines across the app.'
+                        : 'Accurate birth date, time, and verified location calculate your exact ascendant, houses, and planetary positions.',
+                    style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.lightTextSecondary,
                       height: 1.4,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+
+                  // Explanatory Info Card
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.auto_awesome, color: AppColors.premiumAccent, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            isEditing
+                                ? 'Notice: Any existing PDF reports generated with earlier coordinates will remain archived in your report library.'
+                                : 'Why do we need this? Vedic Astrology (Jyotish) and Gupta Nadi calculations use exact solar alignment and horizon tilt at the precise minute of your birth.',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.lightTextPrimary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
 
                   if (state.errorMessage != null) ...[
                     ErrorBanner(message: state.errorMessage!),
@@ -192,7 +291,7 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // NAME INPUT
+                        // FULL NAME INPUT
                         const Text(
                           'Full Name',
                           style: TextStyle(
@@ -329,10 +428,27 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                             ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        const Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.secondary),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'If exact birth time is approximate, use 12:00 PM (Noon) or check hospital birth records.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.lightTextSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
 
                         const SizedBox(height: 18),
 
-                        // PLACE OF BIRTH
+                        // VERIFIED PLACE OF BIRTH (AUTOCOMPLETE)
                         const Text(
                           'Place of Birth',
                           style: TextStyle(
@@ -342,73 +458,9 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                           ),
                         ),
                         const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _placeNameController,
-                          style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                          decoration: InputDecoration(
-                            hintText: 'e.g. New Delhi, India',
-                            hintStyle: TextStyle(color: AppColors.secondary.withOpacity(0.5)),
-                            prefixIcon: const Icon(Icons.place_outlined, size: 18, color: AppColors.secondary),
-                            filled: true,
-                            fillColor: AppColors.lightBackground,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.lightBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.lightBorder),
-                            ),
-                          ),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) {
-                              return 'Place name is required';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // TIMEZONE
-                        const Text(
-                          'Timezone',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<String>(
-                          value: _selectedTimezone,
-                          style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.public_rounded, size: 18, color: AppColors.secondary),
-                            filled: true,
-                            fillColor: AppColors.lightBackground,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.lightBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.lightBorder),
-                            ),
-                          ),
-                          items: _commonTimezones
-                              .map((tz) => DropdownMenuItem(
-                                    value: tz,
-                                    child: Text(tz),
-                                  ))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _selectedTimezone = val);
-                            }
-                          },
+                        LocationAutocompleteField(
+                          initialLocation: _selectedLocation,
+                          onLocationSelected: _onLocationSelected,
                         ),
 
                         const SizedBox(height: 14),
@@ -430,12 +482,14 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                   color: AppColors.secondary,
                                 ),
                                 const SizedBox(width: 4),
-                                const Text(
-                                  'Advanced Coordinates (Lat/Long)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.secondary,
+                                const Expanded(
+                                  child: Text(
+                                    'Resolved Coordinates (Lat/Long/TZ)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.secondary,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -450,11 +504,10 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                               Expanded(
                                 child: TextFormField(
                                   controller: _latitudeController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                                  readOnly: true,
                                   style: const TextStyle(fontSize: 13, color: AppColors.primary),
                                   decoration: InputDecoration(
                                     labelText: 'Latitude',
-                                    hintText: '28.6139',
                                     filled: true,
                                     fillColor: AppColors.lightBackground,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -469,11 +522,10 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                               Expanded(
                                 child: TextFormField(
                                   controller: _longitudeController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                                  readOnly: true,
                                   style: const TextStyle(fontSize: 13, color: AppColors.primary),
                                   decoration: InputDecoration(
                                     labelText: 'Longitude',
-                                    hintText: '77.2090',
                                     filled: true,
                                     fillColor: AppColors.lightBackground,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -485,6 +537,15 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Timezone: $_selectedTimezone',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.lightTextSecondary,
+                              fontFamily: 'monospace',
+                            ),
                           ),
                         ],
                       ],
@@ -515,9 +576,9 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                             ),
                           )
-                        : const Text(
-                            'Create Birth Chart',
-                            style: TextStyle(
+                        : Text(
+                            isEditing ? 'Save & Calculate Chart' : 'Create Birth Chart',
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,

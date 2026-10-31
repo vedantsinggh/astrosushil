@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/assets/app_assets.dart';
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -15,11 +19,63 @@ import '../widgets/astrology_loading_state.dart';
 import '../widgets/astrology_section_card.dart';
 import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
+import '../../../core/localization/locale_provider.dart';
+import '../widgets/astrology_explanation_card.dart';
 
 /// Screen presenting Vedic Panchanga (The 5 Cosmic Limbs of Time)
 /// Built deterministically using Fastify backend /astrology/panchang
 class PanchangaScreen extends ConsumerWidget {
   const PanchangaScreen({super.key});
+
+  ExplanationContext _buildExplanationContext(
+    PanchangModel panchang,
+    BirthProfileModel profile,
+  ) {
+    return ExplanationContext(
+      feature: 'panchanga',
+      screenTitle: 'Vedic Panchanga',
+      purpose: 'Explain the five daily astronomical limbs (Tithi, Vara, Nakshatra, Yoga, Karana) and their energy for today.',
+      astrologyData: {
+        'tithi': {
+          'name': panchang.tithi.name,
+          'paksha': panchang.tithi.paksha,
+          'index': panchang.tithi.index,
+          'completionPercentage': panchang.tithi.completionPercentage,
+        },
+        'vara': {
+          'name': panchang.vara.name,
+          'lord': panchang.vara.lord,
+        },
+        'nakshatra': {
+          'name': panchang.nakshatra.name,
+          'pada': panchang.nakshatra.pada,
+          'lord': panchang.nakshatra.lord,
+        },
+        'yoga': {
+          'name': panchang.yoga.name,
+        },
+        'karana': {
+          'name': panchang.karana.name,
+        },
+        'solarTimings': {
+          'sunrise': panchang.sunriseSunset?.formattedSunrise,
+          'sunset': panchang.sunriseSunset?.formattedSunset,
+          'rahuKalam': panchang.rahuKala?.formattedWindow,
+        },
+        'hinduMonth': panchang.hinduCalendar?.amantaMasa,
+      },
+      importantValues: {
+        'tithi': panchang.tithi.name,
+        'vara': panchang.vara.name,
+        'nakshatra': panchang.nakshatra.name,
+        'yoga': panchang.yoga.name,
+        'karana': panchang.karana.name,
+      },
+      userProfileContext: {
+        'name': profile.name,
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,13 +83,11 @@ class PanchangaScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('Vedic Panchanga (पञ्चाङ्ग)'),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
+      appBar: AstroAppBar(
+        title: 'Vedic Panchanga (पञ्चाङ्ग)',
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.premiumAccent),
+            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
             tooltip: 'About Panchanga',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -115,8 +169,24 @@ class PanchangaScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Educational Explanation Card
+              AstrologyExplanationCard(
+                title: context.l10n.explainPanchangaTitle,
+                whatIsText: context.l10n.explainPanchangaWhatIs,
+                howToReadText: context.l10n.explainPanchangaHowToRead,
+              ),
+              const SizedBox(height: 12),
+
               // 1. CONTEXT HEADER: Date, Location & Timezone
               _buildContextBanner(panchang, profile),
+
+              const SizedBox(height: 12),
+
+              // Sushil Sir Explainer Button
+              SushilExplainerButton(
+                contextBuilder: () => _buildExplanationContext(panchang, profile),
+                poseAsset: AppAssets.sushilGuiding,
+              ),
 
               const SizedBox(height: 14),
 

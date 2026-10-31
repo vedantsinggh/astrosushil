@@ -28,6 +28,8 @@ export class FeatureAccessService {
     PLANETARY_SUMMARY_REPORT: { name: 'Planetary Summary Report', isFree: false, reportTypeKey: 'PLANETARY_SUMMARY' },
     GUPTA_NADI_DOSSIER: { name: 'Gupta Nadi BNN Rule Dossier', isFree: false, reportTypeKey: 'GUPTA_NADI_DOSSIER' },
     MARRIAGE_COMPATIBILITY: { name: 'Marriage & Relationship Compatibility', isFree: false, reportTypeKey: 'MARRIAGE_COMPATIBILITY' },
+    CAREER_PROSITY: { name: 'Pro Horoscope & Career Intelligence', isFree: false, reportTypeKey: 'CAREER_PROSITY' },
+    CAREER_PROSITY_REPORT: { name: 'Pro Horoscope & Career Intelligence', isFree: false, reportTypeKey: 'CAREER_PROSITY' },
   };
 
   public getCatalog() {
@@ -46,12 +48,12 @@ export class FeatureAccessService {
     const latestStatusLog = await prisma.auditLog.findFirst({
       where: {
         resource: `User:${userId}`,
-        action: { in: ['USER_SUSPENDED', 'USER_ACTIVATED'] },
+        action: { in: ['USER_SUSPENDED', 'USER_ACTIVATED', 'USER_ACCOUNT_DELETED'] },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return latestStatusLog?.action === 'USER_SUSPENDED';
+    return latestStatusLog?.action === 'USER_SUSPENDED' || latestStatusLog?.action === 'USER_ACCOUNT_DELETED';
   }
 
   /**
@@ -180,11 +182,20 @@ export class FeatureAccessService {
 
     // 5. Paid features check: Completed PAID order for this report type
     if (meta.reportTypeKey) {
+      const catalogIds: string[] = [
+        `report-${meta.reportTypeKey.toLowerCase().replace(/_/g, '-')}`,
+      ];
+      if (meta.reportTypeKey === 'CAREER_PROSITY') catalogIds.push('report-career-pro');
+      if (meta.reportTypeKey === 'MARRIAGE_COMPATIBILITY') catalogIds.push('report-marriage');
+
       const paidOrder = await prisma.order.findFirst({
         where: {
           userId,
-          reportType: meta.reportTypeKey as any,
           status: 'PAID',
+          OR: [
+            { reportType: meta.reportTypeKey as any },
+            { items: { some: { catalogId: { in: catalogIds } } } },
+          ],
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -231,7 +242,7 @@ export class FeatureAccessService {
       select: { id: true, email: true, emailVerifiedAt: true, createdAt: true },
     });
 
-    const isGuest = !user || user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest');
+    const isGuest = !user || (user.email ? (user.email.startsWith('guest_') || user.email.endsWith('@astrosushil.guest')) : false);
     const isSuspended = user ? await this.isUserSuspended(userId) : false;
     const accountType = isGuest ? 'GUEST' : isSuspended ? 'SUSPENDED' : 'REGISTERED';
 

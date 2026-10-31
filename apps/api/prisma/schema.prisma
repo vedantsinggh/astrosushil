@@ -9,13 +9,15 @@ datasource db {
 
 model User {
   id                     String                  @id @default(uuid())
-  email                  String                  @unique
-  passwordHash           String
+  email                  String?                 @unique
+  phoneNumber            String?                 @unique
+  phoneVerifiedAt        DateTime?
+  passwordHash           String?
+  googleId               String?                 @unique
   role                   Role                    @default(USER)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   fullName               String?
-  phoneNumber            String?
   emailVerifiedAt        DateTime?
   birthProfiles          BirthProfile[]
   deviceTokens           DeviceToken[]
@@ -25,8 +27,16 @@ model User {
   otpVerifications       OtpVerification[]
   refreshTokens          RefreshToken[]
   reports                Report[]
+  consultationBookings   ConsultationBooking[]
+  consultationSessions   ConsultationSession[]
+  courseEntitlements     CourseEntitlement[]
+  lessonProgress         LessonProgress[]
+  shippingAddresses      ShippingAddress[]
+  digitalEntitlements    DigitalProductEntitlement[]
 
   @@index([email])
+  @@index([phoneNumber])
+  @@index([googleId])
   @@map("users")
 }
 
@@ -71,31 +81,119 @@ model BirthProfile {
   longitude   Float
   timezone    String
   placeName   String?
+  country     String?
+  countryCode String?
+  state       String?
+  isResolved  Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   reports     Report[]
+  consultationBookings ConsultationBooking[]
+  consultationSessions ConsultationSession[]
 
   @@index([userId])
   @@map("birth_profiles")
 }
 
 model Order {
-  id                String      @id @default(uuid())
+  id                String            @id @default(uuid())
   userId            String
-  razorpayOrderId   String      @unique
-  razorpayPaymentId String?     @unique
-  amount            Int
-  currency          String      @default("INR")
-  status            OrderStatus @default(PENDING)
-  reportType        ReportType
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  razorpayOrderId   String            @unique
+  razorpayPaymentId String?           @unique
+  amount            Int               // Total amount in paise (inclusive of tax & discount)
+  subtotal          Int?              // Subtotal before taxes and discounts in paise
+  taxAmount         Int?              @default(0) // Total tax amount in paise
+  discountAmount    Int?              @default(0) // Total discount amount in paise
+  currency          String            @default("INR")
+  status            OrderStatus       @default(PENDING)
+  paymentStatus     PaymentStatus     @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  idempotencyKey    String?           @unique
+  metadata          Json?             // Metadata with validated schema
+  notes             String?
+  reportType        ReportType?       // Optional for legacy backward compatibility
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items             OrderItem[]
+  refunds           Refund[]
   reports           Report[]
+  consultationBookings ConsultationBooking[]
+  courseEntitlements   CourseEntitlement[]
+  shippingAddressId    String?
+  shippingAddress      ShippingAddress?          @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  shippingAmount       Int?                      @default(0) // Shipping fee in paise
+  trackingNumber       String?
+  courierPartner       String?
+  dispatchedAt         DateTime?
+  deliveredAt          DateTime?
+  digitalEntitlements  DigitalProductEntitlement[]
 
   @@index([userId])
+  @@index([status])
+  @@index([createdAt])
   @@map("orders")
+}
+
+model OrderItem {
+  id              String          @id @default(uuid())
+  orderId         String
+  itemType        OrderItemType
+  catalogId       String          // Stable product identifier (e.g., 'report-career', 'consult-video-45')
+  title           String          // Snapshot of title at purchase time
+  description     String?         // Snapshot description
+  quantity        Int             @default(1)
+  unitPrice       Int             // Price per unit in paise
+  taxRate         Int             @default(1800) // Tax rate in basis points (1800 = 18.00%)
+  taxAmount       Int             @default(0) // Tax in paise for this line item
+  totalAmount     Int             // Final total in paise (unitPrice * quantity + taxAmount - discount)
+  currency        String          @default("INR")
+  fulfillmentType FulfillmentType @default(DIGITAL)
+  metadata        Json?           // Item-specific options, e.g. birthProfileId, slotId
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([catalogId])
+  @@index([itemType])
+  @@map("order_items")
+}
+
+model Refund {
+  id                String       @id @default(uuid())
+  orderId           String
+  razorpayRefundId  String?      @unique
+  razorpayPaymentId String?
+  amount            Int          // Refund amount in paise
+  currency          String       @default("INR")
+  status            RefundStatus @default(PENDING)
+  reason            String?
+  idempotencyKey    String?      @unique
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  order             Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  provider    String   @default("RAZORPAY")
+  eventType   String
+  payload     Json
+  status      String   @default("PROCESSED")
+  processedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([eventId])
+  @@index([eventType])
+  @@map("webhook_events")
 }
 
 model Report {
@@ -118,6 +216,7 @@ model Report {
   fileSize           Int?
   pageCount          Int?
   errorCode          String?
+  metadata           Json?
   completedAt        DateTime?
   failedAt           DateTime?
   birthProfile       BirthProfile @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
@@ -205,6 +304,48 @@ enum OrderStatus {
   PAID
   FAILED
   REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+  FULFILLED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
+  DISPATCHED
+  DELIVERED
+  FULFILLED
+  FAILED
+  CANCELLED
+  SCHEDULED
+}
+
+enum OrderItemType {
+  REPORT
+  CONSULTATION
+  COURSE
+  PRODUCT
+}
+
+enum FulfillmentType {
+  DIGITAL
+  PHYSICAL
+  SERVICE
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
 }
 
 enum ReportType {
@@ -233,4 +374,399 @@ enum ReportStatus {
 enum VerificationPurpose {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  PHONE_VERIFICATION
+  PHONE_LOGIN
 }
+
+enum ConsultationMode {
+  AUDIO
+  VIDEO
+  IN_PERSON
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+  REFUNDED
+}
+
+enum SlotStatus {
+  AVAILABLE
+  RESERVED
+  BOOKED
+  BLOCKED
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum ObservationTag {
+  IMPORTANT
+  FOLLOW_UP
+  DISCUSSED
+  REPORT_NEEDED
+}
+
+model ConsultationBooking {
+  id                    String              @id @default(uuid())
+  userId                String
+  birthProfileId        String?
+  orderId               String?
+  consultationId        String              // Catalog ID, e.g. 'consult-budget-friendly'
+  title                 String
+  mode                  ConsultationMode
+  durationMinutes       Int
+  date                  String              // YYYY-MM-DD
+  startTime             String              // HH:mm
+  endTime               String              // HH:mm
+  slotStartTimeUtc      DateTime
+  slotEndTimeUtc        DateTime
+  timezone              String              @default("Asia/Kolkata")
+  practitionerId        String              @default("astro-sushil")
+  practitionerName      String              @default("Astro Sushil")
+  status                BookingStatus       @default(PENDING_PAYMENT)
+  customerName          String
+  customerPhone         String?
+  customerEmail         String?
+  primaryQuestion       String?
+  meetingLink           String?
+  locationAddress       String?
+  reservationExpiresAt  DateTime?
+  internalNotes         String?
+  rescheduleReason      String?
+  cancellationReason    String?
+  cancelledAt           DateTime?
+  confirmedAt           DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birthProfile          BirthProfile?       @relation(fields: [birthProfileId], references: [id], onDelete: SetNull)
+  order                 Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  slot                  AppointmentSlot?
+  sessions              ConsultationSession[]
+
+  @@index([userId])
+  @@index([date, status])
+  @@index([practitionerId, date])
+  @@index([orderId])
+  @@map("consultation_bookings")
+}
+
+model AppointmentSlot {
+  id                    String              @id @default(uuid())
+  practitionerId        String              @default("astro-sushil")
+  date                  String              // YYYY-MM-DD
+  startTime             String              // HH:mm
+  endTime               String              // HH:mm
+  startTimeUtc          DateTime
+  endTimeUtc            DateTime
+  status                SlotStatus          @default(AVAILABLE)
+  bookingId             String?             @unique
+  lockedUntil           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  booking               ConsultationBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([practitionerId, date, startTime])
+  @@index([date, status])
+  @@map("appointment_slots")
+}
+
+model ConsultationSession {
+  id                    String              @id @default(uuid())
+  adminId               String
+  adminEmail            String?
+  userId                String
+  birthProfileId        String
+  bookingId             String?
+  status                SessionStatus       @default(ACTIVE)
+  startedAt             DateTime            @default(now())
+  endedAt               DateTime?
+  durationSeconds       Int?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birthProfile          BirthProfile        @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
+  booking               ConsultationBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  notes                 ConsultationNote[]
+  observations          SessionObservation[]
+
+  @@index([userId])
+  @@index([adminId, status])
+  @@index([bookingId])
+  @@map("consultation_sessions")
+}
+
+model ConsultationNote {
+  id                    String              @id @default(uuid())
+  sessionId             String
+  adminId               String
+  content               String
+  section               String?
+  subject               String?
+  version               Int                 @default(1)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  session               ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("consultation_notes")
+}
+
+model SessionObservation {
+  id                    String              @id @default(uuid())
+  sessionId             String
+  adminId               String
+  tag                   ObservationTag
+  note                  String?
+  section               String?
+  createdAt             DateTime            @default(now())
+
+  session               ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("session_observations")
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum VideoType {
+  HLS
+  MP4
+  YOUTUBE
+  SECURE_STREAM
+}
+
+enum EntitlementSource {
+  PURCHASE
+  ADMIN_GRANT
+  BUNDLE
+  PROMOTION
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model Course {
+  id                   String              @id @default(uuid())
+  sku                  String              @unique
+  slug                 String              @unique
+  title                String
+  hindiTitle           String?
+  shortDescription     String
+  hindiDescription     String?
+  instructorName       String              @default("Astro Sushil Kumar Singh")
+  language             String              @default("English")
+  level                CourseLevel         @default(BEGINNER)
+  pricePaise           Int
+  originalPricePaise   Int?
+  currency             String              @default("INR")
+  thumbnail            String?
+  thumbnailKey         String?
+  platformUrl          String?
+  totalDurationMinutes Int                 @default(0)
+  isPublished          Boolean             @default(true)
+  isFeatured           Boolean             @default(false)
+  rating               Float               @default(5.0)
+  totalReviews         Int                 @default(0)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  sections             CourseSection[]
+  lessons              CourseLesson[]
+  entitlements         CourseEntitlement[]
+
+  @@index([isPublished, isFeatured])
+  @@map("courses")
+}
+
+model CourseSection {
+  id         String         @id @default(uuid())
+  courseId   String
+  title      String
+  hindiTitle String?
+  orderIndex Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  course     Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons    CourseLesson[]
+
+  @@index([courseId, orderIndex])
+  @@map("course_sections")
+}
+
+model CourseLesson {
+  id              String           @id @default(uuid())
+  courseId        String
+  sectionId       String
+  title           String
+  hindiTitle      String?
+  description     String?
+  orderIndex      Int              @default(0)
+  durationMinutes Int              @default(0)
+  durationSeconds Int              @default(0)
+  videoUrl        String?
+  videoType       VideoType        @default(HLS)
+  isFreePreview   Boolean          @default(false)
+  isPublished     Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section         CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress        LessonProgress[]
+
+  @@index([sectionId, orderIndex])
+  @@index([courseId])
+  @@map("course_lessons")
+}
+
+model CourseEntitlement {
+  id        String            @id @default(uuid())
+  userId    String
+  courseId  String
+  orderId   String?
+  source    EntitlementSource @default(PURCHASE)
+  status    EntitlementStatus @default(ACTIVE)
+  grantedAt DateTime          @default(now())
+  expiresAt DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order     Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, courseId])
+  @@index([userId, status])
+  @@index([courseId])
+  @@map("course_entitlements")
+}
+
+model LessonProgress {
+  id             String       @id @default(uuid())
+  userId         String
+  lessonId       String
+  courseId       String
+  watchedSeconds Int          @default(0)
+  isCompleted    Boolean      @default(false)
+  completedAt    DateTime?
+  lastWatchedAt  DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson         CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, courseId])
+  @@map("lesson_progress")
+}
+
+enum ProductType {
+  DIGITAL_WALLPAPER
+  DIGITAL_ART
+  DIGITAL_BUNDLE
+  PHYSICAL
+}
+
+model Product {
+  id               String          @id @default(uuid())
+  slug             String          @unique
+  catalogId        String          @unique
+  title            String
+  hindiTitle       String?
+  description      String?
+  hindiDescription String?
+  category         String          // WALLPAPER, DIGITAL_ART, DIGITAL_BUNDLE, PHYSICAL_HERB
+  productType      ProductType     @default(DIGITAL_WALLPAPER)
+  mrp              Int             // MRP in paise
+  price            Int             // Selling price in paise
+  currency         String          @default("INR")
+  stock            Int             @default(0) // Available quantity or 9995 for herb, -1 for unlimited digital
+  isAvailable      Boolean         @default(true)
+  requiresShipping Boolean         @default(false)
+  imageUrl         String?
+  galleryImages    Json?
+  variants         Json?           // Variant options e.g. [{ id: "large", name: "Large", price: 249900 }]
+  metadata         Json?           // asset keys, included items for bundles, audio voice notes
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  entitlements     DigitalProductEntitlement[]
+
+  @@index([category])
+  @@index([productType])
+  @@index([isAvailable])
+  @@map("products")
+}
+
+model ShippingAddress {
+  id           String   @id @default(uuid())
+  userId       String
+  fullName     String
+  phoneNumber  String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  country      String   @default("India")
+  countryCode  String   @default("IN")
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@index([userId])
+  @@map("shipping_addresses")
+}
+
+model DigitalProductEntitlement {
+  id               String            @id @default(uuid())
+  userId           String
+  productId        String
+  orderId          String?
+  source           EntitlementSource @default(PURCHASE)
+  status           EntitlementStatus @default(ACTIVE)
+  downloadCount    Int               @default(0)
+  lastDownloadedAt DateTime?
+  assetKey         String?           // Storage key or download path
+  bundleAssets     Json?             // Array of asset objects for bundle { name, key, type }
+  expiresAt        DateTime?
+  grantedAt        DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product          Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([productId])
+  @@index([orderId])
+  @@map("digital_product_entitlements")
+}
+

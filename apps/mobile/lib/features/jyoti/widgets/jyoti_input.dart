@@ -52,10 +52,13 @@ class _JyotiInputState extends State<JyotiInput> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardSurfaceWarm,
+        border: const Border(
+          top: BorderSide(color: AppColors.cardBorder, width: 1),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -64,23 +67,27 @@ class _JyotiInputState extends State<JyotiInput> {
       child: SafeArea(
         top: false,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.lightBackground,
+                  color: AppColors.canvas,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: AppColors.secondary.withOpacity(0.18),
+                    color: AppColors.cardBorder,
                     width: 1,
                   ),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(width: 14),
                     Expanded(
                       child: TextField(
                         controller: _controller,
+                        minLines: 1,
+                        maxLines: 4,
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _handleSend(),
                         style: const TextStyle(
@@ -95,11 +102,11 @@ class _JyotiInputState extends State<JyotiInput> {
                           ),
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
-                    // Voice mic icon button placeholder
+                    // Voice mic icon button (>= 48x48dp target)
                     IconButton(
                       icon: const Icon(
                         Icons.mic_none_rounded,
@@ -108,29 +115,29 @@ class _JyotiInputState extends State<JyotiInput> {
                       ),
                       onPressed: widget.onVoiceTap,
                       tooltip: 'Voice Input',
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(12),
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                   ],
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            // Send Button
+            // Send Button (>= 48x48dp target)
             Material(
-              color: _hasText ? AppColors.primary : AppColors.secondary.withOpacity(0.3),
+              color: _hasText ? AppColors.primary : AppColors.secondary.withValues(alpha: 0.25),
               shape: const CircleBorder(),
               child: InkWell(
                 onTap: _hasText ? _handleSend : null,
                 customBorder: const CircleBorder(),
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   alignment: Alignment.center,
                   child: Icon(
                     Icons.arrow_upward_rounded,
-                    color: _hasText ? AppColors.premiumAccent : Colors.white.withOpacity(0.7),
+                    color: _hasText ? AppColors.premiumAccent : Colors.white.withValues(alpha: 0.6),
                     size: 22,
                   ),
                 ),

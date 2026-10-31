@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'astro_state_illustration.dart';
 
 /// Reusable empty data state component
@@ -32,7 +33,7 @@ class AstroEmptyState extends StatelessWidget {
               title,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF121440),
+                color: AppColors.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -40,7 +41,7 @@ class AstroEmptyState extends StatelessWidget {
             Text(
               message,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF61568C),
+                color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -51,7 +52,7 @@ class AstroEmptyState extends StatelessWidget {
                 child: Text(
                   actionLabel!,
                   style: const TextStyle(
-                    color: Color(0xFFD9B13B),
+                    color: AppColors.goldDark,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

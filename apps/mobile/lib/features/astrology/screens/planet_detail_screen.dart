@@ -8,6 +8,9 @@ import '../../../shared/widgets/astro_chip.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 
+import '../../sushil_explainer/models/explanation_context.dart';
+import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+
 class PlanetDetailScreen extends StatefulWidget {
   final String planetName;
   final String signName;
@@ -32,6 +35,26 @@ class PlanetDetailScreen extends StatefulWidget {
 
 class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
   int _selectedTab = 0; // 0 = Overview, 1 = Placement, 2 = Meaning
+
+  ExplanationContext _buildExplanationContext(String cleanName) {
+    return ExplanationContext(
+      feature: 'planet_details',
+      screenTitle: '$cleanName Details',
+      purpose: 'Explain the deeper meaning of $cleanName in ${widget.signName} occupying House ${widget.houseNumber}',
+      astrologyData: {
+        'planet': cleanName,
+        'sign': widget.signName,
+        'degree': widget.degree,
+        'houseNumber': widget.houseNumber,
+        'isRetrograde': widget.isRetrograde,
+        'nakshatra': widget.nakshatraName,
+      },
+      importantValues: {
+        'house': widget.houseNumber,
+        'retrograde': widget.isRetrograde,
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +117,15 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
+
+                // Sushil Sir Explainer Button
+                SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(cleanName),
+                  poseAsset: AppAssets.sushilExplaining,
+                ),
+
+                const SizedBox(height: 16),
 
                 // 3. SEGMENTED NAVIGATION TABS
                 Row(

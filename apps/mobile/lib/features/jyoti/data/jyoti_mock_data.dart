@@ -183,7 +183,7 @@ class JyotiMockData {
       JyotiMessageModel.explanation(
         '${id}_2',
         "Here is a summary of cosmic insights:",
-        JyotiExplanation(
+        const JyotiExplanation(
           title: 'Understanding Cosmic Influences',
           category: 'Astrology Foundations',
           summary: 'Your natal chart maps the precise astronomical positions at your moment of birth.',

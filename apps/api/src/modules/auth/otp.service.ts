@@ -24,15 +24,16 @@ export class OtpService {
   /**
    * Checks if input OTP is the development master OTP.
    * STRICT SECURITY GUARANTEE: NEVER returns true in production environment!
+   * Production categorically rejects development master OTP even if env var exists.
    */
   public isDevMasterOtp(inputOtp: string): boolean {
-    if (config.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' || config.NODE_ENV === 'production') {
       return false;
     }
-    if (!config.ALLOW_DEV_MASTER_OTP) {
+    const devMasterCode = process.env.DEV_OTP || process.env.DEV_MASTER_OTP || config.DEV_MASTER_OTP || '123456';
+    if (!config.ALLOW_DEV_MASTER_OTP && !process.env.DEV_OTP && !process.env.DEV_MASTER_OTP) {
       return false;
     }
-    const devMasterCode = config.DEV_MASTER_OTP || '4444';
     return inputOtp === devMasterCode;
   }
 
@@ -74,7 +75,7 @@ export class OtpService {
   }
 
   /**
-   * Creates and stores a hashed OTP record for user + purpose with 10 minute expiry.
+   * Creates and stores a hashed OTP record for user + purpose with configurable expiry (default 10 mins).
    */
   public async createOtpRecord(
     userId: string,
@@ -101,7 +102,7 @@ export class OtpService {
 
   /**
    * Verifies an OTP input against the user's latest active OTP record.
-   * Respects attempt limits, expiry, and purpose matching.
+   * Respects attempt limits (max 5), expiry, purpose matching, and single-use invalidation.
    */
   public async verifyOtp(
     userId: string,
@@ -139,7 +140,7 @@ export class OtpService {
     const isHashMatch = this.hashOtp(inputOtp) === record.codeHash;
 
     if (isMasterMatch || isHashMatch) {
-      // Mark OTP as used
+      // Mark OTP as used immediately (single-use)
       await prisma.otpVerification.update({
         where: { id: record.id },
         data: { usedAt: new Date() },

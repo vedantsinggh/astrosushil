@@ -10,6 +10,10 @@ export interface BirthProfileInput {
   longitude: number;   // [-180, 180]
   timezone: string;    // IANA Timezone string, e.g. "Asia/Kolkata"
   placeName?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  state?: string | null;
+  isResolved?: boolean;
 }
 
 /**
@@ -88,6 +92,10 @@ export function normalizeBirthProfile(input: BirthProfileInput): NormalizedBirth
     latitude,
     longitude,
     placeName: placeName ? placeName.trim() : undefined,
+    country: input.country ? input.country.trim() : undefined,
+    countryCode: input.countryCode ? input.countryCode.trim() : undefined,
+    state: input.state ? input.state.trim() : undefined,
+    isResolved: input.isResolved ?? true,
   };
 }
 

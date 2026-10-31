@@ -45,9 +45,26 @@ export const createBirthProfileSchema = z.object({
       }
     }, { message: 'Invalid IANA timezone string (e.g. "Asia/Kolkata")' }),
   placeName: z.string().max(200, 'Place name must not exceed 200 characters').optional().nullable(),
+  country: z.string().max(100, 'Country must not exceed 100 characters').optional().nullable(),
+  countryCode: z.string().max(10, 'Country code must not exceed 10 characters').optional().nullable(),
+  state: z.string().max(100, 'State must not exceed 100 characters').optional().nullable(),
+  isResolved: z.boolean().optional(),
 });
 
-export const updateBirthProfileSchema = createBirthProfileSchema.partial();
+export const updateBirthProfileSchema = createBirthProfileSchema.partial().refine(
+  (data) => {
+    // If updating placeName or latitude or longitude, ensure coordinates and timezone remain consistent
+    const hasLat = data.latitude !== undefined;
+    const hasLng = data.longitude !== undefined;
+    if (hasLat !== hasLng) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Latitude and longitude must both be provided together when updating location coordinates',
+  }
+);
 
 export const birthProfileParamsSchema = z.object({
   id: z.string().uuid('Invalid birth profile ID format'),

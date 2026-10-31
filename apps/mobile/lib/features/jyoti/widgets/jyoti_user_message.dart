@@ -29,9 +29,13 @@ class JyotiUserMessage extends StatelessWidget {
             bottomLeft: Radius.circular(18),
             bottomRight: Radius.circular(4),
           ),
+          border: Border.all(
+            color: AppColors.surfaceElevated,
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withValues(alpha: 0.15),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -55,7 +59,7 @@ class JyotiUserMessage extends StatelessWidget {
               timeStr,
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
           ],

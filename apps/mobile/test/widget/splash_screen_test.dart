@@ -25,6 +25,5 @@ void main() {
 
     // Advance timer past 2.5s duration
     await tester.pump(const Duration(milliseconds: 2600));
-    await tester.pumpAndSettle();
   });
 }

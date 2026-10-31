@@ -156,194 +156,6 @@ class _AstrologyHubScreenState extends ConsumerState<AstrologyHubScreen> {
     );
   }
 
-  void _showFeaturePreviewSheet(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required String description,
-    required List<String> highlights,
-    required String engineEndpoint,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: const BoxDecoration(
-            color: AppColors.tertiary,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(
-              top: BorderSide(color: AppColors.premiumAccent, width: 1.5),
-            ),
-          ),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.premiumAccent.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: AppColors.premiumAccent, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.75),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.85),
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Deterministic Calculation Highlights:',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppColors.premiumAccent,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...highlights.map((h) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4.0, right: 8.0),
-                        child: Icon(
-                          Icons.check_circle_rounded,
-                          size: 14,
-                          color: AppColors.premiumAccent,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          h,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppColors.secondary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.api_rounded, size: 14, color: AppColors.secondary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'API: $engineEndpoint',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontFamily: 'monospace',
-                        color: Color(0xFFE2E8F0),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'Phase 2',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.success,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.premiumAccent,
-                foregroundColor: AppColors.primary,
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ),
-  ),
-);
-  }
-
   @override
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
@@ -469,6 +281,28 @@ class _AstrologyHubScreenState extends ConsumerState<AstrologyHubScreen> {
             tagColor: AppColors.success,
             showDivider: true,
             onTap: () => _navigateToPlanets(context, profile),
+          ),
+          AstrologyFeatureTile(
+            title: '12 Houses (Bhavas)',
+            subtitle: 'Comprehensive 12 life sector breakdown from Lagna to Vyaya',
+            icon: Icons.home_work_rounded,
+            tag: 'Live',
+            tagColor: AppColors.success,
+            showDivider: true,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => BirthChartScreen(profile: profile, initialTabIndex: 2)),
+            ),
+          ),
+          AstrologyFeatureTile(
+            title: 'Nakshatra Profile',
+            subtitle: 'Janma Nakshatra, Pada, ruling lord & lunar mansions',
+            icon: Icons.auto_awesome_mosaic_rounded,
+            tag: 'Live',
+            tagColor: AppColors.success,
+            showDivider: true,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => BirthChartScreen(profile: profile, initialTabIndex: 3)),
+            ),
           ),
           AstrologyFeatureTile(
             title: 'Divisional Charts (Vargas)',

@@ -2,20 +2,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../home/screens/home_screen.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_loader/astro_loader_button.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../birth_profile/models/birth_profile_model.dart';
+import '../../birth_profile/providers/birth_profile_provider.dart';
+import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../providers/auth_provider.dart';
-import 'register_success_screen.dart';
 
 class VerificationScreen extends ConsumerStatefulWidget {
-  final String email;
+  final String? phoneNumber;
+  final String? email;
+  final VoidCallback? onVerificationSuccess;
 
   const VerificationScreen({
     super.key,
-    required this.email,
-  });
+    this.phoneNumber,
+    this.email,
+    this.onVerificationSuccess,
+  }) : assert(phoneNumber != null || email != null, 'Either phoneNumber or email must be provided');
 
   @override
   ConsumerState<VerificationScreen> createState() => _VerificationScreenState();
@@ -67,7 +74,15 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
   String get _otpCode => _controllers.map((c) => c.text).join();
 
-  String _maskEmail(String email) {
+  String _maskTarget() {
+    if (widget.phoneNumber != null) {
+      final p = widget.phoneNumber!;
+      if (p.length <= 6) return p;
+      final start = p.substring(0, 3);
+      final end = p.substring(p.length - 2);
+      return '$start••••••$end';
+    }
+    final email = widget.email ?? '';
     if (!email.contains('@')) return email;
     final parts = email.split('@');
     final name = parts[0];
@@ -76,6 +91,112 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       return '${name[0]}***@$domain';
     }
     return '${name[0]}***${name[name.length - 1]}@$domain';
+  }
+
+  Future<bool> _checkAndPromptProfileSetup() async {
+    final repo = ref.read(birthProfileRepositoryProvider);
+    final guestProfile = await repo.getGuestProfile();
+    if (guestProfile != null && mounted) {
+      final shouldMigrate = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Save Guest Birth Details?'),
+          content: Text(
+            'We found birth details for "${guestProfile.name}" created during your guest session. Would you like to save this birth profile to your account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Start Fresh'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.premiumAccent,
+                foregroundColor: AppColors.primary,
+              ),
+              child: const Text('Save to Account'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldMigrate == true) {
+        final dto = CreateBirthProfileDto(
+          name: guestProfile.name,
+          dateOfBirth: guestProfile.dateOfBirth,
+          timeOfBirth: guestProfile.timeOfBirth,
+          latitude: guestProfile.latitude,
+          longitude: guestProfile.longitude,
+          timezone: guestProfile.timezone,
+          placeName: guestProfile.placeName,
+        );
+        await ref.read(birthProfilesListNotifierProvider.notifier).migrateGuestProfile(dto);
+        return false;
+      } else {
+        // User chose "Start Fresh" — clear guest data then take them straight
+        // to CreateBirthProfileScreen so they can enter their own details.
+        await repo.clearGuestProfile();
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+            (route) => false,
+          );
+        }
+        return true;
+      }
+    }
+
+    // Check if the newly authenticated user has any existing birth profiles
+    try {
+      final profiles = await repo.getProfiles();
+      if (profiles.isEmpty && mounted) {
+        final shouldCreate = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.auto_awesome, color: AppColors.premiumAccent, size: 22),
+                SizedBox(width: 8),
+                Text('Create Birth Profile'),
+              ],
+            ),
+            content: const Text(
+              'Welcome! Would you like to create your birth profile now to unlock personalized Kundli, Dasha timings, and daily astrological forecasts?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Explore First'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.premiumAccent,
+                  foregroundColor: AppColors.primary,
+                ),
+                child: const Text('Create Profile'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldCreate == true && mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+            (route) => false,
+          );
+          return true;
+        }
+      }
+    } catch (_) {
+      // Ignore network errors and continue standard flow
+    }
+    return false;
   }
 
   Future<void> _verifyCode() async {
@@ -92,10 +213,18 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       _errorMessage = null;
     });
 
-    final success = await ref.read(authStateProvider.notifier).verifyEmail(
-          widget.email,
-          code,
-        );
+    bool success = false;
+    if (widget.phoneNumber != null) {
+      success = await ref.read(authStateProvider.notifier).verifyPhoneOtp(
+            widget.phoneNumber!,
+            code,
+          );
+    } else if (widget.email != null) {
+      success = await ref.read(authStateProvider.notifier).verifyEmail(
+            widget.email!,
+            code,
+          );
+    }
 
     if (!mounted) return;
 
@@ -104,14 +233,21 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     });
 
     if (success) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const RegisterSuccessScreen()),
-        (route) => false,
-      );
+      final navigatedToProfile = await _checkAndPromptProfileSetup();
+      if (!mounted || navigatedToProfile) return;
+
+      if (widget.onVerificationSuccess != null) {
+        widget.onVerificationSuccess!();
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     } else {
       final authError = ref.read(authStateProvider).errorMessage;
       setState(() {
-        _errorMessage = authError ?? 'Verification failed. Please try again.';
+        _errorMessage = authError ?? 'Verification failed. Please check the code and try again.';
       });
     }
   }
@@ -124,7 +260,16 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       _errorMessage = null;
     });
 
-    final msg = await ref.read(authStateProvider.notifier).resendVerification(widget.email);
+    bool resendSuccess = false;
+    String? msg;
+
+    if (widget.phoneNumber != null) {
+      resendSuccess = await ref.read(authStateProvider.notifier).sendPhoneOtp(widget.phoneNumber!);
+      msg = resendSuccess ? 'New verification code sent.' : null;
+    } else if (widget.email != null) {
+      msg = await ref.read(authStateProvider.notifier).resendVerification(widget.email!);
+      resendSuccess = msg != null;
+    }
 
     if (!mounted) return;
 
@@ -132,7 +277,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       _isLoading = false;
     });
 
-    if (msg != null) {
+    if (resendSuccess && msg != null) {
       _startCountdown();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -143,19 +288,20 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     } else {
       final authError = ref.read(authStateProvider).errorMessage;
       setState(() {
-        _errorMessage = authError ?? 'Failed to resend verification code.';
+        _errorMessage = authError ?? 'Failed to resend verification code. Please wait a moment.';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final masked = _maskEmail(widget.email);
+    final isPhone = widget.phoneNumber != null;
+    final masked = _maskTarget();
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: const AstroAppBar(
-        title: 'Email Verification',
+      appBar: AstroAppBar(
+        title: isPhone ? 'Phone Verification' : 'Email Verification',
       ),
       body: SubtleCelestialBackground(
         child: SafeArea(
@@ -165,9 +311,9 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                const Text(
-                  'Verify Your Email',
-                  style: TextStyle(
+                Text(
+                  isPhone ? 'Verify Your Phone' : 'Verify Your Email',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
@@ -256,6 +402,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                           }
                           if (_otpCode.length == 6) {
                             FocusScope.of(context).unfocus();
+                            _verifyCode();
                           }
                         },
                       ),

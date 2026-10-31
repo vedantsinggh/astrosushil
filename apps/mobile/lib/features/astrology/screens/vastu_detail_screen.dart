@@ -159,62 +159,55 @@ class VastuDetailScreen extends ConsumerWidget {
           const SizedBox(height: 14),
         ],
 
-        // DO'S & DON'TS CARDS
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: AstroCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.thumb_up_rounded, size: 16, color: AppColors.success),
-                        SizedBox(width: 6),
-                        Text(
-                          'Do\'s',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
+        // DO'S & DON'TS CARDS (Stacked for overflow safety across all viewports)
+        AstroCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.thumb_up_rounded, size: 16, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Text(
+                    'Recommended Practices (Do\'s)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
                     ),
-                    const SizedBox(height: 8),
-                    ...item.dos.map((d) => _buildCheckPoint(d, AppColors.success)),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: AstroCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.thumb_down_rounded, size: 16, color: AppColors.error),
-                        SizedBox(width: 6),
-                        Text(
-                          'Don\'ts',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
+              const SizedBox(height: 10),
+              ...item.dos.map((d) => _buildCheckPoint(d, AppColors.success)),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        AstroCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.thumb_down_rounded, size: 16, color: AppColors.error),
+                  SizedBox(width: 8),
+                  Text(
+                    'Avoid / Inauspicious (Don\'ts)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
                     ),
-                    const SizedBox(height: 8),
-                    ...item.donts.map((d) => _buildCheckPoint(d, AppColors.error)),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              ...item.donts.map((d) => _buildCheckPoint(d, AppColors.error)),
+            ],
+          ),
         ),
 
         const SizedBox(height: 14),
@@ -253,9 +246,9 @@ class VastuDetailScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
+        color: color.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +305,7 @@ class VastuDetailScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

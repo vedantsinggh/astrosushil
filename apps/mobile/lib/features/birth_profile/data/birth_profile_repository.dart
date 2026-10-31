@@ -137,4 +137,34 @@ class BirthProfileRepository {
 
     return newProfile;
   }
+
+  /// Delete a birth profile
+  Future<void> deleteProfile(String id, {bool isGuest = false}) async {
+    if (isGuest) {
+      await clearGuestProfile();
+      return;
+    }
+    await _apiClient.delete('/birth-profiles/$id');
+    final cache = _cacheService;
+    if (cache != null) {
+      await cache.remove(_profilesCacheKey);
+    }
+  }
+
+  /// Update a birth profile
+  Future<BirthProfileModel> updateProfile(String id, CreateBirthProfileDto dto, {bool isGuest = false}) async {
+    if (isGuest) {
+      return await saveGuestProfile(dto);
+    }
+    final response = await _apiClient.put(
+      '/birth-profiles/$id',
+      data: dto.toJson(),
+    );
+    final updated = BirthProfileModel.fromJson(response);
+    final cache = _cacheService;
+    if (cache != null) {
+      await cache.remove(_profilesCacheKey);
+    }
+    return updated;
+  }
 }

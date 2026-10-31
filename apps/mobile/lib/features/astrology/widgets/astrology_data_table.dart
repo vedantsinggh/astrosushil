@@ -117,9 +117,9 @@ class AstrologyDataTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.lightSurface,
+        color: AppColors.cardSurfaceWarm,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.lightBorder, width: 1),
+        border: Border.all(color: AppColors.cardBorder, width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -128,7 +128,7 @@ class AstrologyDataTable extends StatelessWidget {
             // Header Row
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              color: AppColors.primary.withValues(alpha: 0.05),
+              color: AppColors.cardSurfaceParchment,
               child: Row(
                 children: columns.map((col) {
                   return Expanded(
@@ -147,7 +147,7 @@ class AstrologyDataTable extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            const Divider(height: 1, color: AppColors.lightBorder),
+            const Divider(height: 1, color: AppColors.cardBorder),
 
             // Data Rows
             if (rows.isEmpty)
@@ -168,7 +168,7 @@ class AstrologyDataTable extends StatelessWidget {
                 final row = rows[index];
                 final isEven = index % 2 == 0;
                 final rowBg = isStriped && !isEven
-                    ? AppColors.primary.withValues(alpha: 0.02)
+                    ? AppColors.cardSurfaceParchment.withValues(alpha: 0.5)
                     : Colors.transparent;
 
                 return Container(

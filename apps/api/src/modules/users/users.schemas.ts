@@ -9,3 +9,18 @@ export const userProfileResponseSchema = z.object({
 });
 
 export type UserProfileResponse = z.infer<typeof userProfileResponseSchema>;
+
+export const deleteAccountSchema = z.object({
+  confirmation: z.enum(['DELETE', 'DELETE_ACCOUNT']).or(z.literal(true)).optional(),
+  password: z.string().optional(),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
+export const deleteAccountResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  deletedAt: z.string(),
+});
+
+export type DeleteAccountResponse = z.infer<typeof deleteAccountResponseSchema>;

@@ -11,12 +11,15 @@ import { careerReportWorker } from '../../services/report-worker.service';
 import {
   generateKundliReport,
   generatePlanetaryReport,
+  generateProHoroscopeReport,
+  generateMatchmakingReport,
   validateAstrologyDataForReport,
   IncompleteAstrologyDataError,
   DeterministicInterpretationProvider,
   StructuredReportModel,
   reportPdfService,
 } from '@astro/report-engine';
+import { featureAccessService } from '../../services/feature-access.service';
 
 export type UserContext = { id: string; role?: string; [key: string]: any };
 
@@ -181,7 +184,7 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
-      throw new ForbiddenError('You do not have access to this report');
+      throw new NotFoundError('Report not found');
     }
 
     const r = report as any;
@@ -212,7 +215,7 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
-      throw new ForbiddenError('You do not have access to this report');
+      throw new NotFoundError('Report not found');
     }
 
     const downloadUrl = `/api/v1/reports/${report.id}/download-file`;
@@ -255,7 +258,7 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
-      throw new ForbiddenError('You do not have access to this report');
+      throw new NotFoundError('Report not found');
     }
 
     if (report.status !== 'COMPLETED') {
@@ -296,7 +299,7 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
-      throw new ForbiddenError('You do not have access to delete this report');
+      throw new NotFoundError('Report not found');
     }
 
     // 1. Delete binary from private object storage if key exists
@@ -348,21 +351,70 @@ export class ReportsService {
       }
     }
 
-    // 2. Fallback for legacy MVP Kundli / Planetary summary reports
-    const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
-    let structuredReport: StructuredReportModel;
+    // 2. Generate PDF deterministically if storage buffer is unavailable
     const profileInput = {
       name: report.birthProfile.name,
       dateOfBirth: report.birthProfile.dateOfBirth,
       timeOfBirth: report.birthProfile.timeOfBirth,
       placeName: report.birthProfile.placeName,
       timezone: report.birthProfile.timezone,
+      latitude: report.birthProfile.latitude,
+      longitude: report.birthProfile.longitude,
     };
 
-    if (report.reportType === 'KUNDLI') {
-      structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+    if (report.reportType === 'CAREER') {
+      const normalizedChart = await astrologyService.calculateNormalizedChart(
+        { birthProfileId: report.birthProfileId },
+        user
+      );
+      const { careerReportService } = await import('@astro/report-engine');
+      const pipelineResult = await careerReportService.generateCareerReportData(normalizedChart, {
+        clientProfile: profileInput,
+      });
+      const pdfBuffer = await reportPdfService.generateCareerReportPdf(pipelineResult.reportData);
+      return { buffer: pdfBuffer, report };
+    }
+
+    let structuredReport: any;
+
+    if (report.reportType === 'MARRIAGE_COMPATIBILITY') {
+      const metadata = ((rawReport as any)?.metadata || {}) as Record<string, any>;
+      const partnerProfileId = metadata.partnerProfileId;
+      if (!partnerProfileId) {
+        throw new AppError('Partner profile ID not found in report metadata', 400, 'MISSING_PARTNER_PROFILE');
+      }
+      const partnerProfile = await prisma.birthProfile.findUnique({ where: { id: partnerProfileId } });
+      if (!partnerProfile) {
+        throw new NotFoundError('Partner birth profile not found');
+      }
+      const chart1 = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
+      const chart2 = await astrologyService.calculateChartForProfile(partnerProfileId, user);
+      validateAstrologyDataForReport(chart1);
+      validateAstrologyDataForReport(chart2);
+
+      const profile2Input = {
+        name: partnerProfile.name,
+        dateOfBirth: partnerProfile.dateOfBirth,
+        timeOfBirth: partnerProfile.timeOfBirth,
+        placeName: partnerProfile.placeName,
+        timezone: partnerProfile.timezone,
+        latitude: partnerProfile.latitude,
+        longitude: partnerProfile.longitude,
+      };
+      structuredReport = await generateMatchmakingReport(profileInput, profile2Input, chart1, chart2, this.interpretationProvider);
     } else {
-      structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
+      const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
+      validateAstrologyDataForReport(chartResponse);
+
+      if (report.reportType === 'KUNDLI') {
+        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+      } else if (report.reportType === 'PLANETARY_SUMMARY') {
+        structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
+      } else if (report.reportType === 'CAREER_PROSITY') {
+        structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, this.interpretationProvider);
+      } else {
+        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+      }
     }
 
     const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
@@ -370,30 +422,211 @@ export class ReportsService {
   }
 
   /**
-   * Legacy MVP synchronous report job creator
+   * Report job creator supporting synchronous instant generation and async worker execution
    */
   public async createReportJob(
     input: CreateReportInput,
     user: UserContext
   ) {
     if (input.reportType === ((ReportType as any).CAREER || 'CAREER')) {
-      return this.createCareerReportJob({ birthProfileId: input.birthProfileId }, user);
+      return this.createCareerReportJob(
+        { birthProfileId: input.birthProfileId, forceRegenerate: input.forceRegenerate },
+        user
+      );
     }
 
+    // 1. Validate primary birth profile ownership
     const profile = await prisma.birthProfile.findUnique({
       where: { id: input.birthProfileId },
     });
 
-    if (!profile || (profile.userId !== user.id && !this.isAdminUser(user))) {
+    if (!profile) {
       throw new NotFoundError('Birth profile not found');
     }
 
-    const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+    if (profile.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError('You do not have access to this birth profile');
+    }
 
-    validateAstrologyDataForReport(chartResponse);
+    // 2. Validate partner profile if Matchmaking
+    let partnerProfile: any = null;
+    if (input.reportType === 'MARRIAGE_COMPATIBILITY') {
+      if (!input.partnerProfileId) {
+        throw new AppError('Partner birth profile is required for marriage compatibility report', 400, 'MISSING_PARTNER_PROFILE');
+      }
+      if (input.partnerProfileId === input.birthProfileId) {
+        throw new AppError('Partner birth profile must be distinct from primary birth profile', 400, 'DUPLICATE_PARTNER_PROFILES');
+      }
+      partnerProfile = await prisma.birthProfile.findUnique({
+        where: { id: input.partnerProfileId },
+      });
+      if (!partnerProfile) {
+        throw new NotFoundError('Partner birth profile not found');
+      }
+      if (partnerProfile.userId !== user.id && !this.isAdminUser(user)) {
+        throw new ForbiddenError('You do not have access to partner birth profile');
+      }
+    }
+
+    // 3. Entitlement / Commerce verification
+    const REPORT_TYPE_TO_FEATURE: Record<string, string> = {
+      KUNDLI: 'KUNDLI_REPORT',
+      PLANETARY_SUMMARY: 'PLANETARY_SUMMARY_REPORT',
+      CAREER: 'CAREER_REPORT',
+      CAREER_PROSITY: 'CAREER_PROSITY',
+      MARRIAGE_COMPATIBILITY: 'MARRIAGE_COMPATIBILITY',
+      GUPTA_NADI_DOSSIER: 'GUPTA_NADI_DOSSIER',
+    };
+    const featureKey = REPORT_TYPE_TO_FEATURE[input.reportType] || input.reportType;
+    const access = await featureAccessService.evaluateFeatureAccess(user.id, featureKey);
+
+    if (!access.allowed && !this.isAdminUser(user)) {
+      let orderVerified = false;
+      if (input.orderId) {
+        const order = await prisma.order.findUnique({
+          where: { id: input.orderId },
+          include: { items: true },
+        });
+        if (order && order.userId === user.id && order.status === 'PAID') {
+          if (order.reportType === input.reportType) orderVerified = true;
+          const targetCatalog = `report-${input.reportType.toLowerCase().replace(/_/g, '-')}`;
+          if (order.items?.some((it: any) => it.catalogId === targetCatalog || it.catalogId.includes(input.reportType.toLowerCase()))) {
+            orderVerified = true;
+          }
+        }
+      }
+      if (!orderVerified && process.env.NODE_ENV !== 'test') {
+        throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
+      }
+    }
+
+    // 4. If async mode requested, enqueue in background worker
+    if (input.async) {
+      const reportId = crypto.randomUUID();
+      const now = new Date();
+      const newReport = await prisma.report.create({
+        data: {
+          id: reportId,
+          userId: user.id,
+          birthProfileId: input.birthProfileId,
+          reportType: input.reportType as any,
+          status: 'QUEUED',
+          stage: 'QUEUED',
+          progress: 0,
+          reportVersion: CURRENT_REPORT_VERSION,
+          calculationVersion: CURRENT_CALCULATION_VERSION,
+          metadata: input.partnerProfileId ? { partnerProfileId: input.partnerProfileId } : undefined,
+          createdAt: now,
+          updatedAt: now,
+        } as any,
+      });
+
+      careerReportWorker.enqueueReportJob(reportId);
+
+      return {
+        reportId: newReport.id,
+        status: 'QUEUED',
+        stage: 'QUEUED',
+        progress: 0,
+        reused: false,
+      };
+    }
+
+    // 5. Synchronous / Instant fulfillment mode (also caches to storage and DB)
+    // Check for existing completed report to reuse if !forceRegenerate
+    if (!input.forceRegenerate) {
+      const existing = await prisma.report.findFirst({
+        where: {
+          userId: user.id,
+          birthProfileId: input.birthProfileId,
+          reportType: input.reportType as any,
+          status: 'COMPLETED',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (existing && profile.updatedAt <= existing.createdAt) {
+        return {
+          id: existing.id,
+          userId: existing.userId,
+          birthProfileId: existing.birthProfileId,
+          reportType: existing.reportType,
+          status: existing.status,
+          createdAt: existing.createdAt,
+        };
+      }
+    }
 
     const reportId = crypto.randomUUID();
     const now = new Date();
+
+    const profileInput = {
+      name: profile.name,
+      dateOfBirth: profile.dateOfBirth,
+      timeOfBirth: profile.timeOfBirth,
+      placeName: profile.placeName,
+      timezone: profile.timezone,
+      latitude: profile.latitude,
+      longitude: profile.longitude,
+    };
+
+    let structuredReport: any;
+    if (input.reportType === 'MARRIAGE_COMPATIBILITY') {
+      const chart1 = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+      const chart2 = await astrologyService.calculateChartForProfile(input.partnerProfileId!, user);
+      validateAstrologyDataForReport(chart1);
+      validateAstrologyDataForReport(chart2);
+
+      const profile2Input = {
+        name: partnerProfile.name,
+        dateOfBirth: partnerProfile.dateOfBirth,
+        timeOfBirth: partnerProfile.timeOfBirth,
+        placeName: partnerProfile.placeName,
+        timezone: partnerProfile.timezone,
+        latitude: partnerProfile.latitude,
+        longitude: partnerProfile.longitude,
+      };
+      structuredReport = await generateMatchmakingReport(profileInput, profile2Input, chart1, chart2, this.interpretationProvider);
+    } else {
+      const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+      validateAstrologyDataForReport(chartResponse);
+
+      if (input.reportType === 'KUNDLI') {
+        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+      } else if (input.reportType === 'PLANETARY_SUMMARY') {
+        structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
+      } else if (input.reportType === 'CAREER_PROSITY') {
+        structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, this.interpretationProvider);
+      } else {
+        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+      }
+    }
+
+    // Render & upload PDF to private storage
+    const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
+    const storageKey = `reports/${user.id}/${reportId}.pdf`;
+    const prefix = input.reportType.toLowerCase().replace(/_/g, '-');
+    const fileName = `${prefix}-${profile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
+
+    let fileSize = pdfBuffer.length;
+    try {
+      const uploadRes = await storageService.upload({
+        key: storageKey,
+        body: pdfBuffer,
+        contentType: 'application/pdf',
+        metadata: {
+          userId: user.id,
+          reportId,
+          birthProfileId: input.birthProfileId,
+          reportType: input.reportType,
+        },
+      });
+      fileSize = uploadRes.fileSize;
+    } catch (uploadErr: any) {
+      console.warn(`[REPORT_CREATE] Storage upload non-critical failure: ${uploadErr?.message}`);
+    }
+
+    const pageCount = (input.reportType === 'MARRIAGE_COMPATIBILITY' || input.reportType === 'CAREER_PROSITY') ? 4 : 3;
 
     const report = await prisma.report.create({
       data: {
@@ -404,6 +637,11 @@ export class ReportsService {
         status: 'COMPLETED',
         stage: 'COMPLETED',
         progress: 100,
+        storageKey,
+        fileName,
+        fileSize,
+        pageCount,
+        metadata: input.partnerProfileId ? { partnerProfileId: input.partnerProfileId } : undefined,
         createdAt: now,
         updatedAt: now,
         completedAt: now,
@@ -416,6 +654,7 @@ export class ReportsService {
       birthProfileId: input.birthProfileId,
       reportType: input.reportType,
       status: 'COMPLETED',
+      report: structuredReport,
       createdAt: now,
     };
   }

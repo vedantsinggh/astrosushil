@@ -645,6 +645,13 @@ void main() {
     });
 
     testWidgets('Renders detected yogas list, category tabs, and expand condition evidence', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       final yogaReport = createSampleYogaReport();
       await tester.pumpWidget(createTestWidget(
         child: const YogasScreen(),

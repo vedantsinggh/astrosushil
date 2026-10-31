@@ -144,6 +144,7 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
     const { buffer } = await reportsService.generateReportPdfBuffer(id, request.user);
 
     reply.header('Content-Type', 'application/pdf');
+    reply.header('Content-Length', buffer.length.toString());
     reply.header(
       'Content-Disposition',
       `attachment; filename="astro-sushil-career-${id}.pdf"`
