@@ -144,7 +144,7 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += renderValCmd('CalculationVersion', data.client.calculationVersion || '2.0.0-PRO', 'VERIFIED');
   tex += renderStatusCmd('CalculationVersionStatus', 'VERIFIED');
   tex += renderValCmd('ReportTemplateVersion', data.client.reportTemplateVersion || '4.0.0-PRO-DOSSIER', 'VERIFIED');
-  tex += renderValCmd('EphemerisProvider', data.client.ephemerisProvider || 'Swiss Ephemeris Engine', 'VERIFIED');
+  tex += renderValCmd('EphemerisProvider', data.client.ephemerisProvider || 'Astronomy Engine (VSOP87/ELP2000-82)', 'VERIFIED');
   tex += `\n`;
 
   // Calculation Configuration
@@ -235,8 +235,8 @@ export function generateReportDataTex(data: CareerReportData): string {
     tex += renderValCmd(`${h.prefix}ConstructiveExpression`, h.data.constructiveExpression, getStatusForText(h.data.constructiveExpression));
     tex += renderValCmd(`${h.prefix}Challenge`, h.data.challenge, getStatusForText(h.data.challenge));
     tex += renderValCmd(`${h.prefix}PracticalInterpretation`, h.data.practicalInterpretation, getStatusForText(h.data.practicalInterpretation));
-    tex += renderValCmd(`${h.prefix}BhavaBalaScore`, h.data.bhavaBalaScore || '5.50 Rupas', h.data.status);
-    tex += renderValCmd(`${h.prefix}BhavaBalaRank`, h.data.bhavaBalaRank || 1, h.data.status);
+    tex += renderValCmd(`${h.prefix}BhavaBalaScore`, h.data.bhavaBalaScore || 'Unavailable', h.data.bhavaBalaScore ? h.data.status : 'UNAVAILABLE');
+    tex += renderValCmd(`${h.prefix}BhavaBalaRank`, h.data.bhavaBalaRank !== undefined ? String(h.data.bhavaBalaRank) : 'N/A', h.data.bhavaBalaRank !== undefined ? h.data.status : 'UNAVAILABLE');
     tex += renderStatusCmd(`${h.prefix}Status`, h.data.status);
     tex += `\n`;
   }
@@ -487,7 +487,7 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += `\n`;
 
   // -------------------------------------------------------------
-  // PART XIII: Transits & Sade Sati
+  // PART XIII: Transits & Planetary Cycles
   // -------------------------------------------------------------
   tex += `% PART XIII: Transits\n`;
   tex += renderValCmd('TransitReferenceDate', data.transits.referenceDate, data.transits.status);
@@ -708,6 +708,25 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += renderValCmd('DecisionFramework', data.careerAnalysis.decisionFramework, 'VERIFIED');
   tex += renderValCmd('FinalSynthesis', data.careerAnalysis.finalSynthesis, 'VERIFIED');
   tex += renderValCmd('ClosingNote', data.careerAnalysis.closingNote, 'VERIFIED');
+
+  if (data.careerAnalysis.primaryProfessionalPriority) {
+    tex += renderValCmd('PrimaryProfessionalPriority', data.careerAnalysis.primaryProfessionalPriority, 'VERIFIED');
+  }
+  if (data.careerAnalysis.technicalSkillPriority) {
+    tex += renderValCmd('TechnicalSkillPriority', data.careerAnalysis.technicalSkillPriority, 'VERIFIED');
+  }
+  if (data.careerAnalysis.communicationSkillPriority) {
+    tex += renderValCmd('CommunicationSkillPriority', data.careerAnalysis.communicationSkillPriority, 'VERIFIED');
+  }
+  if (data.careerAnalysis.leadershipSkillPriority) {
+    tex += renderValCmd('LeadershipSkillPriority', data.careerAnalysis.leadershipSkillPriority, 'VERIFIED');
+  }
+  if (data.careerAnalysis.networkSkillPriority) {
+    tex += renderValCmd('NetworkSkillPriority', data.careerAnalysis.networkSkillPriority, 'VERIFIED');
+  }
+  if (data.careerAnalysis.mistakeToAvoid) {
+    tex += renderValCmd('MistakeToAvoid', data.careerAnalysis.mistakeToAvoid, 'VERIFIED');
+  }
 
   return tex;
 }

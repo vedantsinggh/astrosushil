@@ -104,14 +104,28 @@ export interface VimshottariDashaDto {
   timeline: VimshottariDashaPeriodDto[];
 }
 
-export interface DoshaAnalysisDto {
+export interface PlanetaryPlacementAndTransitDto {
   manglik: {
+    status: 'Present' | 'Not Present';
     isManglik: boolean;
-    severity: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
     description: string;
     cancellingFactors: string[];
   };
-  sadeSati: {
+  saturnTransit: {
+    transitHouseFromMoon: number;
+    description: string;
+  };
+}
+
+export interface DoshaAnalysisDto {
+  manglik: {
+    status?: 'Present' | 'Not Present';
+    isManglik: boolean;
+    severity?: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'Present' | 'Not Present';
+    description: string;
+    cancellingFactors: string[];
+  };
+  sadeSati?: {
     isSadeSatiActive: boolean;
     phase: string;
     phaseName: string;
@@ -119,7 +133,7 @@ export interface DoshaAnalysisDto {
     isDhaiyyaActive: boolean;
     dhaiyyaName: string;
   };
-  kaalSarp: {
+  kaalSarp?: {
     isKaalSarpPresent: boolean;
     typeName: string;
     description: string;
@@ -144,6 +158,7 @@ export interface StructuredReportModel {
     houses: ReportHouseDto[];
   };
   vimshottariDasha?: VimshottariDashaDto;
+  planetaryPlacementAndTransits?: PlanetaryPlacementAndTransitDto;
   doshaAnalysis?: DoshaAnalysisDto;
   gemstoneRecommendations?: GemstoneRecommendationsDto;
 }
@@ -250,6 +265,7 @@ export interface ProHoroscopeModel {
     description: string;
     mantraText?: string;
   }>;
+  normalizedTime?: any;
   sections: ReportSectionDto[];
 }
 
@@ -262,7 +278,7 @@ export interface KootaScoreDto {
   sanskritName: string;
   maxPoints: number;
   obtainedPoints: number;
-  status: 'EXCELLENT' | 'AVERAGE' | 'DOSHA' | 'DEFICIENT';
+  status: 'EXCELLENT' | 'AVERAGE' | 'DOSHA' | 'DEFICIENT' | 'NEEDS_ATTENTION';
   description: string;
   boyDetail: string;
   girlDetail: string;
@@ -287,12 +303,14 @@ export interface MatchmakingReportModel {
     personA: {
       name: string;
       isManglik: boolean;
+      status?: 'Present' | 'Not Present';
       severity: string;
       factors: string[];
     };
     personB: {
       name: string;
       isManglik: boolean;
+      status?: 'Present' | 'Not Present';
       severity: string;
       factors: string[];
     };

@@ -49,6 +49,14 @@ export const createBirthProfileSchema = z.object({
   countryCode: z.string().max(10, 'Country code must not exceed 10 characters').optional().nullable(),
   state: z.string().max(100, 'State must not exceed 100 characters').optional().nullable(),
   isResolved: z.boolean().optional(),
+  disambiguation: z
+    .preprocess(
+      (val) => (val === 'daylight' ? 'earlier' : val === 'standard' ? 'later' : val),
+      z.enum(['earlier', 'later'], {
+        errorMap: () => ({ message: 'Disambiguation must be either "earlier" or "later"' }),
+      })
+    )
+    .optional(),
 });
 
 export const updateBirthProfileSchema = createBirthProfileSchema.partial().refine(

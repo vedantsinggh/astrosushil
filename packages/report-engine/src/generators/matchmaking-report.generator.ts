@@ -231,7 +231,7 @@ export async function generateMatchmakingReport(
       sanskritName: 'Gana (Temperament & Social Outlook)',
       maxPoints: 6,
       obtainedPoints: kootasMap.gana.obtainedPoints,
-      status: kootasMap.gana.obtainedPoints >= 5 ? 'EXCELLENT' : kootasMap.gana.obtainedPoints > 0 ? 'AVERAGE' : 'DOSHA',
+      status: kootasMap.gana.obtainedPoints >= 5 ? 'EXCELLENT' : kootasMap.gana.obtainedPoints > 0 ? 'AVERAGE' : 'NEEDS_ATTENTION',
       description: kootasMap.gana.description,
       boyDetail: `Boy Gana: ${kootasMap.gana.evidence?.boyGana || 'Normal'}`,
       girlDetail: `Girl Gana: ${kootasMap.gana.evidence?.girlGana || 'Normal'}`,
@@ -241,7 +241,7 @@ export async function generateMatchmakingReport(
       sanskritName: 'Bhakoot (Emotional Fulfillment & Prosperity)',
       maxPoints: 7,
       obtainedPoints: kootasMap.bhakoot.obtainedPoints,
-      status: kootasMap.bhakoot.obtainedPoints === 7 ? 'EXCELLENT' : 'DOSHA',
+      status: kootasMap.bhakoot.obtainedPoints === 7 ? 'EXCELLENT' : 'NEEDS_ATTENTION',
       description: kootasMap.bhakoot.description,
       boyDetail: `Rashi Relationship: ${kootasMap.bhakoot.evidence?.distance || 'Normal'}`,
       girlDetail: `Condition: ${kootasMap.bhakoot.evidence?.condition || 'Normal'}`,
@@ -251,7 +251,7 @@ export async function generateMatchmakingReport(
       sanskritName: 'Nadi (Genetics, Health & Heredity)',
       maxPoints: 8,
       obtainedPoints: kootasMap.nadi.obtainedPoints,
-      status: kootasMap.nadi.obtainedPoints === 8 ? 'EXCELLENT' : 'DOSHA',
+      status: kootasMap.nadi.obtainedPoints === 8 ? 'EXCELLENT' : 'NEEDS_ATTENTION',
       description: kootasMap.nadi.description,
       boyDetail: `Boy Nadi: ${kootasMap.nadi.evidence?.boyNadi || 'Normal'}`,
       girlDetail: `Girl Nadi: ${kootasMap.nadi.evidence?.girlNadi || 'Normal'}`,
@@ -269,8 +269,8 @@ export async function generateMatchmakingReport(
     verdict = 'SHUBHA (GOOD / AUSPICIOUS)';
     verdictDescription = 'Strong overall compatibility score. Foundation for harmonious and enduring partnership.';
   } else if (totalScore < 18) {
-    verdict = 'ALPA (BELOW THRESHOLD / REQUIRING REMEDIES)';
-    verdictDescription = 'Score is under classical 18-point threshold. Astrological consultation and compatibility remedies advised.';
+    verdict = 'NEEDS_ATTENTION (BELOW THRESHOLD)';
+    verdictDescription = 'Score is under classical 18-point threshold, indicating specific alignment factors requiring mutual adaptability and conscious communication.';
   }
 
   // 5. Manglik Evaluation
@@ -278,21 +278,21 @@ export async function generateMatchmakingReport(
   const isPersonAManglik = mangalComp.personA.isManglik;
   const isPersonBManglik = mangalComp.personB.isManglik;
 
-  let manglikVerdictStr = 'HARMONIOUS MANGLIK BALANCE';
-  let manglikExplanation = 'Both charts exhibit balanced Kuja / Mangal energy, neutralizing potential marital friction.';
+  let manglikVerdictStr = 'BALANCED MANGLIK PLACEMENT';
+  let manglikExplanation = 'Both charts exhibit balanced Martian energy, supporting natural energetic alignment.';
 
   if (isPersonAManglik && !isPersonBManglik) {
-    manglikVerdictStr = `${profile1.name.toUpperCase()} IS MANGLIK; ${profile2.name.toUpperCase()} IS NON-MANGLIK`;
-    manglikExplanation = 'One partner has Kuja dosha while the other does not. Classical Vedic astrology recommends Kumbha Vivaha or mutual propitiation remedies.';
+    manglikVerdictStr = `${profile1.name.toUpperCase()}: PRESENT; ${profile2.name.toUpperCase()}: NOT PRESENT`;
+    manglikExplanation = 'One partner has a Manglik placement while the other does not. Open communication regarding personal assertiveness and decision-making styles is recommended.';
   } else if (!isPersonAManglik && isPersonBManglik) {
-    manglikVerdictStr = `${profile2.name.toUpperCase()} IS MANGLIK; ${profile1.name.toUpperCase()} IS NON-MANGLIK`;
-    manglikExplanation = 'One partner has Kuja dosha while the other does not. Classical propitiation remedies are recommended.';
+    manglikVerdictStr = `${profile2.name.toUpperCase()}: PRESENT; ${profile1.name.toUpperCase()}: NOT PRESENT`;
+    manglikExplanation = 'One partner has a Manglik placement while the other does not. Open communication regarding personal assertiveness and decision-making styles is recommended.';
   } else if (!isPersonAManglik && !isPersonBManglik) {
-    manglikVerdictStr = 'BOTH PARTNERS NON-MANGLIK';
-    manglikExplanation = 'Neither partner has Kuja / Mangal Dosha. Highly auspicious natural alignment.';
+    manglikVerdictStr = 'BOTH PARTNERS: NOT PRESENT';
+    manglikExplanation = 'Neither partner has a canonical Manglik placement from Lagna, representing a steady energetic balance.';
   } else {
-    manglikVerdictStr = 'BOTH PARTNERS MANGLIK (DOSHA CANCELLED)';
-    manglikExplanation = 'Classical Parashari rule applies: When both charts possess Manglik placement, mutual dosha cancellation occurs naturally.';
+    manglikVerdictStr = 'BOTH PARTNERS: PRESENT';
+    manglikExplanation = 'Both partners have active Manglik placements from Lagna, indicating symmetrical dynamic drive and mutual energetic understanding.';
   }
 
   // 6. Synthesis
@@ -302,10 +302,10 @@ export async function generateMatchmakingReport(
       : 'Different intellectual dispositions; open communication will enhance understanding.',
     emotionalHarmony: kootasMap.bhakoot.obtainedPoints === 7
       ? 'Auspicious Bhakoot placement ensures warm emotional bond and sustained marital joy.'
-      : 'Bhakoot dosha present; developing active empathy and shared financial transparency is recommended.',
+      : 'Bhakoot placement indicates different emotional rhythms; developing active empathy and shared financial transparency is recommended.',
     healthAndProgeny: kootasMap.nadi.obtainedPoints === 8
       ? 'Different Nadis guarantee physiological diversity, strong genetic vitality, and healthy progeny.'
-      : 'Same Nadi identified. Consultation with a qualified physician and Vedic Nadi Shanti is advised.',
+      : 'Same Nadi identified. Consultation with a qualified physician and conscious health awareness is advised.',
     remediesOrGuidance: `Overall Ashtakoota Milan achieves ${totalScore} / 36 points. ${verdictDescription}`,
   };
 
@@ -334,13 +334,15 @@ export async function generateMatchmakingReport(
       personA: {
         name: profile1.name,
         isManglik: isPersonAManglik,
-        severity: mangalComp.personA.severity,
+        status: isPersonAManglik ? 'Present' : 'Not Present',
+        severity: isPersonAManglik ? 'Present' : 'Not Present',
         factors: mangalComp.personA.cancellationFactors,
       },
       personB: {
         name: profile2.name,
         isManglik: isPersonBManglik,
-        severity: mangalComp.personB.severity,
+        status: isPersonBManglik ? 'Present' : 'Not Present',
+        severity: isPersonBManglik ? 'Present' : 'Not Present',
         factors: mangalComp.personB.cancellationFactors,
       },
       verdict: manglikVerdictStr,

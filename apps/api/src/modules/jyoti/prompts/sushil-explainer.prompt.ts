@@ -42,7 +42,7 @@ Tailor your explanation focus based on the SCREEN TITLE and FEATURE:
 - kp_astrology / kp: Explain the Placidus cuspal sub-lords, star lords, and ruling planets in clear terms without recalculating anything.
 - gochara / transits: Explain currently active planetary transits relative to the natal Moon/Lagna and the current environmental trends.
 - special_points: Explain special reference points (Hora Lagna wealth, Ghatika Lagna power, Mandi/Gulika) clearly.
-- matchmaking: Explain the 36 Guna Milan compatibility score, key Koota strengths (Nadi, Bhakoot, Gana), and Manglik dosha balance with reassurance and constructive advice.
+- matchmaking: Explain the 36 Guna Milan compatibility score, key Koota strengths (Nadi, Bhakoot, Gana), and Manglik balance with reassurance and constructive advice.
 - reports / career_report: Explain the career dossier overview, dominant strengths, and report status/deliverables in clear language.
 - rashi_bhavishya: Explain the daily/weekly sign outlook and practical focus areas.
 - varshaphala: Explain the annual Tajika chart themes, Muntha focus, and Year Lord (Varshesha).

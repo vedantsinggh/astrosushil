@@ -115,7 +115,7 @@ describe('CareerEvidenceEngine Test Suite', () => {
     expect(saturnEv?.house).toBe(10);
     expect(saturnEv?.retrograde).toBe(true);
 
-    expect(result.houseEvidence.length).toBe(7);
+    expect(result.houseEvidence.length).toBe(12);
     const houseTenEv = result.houseEvidence.find((h) => h.houseNumber === 10);
     expect(houseTenEv?.sign).toBe('Capricorn');
   });

@@ -29,7 +29,7 @@ export class MockCareerAnalysisProvider implements CareerAnalysisProvider {
         constructiveExpression: `To maximize the potential of House ${h.houseNumber} in ${h.sign}, adopt structured processes, maintain high technical standards, and leverage the natural strengths of ${h.lord}. Focus on building documented workflows, delegating routine tasks cleanly, and aligning daily efforts with primary career milestones.\n\nIn practical terms, this means taking ownership of key deliverables, fostering transparent communication with stakeholders, and continuously refining technical or managerial skills associated with House ${h.houseNumber}.`,
         potentialChallenge: `Potential operational challenges for House ${h.houseNumber} stem from conflicting demands between rapid execution and procedural thoroughness. If ${h.lord} experiences pressure, caution is advised regarding perfectionism, scope creep, or misaligned expectations with team members.\n\nMitigate these challenges by setting explicit boundaries, establishing clear acceptance criteria for projects, and conducting periodic performance reviews to maintain alignment with broader organizational goals.`,
         practicalInterpretation: `Practical strategy for House ${h.houseNumber}: Systematically integrate the strengths of ${h.sign} into your professional role. Leverage Lord ${h.lord} in House ${h.lordPlacement.house} to drive high-impact initiatives, build strong peer alliances, and sustain operational excellence across changing workplace environments.`,
-        evidenceIds: [`house-${h.houseNumber}`, `planet-${h.lord.toLowerCase()}`],
+        evidenceIds: [`house-${h.houseNumber}`],
       };
     });
 

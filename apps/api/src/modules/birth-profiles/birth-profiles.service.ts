@@ -5,7 +5,6 @@ import { CreateBirthProfileInput, UpdateBirthProfileInput } from './birth-profil
 import {
   mapBirthProfileToResponseDto,
   BirthProfileWithDetailsResponseDto,
-  BirthProfileResponseDto,
 } from './birth-profile-response.mapper';
 
 export class BirthProfilesService {
@@ -29,6 +28,7 @@ export class BirthProfilesService {
       countryCode: input.countryCode,
       state: input.state,
       isResolved: input.isResolved ?? true,
+      disambiguation: input.disambiguation,
     });
 
     const profile = await prisma.birthProfile.create({
@@ -45,6 +45,10 @@ export class BirthProfilesService {
         countryCode: normalized.countryCode ?? null,
         state: normalized.state ?? null,
         isResolved: normalized.isResolved ?? true,
+        disambiguation: normalized.disambiguation ?? input.disambiguation ?? null,
+        utcDateTime: new Date(normalized.utcDateTime),
+        timezoneOffsetSeconds: normalized.timezoneOffsetSeconds ?? null,
+        disambiguationRequired: false,
       },
     });
 
@@ -89,6 +93,9 @@ export class BirthProfilesService {
           countryCode: duplicate.countryCode,
           state: duplicate.state,
           isResolved: duplicate.isResolved,
+          disambiguation: (duplicate.disambiguation as any) ?? undefined,
+          utcDateTime: duplicate.utcDateTime,
+          timezoneOffsetSeconds: duplicate.timezoneOffsetSeconds,
         }),
       };
     }
@@ -107,9 +114,9 @@ export class BirthProfilesService {
 
     return profiles.map((p) => {
       const dto = mapBirthProfileToResponseDto(p);
-      return {
-        ...dto,
-        normalizedDetails: normalizeBirthProfile({
+      let normalized;
+      try {
+        normalized = normalizeBirthProfile({
           id: p.id,
           name: p.name,
           dateOfBirth: p.dateOfBirth,
@@ -122,7 +129,37 @@ export class BirthProfilesService {
           countryCode: p.countryCode,
           state: p.state,
           isResolved: p.isResolved,
-        }),
+          utcDateTime: p.utcDateTime,
+          timezoneOffsetSeconds: p.timezoneOffsetSeconds,
+          disambiguation: (p.disambiguation as any) ?? undefined,
+        });
+      } catch (err) {
+        // Safe backward compatibility: if legacy profile is ambiguous without a stored choice,
+        // flag it for user resolution rather than crashing the entire profile listing.
+        dto.disambiguationRequired = true;
+        normalized = {
+          profileId: p.id,
+          name: p.name,
+          utcDateTime: '',
+          localDateTime: `${p.dateOfBirth}T${p.timeOfBirth}`,
+          timezone: p.timezone,
+          timezoneOffsetSeconds: p.timezoneOffsetSeconds ?? undefined,
+          timezoneOffsetMinutes: p.timezoneOffsetSeconds ? p.timezoneOffsetSeconds / 60 : 0,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          placeName: p.placeName ?? undefined,
+          country: p.country ?? undefined,
+          countryCode: p.countryCode ?? undefined,
+          state: p.state ?? undefined,
+          isResolved: p.isResolved,
+          disambiguation: (p.disambiguation as any) ?? undefined,
+          disambiguationRequired: true,
+        };
+      }
+
+      return {
+        ...dto,
+        normalizedDetails: normalized,
       };
     });
   }
@@ -145,10 +182,9 @@ export class BirthProfilesService {
     }
 
     const dto = mapBirthProfileToResponseDto(profile);
-
-    return {
-      ...dto,
-      normalizedDetails: normalizeBirthProfile({
+    let normalized;
+    try {
+      normalized = normalizeBirthProfile({
         id: profile.id,
         name: profile.name,
         dateOfBirth: profile.dateOfBirth,
@@ -161,7 +197,35 @@ export class BirthProfilesService {
         countryCode: profile.countryCode,
         state: profile.state,
         isResolved: profile.isResolved,
-      }),
+        utcDateTime: profile.utcDateTime,
+        timezoneOffsetSeconds: profile.timezoneOffsetSeconds,
+        disambiguation: (profile.disambiguation as any) ?? undefined,
+      });
+    } catch (err) {
+      dto.disambiguationRequired = true;
+      normalized = {
+        profileId: profile.id,
+        name: profile.name,
+        utcDateTime: '',
+        localDateTime: `${profile.dateOfBirth}T${profile.timeOfBirth}`,
+        timezone: profile.timezone,
+        timezoneOffsetSeconds: profile.timezoneOffsetSeconds ?? undefined,
+        timezoneOffsetMinutes: profile.timezoneOffsetSeconds ? profile.timezoneOffsetSeconds / 60 : 0,
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        placeName: profile.placeName ?? undefined,
+        country: profile.country ?? undefined,
+        countryCode: profile.countryCode ?? undefined,
+        state: profile.state ?? undefined,
+        isResolved: profile.isResolved,
+        disambiguation: (profile.disambiguation as any) ?? undefined,
+        disambiguationRequired: true,
+      };
+    }
+
+    return {
+      ...dto,
+      normalizedDetails: normalized,
     };
   }
 
@@ -187,6 +251,12 @@ export class BirthProfilesService {
     const isLocationModified =
       input.placeName !== undefined || input.latitude !== undefined || input.longitude !== undefined;
 
+    const isTimeOrTzModified =
+      input.dateOfBirth !== undefined ||
+      input.timeOfBirth !== undefined ||
+      input.timezone !== undefined ||
+      input.disambiguation !== undefined;
+
     const merged = {
       name: input.name ?? existing.name,
       dateOfBirth: input.dateOfBirth ?? existing.dateOfBirth,
@@ -200,6 +270,10 @@ export class BirthProfilesService {
       state: input.state !== undefined ? input.state : (isLocationModified ? null : existing.state),
       isResolved: input.isResolved !== undefined ? input.isResolved : (isLocationModified ? true : existing.isResolved),
     };
+
+    // If time/timezone/disambiguation was NOT modified and we already have an authoritative instant, preserve it
+    const existingUtc = !isTimeOrTzModified ? existing.utcDateTime : undefined;
+    const existingOffsetSeconds = !isTimeOrTzModified ? existing.timezoneOffsetSeconds : undefined;
 
     // Re-validate and normalize merged data
     const normalized = normalizeBirthProfile({
@@ -215,6 +289,9 @@ export class BirthProfilesService {
       countryCode: merged.countryCode,
       state: merged.state,
       isResolved: merged.isResolved,
+      disambiguation: input.disambiguation ?? (existing.disambiguation as any) ?? undefined,
+      utcDateTime: existingUtc,
+      timezoneOffsetSeconds: existingOffsetSeconds,
     });
 
     const updated = await prisma.birthProfile.update({
@@ -231,6 +308,10 @@ export class BirthProfilesService {
         countryCode: normalized.countryCode ?? null,
         state: normalized.state ?? null,
         isResolved: normalized.isResolved ?? true,
+        disambiguation: normalized.disambiguation ?? input.disambiguation ?? existing.disambiguation ?? null,
+        utcDateTime: new Date(normalized.utcDateTime),
+        timezoneOffsetSeconds: normalized.timezoneOffsetSeconds ?? null,
+        disambiguationRequired: false,
       },
     });
 

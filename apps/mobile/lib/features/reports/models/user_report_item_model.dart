@@ -116,7 +116,7 @@ class UserReportItemModel {
       case 'KUNDLI':
         return 'YOUR COSMIC BLUEPRINT (D1 & CHANDRA)';
       case 'PLANETARY_SUMMARY':
-        return '3–6 MONTH TRANSIT WINDOWS & SADE SATI';
+        return '3–6 MONTH TRANSIT WINDOWS & PLANETARY CYCLES';
       case 'CAREER':
         return '10TH HOUSE & VOCATIONAL DNA';
       case 'CAREER_PROSITY':

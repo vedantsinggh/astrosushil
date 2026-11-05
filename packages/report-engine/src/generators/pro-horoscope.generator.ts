@@ -22,6 +22,10 @@ import {
   AstrologyConfig,
   SHADBALA_MINIMUM_REQUIREMENTS,
   ShadbalaPlanet,
+  RASHIS,
+  getRashiIndex,
+  normalizeBirthTime,
+  BirthDetails,
 } from '@astro/astrology-engine';
 
 const VARGA_DEFINITIONS: Array<{ code: VargaType; name: string; focus: string }> = [
@@ -110,11 +114,35 @@ export async function generateProHoroscopeReport(
   };
 
   // 4. Ascendant
-  const asc = chart.ascendant;
-  const ascSign = asc.rashiName || asc.sign || 'Aries';
+  const asc = chart.ascendant || {};
+  const ascLongitude = typeof asc.longitude === 'number'
+    ? asc.longitude
+    : (typeof asc.absoluteDegree === 'number' ? asc.absoluteDegree : 0);
+
+  let ascRashiIndex = typeof asc.rashiIndex === 'number' && asc.rashiIndex >= 1 && asc.rashiIndex <= 12
+    ? asc.rashiIndex
+    : getRashiIndex(ascLongitude);
+
+  const ascSignName = asc.rashiName || asc.sign;
+  if ((!asc.rashiIndex || ascRashiIndex < 1 || ascRashiIndex > 12) && ascSignName) {
+    const match = RASHIS.find(
+      (r) => r.englishName.toLowerCase() === ascSignName.toLowerCase() ||
+             r.sanskritName.toLowerCase() === ascSignName.toLowerCase()
+    );
+    if (match) {
+      ascRashiIndex = match.index;
+    }
+  }
+
+  const ascRashiDef = RASHIS[ascRashiIndex - 1] || RASHIS[0];
+  const ascSign = asc.sign || ascRashiDef.englishName;
+  const ascDegreeInRashi = typeof asc.degreeInRashi === 'number'
+    ? asc.degreeInRashi
+    : (typeof asc.degree === 'number' ? asc.degree : ascLongitude % 30);
+
   const ascendant: ReportAscendantDto = {
     sign: ascSign,
-    degree: typeof asc.degreeInRashi === 'number' ? asc.degreeInRashi : (asc.degree || 0),
+    degree: ascDegreeInRashi,
     nakshatra: asc.nakshatraName || asc.nakshatra || 'Ashwini',
     pada: asc.pada || 1,
   };
@@ -130,9 +158,13 @@ export async function generateProHoroscopeReport(
     isRetrograde: Boolean(p.isRetrograde),
   }));
 
-  // 6. Houses (1 to 12)
+  // 6. Houses (1 to 12) - Canonical Whole Sign Houses
+  // House 1 begins at the 0° boundary of the sign containing the ascendant.
+  // Each subsequent house begins at the next sign boundary.
   const houses: ReportHouseDto[] = [];
   for (let h = 1; h <= 12; h++) {
+    const houseRashiIndex = ((ascRashiIndex - 1 + (h - 1)) % 12) + 1;
+    const houseRashiDef = RASHIS[houseRashiIndex - 1];
     const rawHouse = (chart.houses || []).find((houseObj: any) => houseObj.houseNumber === h || houseObj.number === h) || chart.houses?.[h - 1] || {};
     const planetsInHouse = planets
       .filter((p) => p.house === h)
@@ -140,7 +172,7 @@ export async function generateProHoroscopeReport(
 
     houses.push({
       houseNumber: h,
-      sign: rawHouse.rashiName || rawHouse.sign || `House ${h} Sign`,
+      sign: houseRashiDef.englishName,
       planetsPresent: planetsInHouse,
     });
   }
@@ -152,13 +184,27 @@ export async function generateProHoroscopeReport(
   const hr = parseInt((profileInput.timeOfBirth || '12:00').split(':')[0], 10) || 12;
   const min = parseInt((profileInput.timeOfBirth || '12:00').split(':')[1], 10) || 0;
 
-  const bDetails = {
+  const bDetails: BirthDetails = {
     date: { year: y, month: m, day: d },
     time: { hour: hr, minute: min, second: 0 },
-    timezone: profileInput.timezone || 'Asia/Kolkata',
-    latitude: profileInput.latitude || 28.6139,
-    longitude: profileInput.longitude || 77.2090,
+    timezone: profileInput.timezone || 'UTC',
+    latitude: profileInput.latitude ?? 28.6139,
+    longitude: profileInput.longitude ?? 77.2090,
+    disambiguation: (profileInput as any).disambiguation,
+    utcDateTime: (profileInput as any).utcDateTime || (profileInput as any).resolvedUtc,
+    timezoneOffsetSeconds: (profileInput as any).timezoneOffsetSeconds,
   };
+
+  const rawNormTime =
+    chart.normalizedTime ||
+    chart.metadata?.normalizedTime ||
+    metadata?.normalizedTime ||
+    rawChartData.normalizedChart?.calculation?.normalizedTime;
+
+  const normalizedTime =
+    rawNormTime && rawNormTime.utcIsoString && rawNormTime.julianDayUT
+      ? rawNormTime
+      : normalizeBirthTime(bDetails);
 
   const astroChart: AstroChart = {
     metadata: {
@@ -174,25 +220,40 @@ export async function generateProHoroscopeReport(
       } as AstrologyConfig,
       normalizedTime: {
         originalDetails: bDetails as any,
-        utcIsoString: new Date(`${profileInput.dateOfBirth}T${profileInput.timeOfBirth || '12:00:00'}Z`).toISOString(),
-        utcTimestampMs: Date.now(),
-        julianDayUT: 2451545.0,
-        timezoneOffsetMinutes: 330,
+        utcIsoString: normalizedTime.utcIsoString,
+        utcTimestampMs: normalizedTime.utcTimestampMs || new Date(normalizedTime.utcIsoString).getTime(),
+        julianDayUT: normalizedTime.julianDayUT,
+        timezoneOffsetMinutes:
+          normalizedTime.timezoneOffsetMinutes ??
+          (normalizedTime.timezoneOffsetSeconds !== undefined ? normalizedTime.timezoneOffsetSeconds / 60 : 0),
+        timezoneOffsetSeconds: normalizedTime.timezoneOffsetSeconds,
+        isDaylightSaving: normalizedTime.isDaylightSaving,
       },
     },
     birthDetails: bDetails as any,
     ascendant: {
-      longitude: typeof asc.longitude === 'number' ? asc.longitude : 0,
-      rashiName: ascSign,
-      degreeInRashi: typeof asc.degreeInRashi === 'number' ? asc.degreeInRashi : 0,
+      longitude: ascLongitude,
+      rashiName: ascRashiDef.sanskritName,
+      rashiIndex: ascRashiIndex,
+      degreeInRashi: ascDegreeInRashi,
     } as any,
     planets: {} as any,
-    houses: houses.map((h) => ({
-      houseNumber: h.houseNumber,
-      cuspLongitude: ((h.houseNumber - 1) * 30 + (asc.longitude || 0)) % 360,
-      rashiName: h.sign,
-      planetsInHouse: h.planetsPresent as any,
-    })) as any,
+    houses: houses.map((h) => {
+      const houseRashiIndex = ((ascRashiIndex - 1 + (h.houseNumber - 1)) % 12) + 1;
+      const houseRashiDef = RASHIS[houseRashiIndex - 1];
+      const startLongitude = (houseRashiIndex - 1) * 30;
+      const endLongitude = houseRashiIndex * 30;
+      const cuspLongitude = startLongitude;
+      return {
+        houseNumber: h.houseNumber,
+        cuspLongitude,
+        startLongitude,
+        endLongitude,
+        rashiIndex: houseRashiIndex,
+        rashiName: houseRashiDef.sanskritName,
+        planetsInHouse: h.planetsPresent as any,
+      };
+    }) as any,
   };
 
   // Populate planets map
@@ -279,24 +340,8 @@ export async function generateProHoroscopeReport(
         isStrong,
       });
     }
-  } catch (_err) {
-    const defaultShadbalaPlanets = ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN'];
-    defaultShadbalaPlanets.forEach((p, idx) => {
-      shadbalaItems.push({
-        planet: p,
-        sthanaBala: 140.0,
-        digBala: 45.0,
-        kalaBala: 50.0,
-        cheshtaBala: 40.0,
-        naisargikaBala: 30.0,
-        drikBala: 15.0,
-        totalShashtiamsas: 320.0,
-        totalRupas: 5.33,
-        requiredRupas: 5.5,
-        relativeRank: idx + 1,
-        isStrong: true,
-      });
-    });
+  } catch (err: any) {
+    throw new Error(`SHADBALA_CALCULATION_FAILED: Failed to calculate planetary Shadbala strengths: ${err?.message || 'unknown error'}`);
   }
 
   // 10. 12 Bhava Bala Strengths Calculation
@@ -317,19 +362,8 @@ export async function generateProHoroscopeReport(
         relativeRank: hData.rank,
       });
     }
-  } catch (_err) {
-    for (let h = 1; h <= 12; h++) {
-      bhavaBalaItems.push({
-        houseNumber: h,
-        sign: houses[h - 1]?.sign || `House ${h}`,
-        lord: 'Lagna Lord',
-        bhavadhipatiBala: 5.0,
-        bhavaDigBala: 0.8,
-        bhavaDrishtiBala: 0.5,
-        totalRupas: 6.3,
-        relativeRank: h,
-      });
-    }
+  } catch (err: any) {
+    throw new Error(`BHAVA_BALA_CALCULATION_FAILED: Failed to calculate house Bhava Bala strengths: ${err?.message || 'unknown error'}`);
   }
 
   // 11. Grounded Remedies for Weak or Afflicted Planets
@@ -372,6 +406,7 @@ export async function generateProHoroscopeReport(
     shadbala: shadbalaItems,
     bhavaBala: bhavaBalaItems,
     remedies,
+    normalizedTime: astroChart.metadata?.normalizedTime || normalizedTime,
     sections,
   };
 }

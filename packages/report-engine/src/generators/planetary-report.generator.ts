@@ -13,7 +13,7 @@ import {
 } from '../types/report.types';
 import { validateAstrologyDataForReport } from '../validation/report-data.validator';
 import { ReportInterpretationProvider } from '../providers/interpretation-provider.interface';
-import { SadeSatiCalculator } from '@astro/astrology-engine';
+import { SadeSatiCalculator, TransitCalculator, PlanetSymbol, RASHIS } from '@astro/astrology-engine';
 
 const SIGN_INDEX_MAP: Record<string, number> = {
   ARIES: 1, MESHA: 1,
@@ -129,35 +129,58 @@ export async function generatePlanetaryReport(
     associatedInfo: `Moon placed in ${moonPlanet.sign} (${(typeof moonPlanet.degree === 'number' ? moonPlanet.degree : 0).toFixed(2)}°) in ${moonPlanet.nakshatra} Pada ${moonPlanet.pada}.`,
   };
 
-  // 8. Deterministic Current Transits & 3-6 Month Forecast
+  // 8. Deterministic Dynamic Current Transits & 3-6 Month Forecast
   const natalMoonRashiIdx = SIGN_INDEX_MAP[(moonPlanet.sign || 'Aries').toUpperCase()] || 1;
   const natalLagnaRashiIdx = SIGN_INDEX_MAP[(ascSign || 'Aries').toUpperCase()] || 1;
 
-  // Approximate current planetary ephemeris positions for deterministic reference
-  // Saturn in Pisces (~345°), Jupiter in Taurus (~45°), Rahu in Pisces (~350°), Ketu in Virgo (~170°), Mars in Gemini (~80°)
-  const ephemerisSnapshot: Array<{ planet: string; sign: string; signIdx: number; deg: number; isRetro: boolean }> = [
-    { planet: 'SATURN', sign: 'Pisces', signIdx: 12, deg: 15.2, isRetro: false },
-    { planet: 'JUPITER', sign: 'Taurus', signIdx: 2, deg: 18.5, isRetro: false },
-    { planet: 'RAHU', sign: 'Pisces', signIdx: 12, deg: 20.1, isRetro: true },
-    { planet: 'KETU', sign: 'Virgo', signIdx: 6, deg: 20.1, isRetro: true },
-    { planet: 'MARS', sign: 'Gemini', signIdx: 3, deg: 11.4, isRetro: false },
-    { planet: 'SUN', sign: 'Libra', signIdx: 7, deg: 24.0, isRetro: false },
-    { planet: 'VENUS', sign: 'Scorpio', signIdx: 8, deg: 5.6, isRetro: false },
-    { planet: 'MERCURY', sign: 'Libra', signIdx: 7, deg: 14.8, isRetro: false },
+  const targetDate = (profileInput as any).calculationDate
+    ? new Date((profileInput as any).calculationDate)
+    : new Date();
+  const calcDate = isNaN(targetDate.getTime()) ? new Date() : targetDate;
+  const dateStr = calcDate.toISOString().split('T')[0];
+
+  const transitCalculator = new TransitCalculator();
+  const transitChart = await transitCalculator.calculateTransitChart({
+    timestampIso: calcDate.toISOString(),
+    timezone: profileInput.timezone || 'UTC',
+    location: {
+      latitude: (profileInput as any).latitude ?? 28.6139,
+      longitude: (profileInput as any).longitude ?? 77.2090,
+      placeName: profileInput.placeName ?? 'Default Location',
+      timezone: profileInput.timezone || 'UTC',
+    },
+  });
+
+  const transitPlanetsList: PlanetSymbol[] = [
+    PlanetSymbol.SATURN,
+    PlanetSymbol.JUPITER,
+    PlanetSymbol.RAHU,
+    PlanetSymbol.KETU,
+    PlanetSymbol.MARS,
+    PlanetSymbol.SUN,
+    PlanetSymbol.VENUS,
+    PlanetSymbol.MERCURY,
   ];
 
-  const currentTransits: TransitPlacementDto[] = ephemerisSnapshot.map((t) => {
-    const houseFromMoon = ((t.signIdx - natalMoonRashiIdx + 12) % 12) + 1;
-    const houseFromLagna = ((t.signIdx - natalLagnaRashiIdx + 12) % 12) + 1;
-    const isBenefic = (BENEFIC_TRANSIT_HOUSES[t.planet] || []).includes(houseFromMoon);
+  const currentTransits: TransitPlacementDto[] = transitPlanetsList.map((pSym) => {
+    const tPos = transitChart.planets[pSym];
+    const signIdx = tPos?.rashiIndex ?? 1;
+    const signDef = RASHIS[signIdx - 1];
+    const signName = signDef ? signDef.englishName : (SIGN_NAMES_BY_INDEX[signIdx] || 'Aries');
+    const deg = tPos ? parseFloat(tPos.degreeInRashi.toFixed(1)) : 0.0;
+    const isRetro = tPos ? tPos.isRetrograde : false;
+
+    const houseFromMoon = ((signIdx - natalMoonRashiIdx + 12) % 12) + 1;
+    const houseFromLagna = ((signIdx - natalLagnaRashiIdx + 12) % 12) + 1;
+    const isBenefic = (BENEFIC_TRANSIT_HOUSES[pSym] || []).includes(houseFromMoon);
 
     return {
-      planet: t.planet,
-      currentSign: t.sign,
-      currentDegree: t.deg,
+      planet: pSym,
+      currentSign: signName,
+      currentDegree: deg,
       houseFromMoon,
       houseFromLagna,
-      isRetrograde: t.isRetro,
+      isRetrograde: isRetro,
       status: isBenefic ? 'FAVORABLE' : 'CHALLENGING',
       impactSummary: isBenefic
         ? `Transiting House ${houseFromMoon} from Moon: Classical Vedanga Gochara indicates positive support and strength.`
@@ -165,37 +188,38 @@ export async function generatePlanetaryReport(
     };
   });
 
-  // 9. Sade Sati Status
+  // 9. Neutral Saturn Transit Analysis (without dosha classification)
   const rawMoonLong = ((chart.planets || []).find((p: any) => String(p.planet || p.name).toUpperCase() === 'MOON'))?.longitude ?? 0;
-  const transitSaturnLong = 345.0; // Pisces
+  const transitSaturnPos = transitChart.planets[PlanetSymbol.SATURN];
+  const transitSaturnLong = transitSaturnPos?.longitude ?? 345.0;
   const sadeSatiResult = SadeSatiCalculator.evaluateSadeSati(rawMoonLong, transitSaturnLong);
 
   // 10. 3-to-6 Month Transit Windows
-  const today = new Date();
-  const dateStr = today.toISOString().split('T')[0];
+  const saturnSign = currentTransits.find((t) => t.planet === 'SATURN')?.currentSign || 'Pisces';
+  const jupiterSign = currentTransits.find((t) => t.planet === 'JUPITER')?.currentSign || 'Taurus';
 
   const transitWindows: TransitWindowDto[] = [
     {
       planet: 'JUPITER',
-      event: 'Gochara Guru Transit through 2nd/5th/9th Axis',
+      event: `Gochara Guru Transit in ${jupiterSign}`,
       startDate: dateStr,
-      endDate: new Date(today.getTime() + 90 * 86400000).toISOString().split('T')[0],
+      endDate: new Date(calcDate.getTime() + 90 * 86400000).toISOString().split('T')[0],
       significance: 'Expansion of professional contacts, higher wisdom, and familial stability.',
       recommendation: 'Favorable window for initiating long-term educational and financial plans.',
     },
     {
       planet: 'SATURN',
-      event: 'Shani Gochara Stability Phase in Pisces',
+      event: `Shani Gochara Stability Phase in ${saturnSign}`,
       startDate: dateStr,
-      endDate: new Date(today.getTime() + 180 * 86400000).toISOString().split('T')[0],
+      endDate: new Date(calcDate.getTime() + 180 * 86400000).toISOString().split('T')[0],
       significance: 'Karmic restructuring of spiritual discipline, expenses, and endurance.',
       recommendation: 'Maintain grounded routines, avoid speculative ventures, and honor commitments.',
     },
     {
       planet: 'MARS',
       event: 'Mangal Ingress & Energetic Shift',
-      startDate: new Date(today.getTime() + 45 * 86400000).toISOString().split('T')[0],
-      endDate: new Date(today.getTime() + 105 * 86400000).toISOString().split('T')[0],
+      startDate: new Date(calcDate.getTime() + 45 * 86400000).toISOString().split('T')[0],
+      endDate: new Date(calcDate.getTime() + 105 * 86400000).toISOString().split('T')[0],
       significance: 'High dynamic drive, proactive leadership, and potential for conflict if unchecked.',
       recommendation: 'Channel excess physical energy into focused productive work; avoid hasty arguments.',
     },

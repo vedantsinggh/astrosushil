@@ -130,6 +130,17 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
       return updated;
     });
 
+    vi.spyOn(prisma.report, 'updateMany').mockImplementation(async ({ where, data }: any) => {
+      let count = 0;
+      for (const [id, r] of reportsStore.entries()) {
+        if (where?.id && r.id !== where.id) continue;
+        if (where?.status?.in && !where.status.in.includes(r.status)) continue;
+        Object.assign(r, data, { updatedAt: new Date() });
+        count++;
+      }
+      return { count };
+    });
+
     vi.spyOn(prisma.order, 'findFirst').mockImplementation(async ({ where }: any) => {
       const all = Array.from(ordersStore.values());
       const filtered = all.filter((o) => {
@@ -139,6 +150,20 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
         return true;
       });
       return filtered[filtered.length - 1] || null;
+    });
+
+    vi.spyOn(prisma.order, 'findUnique').mockImplementation(async ({ where }: any) => {
+      return ordersStore.get(where.id) || null;
+    });
+
+    vi.spyOn(prisma.order, 'updateMany').mockImplementation(async ({ where, data }: any) => {
+      let count = 0;
+      for (const [id, ord] of ordersStore.entries()) {
+        if (where?.id && ord.id !== where.id) continue;
+        Object.assign(ord, data);
+        count++;
+      }
+      return { count };
     });
 
     app = buildApp();
@@ -156,6 +181,30 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
   beforeEach(() => {
     reportsStore.clear();
     ordersStore.clear();
+
+    ordersStore.set('order-prosity-user1', {
+      id: 'order-prosity-user1',
+      userId: user1.id,
+      reportType: 'CAREER_PROSITY',
+      status: 'PAID',
+      fulfillmentStatus: 'UNFULFILLED',
+      razorpayOrderId: 'order_rzp_prosity',
+      amount: 69900,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    ordersStore.set('order-matchmaking-user1', {
+      id: 'order-matchmaking-user1',
+      userId: user1.id,
+      reportType: 'MARRIAGE_COMPATIBILITY',
+      status: 'PAID',
+      fulfillmentStatus: 'UNFULFILLED',
+      razorpayOrderId: 'order_rzp_matchmaking',
+      amount: 49900,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 
   // --- 1. PRO HOROSCOPE (CAREER_PROSITY) GENERATION & VECTOR PDF ---
@@ -317,6 +366,7 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
   // --- 5. ENTITLEMENT ACCESS VERIFICATION ---
   it('5. Evaluates featureAccessService for paid orders on consumer report types', async () => {
     // Before order, free tier check
+    ordersStore.clear();
     const accessBefore = await featureAccessService.evaluateFeatureAccess(user1.id, 'CAREER_PROSITY');
     expect(accessBefore.allowed).toBe(false);
     expect(accessBefore.reason).toBe('NO_ACTIVE_ORDER');

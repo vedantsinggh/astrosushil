@@ -86,7 +86,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       title: 'Birth Chart & Kundli Report',
       tagline: 'YOUR COSMIC BLUEPRINT (D1 & CHANDRA)',
       description:
-          'Comprehensive astrological document detailing your Janma & Chandra Kundli, 9 Grahas, Vimshottari Dasha, Doshas, and Gemstone recommendations.',
+          'Comprehensive astrological document detailing your Janma & Chandra Kundli, 9 Grahas, Vimshottari Dasha, planetary placements, and Gemstone recommendations.',
       priceText: '₹299',
       pricePaise: 29900,
       icon: Icons.auto_awesome_rounded,
@@ -96,7 +96,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
         'North Indian D1 Lagna Kundli & Chandra Kundli',
         '9 Graha Placements, Degrees & Functional Dignities',
         '120-Year Parashari Vimshottari Dasha Periods',
-        'Classical Dosha Detection (Manglik, Sade Sati, Kaal Sarp)',
+        'Planetary Placements & Manglik Analysis',
         'Trikona Lord Gemstone Recommendations (1st, 5th, 9th Lords)',
       ],
     );
@@ -111,9 +111,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       context: context,
       reportType: 'PLANETARY_SUMMARY',
       title: 'Mini Horoscope & Transit Forecast',
-      tagline: '3-6 MONTH TRANSIT WINDOWS & SADE SATI',
+      tagline: '3-6 MONTH TRANSIT WINDOWS & PLANETARY CYCLES',
       description:
-          'Detailed transit forecast from Janma Rashi, Sade Sati phase analysis, planetary dignities, and key caution dates.',
+          'Detailed transit forecast from Janma Rashi, Saturn planetary cycle analysis, planetary dignities, and key caution dates.',
       priceText: '₹199',
       pricePaise: 19900,
       icon: Icons.brightness_6_rounded,
@@ -121,7 +121,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       profile: profile,
       includedSections: const [
         '3–6 Month Transit Horizons from Janma Rashi (Natal Moon)',
-        'Real-Time Sade Sati Phase Tracking & Astrological Influence',
+        'Saturn Transit Gochara Tracking & Planetary Cycles',
         'Planetary Combustion, Retrogression & Dignity Status',
         'Critical Astrological Caution Dates & Favorable Windows',
       ],
@@ -174,7 +174,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       profile: profile,
       includedSections: const [
         'Full 36-Point Ashtakoota Guna Milan (Varna, Vashya, Tara, Yoni, Maitri, Gana, Bhakoot, Nadi)',
-        'Comparative Dual-Chart Manglik Dosha Analysis & Cancellation Rules',
+        'Comparative Dual-Chart Manglik Placement & Compatibility Analysis',
         '7th House & Venus/Jupiter Synastry Analysis',
         'Astrological Compatibility Score & Relationship Synthesis',
       ],
@@ -251,8 +251,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 style: TextStyle(fontSize: 13, color: AppColors.textMutedDark),
               ),
               const Divider(height: 20),
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Expanded(
                     flex: 3,
                     child: Text(
@@ -305,9 +305,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
               const Divider(height: 16, color: AppColors.cardBorder),
               _buildTierComparisonRow('Janma Kundli (D1 & Chandra)', true, true, true, false),
               _buildTierComparisonRow('120-Year Vimshottari Dasha', true, false, true, true),
-              _buildTierComparisonRow('Doshas & Gemstones (1st/5th/9th)', true, false, true, false),
+              _buildTierComparisonRow('Placements & Gemstones (1st/5th/9th)', true, false, true, false),
               _buildTierComparisonRow('3–6 Month Transit Horizon', false, true, false, false),
-              _buildTierComparisonRow('Sade Sati Phase & Caution Dates', true, true, false, false),
+              _buildTierComparisonRow('Saturn Cycles & Caution Dates', true, true, false, false),
               _buildTierComparisonRow('10th House Vocational DNA', false, false, false, true),
               _buildTierComparisonRow('Divisional Charts (D9, D10, D7, D12)', false, false, true, false),
               _buildTierComparisonRow('6-Fold Planetary Shadbala', false, false, true, false),
@@ -840,7 +840,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             title: 'Birth Chart & Kundli Report',
             tagline: 'YOUR COSMIC BLUEPRINT (D1 & CHANDRA)',
             description:
-                'Comprehensive astrological document detailing your Janma & Chandra Kundli, 9 Grahas, Vimshottari Dasha, Doshas, and Gemstone recommendations.',
+                'Comprehensive astrological document detailing your Janma & Chandra Kundli, 9 Grahas, Vimshottari Dasha, planetary placements, and Gemstone recommendations.',
             icon: Icons.auto_awesome_rounded,
             accentColor: AppColors.premiumAccent,
             isAvailable: true,
@@ -858,9 +858,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           // PLANETARY SUMMARY REPORT CARD (₹199)
           _ReportCard(
             title: 'Mini Horoscope & Transit Forecast',
-            tagline: '3-6 MONTH TRANSIT WINDOWS & SADE SATI',
+            tagline: '3-6 MONTH TRANSIT WINDOWS & PLANETARY CYCLES',
             description:
-                'Detailed transit forecast from Janma Rashi, Sade Sati phase analysis, planetary dignities, and key caution dates.',
+                'Detailed transit forecast from Janma Rashi, Saturn planetary cycle analysis, planetary dignities, and key caution dates.',
             icon: Icons.brightness_6_rounded,
             accentColor: AppColors.secondary,
             isAvailable: true,
@@ -941,7 +941,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          _ReportCard(
+          const _ReportCard(
             title: 'Gupta Nadi Life Dossier',
             tagline: 'EXHAUSTIVE BNN PLANETARY COMBINATION READING',
             description:

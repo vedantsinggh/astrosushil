@@ -27,6 +27,9 @@ export class OpenRouterCareerAnalysisProvider implements CareerAnalysisProvider 
     );
 
     if (!isApiKeyValid) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('AI_CREDENTIALS_MISSING: OPENROUTER_API_KEY is required in production environment. Mock provider is disabled.');
+      }
       console.warn('[OpenRouterCareerAnalysisProvider] OPENROUTER_API_KEY not set. Using MockCareerAnalysisProvider.');
       return new MockCareerAnalysisProvider().analyze(input);
     }
@@ -116,10 +119,12 @@ export class OpenRouterCareerAnalysisProvider implements CareerAnalysisProvider 
       }
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const allowMockFallback =
-      process.env.ALLOW_MOCK_FALLBACK === 'true' ||
-      process.env.NODE_ENV !== 'production' ||
-      process.env.LLM_PROVIDER === 'mock';
+      !isProduction &&
+      (this.config.allowMockFallback ??
+        (process.env.ALLOW_MOCK_FALLBACK === 'true' ||
+          process.env.LLM_PROVIDER === 'mock'));
 
     if (allowMockFallback) {
       console.warn(`[OpenRouterCareerAnalysisProvider] Retries exhausted or length error encountered. Falling back to deterministic MockCareerAnalysisProvider.`);
@@ -261,7 +266,7 @@ ${correctionMessage ? `CORRECTION INSTRUCTIONS:\n${correctionMessage}` : ''}
     }
   }
 
-  private parseJsonContent(rawText: string, executionId?: string, attemptNumber?: number): any {
+  public parseJsonContent(rawText: string, executionId?: string, attemptNumber?: number): any {
     let cleaned = rawText.trim();
 
     // 1. Remove markdown code fence blocks if present

@@ -578,7 +578,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         _buildAshtakootaBreakdownCard(ashtakoota),
         const SizedBox(height: 16),
 
-        // 4. MANGLIK DOSHA COMPARISON
+        // 4. MANGLIK COMPATIBILITY EVALUATION
         _buildManglikComparisonCard(manglik, personA?.name ?? 'Person A', personB?.name ?? 'Person B'),
         const SizedBox(height: 24),
 
@@ -880,7 +880,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'Dosha Cancelled: ${koota.cancellationReason}',
+                  'Neutralized: ${koota.cancellationReason}',
                   style: const TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
@@ -901,8 +901,8 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     String nameB,
   ) {
     return AstrologySectionCard(
-      title: 'Manglik Dosha Comparison (Kuja Dosha)',
-      subtitle: 'Pairwise Mars placement, severity, and dosha neutralization',
+      title: 'Manglik Compatibility Evaluation',
+      subtitle: 'Pairwise Mars placement and partnership dynamics',
       icon: Icons.shield_rounded,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -911,14 +911,10 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: manglik.isHarmonious
-                  ? AppColors.success.withValues(alpha: 0.08)
-                  : AppColors.error.withValues(alpha: 0.08),
+              color: AppColors.primary.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: manglik.isHarmonious
-                    ? AppColors.success.withValues(alpha: 0.25)
-                    : AppColors.error.withValues(alpha: 0.25),
+                color: AppColors.primary.withValues(alpha: 0.18),
               ),
             ),
             child: Column(
@@ -926,10 +922,10 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
               children: [
                 Text(
                   'Verdict: ${manglik.verdict.replaceAll("_", " ")}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: manglik.isHarmonious ? AppColors.success : AppColors.error,
+                    color: AppColors.primary,
                   ),
                 ),
                 if (manglik.explanation.isNotEmpty) ...[
@@ -977,20 +973,16 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: status.isManglik
-                      ? (status.isCancelled ? Colors.orange.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12))
-                      : AppColors.success.withValues(alpha: 0.12),
+                      ? AppColors.primary.withValues(alpha: 0.10)
+                      : AppColors.success.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  status.isManglik
-                      ? (status.isCancelled ? 'MANGLIK (CANCELLED)' : 'MANGLIK (${status.severity})')
-                      : 'NON-MANGLIK',
+                  status.isManglik ? 'PRESENT' : 'NOT PRESENT',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: status.isManglik
-                        ? (status.isCancelled ? Colors.orange.shade900 : AppColors.error)
-                        : AppColors.success,
+                    color: status.isManglik ? AppColors.primary : AppColors.success,
                   ),
                 ),
               ),
@@ -1004,7 +996,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
           if (status.cancellationFactors.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
-              'Cancellations: ${status.cancellationFactors.join(", ")}',
+              'Alignment Factors: ${status.cancellationFactors.join(", ")}',
               style: const TextStyle(fontSize: 10.5, color: AppColors.success),
             ),
           ],

@@ -8,6 +8,8 @@ import {
   AstrologyConfig,
   UnconfirmedMethodologyError,
   BirthDetailsValidationError,
+  BirthTimeAmbiguousError,
+  BirthTimeNonexistentError,
   BirthDetails,
   PlanetSymbol,
   VargaType,
@@ -204,6 +206,29 @@ export class AstrologyService {
       const normalized = normalizeAstroChart(rawChart);
       return mapAstroChartToResponse(rawChart, normalized);
     } catch (error: any) {
+      if (error instanceof BirthTimeAmbiguousError) {
+        throw new ValidationError(error.message, [
+          {
+            field: 'timeOfBirth',
+            message: error.message,
+            code: 'AMBIGUOUS_LOCAL_TIME',
+            localIsoString: error.localIsoString,
+            timezone: error.timezone,
+            candidates: error.candidates,
+          },
+        ]);
+      }
+      if (error instanceof BirthTimeNonexistentError) {
+        throw new ValidationError(error.message, [
+          {
+            field: 'timeOfBirth',
+            message: error.message,
+            code: 'NONEXISTENT_LOCAL_TIME',
+            localIsoString: error.localIsoString,
+            timezone: error.timezone,
+          },
+        ]);
+      }
       if (error instanceof BirthDetailsValidationError) {
         throw new ValidationError(error.message);
       }
@@ -575,39 +600,14 @@ export class AstrologyService {
   }
 
   public async calculateSadeSati(
-    input: SadeSatiRequestInput,
-    requestingUser?: { id: string; role?: string }
+    _input: SadeSatiRequestInput,
+    _requestingUser?: { id: string; role?: string }
   ) {
-    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
-    const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
-    const natalMoon = chart.planets[PlanetSymbol.MOON];
-
-    if (!natalMoon) {
-      throw new AppError('Could not calculate natal Moon position', 500, 'ASTRONOMY_CALCULATION_ERROR');
-    }
-
-    let transitSaturnLong = input.transitSaturnLongitude;
-    if (typeof transitSaturnLong !== 'number') {
-      const transitDate = input.transitDate ? new Date(input.transitDate) : new Date();
-      const transitSnapshot = await this.transitCalculator.calculateTransitSnapshot(
-        {
-          timestampIso: transitDate.toISOString(),
-          timezone: birthDetails.timezone || 'UTC',
-          location: {
-            latitude: birthDetails.latitude,
-            longitude: birthDetails.longitude,
-            timezone: birthDetails.timezone || 'UTC',
-          },
-        },
-        chart,
-        this.getActiveConfig(),
-        ['D1']
-      );
-      const saturnTransit = transitSnapshot.transitChart.planets[PlanetSymbol.SATURN];
-      transitSaturnLong = saturnTransit?.longitude ?? 0;
-    }
-
-    return SadeSatiCalculator.evaluateSadeSati(natalMoon.longitude, transitSaturnLong);
+    throw new AppError(
+      'The Sade Sati calculation method has been decommissioned in accordance with editorial policy. General planetary transit calculations are available via calculateGochara.',
+      410,
+      'ENDPOINT_DECOMMISSIONED'
+    );
   }
 
   public async calculateChartVariants(

@@ -808,7 +808,7 @@ export class CareerEvidenceEngine {
   }
 
   private evaluateHouseEvidence(chart: NormalizedChart): HouseEvidenceItem[] {
-    const targetHouses = [2, 5, 6, 9, 10, 11, 12];
+    const targetHouses = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
     return targetHouses.map((houseNum) => {
       const house = this.findHouse(chart, houseNum);

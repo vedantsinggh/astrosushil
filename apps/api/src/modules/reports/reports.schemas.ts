@@ -9,6 +9,7 @@ export const createReportSchema = z.object({
     'CAREER_PROSITY',
     'MARRIAGE_COMPATIBILITY',
     'GUPTA_NADI_DOSSIER',
+    'CHILDBIRTH_FAMILY',
   ], {
     errorMap: () => ({ message: 'Invalid reportType' }),
   }),

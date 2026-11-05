@@ -304,12 +304,12 @@ void main() {
       expect(find.text('6 / 6'), findsOneWidget);
       expect(find.text('7 / 7'), findsOneWidget);
       expect(find.text('3 / 8'), findsOneWidget);
-      expect(find.textContaining('Dosha Cancelled: Same Rashi lord'), findsOneWidget);
+      expect(find.textContaining('Neutralized: Same Rashi lord'), findsOneWidget);
 
       // Manglik Card
-      expect(find.text('Manglik Dosha Comparison (Kuja Dosha)'), findsOneWidget);
+      expect(find.text('Manglik Compatibility Evaluation'), findsOneWidget);
       expect(find.textContaining('Verdict: BOTH NON MANGLIK'), findsOneWidget);
-      expect(find.text('NON-MANGLIK'), findsWidgets);
+      expect(find.text('NOT PRESENT'), findsWidgets);
 
       // Action button
       expect(find.text('Select Different Profiles'), findsOneWidget);

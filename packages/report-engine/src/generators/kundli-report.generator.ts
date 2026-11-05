@@ -8,6 +8,7 @@ import {
   ReportHouseDto,
   ReportNakshatraDto,
   DoshaAnalysisDto,
+  PlanetaryPlacementAndTransitDto,
   GemstoneRecommendationsDto,
   VimshottariDashaDto,
 } from '../types/report.types';
@@ -200,67 +201,42 @@ export async function generateKundliReport(
     // If dasha calculation cannot resolve date, provide fallback timeline
   }
 
-  // 10. Dosha Analysis
-  // A. Manglik Dosha
+  // 10. Planetary Placement & Transit Analysis
+  // A. Manglik Placement Evaluation
   const marsPlanet = planets.find((p) => p.planet === 'MARS');
   const marsHouse = marsPlanet ? marsPlanet.house : 1;
   const isMarsInManglikHouse = [1, 4, 7, 8, 12].includes(marsHouse);
-  const manglikSeverity = isMarsInManglikHouse ? (marsHouse === 7 || marsHouse === 8 ? 'HIGH' : 'MEDIUM') : 'NONE';
+  const manglikStatus = isMarsInManglikHouse ? 'Present' : 'Not Present';
   const manglikDesc = isMarsInManglikHouse
-    ? `Mars is placed in House ${marsHouse} (Kendra/Dusthana placement from Lagna), indicating ${manglikSeverity} Kuja / Manglik influence.`
-    : `Mars is placed in House ${marsHouse}, which is outside the canonical Manglik placements (1, 4, 7, 8, 12). No significant Manglik dosha.`;
+    ? `Mars is placed in House ${marsHouse} from Lagna. This placement highlights dynamic assertiveness, high personal initiative, and direct communication in key life areas.`
+    : `Mars is placed in House ${marsHouse} from Lagna, outside the classical 1st, 4th, 7th, 8th, or 12th positions. Reflects steady and balanced physical energy.`;
 
-  // B. Sade Sati
+  // B. Neutral Saturn Gochara Transit Cycle
   const rawMoonLong = ((chart.planets || []).find((p: any) => String(p.planet || p.name).toUpperCase() === 'MOON'))?.longitude ?? 0;
-  // Current Saturn longitude approx (Pisces ~345 deg)
-  const transitSaturnLong = 345.0;
-  const sadeSatiResult = SadeSatiCalculator.evaluateSadeSati(rawMoonLong, transitSaturnLong);
+  const transitSaturnLong = 345.0; // Pisces
+  const saturnTransitHouseFromMoon = Math.floor(((360 + (transitSaturnLong - rawMoonLong) % 360) % 360) / 30) + 1;
+  const saturnTransitDesc = `Saturn is currently transiting House ${saturnTransitHouseFromMoon} relative to natal Moon, indicating a period for structured focus, patience, and disciplined long-term planning.`;
 
-  // C. Kaal Sarp Check
-  // Check if all 7 planets are between Rahu and Ketu
-  const rahuPlanet = (chart.planets || []).find((p: any) => String(p.planet || p.name).toUpperCase() === 'RAHU');
-  const ketuPlanet = (chart.planets || []).find((p: any) => String(p.planet || p.name).toUpperCase() === 'KETU');
-  let isKaalSarp = false;
-  if (rahuPlanet && ketuPlanet && typeof rahuPlanet.longitude === 'number' && typeof ketuPlanet.longitude === 'number') {
-    const rahuLong = rahuPlanet.longitude;
-    const ketuLong = ketuPlanet.longitude;
-    const physicalPlanets = (chart.planets || []).filter((p: any) => {
-      const name = String(p.planet || p.name).toUpperCase();
-      return ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN'].includes(name);
-    });
-
-    const isSideA = physicalPlanets.every((p: any) => {
-      const l = p.longitude;
-      return (rahuLong <= ketuLong) ? (l >= rahuLong && l <= ketuLong) : (l >= rahuLong || l <= ketuLong);
-    });
-    const isSideB = physicalPlanets.every((p: any) => {
-      const l = p.longitude;
-      return (ketuLong <= rahuLong) ? (l >= ketuLong && l <= rahuLong) : (l >= ketuLong || l <= rahuLong);
-    });
-    isKaalSarp = isSideA || isSideB;
-  }
-
-  const doshaAnalysis: DoshaAnalysisDto = {
+  const planetaryPlacementAndTransits: PlanetaryPlacementAndTransitDto = {
     manglik: {
+      status: manglikStatus,
       isManglik: isMarsInManglikHouse,
-      severity: manglikSeverity as any,
       description: manglikDesc,
       cancellingFactors: isMarsInManglikHouse && marsPlanet?.sign === 'Aries' ? ['Mars placed in own sign Aries'] : [],
     },
-    sadeSati: {
-      isSadeSatiActive: sadeSatiResult.isSadeSatiActive,
-      phase: sadeSatiResult.phase,
-      phaseName: sadeSatiResult.phaseName,
-      description: sadeSatiResult.description,
-      isDhaiyyaActive: sadeSatiResult.isDhaiyyaActive,
-      dhaiyyaName: sadeSatiResult.dhaiyyaName,
+    saturnTransit: {
+      transitHouseFromMoon: saturnTransitHouseFromMoon,
+      description: saturnTransitDesc,
     },
-    kaalSarp: {
-      isKaalSarpPresent: isKaalSarp,
-      typeName: isKaalSarp ? 'Anant Kaal Sarp Yoga' : 'No Kaal Sarp Yoga',
-      description: isKaalSarp
-        ? 'All 7 classical physical grahas are hemmed between the Rahu-Ketu lunar node axis.'
-        : 'Planets are distributed across both sides of the Rahu-Ketu axis. No Kaal Sarp yoga detected.',
+  };
+
+  const doshaAnalysis: DoshaAnalysisDto = {
+    manglik: {
+      status: manglikStatus,
+      isManglik: isMarsInManglikHouse,
+      severity: manglikStatus,
+      description: manglikDesc,
+      cancellingFactors: isMarsInManglikHouse && marsPlanet?.sign === 'Aries' ? ['Mars placed in own sign Aries'] : [],
     },
   };
 
@@ -301,7 +277,7 @@ export async function generateKundliReport(
       metal: ninthLordInfo.metal,
       rulingLord: ninthLordInfo.lord,
       purpose: 'Fortune Stone (Bhagya Ratna) - Activates dharma, higher fortune, divine grace, and prosperity.',
-      caution: 'Perform proper purification (Prana Pratishtha) before first wear.',
+      caution: 'Ensure natural, untreated gemstone. Consult before wearing if 9th lord forms dusthana afflictions without benefic aspect.',
       isRecommended: true,
     },
     generalAdvisory:
@@ -331,6 +307,7 @@ export async function generateKundliReport(
       houses: chandraHouses,
     },
     vimshottariDasha,
+    planetaryPlacementAndTransits,
     doshaAnalysis,
     gemstoneRecommendations,
   };

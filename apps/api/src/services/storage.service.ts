@@ -23,7 +23,17 @@ export interface ObjectMetadata {
 }
 
 export class StorageService {
-  private readonly localFallbackDir = path.resolve('/tmp/astro-sushil/storage');
+  private get localFallbackDir(): string {
+    return path.resolve(process.env.STORAGE_LOCAL_DIR || '/tmp/astro-sushil/storage');
+  }
+
+  private ensureConfiguredInProduction(): void {
+    if (process.env.NODE_ENV === 'production' && !this.r2Config) {
+      throw new Error(
+        'STORAGE_CONFIGURATION_ERROR: Cloudflare R2 / S3 object storage credentials must be configured in production. Ephemeral local disk fallback is disabled in production.'
+      );
+    }
+  }
 
   private get r2Config() {
     const accountId = process.env.R2_ACCOUNT_ID || process.env.S3_ACCOUNT_ID;
@@ -69,6 +79,7 @@ export class StorageService {
    */
   public async upload(input: ObjectStorageUploadInput): Promise<ObjectStorageUploadResult> {
     this.validateKey(input.key);
+    this.ensureConfiguredInProduction();
     const checksum = crypto.createHash('sha256').update(input.body).digest('hex');
     const contentType = input.contentType || 'application/pdf';
     const config = this.r2Config;
@@ -137,6 +148,7 @@ export class StorageService {
    */
   public async getSignedDownloadUrl(key: string, expiresInSeconds: number = 900): Promise<string> {
     this.validateKey(key);
+    this.ensureConfiguredInProduction();
     const config = this.r2Config;
     const expiresAtMs = Date.now() + expiresInSeconds * 1000;
 
@@ -200,6 +212,9 @@ export class StorageService {
    * Validates a tokenized local download signature.
    */
   public verifyLocalSignedUrl(key: string, expiresMs: number, token: string): boolean {
+    if (process.env.NODE_ENV === 'production') {
+      return false;
+    }
     if (Date.now() > expiresMs) {
       return false;
     }
@@ -218,6 +233,7 @@ export class StorageService {
    */
   public async delete(key: string): Promise<void> {
     this.validateKey(key);
+    this.ensureConfiguredInProduction();
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;
@@ -257,6 +273,7 @@ export class StorageService {
    */
   public async exists(key: string): Promise<boolean> {
     this.validateKey(key);
+    this.ensureConfiguredInProduction();
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;
@@ -294,6 +311,7 @@ export class StorageService {
    */
   public async getMetadata(key: string): Promise<ObjectMetadata | null> {
     this.validateKey(key);
+    this.ensureConfiguredInProduction();
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;
@@ -348,6 +366,7 @@ export class StorageService {
    */
   public async downloadBuffer(key: string): Promise<Buffer> {
     this.validateKey(key);
+    this.ensureConfiguredInProduction();
     const config = this.r2Config;
     if (config) {
       const url = `https://${config.host}/${key}`;

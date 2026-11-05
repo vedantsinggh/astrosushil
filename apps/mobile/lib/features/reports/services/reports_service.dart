@@ -3,22 +3,62 @@ import '../../../core/network/api_client.dart';
 import '../models/report_model.dart';
 import '../models/career_report_models.dart';
 import '../models/user_report_item_model.dart';
+import '../models/report_purchase_models.dart';
 
 class ReportsService {
   final ApiClient _apiClient;
 
   ReportsService({required ApiClient apiClient}) : _apiClient = apiClient;
 
+  /// Request authoritative server order creation for a report SKU
+  Future<ReportPaymentOrder> createReportOrder({
+    required String reportType,
+    String? idempotencyKey,
+  }) async {
+    final response = await _apiClient.post(
+      '/payments/create-order',
+      data: {
+        'reportType': reportType,
+        if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+      },
+    );
+    return ReportPaymentOrder.fromJson(response);
+  }
+
+  /// Verify Razorpay payment signature after checkout completion
+  Future<Map<String, dynamic>> verifyReportPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    return await _apiClient.post(
+      '/payments/verify',
+      data: {
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
+      },
+    );
+  }
+
+  /// Fetch order details and verified payment status by order ID
+  Future<Map<String, dynamic>> getPaymentOrderStatus(String orderId) async {
+    final response = await _apiClient.get('/payments/orders/$orderId');
+    return response['order'] as Map<String, dynamic>? ?? response;
+  }
+
   /// Initiate asynchronous Career Report generation pipeline
   Future<Map<String, dynamic>> createCareerReport({
     required String birthProfileId,
     bool forceRegenerate = false,
+    String? orderId,
   }) async {
     return await _apiClient.post(
       '/reports/career',
       data: {
         'birthProfileId': birthProfileId,
         'forceRegenerate': forceRegenerate,
+        if (orderId != null) 'orderId': orderId,
       },
     );
   }
@@ -102,6 +142,7 @@ class ReportsService {
       return await createCareerReport(
         birthProfileId: birthProfileId,
         forceRegenerate: forceRegenerate,
+        orderId: orderId,
       );
     }
 

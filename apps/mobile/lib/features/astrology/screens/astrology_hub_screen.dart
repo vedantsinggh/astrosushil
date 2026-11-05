@@ -171,7 +171,7 @@ class _AstrologyHubScreenState extends ConsumerState<AstrologyHubScreen> {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('All calculations are 100% deterministic using Swiss Ephemeris & Lahiri Ayanamsa.'),
+                  content: Text('All calculations are 100% deterministic using Astronomy Engine (VSOP87/ELP2000-82) & Lahiri Ayanamsa.'),
                   duration: Duration(seconds: 3),
                 ),
               );
@@ -553,7 +553,7 @@ class _AstrologyHubScreenState extends ConsumerState<AstrologyHubScreen> {
   Widget _buildMatchmakingSection(BuildContext context, BirthProfileModel profile) {
     return AstrologySectionCard(
       title: 'Matchmaking & Compatibility',
-      subtitle: '36-point Ashtakoota Guna Milan and Manglik Dosha comparison',
+      subtitle: '36-point Ashtakoota Guna Milan and Manglik compatibility',
       icon: Icons.favorite_rounded,
       child: Column(
         children: [

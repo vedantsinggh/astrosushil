@@ -1,15 +1,23 @@
 import { redisQueueService } from './services/redis-queue.service';
 import { careerReportWorker } from './services/report-worker.service';
+import { nativeRedisClient } from './services/redis-client';
 import { logger } from './utils/logger';
 
 async function startWorkerLoop() {
   logger.info('🚀 [ReportWorkerProcess] Background Report Worker started');
 
+  // Start autonomous recurring stale-job and orphaned order recovery loop
+  careerReportWorker.startStaleRecoveryLoop();
+
   let isRunning = true;
 
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     logger.info(`[ReportWorkerProcess] Received ${signal}. Shutting down worker gracefully...`);
     isRunning = false;
+    careerReportWorker.stopStaleRecoveryLoop();
+    try {
+      await nativeRedisClient.quit();
+    } catch (_) {}
     process.exit(0);
   };
 

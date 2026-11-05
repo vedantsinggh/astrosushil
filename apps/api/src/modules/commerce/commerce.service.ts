@@ -54,6 +54,7 @@ export class CommerceService {
           status: existing.status,
           paymentStatus: existing.paymentStatus,
           items: existing.items,
+          razorpayKey: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
         };
       }
     }
@@ -147,6 +148,7 @@ export class CommerceService {
       paymentStatus: order.paymentStatus,
       reportType: order.reportType,
       items: order.items,
+      razorpayKey: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
     };
   }
 

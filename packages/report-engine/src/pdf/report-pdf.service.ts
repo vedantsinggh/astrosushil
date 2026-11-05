@@ -320,23 +320,37 @@ export class ReportPdfService {
       curY = 775;
     }
 
-    if (report.doshaAnalysis) {
-      pdf.drawText('7. CLASSICAL DOSHA EVALUATION', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+    // 7. Planetary Placement & Transit Analysis
+    const manglikData = report.planetaryPlacementAndTransits?.manglik || report.doshaAnalysis?.manglik;
+    const saturnData = report.planetaryPlacementAndTransits?.saturnTransit;
+
+    if (manglikData) {
+      pdf.drawText('7. PLANETARY PLACEMENT & TRANSIT ANALYSIS', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
       curY -= 15;
 
-      const doshas = [
-        { name: 'Manglik Dosha', status: report.doshaAnalysis.manglik.isManglik ? `Active (${report.doshaAnalysis.manglik.severity})` : 'Not Present', desc: report.doshaAnalysis.manglik.description },
-        { name: 'Sade Sati Status', status: report.doshaAnalysis.sadeSati.isSadeSatiActive ? `Active (${report.doshaAnalysis.sadeSati.phaseName})` : 'Not Active', desc: report.doshaAnalysis.sadeSati.description },
-        { name: 'Kaal Sarp Yoga', status: report.doshaAnalysis.kaalSarp.isKaalSarpPresent ? report.doshaAnalysis.kaalSarp.typeName : 'Not Present', desc: report.doshaAnalysis.kaalSarp.description },
+      const items: Array<{ name: string; status: string; desc: string }> = [
+        {
+          name: 'Manglik Status',
+          status: manglikData.status || (manglikData.isManglik ? 'Present' : 'Not Present'),
+          desc: manglikData.description,
+        },
       ];
 
-      for (const d of doshas) {
+      if (saturnData) {
+        items.push({
+          name: 'Saturn Transit Position (Gochara)',
+          status: `House ${saturnData.transitHouseFromMoon} from Moon`,
+          desc: saturnData.description,
+        });
+      }
+
+      for (const d of items) {
         pdf.setFillColor(PdfColors.LIGHT_BG);
         pdf.setStrokeColor(PdfColors.BORDER_GREY);
         pdf.drawRect(pdf.marginLeft, curY - 45, pdf.contentWidth, 45, true, true);
 
         pdf.drawText(d.name, pdf.marginLeft + 15, curY - 15, 9.5, true, PdfColors.NAVY);
-        pdf.drawText(`Status: ${d.status}`, pdf.marginLeft + 280, curY - 15, 9, true, d.status.includes('Active') || d.status.includes('Present') ? PdfColors.ROSE : PdfColors.PURPLE);
+        pdf.drawText(`Status: ${d.status}`, pdf.marginLeft + 280, curY - 15, 9, true, PdfColors.PURPLE);
         this.drawWrappedText(pdf, d.desc, pdf.marginLeft + 15, curY - 28, pdf.contentWidth - 30, 8.5, 11);
 
         curY -= 52;
@@ -345,7 +359,7 @@ export class ReportPdfService {
 
     // Gemstone Recommendations Card
     if (report.gemstoneRecommendations) {
-      if (curY < 180) {
+      if (curY < 235) {
         pdf.addPage();
         pdf.drawHeader('Gemstone Recommendations');
         curY = 775;
@@ -370,6 +384,25 @@ export class ReportPdfService {
         pdf.drawText(`Caution: ${g.item.caution}`, pdf.marginLeft + 15, curY - 37, 7.5, false, PdfColors.GREY_TEXT);
 
         curY -= 48;
+      }
+
+      // General Advisory / Methodology Disclaimer Card
+      if (report.gemstoneRecommendations.generalAdvisory) {
+        pdf.setFillColor(PdfColors.LIGHT_BG);
+        pdf.setStrokeColor(PdfColors.BORDER_GREY);
+        pdf.drawRect(pdf.marginLeft, curY - 34, pdf.contentWidth, 34, true, true);
+
+        pdf.drawText('METHODOLOGY ADVISORY', pdf.marginLeft + 15, curY - 11, 8, true, PdfColors.INDIGO);
+        this.drawWrappedText(
+          pdf,
+          report.gemstoneRecommendations.generalAdvisory,
+          pdf.marginLeft + 15,
+          curY - 21,
+          pdf.contentWidth - 30,
+          7.5,
+          9.5
+        );
+        curY -= 40;
       }
     }
   }
@@ -440,26 +473,34 @@ export class ReportPdfService {
       }
     }
 
-    // Sade Sati Status Card
+    // Saturn Transit Card (Neutral Astronomical Analysis)
     const sadeSati = report.miniHoroscopeData?.sadeSati;
     if (sadeSati) {
       curY -= 15;
-      pdf.drawText('2. SHANI SADE SATI & DHAIYYA EVALUATION', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
+      pdf.drawText('2. SATURN TRANSIT (GOCHARA) ANALYSIS', pdf.marginLeft, curY, 11, true, PdfColors.INDIGO);
       curY -= 15;
 
       pdf.setFillColor(PdfColors.LIGHT_BG);
-      pdf.setStrokeColor(PdfColors.PURPLE);
+      pdf.setStrokeColor(PdfColors.BORDER_GREY);
       pdf.drawRect(pdf.marginLeft, curY - 55, pdf.contentWidth, 55, true, true);
 
       pdf.drawText(
-        `Status: ${sadeSati.isSadeSatiActive ? `Active (${sadeSati.phaseName})` : 'No Active Sade Sati'}`,
+        'Astronomical Transit: Saturn Gochara relative to Natal Moon',
         pdf.marginLeft + 15,
         curY - 18,
         10,
         true,
-        sadeSati.isSadeSatiActive ? PdfColors.ROSE : PdfColors.NAVY
+        PdfColors.NAVY
       );
-      this.drawWrappedText(pdf, sadeSati.description, pdf.marginLeft + 15, curY - 32, pdf.contentWidth - 30, 8.5, 11);
+      this.drawWrappedText(
+        pdf,
+        'Saturn transit cycles represent long-term development of discipline, structure, and professional patience as Saturn moves through the zodiac houses.',
+        pdf.marginLeft + 15,
+        curY - 32,
+        pdf.contentWidth - 30,
+        8.5,
+        11
+      );
       curY -= 65;
     }
 
@@ -736,7 +777,7 @@ export class ReportPdfService {
     pdf.setStrokeColor(PdfColors.PURPLE);
     pdf.drawRect(pdf.marginLeft, curY - 65, pdf.contentWidth, 65, true, true);
 
-    pdf.drawText('2. MANGLIK (KUJA DOSHA) COMPARATIVE VERDICT', pdf.marginLeft + 15, curY - 18, 11, true, PdfColors.PURPLE);
+    pdf.drawText('2. MANGLIK PLACEMENT COMPARATIVE EVALUATION', pdf.marginLeft + 15, curY - 18, 11, true, PdfColors.INDIGO);
     pdf.drawText(`Verdict: ${report.manglikComparison.verdict}`, pdf.marginLeft + 15, curY - 34, 10, true, PdfColors.NAVY);
     this.drawWrappedText(pdf, report.manglikComparison.explanation, pdf.marginLeft + 15, curY - 48, pdf.contentWidth - 30, 8.5, 11);
 
@@ -772,7 +813,7 @@ export class ReportPdfService {
       pdf.drawText(k.name, kCols[0].x, curY - 12, 8.5, true, PdfColors.DARK_TEXT);
       pdf.drawText(String(k.maxPoints), kCols[1].x, curY - 12, 8.5, false, PdfColors.GREY_TEXT);
       pdf.drawText(String(k.obtainedPoints), kCols[2].x, curY - 12, 8.5, true, PdfColors.NAVY);
-      pdf.drawText(k.status, kCols[3].x, curY - 12, 8, true, k.status === 'EXCELLENT' ? PdfColors.PURPLE : k.status === 'DOSHA' ? PdfColors.ROSE : PdfColors.DARK_TEXT);
+      pdf.drawText(k.status, kCols[3].x, curY - 12, 8, true, k.status === 'EXCELLENT' ? PdfColors.PURPLE : PdfColors.DARK_TEXT);
       pdf.drawText(k.description, kCols[4].x, curY - 12, 8, false, PdfColors.DARK_TEXT);
 
       curY -= 18;
