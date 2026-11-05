@@ -40,3 +40,5 @@ pnpm-debug.log*
 .docker/
 tmp/
 docs/audits/screenshots
+*.pdf
+docs/audits/referencerepots/
