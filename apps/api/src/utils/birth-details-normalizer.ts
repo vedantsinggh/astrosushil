@@ -1,4 +1,13 @@
 import { NormalizedBirthDetails } from '@astro/shared';
+import {
+  resolveLocalTimeToUtc,
+  isValidIanaTimezone,
+  getOffsetMsAtUtc,
+  TimezoneDisambiguation,
+  BirthTimeNonexistentError,
+  BirthTimeAmbiguousError,
+  BirthDetailsValidationError,
+} from '@astro/astrology-engine';
 import { ValidationError } from '../errors/app-error';
 
 export interface BirthProfileInput {
@@ -9,6 +18,9 @@ export interface BirthProfileInput {
   latitude: number;    // [-90, 90]
   longitude: number;   // [-180, 180]
   timezone: string;    // IANA Timezone string, e.g. "Asia/Kolkata"
+  disambiguation?: TimezoneDisambiguation;
+  utcDateTime?: string | Date | null;
+  timezoneOffsetSeconds?: number | null;
   placeName?: string | null;
   country?: string | null;
   countryCode?: string | null;
@@ -22,11 +34,12 @@ export interface BirthProfileInput {
  * TIMEZONE & UTC STRATEGY:
  * 1. Date of birth (YYYY-MM-DD) and time of birth (HH:mm:ss) represent local clock time at the birth location.
  * 2. Timezone MUST be an explicit IANA Timezone identifier (e.g. "Asia/Kolkata", "America/New_York", "Europe/London").
- * 3. UTC conversion explicitly evaluates the timezone's offset and Daylight Saving Time (DST) status for the given local date and time.
- * 4. The astrology engine core consumes normalized UTC ISO strings and coordinate values without guessing or ambiguous locale shifts.
+ * 3. If an authoritative utcDateTime is already persisted, it is directly honored to ensure chart reproducibility.
+ * 4. UTC conversion explicitly evaluates the timezone's offset and Daylight Saving Time (DST) status for the given local date and time.
+ * 5. Ambiguous local times require canonical disambiguation ('earlier' | 'later').
  */
 export function normalizeBirthProfile(input: BirthProfileInput): NormalizedBirthDetails {
-  const { id, name, dateOfBirth, timeOfBirth, latitude, longitude, timezone, placeName } = input;
+  const { id, name, dateOfBirth, timeOfBirth, latitude, longitude, timezone, placeName, disambiguation, utcDateTime, timezoneOffsetSeconds } = input;
 
   // 1. Validate Coordinates Range
   if (typeof latitude !== 'number' || latitude < -90 || latitude > 90) {
@@ -54,92 +67,107 @@ export function normalizeBirthProfile(input: BirthProfileInput): NormalizedBirth
   }
 
   // 4. Validate IANA Timezone Identifier
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: timezone });
-  } catch (err) {
+  if (!isValidIanaTimezone(timezone)) {
     throw new ValidationError(`Invalid IANA timezone identifier: "${timezone}". Example valid timezone: "Asia/Kolkata"`);
   }
 
-  // 5. Calculate Local ISO string & UTC ISO String
+  // 5. Calculate Local ISO string
   const localDateTimeStr = `${dateOfBirth}T${normalizedTime}`;
+
+  // If authoritative utcDateTime is already provided on input, reuse it directly
+  if (utcDateTime) {
+    const parsedUtc = new Date(utcDateTime);
+    if (!isNaN(parsedUtc.getTime())) {
+      const resolvedOffsetSeconds =
+        timezoneOffsetSeconds !== undefined && timezoneOffsetSeconds !== null
+          ? timezoneOffsetSeconds
+          : Math.round(getOffsetMsAtUtc(parsedUtc.getTime(), timezone) / 1000);
+      const resolvedOffsetMinutes = resolvedOffsetSeconds / 60;
+
+      return {
+        profileId: id,
+        name: name.trim(),
+        utcDateTime: parsedUtc.toISOString(),
+        localDateTime: localDateTimeStr,
+        timezone,
+        timezoneOffsetSeconds: resolvedOffsetSeconds,
+        timezoneOffsetMinutes: resolvedOffsetMinutes,
+        latitude,
+        longitude,
+        placeName: placeName ? placeName.trim() : undefined,
+        country: input.country ? input.country.trim() : undefined,
+        countryCode: input.countryCode ? input.countryCode.trim() : undefined,
+        state: input.state ? input.state.trim() : undefined,
+        isResolved: input.isResolved ?? true,
+        disambiguation: disambiguation === 'earlier' || disambiguation === 'later' ? disambiguation : undefined,
+        disambiguationRequired: false,
+      };
+    }
+  }
 
   // Parse local components
   const [yearStr, monthStr, dayStr] = dateOfBirth.split('-');
   const [hourStr, minStr, secStr] = normalizedTime.split(':');
 
   const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10) - 1;
+  const month = parseInt(monthStr, 10);
   const day = parseInt(dayStr, 10);
   const hour = parseInt(hourStr, 10);
   const min = parseInt(minStr, 10);
   const sec = parseInt(secStr, 10);
 
-  // Compute timezone offset at target local time
-  const offsetMinutes = getTimezoneOffsetMinutes(timezone, year, month, day, hour, min, sec);
-  
-  // Create UTC date object by subtracting offset minutes from local time
-  const localTimestamp = Date.UTC(year, month, day, hour, min, sec);
-  const utcTimestamp = localTimestamp - offsetMinutes * 60 * 1000;
-  const utcDate = new Date(utcTimestamp);
+  // Compute timezone offset at target local time using robust solver
+  try {
+    const resolved = resolveLocalTimeToUtc(year, month, day, hour, min, sec, timezone, disambiguation);
 
-  return {
-    profileId: id,
-    name: name.trim(),
-    utcDateTime: utcDate.toISOString(),
-    localDateTime: localDateTimeStr,
-    timezone,
-    timezoneOffsetMinutes: offsetMinutes,
-    latitude,
-    longitude,
-    placeName: placeName ? placeName.trim() : undefined,
-    country: input.country ? input.country.trim() : undefined,
-    countryCode: input.countryCode ? input.countryCode.trim() : undefined,
-    state: input.state ? input.state.trim() : undefined,
-    isResolved: input.isResolved ?? true,
-  };
-}
-
-/**
- * Helper function to determine timezone offset in minutes relative to UTC for a specific date and time in an IANA timezone.
- */
-function getTimezoneOffsetMinutes(
-  timeZone: string,
-  year: number,
-  month: number,
-  day: number,
-  hour: number,
-  min: number,
-  sec: number
-): number {
-  const dateInUtc = new Date(Date.UTC(year, month, day, hour, min, sec));
-
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-
-  const parts = dtf.formatToParts(dateInUtc);
-  const values: Record<string, number> = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') {
-      values[part.type] = parseInt(part.value, 10);
+    return {
+      profileId: id,
+      name: name.trim(),
+      utcDateTime: resolved.utcIsoString,
+      localDateTime: localDateTimeStr,
+      timezone,
+      timezoneOffsetSeconds: resolved.timezoneOffsetSeconds,
+      timezoneOffsetMinutes: resolved.timezoneOffsetMinutes,
+      isDaylightSaving: resolved.isDaylightSaving,
+      latitude,
+      longitude,
+      placeName: placeName ? placeName.trim() : undefined,
+      country: input.country ? input.country.trim() : undefined,
+      countryCode: input.countryCode ? input.countryCode.trim() : undefined,
+      state: input.state ? input.state.trim() : undefined,
+      isResolved: input.isResolved ?? true,
+      disambiguation: disambiguation === 'earlier' || disambiguation === 'later' ? disambiguation : undefined,
+      disambiguationRequired: false,
+    };
+  } catch (err) {
+    if (err instanceof BirthTimeNonexistentError) {
+      throw new ValidationError(err.message, [
+        {
+          field: 'timeOfBirth',
+          message: err.message,
+          code: 'NONEXISTENT_LOCAL_TIME',
+          localIsoString: err.localIsoString,
+          timezone: err.timezone,
+        },
+      ]);
     }
+    if (err instanceof BirthTimeAmbiguousError) {
+      throw new ValidationError(err.message, [
+        {
+          field: 'timeOfBirth',
+          message: err.message,
+          code: 'AMBIGUOUS_LOCAL_TIME',
+          localIsoString: err.localIsoString,
+          timezone: err.timezone,
+          candidates: err.candidates,
+        },
+      ]);
+    }
+    if (err instanceof BirthDetailsValidationError) {
+      throw new ValidationError(err.message, [
+        { field: 'timezone', message: err.message, code: 'INVALID_TIMEZONE' },
+      ]);
+    }
+    throw err;
   }
-
-  const asLocalInTz = Date.UTC(
-    values.year,
-    values.month - 1,
-    values.day,
-    values.hour === 24 ? 0 : values.hour,
-    values.minute,
-    values.second
-  );
-
-  return Math.round((asLocalInTz - dateInUtc.getTime()) / 60000);
 }

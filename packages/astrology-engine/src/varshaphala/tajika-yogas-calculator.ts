@@ -60,11 +60,21 @@ export class TajikaYogasCalculator {
         const speed1 = Math.abs(pos1.speedLongitude ?? 1.0);
         const speed2 = Math.abs(pos2.speedLongitude ?? 1.0);
 
-        // Identify faster vs slower planet
+        // Signed velocities accounting for retrograde motion
+        const v1 = (pos1.isRetrograde || (pos1.speedLongitude !== undefined && pos1.speedLongitude < 0))
+          ? -speed1
+          : speed1;
+        const v2 = (pos2.isRetrograde || (pos2.speedLongitude !== undefined && pos2.speedLongitude < 0))
+          ? -speed2
+          : speed2;
+
+        // Identify faster vs slower planet by magnitude of apparent motion
         const faster = speed1 >= speed2 ? p1 : p2;
         const slower = speed1 >= speed2 ? p2 : p1;
         const degFaster = speed1 >= speed2 ? deg1 : deg2;
         const degSlower = speed1 >= speed2 ? deg2 : deg1;
+        const vFaster = (faster === p1) ? v1 : v2;
+        const vSlower = (slower === p1) ? v1 : v2;
 
         const orb = (DEEPTAMSHAS[p1] + DEEPTAMSHAS[p2]) / 2.0;
         const actualDistance = Math.abs(degFaster - degSlower);
@@ -72,7 +82,11 @@ export class TajikaYogasCalculator {
         const isWithinOrb = actualDistance <= orb;
 
         if (hasAspect && isWithinOrb) {
-          const isApplying = degFaster < degSlower;
+          // Distance vector from faster to slower planet
+          // When distance vector and relative velocity have the same sign, distance is decreasing (applying).
+          const relativeSpeed = vFaster - vSlower;
+          const deltaDeg = degSlower - degFaster;
+          const isApplying = Math.abs(deltaDeg) < 1e-6 || (deltaDeg * relativeSpeed) > 0;
 
           if (isApplying) {
             directIthasalaPairs.add(`${faster}_${slower}`);
@@ -229,19 +243,35 @@ export class TajikaYogasCalculator {
         const moonPos = planets[PlanetSymbol.MOON];
         if (moonPos) {
           const moonRashi = moonPos.rashiIndex ?? 1;
-          const targetRashi = planets[ith.planet1]?.rashiIndex ?? 1;
-          if (isTajikaAspect(moonRashi, targetRashi)) {
+          const pos1 = planets[ith.planet1];
+          const pos2 = planets[ith.planet2];
+          if (!pos1 || !pos2) continue;
+
+          const moonDeg = moonPos.degreeInRashi ?? (moonPos.longitude % 30);
+          const deg1 = pos1.degreeInRashi ?? (pos1.longitude % 30);
+          const deg2 = pos2.degreeInRashi ?? (pos2.longitude % 30);
+
+          const orb1 = (DEEPTAMSHAS[PlanetSymbol.MOON] + DEEPTAMSHAS[ith.planet1]) / 2.0;
+          const orb2 = (DEEPTAMSHAS[PlanetSymbol.MOON] + DEEPTAMSHAS[ith.planet2]) / 2.0;
+
+          const connects1 = isTajikaAspect(moonRashi, pos1.rashiIndex ?? 1) && Math.abs(moonDeg - deg1) <= orb1;
+          const connects2 = isTajikaAspect(moonRashi, pos2.rashiIndex ?? 1) && Math.abs(moonDeg - deg2) <= orb2;
+
+          if (connects1 || connects2) {
+            const connectedTarget = connects1 ? ith.planet1 : ith.planet2;
+            const connectedOrb = connects1 ? orb1 : orb2;
+            const connectedDist = connects1 ? Math.abs(moonDeg - deg1) : Math.abs(moonDeg - deg2);
             yogas.push({
               type: 'KAMBOOLA',
               name: `Kamboola Yoga involving Moon, ${ith.planet1}, and ${ith.planet2}`,
               planet1: PlanetSymbol.MOON,
-              planet2: ith.planet1,
-              intermediaryPlanet: ith.planet2,
-              orbDegrees: ith.orbDegrees,
-              actualDistanceDegrees: ith.actualDistanceDegrees,
+              planet2: connectedTarget,
+              intermediaryPlanet: connects1 ? ith.planet2 : ith.planet1,
+              orbDegrees: connectedOrb,
+              actualDistanceDegrees: connectedDist,
               isApplying: true,
               strength: 'STRONG',
-              description: `Moon aspecting ${ith.planet1} which is in Ithasala with ${ith.planet2}.`,
+              description: `Moon aspects ${connectedTarget} within orb (${connectedDist.toFixed(2)}° <= ${connectedOrb}°), reinforcing the active Ithasala yoga between ${ith.planet1} and ${ith.planet2}.`,
             });
           }
         }

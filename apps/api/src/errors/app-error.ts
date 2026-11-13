@@ -2,6 +2,10 @@ export interface ErrorDetail {
   field?: string;
   message: string;
   code?: string;
+  localIsoString?: string;
+  timezone?: string;
+  candidates?: any[];
+  [key: string]: any;
 }
 
 export class AppError extends Error {

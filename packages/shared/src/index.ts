@@ -25,6 +25,7 @@ export interface NormalizedBirthDetails {
   utcDateTime: string; // ISO 8601 UTC string (e.g. "1990-05-15T09:00:00.000Z")
   localDateTime: string; // YYYY-MM-DDTHH:mm:ss format
   timezone: string; // IANA Timezone ID (e.g., "Asia/Kolkata")
+  timezoneOffsetSeconds?: number; // Exact offset from UTC in seconds
   timezoneOffsetMinutes: number; // Offset from UTC in minutes (e.g., +330 for IST)
   latitude: number; // Decimal degrees [-90, 90]
   longitude: number; // Decimal degrees [-180, 180]
@@ -33,12 +34,26 @@ export interface NormalizedBirthDetails {
   countryCode?: string;
   state?: string;
   isResolved?: boolean;
+  isDaylightSaving?: boolean;
+  disambiguation?: 'earlier' | 'later';
+  disambiguationRequired?: boolean;
 }
 
 export interface ApiErrorDetail {
   field?: string;
   message: string;
   code?: string;
+  localIsoString?: string;
+  timezone?: string;
+  candidates?: Array<{
+    disambiguation: 'earlier' | 'later';
+    utcIsoString: string;
+    utcTimestampMs: number;
+    timezoneOffsetSeconds: number;
+    offsetMinutes: number;
+    type?: 'daylight' | 'standard';
+  }>;
+  [key: string]: any;
 }
 
 export interface ApiErrorPayload {

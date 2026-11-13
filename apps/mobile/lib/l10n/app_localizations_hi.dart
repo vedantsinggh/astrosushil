@@ -191,7 +191,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get marriageReportTitle => 'विवाह अनुकूलता रिपोर्ट';
 
   @override
-  String get marriageReportSubtitle => '36 गुण, मांगलिक दोष निवारण व उपाय';
+  String get marriageReportSubtitle => '36 गुण मिलान एवं अनुकूलता विश्लेषण';
 
   @override
   String get miniHoroscopeTitle => 'लघु राशिफल (6 माह गोचर)';

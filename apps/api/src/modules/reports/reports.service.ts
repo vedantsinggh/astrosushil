@@ -1,18 +1,31 @@
 import crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ReportType } from '@prisma/client';
+import { ReportType, OrderStatus, FulfillmentStatus, ObligationType, OrderItemType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { storageService } from '../../services/storage.service';
 import { NotFoundError, ForbiddenError, AuthorizationError, AppError } from '../../errors/app-error';
 import { CreateReportInput } from './reports.schemas';
 import { astrologyService } from '../astrology/astrology.service';
 import { careerReportWorker } from '../../services/report-worker.service';
+import { distributedLockService } from '../../services/distributed-lock.service';
+import { fulfillmentService } from '../fulfillment/fulfillment.service';
+import { notificationService } from '../notifications/notification.service';
+import { logger } from '../../utils/logger';
 import {
   generateKundliReport,
   generatePlanetaryReport,
   generateProHoroscopeReport,
   generateMatchmakingReport,
+  generateCareerReport,
+  generateFinanceReport,
+  generateLoveReport,
+  generateFortuneReport,
+  generateFortunePlusReport,
+  generateSaturnReport,
+  generateJupiterReport,
+  generateRahuKetuReport,
+  generateVarshphalReport,
   validateAstrologyDataForReport,
   IncompleteAstrologyDataError,
   DeterministicInterpretationProvider,
@@ -28,16 +41,193 @@ export const CURRENT_CALCULATION_VERSION = '1.0.0';
 
 export class ReportsService {
   private readonly interpretationProvider = new DeterministicInterpretationProvider();
+  private static readonly inflightJobLocks = new Map<string, Promise<any>>();
 
   private isAdminUser(user: UserContext): boolean {
     return user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'SUPPORT';
+  }
+
+  private async validateAndClaimOrder(
+    orderId: string | undefined,
+    user: UserContext,
+    reportType: string,
+    birthProfileId: string,
+    partnerProfileId?: string
+  ): Promise<{ order?: any; targetOrderItem?: any; targetFulfillmentUnit?: any; existingReport?: any }> {
+    const REPORT_TYPE_TO_FEATURE: Record<string, string> = {
+      KUNDLI: 'KUNDLI_REPORT',
+      PLANETARY_SUMMARY: 'PLANETARY_SUMMARY_REPORT',
+      CAREER: 'CAREER_REPORT',
+      CAREER_PROSITY: 'CAREER_PROSITY',
+      MARRIAGE_COMPATIBILITY: 'MARRIAGE_COMPATIBILITY',
+      GUPTA_NADI_DOSSIER: 'GUPTA_NADI_DOSSIER',
+      HOROSCOPE: 'HOROSCOPE_REPORT',
+      FINANCE: 'FINANCE_REPORT',
+      LOVE: 'LOVE_REPORT',
+      FORTUNE: 'FORTUNE_REPORT',
+      FORTUNE_PLUS: 'FORTUNE_PLUS_REPORT',
+      SATURN: 'SATURN_REPORT',
+      JUPITER_TRANSIT: 'JUPITER_TRANSIT_REPORT',
+      RAHU_KETU_TRANSIT: 'RAHU_KETU_TRANSIT_REPORT',
+      VARSHPHAL: 'VARSHPHAL_REPORT',
+    };
+    const featureKey = REPORT_TYPE_TO_FEATURE[reportType] || reportType;
+    const access = await featureAccessService.evaluateFeatureAccess(user.id, featureKey);
+
+    const isManualEntitled = this.isAdminUser(user) || (access.allowed && access.source === 'SUPPORT_ENTITLEMENT_GRANT');
+
+    let order: any = null;
+
+    if (orderId) {
+      order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true, reports: true },
+      });
+
+      if (!order) {
+        throw new NotFoundError('Order not found');
+      }
+    } else {
+      if (isManualEntitled) {
+        return {};
+      }
+      if (!access.allowed) {
+        throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
+      }
+
+      order = await prisma.order.findFirst({
+        where: {
+          userId: user.id,
+          status: OrderStatus.PAID,
+          reportType: reportType as any,
+        },
+        include: { items: true, reports: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!order) {
+        throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
+      }
+    }
+
+    if (order.userId !== user.id && !this.isAdminUser(user)) {
+      throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
+    }
+
+    if (order.status !== OrderStatus.PAID) {
+      throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
+    }
+
+    let targetItem = order.items?.find((it: any) => {
+      if (reportType === 'CAREER_PROSITY' && it.catalogId === 'report-career-pro') return true;
+      if (reportType === 'HOROSCOPE' && (it.catalogId === 'report-horoscope' || it.catalogId === 'report-personalised-horoscope')) return true;
+      if (reportType === 'FINANCE' && it.catalogId === 'report-finance') return true;
+      if (reportType === 'LOVE' && it.catalogId === 'report-love') return true;
+      if (reportType === 'FORTUNE' && it.catalogId === 'report-fortune') return true;
+      if (reportType === 'FORTUNE_PLUS' && it.catalogId === 'report-fortune-plus') return true;
+      if (reportType === 'SATURN' && it.catalogId === 'report-saturn') return true;
+      if (reportType === 'JUPITER_TRANSIT' && it.catalogId === 'report-jupiter-transit') return true;
+      if (reportType === 'RAHU_KETU_TRANSIT' && it.catalogId === 'report-rahu-ketu-transit') return true;
+      if (reportType === 'VARSHPHAL' && it.catalogId === 'report-varshphal') return true;
+      const targetCatalog = `report-${reportType.toLowerCase().replace(/_/g, '-')}`;
+      return it.itemType === OrderItemType.REPORT && (it.catalogId === targetCatalog || it.catalogId.includes(reportType.toLowerCase()));
+    });
+
+    if (!targetItem && order.reportType === reportType && order.items?.length > 0) {
+      targetItem = order.items[0];
+    }
+
+    if (!targetItem && order.reportType !== reportType) {
+      throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
+    }
+
+    // Ensure fulfillment units exist for this order
+    let units = await prisma.fulfillmentUnit.findMany({
+      where: {
+        orderId: order.id,
+        obligationType: ObligationType.REPORT,
+        ...(targetItem ? { orderItemId: targetItem.id } : {}),
+      },
+      include: { report: true },
+      orderBy: { unitIndex: 'asc' },
+    });
+
+    if (!units.length) {
+      units = (await fulfillmentService.createFulfillmentUnitsForOrder(order.id)) as any;
+      units = units.filter((u: any) => u.obligationType === ObligationType.REPORT && (!targetItem || u.orderItemId === targetItem.id));
+    }
+
+    // Look for unit already bound to a report for this birth profile
+    const existingUnitForProfile = units.find((u: any) => {
+      if (!u.report) return false;
+      if (u.report.birthProfileId !== birthProfileId) return false;
+      if (partnerProfileId) {
+        const meta = (u.report.metadata || {}) as Record<string, any>;
+        return meta.partnerProfileId === partnerProfileId;
+      }
+      return true;
+    });
+
+    if (existingUnitForProfile) {
+      return {
+        order,
+        targetOrderItem: targetItem,
+        targetFulfillmentUnit: existingUnitForProfile,
+        existingReport: existingUnitForProfile.report,
+      };
+    }
+
+    // Look for first unassigned fulfillment unit
+    const availableUnit = units.find((u: any) => !u.report);
+    if (!availableUnit) {
+      const completedReport = order.reports?.find((r: any) => r.status === 'COMPLETED' && r.birthProfileId === birthProfileId);
+      if (completedReport) {
+        return { order, targetOrderItem: targetItem, existingReport: completedReport };
+      }
+      throw new AppError('All report slots for this order have already been utilized', 400, 'ORDER_ALREADY_FULFILLED');
+    }
+
+    return {
+      order,
+      targetOrderItem: targetItem,
+      targetFulfillmentUnit: availableUnit,
+    };
   }
 
   /**
    * Initiates an async Career Report generation job.
    */
   public async createCareerReportJob(
-    input: { birthProfileId: string; forceRegenerate?: boolean },
+    input: { birthProfileId: string; forceRegenerate?: boolean; orderId?: string },
+    user: UserContext
+  ) {
+    const concurrencyKey = `${user.id}:${input.birthProfileId}:CAREER`;
+    if (!input.forceRegenerate && ReportsService.inflightJobLocks.has(concurrencyKey)) {
+      logger.info(
+        { userId: user.id, birthProfileId: input.birthProfileId },
+        '[CAREER_REPORT_JOB_REQUEST] Concurrent in-flight job detected. Reusing in-flight promise.'
+      );
+      return await ReportsService.inflightJobLocks.get(concurrencyKey)!;
+    }
+
+    const runTask = () =>
+      distributedLockService.withDistributedLock(concurrencyKey, async () => {
+        return await this.executeCareerReportJob(input, user);
+      });
+
+    const jobPromise = runTask();
+    if (!input.forceRegenerate) {
+      ReportsService.inflightJobLocks.set(concurrencyKey, jobPromise);
+    }
+    try {
+      return await jobPromise;
+    } finally {
+      ReportsService.inflightJobLocks.delete(concurrencyKey);
+    }
+  }
+
+  private async executeCareerReportJob(
+    input: { birthProfileId: string; forceRegenerate?: boolean; orderId?: string },
     user: UserContext
   ) {
     // 1. Validate birth profile ownership
@@ -53,26 +243,37 @@ export class ReportsService {
       throw new ForbiddenError('You do not have access to this birth profile');
     }
 
-    // 2. Check for active (in-progress) report first to prevent double-clicks
-    const activeReport = await prisma.report.findFirst({
-      where: {
-        userId: user.id,
-        birthProfileId: input.birthProfileId,
-        reportType: ((ReportType as any).CAREER || 'CAREER') as any,
-        status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'] as any[] },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // 2. Validate entitlement / commerce order and claim fulfillment unit
+    const { order, targetFulfillmentUnit, existingReport: boundReport } =
+      await this.validateAndClaimOrder(input.orderId, user, 'CAREER', input.birthProfileId);
+
+    // 3. Check for active (in-progress) report first to prevent double-clicks
+    const activeReport = boundReport && ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'].includes(boundReport.status)
+      ? boundReport
+      : await prisma.report.findFirst({
+          where: {
+            userId: user.id,
+            birthProfileId: input.birthProfileId,
+            ...(order ? { orderId: order.id } : {}),
+            reportType: ((ReportType as any).CAREER || 'CAREER') as any,
+            status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'] as any[] },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
 
     if (activeReport && !input.forceRegenerate) {
       const active = activeReport as any;
-      console.log(`[CAREER_REPORT_JOB_REQUEST] Active job in progress found for user ${user.id}. Reusing active reportId ${active.id} (status: ${active.status}, progress: ${active.progress}%).`);
+      logger.info(
+        { userId: user.id, reportId: active.id },
+        `[CAREER_REPORT_JOB_REQUEST] Active job in progress found for user ${user.id}. Reusing active reportId ${active.id} (status: ${active.status}, progress: ${active.progress}%).`
+      );
       
       // Ensure worker queue receives job ID in case process was restarted
       careerReportWorker.enqueueReportJob(active.id);
 
       return {
         reportId: active.id,
+        id: active.id,
         status: active.status,
         stage: active.stage || active.status,
         progress: active.progress ?? 0,
@@ -82,34 +283,93 @@ export class ReportsService {
       };
     }
 
-    // 3. Duplicate Check: Reuse existing completed report ONLY IF forceRegenerate is false AND birth profile has NOT been modified since report creation
+    // 4. Duplicate Check: Reuse existing completed report ONLY IF forceRegenerate is false AND birth profile has NOT been modified since report creation
     if (!input.forceRegenerate) {
-      const existingReport = await prisma.report.findFirst({
-        where: {
-          userId: user.id,
-          birthProfileId: input.birthProfileId,
-          reportType: ((ReportType as any).CAREER || 'CAREER') as any,
-          status: 'COMPLETED',
-          reportVersion: CURRENT_REPORT_VERSION,
-          calculationVersion: CURRENT_CALCULATION_VERSION,
-        } as any,
-        orderBy: { createdAt: 'desc' },
-      });
+      const existingReport = boundReport && boundReport.status === 'COMPLETED'
+        ? boundReport
+        : await prisma.report.findFirst({
+            where: {
+              userId: user.id,
+              birthProfileId: input.birthProfileId,
+              ...(order ? { orderId: order.id } : {}),
+              reportType: ((ReportType as any).CAREER || 'CAREER') as any,
+              status: 'COMPLETED',
+              reportVersion: CURRENT_REPORT_VERSION,
+              calculationVersion: CURRENT_CALCULATION_VERSION,
+            } as any,
+            orderBy: { createdAt: 'desc' },
+          });
 
       if (existingReport && profile.updatedAt <= existingReport.createdAt) {
-        console.log(`[CAREER_REPORT_JOB_REQUEST] Reusing completed reportId ${existingReport.id} (profile.updatedAt ${profile.updatedAt.toISOString()} <= report.createdAt ${existingReport.createdAt.toISOString()}).`);
+        if (order && targetFulfillmentUnit) {
+          await fulfillmentService.reconcileFulfillmentUnit(order.id, targetFulfillmentUnit.id);
+        }
+        logger.info(
+          { userId: user.id, reportId: existingReport.id },
+          `[CAREER_REPORT_JOB_REQUEST] Reusing completed reportId ${existingReport.id} (profile.updatedAt ${profile.updatedAt.toISOString()} <= report.createdAt ${existingReport.createdAt.toISOString()}).`
+        );
         return {
           reportId: existingReport.id,
+          id: existingReport.id,
           status: 'COMPLETED',
+          stage: 'COMPLETED',
+          progress: 100,
           reused: true,
+          completed: true,
           message: 'Existing completed career report retrieved.',
         };
-      } else if (existingReport) {
-        console.log(`[CAREER_REPORT_JOB_REQUEST] Stale report ${existingReport.id} ignored because profile was updated (profile.updatedAt ${profile.updatedAt.toISOString()} > report.createdAt ${existingReport.createdAt.toISOString()}). Generating new report.`);
       }
+    } else if (boundReport) {
+      // Regeneration of existing bound report: re-queue existing record to preserve fulfillment unit & SLA deadline
+      const reportId = boundReport.id;
+      const now = new Date();
+      await prisma.report.update({
+        where: { id: reportId },
+        data: {
+          status: 'QUEUED',
+          stage: 'QUEUED',
+          progress: 0,
+          errorCode: null,
+          errorMessage: null,
+          storageKey: null,
+          fileName: null,
+          fileSize: null,
+          completedAt: null,
+          failedAt: null,
+          claimToken: null,
+          claimExpiresAt: null,
+          claimVersion: { increment: 1 },
+          updatedAt: now,
+        } as any,
+      });
+
+      logger.info(
+        { reportId, userId: user.id, birthProfileId: input.birthProfileId },
+        `[CAREER_REPORT_JOB_REGEN] Re-queued existing reportId ${reportId} for regeneration.`
+      );
+
+      if (order && targetFulfillmentUnit) {
+        await fulfillmentService.reconcileFulfillmentUnit(order.id, targetFulfillmentUnit.id);
+      }
+
+      careerReportWorker.enqueueReportJob(reportId);
+
+      return {
+        reportId,
+        id: reportId,
+        status: 'QUEUED',
+        stage: 'QUEUED',
+        progress: 0,
+        reused: false,
+        message: 'Career report regeneration initiated.',
+      };
     }
 
-    // 4. Create new Report DB Record with QUEUED status
+    // 5. Calculate authoritative 24-hour delivery SLA anchor from persisted Order.paidAt
+    const expectedDeliveryAt = order?.paidAt
+      ? new Date(order.paidAt.getTime() + 24 * 60 * 60 * 1000)
+      : (boundReport?.expectedDeliveryAt ?? null);
+
     const reportId = crypto.randomUUID();
     const now = new Date();
 
@@ -118,24 +378,52 @@ export class ReportsService {
         id: reportId,
         userId: user.id,
         birthProfileId: input.birthProfileId,
+        orderId: order?.id ?? undefined,
+        fulfillmentUnitId: targetFulfillmentUnit?.id ?? undefined,
         reportType: ((ReportType as any).CAREER || 'CAREER') as any,
         status: 'QUEUED',
         stage: 'QUEUED',
         progress: 0,
+        expectedDeliveryAt,
         reportVersion: CURRENT_REPORT_VERSION,
         calculationVersion: CURRENT_CALCULATION_VERSION,
+        metadata: { enqueued: false },
         createdAt: now,
         updatedAt: now,
       } as any,
     });
 
-    console.log(`[CAREER_REPORT_JOB_CREATED] Created new reportId ${reportId} for user ${user.id}, profile ${input.birthProfileId} (forceRegenerate: ${!!input.forceRegenerate}).`);
+    logger.info(
+      { reportId, userId: user.id, birthProfileId: input.birthProfileId, fulfillmentUnitId: targetFulfillmentUnit?.id, expectedDeliveryAt },
+      `[CAREER_REPORT_JOB_CREATED] Created new reportId ${reportId} (forceRegenerate: ${!!input.forceRegenerate}).`
+    );
 
-    // 5. Enqueue Job in Worker
+    // Non-blocking notification dispatch for job start
+    try {
+      await notificationService.sendNotification({
+        userId: user.id,
+        type: 'REPORT_STARTED',
+        entityId: reportId,
+        idempotencyKey: `report_started:${reportId}`,
+        route: 'OPEN_REPORT',
+        templateData: {
+          reportName: 'Career Intelligence Report',
+          reportId,
+        },
+      });
+    } catch (_) {}
+
+    // 6. Reconcile fulfillment unit immediately
+    if (order && targetFulfillmentUnit) {
+      await fulfillmentService.reconcileFulfillmentUnit(order.id, targetFulfillmentUnit.id);
+    }
+
+    // 7. Enqueue Job in Worker
     careerReportWorker.enqueueReportJob(reportId);
 
     return {
       reportId: newReport.id,
+      id: newReport.id,
       status: 'QUEUED',
       stage: 'QUEUED',
       progress: 0,
@@ -163,7 +451,11 @@ export class ReportsService {
     }
 
     return this.createCareerReportJob(
-      { birthProfileId: existingReport.birthProfileId, forceRegenerate: true },
+      {
+        birthProfileId: existingReport.birthProfileId,
+        forceRegenerate: true,
+        orderId: existingReport.orderId || undefined,
+      },
       user
     );
   }
@@ -177,6 +469,7 @@ export class ReportsService {
   ) {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
+      include: { order: true },
     });
 
     if (!report) {
@@ -187,7 +480,20 @@ export class ReportsService {
       throw new NotFoundError('Report not found');
     }
 
+    if (report.order && (report.order.status === OrderStatus.REFUNDED || report.order.status === OrderStatus.CANCELLED) && !this.isAdminUser(user)) {
+      throw new NotFoundError('Report not found');
+    }
+
     const r = report as any;
+    const isCompleted = r.status === 'COMPLETED';
+    const isFailed = r.status === 'FAILED';
+    const expectedDeliveryAt = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
+    const now = new Date();
+    const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
+    const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
+    const isReady = isCompleted;
+    const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
+
     return {
       id: r.id,
       status: r.status,
@@ -195,6 +501,12 @@ export class ReportsService {
       progress: r.progress ?? 0,
       errorCode: r.errorCode ?? null,
       errorMessage: r.errorMessage ?? null,
+      expectedDeliveryAt,
+      paymentStatus,
+      isOnSchedule,
+      isOverdue,
+      isFailed,
+      isReady,
     };
   }
 
@@ -207,7 +519,7 @@ export class ReportsService {
   ) {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
-      include: { birthProfile: true },
+      include: { birthProfile: true, order: true },
     });
 
     if (!report) {
@@ -218,12 +530,25 @@ export class ReportsService {
       throw new NotFoundError('Report not found');
     }
 
+    if (report.order && (report.order.status === OrderStatus.REFUNDED || report.order.status === OrderStatus.CANCELLED) && !this.isAdminUser(user)) {
+      throw new NotFoundError('Report not found');
+    }
+
     const downloadUrl = `/api/v1/reports/${report.id}/download-file`;
     const r = report as any;
+    const isCompleted = r.status === 'COMPLETED';
+    const isFailed = r.status === 'FAILED';
+    const expectedDeliveryAt = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
+    const now = new Date();
+    const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
+    const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
+    const isReady = isCompleted;
+    const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
 
     return {
       id: r.id,
       userId: r.userId,
+      orderId: r.orderId ?? null,
       birthProfileId: r.birthProfileId,
       reportType: r.reportType,
       status: r.status,
@@ -237,7 +562,13 @@ export class ReportsService {
       errorMessage: r.errorMessage ?? null,
       createdAt: r.createdAt,
       completedAt: r.completedAt ?? null,
-      downloadUrl: r.status === 'COMPLETED' ? downloadUrl : null,
+      expectedDeliveryAt,
+      paymentStatus,
+      isOnSchedule,
+      isOverdue,
+      isFailed,
+      isReady,
+      downloadUrl: isReady ? downloadUrl : null,
       birthProfile: r.birthProfile,
     };
   }
@@ -251,6 +582,7 @@ export class ReportsService {
   ): Promise<{ reportId: string; accessUrl: string; expiresAt: string; fileName: string }> {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
+      include: { order: true },
     });
 
     if (!report) {
@@ -258,6 +590,10 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.order && (report.order.status === OrderStatus.REFUNDED || report.order.status === OrderStatus.CANCELLED) && !this.isAdminUser(user)) {
       throw new NotFoundError('Report not found');
     }
 
@@ -292,6 +628,7 @@ export class ReportsService {
   ): Promise<{ success: boolean; reportId: string }> {
     const report = await prisma.report.findUnique({
       where: { id: reportId },
+      include: { order: true },
     });
 
     if (!report) {
@@ -299,6 +636,10 @@ export class ReportsService {
     }
 
     if (report.userId !== user.id && !this.isAdminUser(user)) {
+      throw new NotFoundError('Report not found');
+    }
+
+    if (report.order && (report.order.status === OrderStatus.REFUNDED || report.order.status === OrderStatus.CANCELLED) && !this.isAdminUser(user)) {
       throw new NotFoundError('Report not found');
     }
 
@@ -320,15 +661,40 @@ export class ReportsService {
   }
 
   public async getUserReports(user: { id: string }) {
-    return prisma.report.findMany({
+    const reports = await prisma.report.findMany({
       where: { userId: user.id },
-      include: { birthProfile: true },
+      include: { birthProfile: true, order: true },
       orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+    return reports.map((r: any) => {
+      const isCompleted = r.status === 'COMPLETED';
+      const isFailed = r.status === 'FAILED';
+      const expectedDeliveryAt = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
+      const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
+      const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
+      const isReady = isCompleted;
+      const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
+
+      return {
+        ...r,
+        expectedDeliveryAt,
+        paymentStatus,
+        isOnSchedule,
+        isOverdue,
+        isFailed,
+        isReady,
+        claimToken: undefined,
+        claimExpiresAt: undefined,
+        claimVersion: undefined,
+      };
     });
   }
 
   /**
-   * PDF Download API: Returns buffer for completed report
+   * PDF Download API: Returns exact stored buffer for completed report.
+   * Never recalculates or regenerates on download.
    */
   public async generateReportPdfBuffer(
     reportId: string,
@@ -337,88 +703,34 @@ export class ReportsService {
     const report = await this.getReportStatus(reportId, user);
 
     if (report.status !== 'COMPLETED') {
+      if (report.errorCode === 'INCOMPLETE_ASTROLOGY_DATA') {
+        throw new IncompleteAstrologyDataError(report.errorMessage || 'Complete chart data is currently unavailable. Please try again.');
+      }
       throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
     }
 
-    // 1. Try reading generated PDF from Object Storage (Cloudflare R2 or local storage)
     const rawReport = await prisma.report.findUnique({ where: { id: reportId } });
-    if (rawReport?.storageKey) {
-      try {
-        const buffer = await storageService.downloadBuffer(rawReport.storageKey);
-        return { buffer, report };
-      } catch (err: any) {
-        console.error(`[PDF_DOWNLOAD] Object storage read failed for key ${rawReport.storageKey}: ${err?.message}`);
-      }
-    }
-
-    // 2. Generate PDF deterministically if storage buffer is unavailable
-    const profileInput = {
-      name: report.birthProfile.name,
-      dateOfBirth: report.birthProfile.dateOfBirth,
-      timeOfBirth: report.birthProfile.timeOfBirth,
-      placeName: report.birthProfile.placeName,
-      timezone: report.birthProfile.timezone,
-      latitude: report.birthProfile.latitude,
-      longitude: report.birthProfile.longitude,
-    };
-
-    if (report.reportType === 'CAREER') {
-      const normalizedChart = await astrologyService.calculateNormalizedChart(
-        { birthProfileId: report.birthProfileId },
-        user
+    if (!rawReport?.storageKey) {
+      logger.error(
+        { reportId, userId: user.id },
+        '[PDF_DOWNLOAD_ALERT] Completed report record has missing storageKey in database'
       );
-      const { careerReportService } = await import('@astro/report-engine');
-      const pipelineResult = await careerReportService.generateCareerReportData(normalizedChart, {
-        clientProfile: profileInput,
-      });
-      const pdfBuffer = await reportPdfService.generateCareerReportPdf(pipelineResult.reportData);
-      return { buffer: pdfBuffer, report };
+      throw new AppError('Report PDF file is not available in storage. Please contact support.', 404, 'REPORT_ASSET_NOT_FOUND');
     }
 
-    let structuredReport: any;
-
-    if (report.reportType === 'MARRIAGE_COMPATIBILITY') {
-      const metadata = ((rawReport as any)?.metadata || {}) as Record<string, any>;
-      const partnerProfileId = metadata.partnerProfileId;
-      if (!partnerProfileId) {
-        throw new AppError('Partner profile ID not found in report metadata', 400, 'MISSING_PARTNER_PROFILE');
+    try {
+      const buffer = await storageService.downloadBuffer(rawReport.storageKey);
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Retrieved storage buffer is empty');
       }
-      const partnerProfile = await prisma.birthProfile.findUnique({ where: { id: partnerProfileId } });
-      if (!partnerProfile) {
-        throw new NotFoundError('Partner birth profile not found');
-      }
-      const chart1 = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
-      const chart2 = await astrologyService.calculateChartForProfile(partnerProfileId, user);
-      validateAstrologyDataForReport(chart1);
-      validateAstrologyDataForReport(chart2);
-
-      const profile2Input = {
-        name: partnerProfile.name,
-        dateOfBirth: partnerProfile.dateOfBirth,
-        timeOfBirth: partnerProfile.timeOfBirth,
-        placeName: partnerProfile.placeName,
-        timezone: partnerProfile.timezone,
-        latitude: partnerProfile.latitude,
-        longitude: partnerProfile.longitude,
-      };
-      structuredReport = await generateMatchmakingReport(profileInput, profile2Input, chart1, chart2, this.interpretationProvider);
-    } else {
-      const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, user);
-      validateAstrologyDataForReport(chartResponse);
-
-      if (report.reportType === 'KUNDLI') {
-        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
-      } else if (report.reportType === 'PLANETARY_SUMMARY') {
-        structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
-      } else if (report.reportType === 'CAREER_PROSITY') {
-        structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, this.interpretationProvider);
-      } else {
-        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
-      }
+      return { buffer, report };
+    } catch (err: any) {
+      logger.error(
+        { reportId, storageKey: rawReport.storageKey, err: err?.message },
+        '[PDF_DOWNLOAD_ALERT] Failed to retrieve stored report artifact from object storage'
+      );
+      throw new AppError('Report PDF file is not available in storage. Please contact support.', 404, 'REPORT_ASSET_NOT_FOUND');
     }
-
-    const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
-    return { buffer: pdfBuffer, report };
   }
 
   /**
@@ -428,13 +740,110 @@ export class ReportsService {
     input: CreateReportInput,
     user: UserContext
   ) {
+    const SUPPORTED_REPORT_TYPES: string[] = [
+      'CAREER',
+      'KUNDLI',
+      'PLANETARY_SUMMARY',
+      'CAREER_PROSITY',
+      'MARRIAGE_COMPATIBILITY',
+      'HOROSCOPE',
+      'FINANCE',
+      'LOVE',
+      'FORTUNE',
+      'FORTUNE_PLUS',
+      'SATURN',
+      'JUPITER_TRANSIT',
+      'RAHU_KETU_TRANSIT',
+      'VARSHPHAL',
+    ];
+
+    if (!SUPPORTED_REPORT_TYPES.includes(input.reportType)) {
+      throw new AppError(
+        `Report type ${input.reportType} is not supported. Dedicated generator is not available.`,
+        400,
+        'REPORT_TYPE_NOT_SUPPORTED'
+      );
+    }
+
     if (input.reportType === ((ReportType as any).CAREER || 'CAREER')) {
       return this.createCareerReportJob(
-        { birthProfileId: input.birthProfileId, forceRegenerate: input.forceRegenerate },
+        { birthProfileId: input.birthProfileId, forceRegenerate: input.forceRegenerate, orderId: input.orderId },
         user
       );
     }
 
+    const concurrencyKey = `${user.id}:${input.birthProfileId}:${input.reportType}:${input.partnerProfileId || ''}`;
+    if (!input.forceRegenerate && ReportsService.inflightJobLocks.has(concurrencyKey)) {
+      logger.info(
+        { userId: user.id, birthProfileId: input.birthProfileId, reportType: input.reportType },
+        '[REPORT_JOB_REQUEST] Concurrent in-flight job detected. Reusing in-flight promise.'
+      );
+      return await ReportsService.inflightJobLocks.get(concurrencyKey)!;
+    }
+
+    const runTask = async () => {
+      // 1. Critical section under distributed lock (ONLY DB lookups, CAS order claim, and Report record initialization)
+      // Releases the distributed lock immediately after DB state is committed!
+      const initResult = await distributedLockService.withDistributedLock(concurrencyKey, async () => {
+        return await this.initializeReportJob(input, user);
+      });
+
+      // If existing active or completed report was reused, return immediately
+      if (initResult.reused) {
+        return initResult.result;
+      }
+
+      // If async mode requested, enqueue in background worker and return immediately
+      if (input.async) {
+        careerReportWorker.enqueueReportJob(initResult.reportId);
+        return {
+          reportId: initResult.reportId,
+          id: initResult.reportId,
+          status: 'QUEUED',
+          stage: 'QUEUED',
+          progress: 0,
+          reused: false,
+        };
+      }
+
+      // 2. Long-running synchronous pipeline OUTSIDE the distributed lock!
+      // PDF rendering, calculations, AI providers, and S3 storage upload
+      return await this.executeSynchronousReportPipeline(
+        initResult.reportId,
+        input,
+        user,
+        initResult.order,
+        initResult.profile,
+        initResult.partnerProfile
+      );
+    };
+
+    const jobPromise = runTask();
+    if (!input.forceRegenerate) {
+      ReportsService.inflightJobLocks.set(concurrencyKey, jobPromise);
+    }
+    try {
+      return await jobPromise;
+    } finally {
+      ReportsService.inflightJobLocks.delete(concurrencyKey);
+    }
+  }
+
+  /**
+   * Fast lock-protected initialization: Performs checks, CAS order claim, and Report DB record creation.
+   * Runs in milliseconds and releases the distributed lock before any long-running tasks.
+   */
+  private async initializeReportJob(
+    input: CreateReportInput,
+    user: UserContext
+  ): Promise<{
+    reused: boolean;
+    result?: any;
+    reportId: string;
+    order?: any;
+    profile: any;
+    partnerProfile?: any;
+  }> {
     // 1. Validate primary birth profile ownership
     const profile = await prisma.birthProfile.findUnique({
       where: { id: input.birthProfileId },
@@ -469,95 +878,210 @@ export class ReportsService {
     }
 
     // 3. Entitlement / Commerce verification
-    const REPORT_TYPE_TO_FEATURE: Record<string, string> = {
-      KUNDLI: 'KUNDLI_REPORT',
-      PLANETARY_SUMMARY: 'PLANETARY_SUMMARY_REPORT',
-      CAREER: 'CAREER_REPORT',
-      CAREER_PROSITY: 'CAREER_PROSITY',
-      MARRIAGE_COMPATIBILITY: 'MARRIAGE_COMPATIBILITY',
-      GUPTA_NADI_DOSSIER: 'GUPTA_NADI_DOSSIER',
-    };
-    const featureKey = REPORT_TYPE_TO_FEATURE[input.reportType] || input.reportType;
-    const access = await featureAccessService.evaluateFeatureAccess(user.id, featureKey);
+    const { order, targetFulfillmentUnit, existingReport: boundReport } = await this.validateAndClaimOrder(
+      input.orderId,
+      user,
+      input.reportType,
+      input.birthProfileId,
+      input.partnerProfileId
+    );
 
-    if (!access.allowed && !this.isAdminUser(user)) {
-      let orderVerified = false;
-      if (input.orderId) {
-        const order = await prisma.order.findUnique({
-          where: { id: input.orderId },
-          include: { items: true },
+    // 4. Deduplication Check 1: Active In-Progress Job Check
+    const activeReport = boundReport && ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'].includes(boundReport.status)
+      ? boundReport
+      : await prisma.report.findFirst({
+          where: {
+            userId: user.id,
+            birthProfileId: input.birthProfileId,
+            ...(order ? { orderId: order.id } : {}),
+            reportType: input.reportType as any,
+            status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'] as any[] },
+            ...(input.partnerProfileId ? { metadata: { path: ['partnerProfileId'], equals: input.partnerProfileId } } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
         });
-        if (order && order.userId === user.id && order.status === 'PAID') {
-          if (order.reportType === input.reportType) orderVerified = true;
-          const targetCatalog = `report-${input.reportType.toLowerCase().replace(/_/g, '-')}`;
-          if (order.items?.some((it: any) => it.catalogId === targetCatalog || it.catalogId.includes(input.reportType.toLowerCase()))) {
-            orderVerified = true;
-          }
-        }
-      }
-      if (!orderVerified && process.env.NODE_ENV !== 'test') {
-        throw new ForbiddenError(access.reason || 'Payment or entitlement required to access this report');
-      }
+
+    if (activeReport && !input.forceRegenerate) {
+      const active = activeReport as any;
+      logger.info(
+        { userId: user.id, reportId: active.id, reportType: input.reportType },
+        '[REPORT_JOB_REQUEST] Active job in progress found. Reusing active report.'
+      );
+      careerReportWorker.enqueueReportJob(active.id);
+      return {
+        reused: true,
+        reportId: active.id,
+        profile,
+        partnerProfile,
+        result: {
+          reportId: active.id,
+          id: active.id,
+          status: active.status,
+          stage: active.stage || active.status,
+          progress: active.progress ?? 0,
+          reused: true,
+          active: true,
+          message: 'Active report generation in progress.',
+        },
+      };
     }
 
-    // 4. If async mode requested, enqueue in background worker
-    if (input.async) {
-      const reportId = crypto.randomUUID();
+    // 5. Deduplication Check 2: Completed Report Reuse
+    if (!input.forceRegenerate) {
+      const existing = boundReport && boundReport.status === 'COMPLETED'
+        ? boundReport
+        : await prisma.report.findFirst({
+            where: {
+              userId: user.id,
+              birthProfileId: input.birthProfileId,
+              ...(order ? { orderId: order.id } : {}),
+              reportType: input.reportType as any,
+              status: 'COMPLETED',
+              reportVersion: CURRENT_REPORT_VERSION,
+              calculationVersion: CURRENT_CALCULATION_VERSION,
+              ...(input.partnerProfileId ? { metadata: { path: ['partnerProfileId'], equals: input.partnerProfileId } } : {}),
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+
+      const isProfileFresh = existing && profile.updatedAt <= existing.createdAt;
+      const isPartnerFresh = !partnerProfile || (existing && partnerProfile.updatedAt <= existing.createdAt);
+
+      if (existing && isProfileFresh && isPartnerFresh) {
+        if (order && targetFulfillmentUnit) {
+          await fulfillmentService.reconcileFulfillmentUnit(order.id, targetFulfillmentUnit.id);
+        }
+        logger.info(
+          { userId: user.id, reportId: existing.id, reportType: input.reportType },
+          '[REPORT_JOB_REQUEST] Reusing existing completed report artifact.'
+        );
+        return {
+          reused: true,
+          reportId: existing.id,
+          profile,
+          partnerProfile,
+          result: {
+            reportId: existing.id,
+            id: existing.id,
+            userId: existing.userId,
+            birthProfileId: existing.birthProfileId,
+            reportType: existing.reportType,
+            status: existing.status,
+            stage: 'COMPLETED',
+            progress: 100,
+            createdAt: existing.createdAt,
+            reused: true,
+            completed: true,
+            message: 'Existing completed report retrieved.',
+          },
+        };
+      }
+    } else if (boundReport) {
+      // Regeneration of existing bound report: re-queue existing record
+      const reportId = boundReport.id;
       const now = new Date();
-      const newReport = await prisma.report.create({
+      await prisma.report.update({
+        where: { id: reportId },
         data: {
-          id: reportId,
-          userId: user.id,
-          birthProfileId: input.birthProfileId,
-          reportType: input.reportType as any,
           status: 'QUEUED',
           stage: 'QUEUED',
           progress: 0,
-          reportVersion: CURRENT_REPORT_VERSION,
-          calculationVersion: CURRENT_CALCULATION_VERSION,
-          metadata: input.partnerProfileId ? { partnerProfileId: input.partnerProfileId } : undefined,
-          createdAt: now,
+          errorCode: null,
+          errorMessage: null,
+          storageKey: null,
+          fileName: null,
+          fileSize: null,
+          completedAt: null,
+          failedAt: null,
+          claimToken: null,
+          claimExpiresAt: null,
+          claimVersion: { increment: 1 },
           updatedAt: now,
         } as any,
       });
 
-      careerReportWorker.enqueueReportJob(reportId);
+      if (order && targetFulfillmentUnit) {
+        await fulfillmentService.reconcileFulfillmentUnit(order.id, targetFulfillmentUnit.id);
+      }
 
       return {
-        reportId: newReport.id,
-        status: 'QUEUED',
-        stage: 'QUEUED',
-        progress: 0,
         reused: false,
+        reportId,
+        order,
+        profile,
+        partnerProfile,
       };
     }
 
-    // 5. Synchronous / Instant fulfillment mode (also caches to storage and DB)
-    // Check for existing completed report to reuse if !forceRegenerate
-    if (!input.forceRegenerate) {
-      const existing = await prisma.report.findFirst({
-        where: {
-          userId: user.id,
-          birthProfileId: input.birthProfileId,
-          reportType: input.reportType as any,
-          status: 'COMPLETED',
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (existing && profile.updatedAt <= existing.createdAt) {
-        return {
-          id: existing.id,
-          userId: existing.userId,
-          birthProfileId: existing.birthProfileId,
-          reportType: existing.reportType,
-          status: existing.status,
-          createdAt: existing.createdAt,
-        };
-      }
-    }
+    // 6. Calculate authoritative 24-hour delivery SLA anchor from persisted Order.paidAt
+    const expectedDeliveryAt = order?.paidAt
+      ? new Date(order.paidAt.getTime() + 24 * 60 * 60 * 1000)
+      : (boundReport?.expectedDeliveryAt ?? null);
 
     const reportId = crypto.randomUUID();
+    const now = new Date();
+    await prisma.report.create({
+      data: {
+        id: reportId,
+        userId: user.id,
+        birthProfileId: input.birthProfileId,
+        orderId: order?.id ?? undefined,
+        fulfillmentUnitId: targetFulfillmentUnit?.id ?? undefined,
+        reportType: input.reportType as any,
+        status: 'QUEUED',
+        stage: 'QUEUED',
+        progress: 0,
+        expectedDeliveryAt,
+        reportVersion: CURRENT_REPORT_VERSION,
+        calculationVersion: CURRENT_CALCULATION_VERSION,
+        metadata: {
+          enqueued: false,
+          ...(input.partnerProfileId ? { partnerProfileId: input.partnerProfileId } : {}),
+        },
+        createdAt: now,
+        updatedAt: now,
+      } as any,
+    });
+
+    // Non-blocking notification dispatch for job start
+    try {
+      await notificationService.sendNotification({
+        userId: user.id,
+        type: 'REPORT_STARTED',
+        entityId: reportId,
+        idempotencyKey: `report_started:${reportId}`,
+        route: 'OPEN_REPORT',
+        templateData: {
+          reportName: input.reportType,
+          reportId,
+        },
+      });
+    } catch (_) {}
+
+    if (order && targetFulfillmentUnit) {
+      await fulfillmentService.reconcileFulfillmentUnit(order.id, targetFulfillmentUnit.id);
+    }
+
+    return {
+      reused: false,
+      reportId,
+      order,
+      profile,
+      partnerProfile,
+    };
+  }
+
+  /**
+   * Executes long-running synchronous report generation pipeline OUTSIDE the distributed lock.
+   */
+  private async executeSynchronousReportPipeline(
+    reportId: string,
+    input: CreateReportInput,
+    user: UserContext,
+    order: any,
+    profile: any,
+    partnerProfile: any
+  ) {
     const now = new Date();
 
     const profileInput = {
@@ -571,35 +1095,111 @@ export class ReportsService {
     };
 
     let structuredReport: any;
-    if (input.reportType === 'MARRIAGE_COMPATIBILITY') {
-      const chart1 = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
-      const chart2 = await astrologyService.calculateChartForProfile(input.partnerProfileId!, user);
-      validateAstrologyDataForReport(chart1);
-      validateAstrologyDataForReport(chart2);
+    try {
+      if (input.reportType === 'MARRIAGE_COMPATIBILITY') {
+        const chart1 = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+        const chart2 = await astrologyService.calculateChartForProfile(input.partnerProfileId!, user);
+        validateAstrologyDataForReport(chart1);
+        validateAstrologyDataForReport(chart2);
 
-      const profile2Input = {
-        name: partnerProfile.name,
-        dateOfBirth: partnerProfile.dateOfBirth,
-        timeOfBirth: partnerProfile.timeOfBirth,
-        placeName: partnerProfile.placeName,
-        timezone: partnerProfile.timezone,
-        latitude: partnerProfile.latitude,
-        longitude: partnerProfile.longitude,
-      };
-      structuredReport = await generateMatchmakingReport(profileInput, profile2Input, chart1, chart2, this.interpretationProvider);
-    } else {
-      const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
-      validateAstrologyDataForReport(chartResponse);
-
-      if (input.reportType === 'KUNDLI') {
-        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
-      } else if (input.reportType === 'PLANETARY_SUMMARY') {
-        structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
-      } else if (input.reportType === 'CAREER_PROSITY') {
-        structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, this.interpretationProvider);
+        const profile2Input = {
+          name: partnerProfile.name,
+          dateOfBirth: partnerProfile.dateOfBirth,
+          timeOfBirth: partnerProfile.timeOfBirth,
+          placeName: partnerProfile.placeName,
+          timezone: partnerProfile.timezone,
+          latitude: partnerProfile.latitude,
+          longitude: partnerProfile.longitude,
+        };
+        structuredReport = await generateMatchmakingReport(profileInput, profile2Input, chart1, chart2, this.interpretationProvider);
       } else {
-        structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+        const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
+        validateAstrologyDataForReport(chartResponse);
+
+        if (input.reportType === 'KUNDLI') {
+          structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if (input.reportType === 'PLANETARY_SUMMARY') {
+          structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'HOROSCOPE' || (input.reportType as string) === 'RASHI_BHAVISHYA') {
+          structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'CAREER' || (input.reportType as string) === 'CAREER_PROSITY') {
+          const tier = (input.reportType as string) === 'CAREER_PROSITY' ? 'PRO' : 'BASIC';
+          structuredReport = await generateCareerReport(profileInput, chartResponse, this.interpretationProvider, { tier });
+        } else if ((input.reportType as string) === 'FINANCE') {
+          structuredReport = await generateFinanceReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'LOVE') {
+          structuredReport = await generateLoveReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'FORTUNE') {
+          structuredReport = await generateFortuneReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'FORTUNE_PLUS') {
+          structuredReport = await generateFortunePlusReport(profileInput, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'SATURN') {
+          structuredReport = await generateSaturnReport(profileInput, {
+            zodiacType: 'SIDEREAL',
+            ayanamsa: 'LAHIRI',
+            houseSystem: 'WHOLE_SIGN',
+            nodeCalculation: 'MEAN_NODE',
+          }, chartResponse, this.interpretationProvider);
+        } else if ((input.reportType as string) === 'JUPITER_TRANSIT') {
+          const referenceDate = (input as any).referenceDate || new Date();
+          const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
+          structuredReport = await generateJupiterReport(profileInput, {
+            zodiacType: 'SIDEREAL',
+            ayanamsa: 'LAHIRI',
+            houseSystem: 'WHOLE_SIGN',
+            nodeCalculation: 'MEAN_NODE',
+          }, chartResponse, this.interpretationProvider, { referenceDate: referenceDateIso });
+        } else if ((input.reportType as string) === 'RAHU_KETU_TRANSIT') {
+          const referenceDate = (input as any).referenceDate || new Date();
+          const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
+          structuredReport = await generateRahuKetuReport(profileInput, {
+            zodiacType: 'SIDEREAL',
+            ayanamsa: 'LAHIRI',
+            houseSystem: 'WHOLE_SIGN',
+            nodeCalculation: 'MEAN_NODE',
+          }, chartResponse, this.interpretationProvider, { referenceDate: referenceDateIso });
+        } else if ((input.reportType as string) === 'VARSHPHAL') {
+          const targetYear = (input as any).targetYear || (input as any).year || new Date().getFullYear();
+          structuredReport = await generateVarshphalReport(profileInput, {
+            zodiacType: 'SIDEREAL',
+            ayanamsa: 'LAHIRI',
+            houseSystem: 'WHOLE_SIGN',
+            nodeCalculation: 'MEAN_NODE',
+          }, chartResponse, this.interpretationProvider, { targetYear });
+        } else {
+          throw new AppError(
+            `Report type ${input.reportType} is not supported. Dedicated generator is not available.`,
+            400,
+            'REPORT_TYPE_NOT_SUPPORTED'
+          );
+        }
       }
+    } catch (genErr: any) {
+      const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
+      await prisma.report.updateMany({
+        where: {
+          id: reportId,
+          status: { in: activeStatuses as any[] },
+        },
+        data: {
+          status: 'FAILED',
+          stage: 'FAILED',
+          progress: 0,
+          errorCode: genErr?.code || 'GENERATION_FAILED',
+          errorMessage: genErr?.message || 'Failed during report generation',
+          failedAt: now,
+          updatedAt: now,
+        } as any,
+      });
+      if (order?.id) {
+        try {
+          await prisma.order.updateMany({
+            where: { id: order.id, fulfillmentStatus: FulfillmentStatus.PROCESSING },
+            data: { fulfillmentStatus: FulfillmentStatus.FAILED },
+          });
+        } catch (_) {}
+      }
+      throw genErr;
     }
 
     // Render & upload PDF to private storage
@@ -623,17 +1223,58 @@ export class ReportsService {
       });
       fileSize = uploadRes.fileSize;
     } catch (uploadErr: any) {
-      console.warn(`[REPORT_CREATE] Storage upload non-critical failure: ${uploadErr?.message}`);
+      logger.error(
+        { reportId, userId: user.id, err: uploadErr?.message },
+        '[REPORT_CREATE] Storage upload critical failure. Report cannot be marked COMPLETED.'
+      );
+      try {
+        const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
+        await prisma.report.updateMany({
+          where: {
+            id: reportId,
+            status: { in: activeStatuses as any[] },
+          },
+          data: {
+            status: 'FAILED',
+            stage: 'FAILED',
+            progress: 0,
+            errorCode: 'STORAGE_UPLOAD_FAILED',
+            errorMessage: uploadErr?.message || 'Failed to persist report artifact to storage',
+            storageKey,
+            fileName,
+            fileSize: 0,
+            pageCount: 0,
+            updatedAt: now,
+            failedAt: now,
+          } as any,
+        });
+      } catch (dbErr: any) {
+        logger.error(
+          { reportId, userId: user.id, uploadErr: uploadErr?.message, dbErr: dbErr?.message },
+          '[REPORT_CREATE] Critical double-fault: Failed to record FAILED report state to database after storage upload failure.'
+        );
+      }
+      if (order?.id) {
+        try {
+          await prisma.order.updateMany({
+            where: { id: order.id, fulfillmentStatus: FulfillmentStatus.PROCESSING },
+            data: { fulfillmentStatus: FulfillmentStatus.FAILED },
+          });
+        } catch (_) {}
+      }
+      throw new AppError(`Failed to persist report artifact to storage: ${uploadErr?.message || 'unknown storage error'}`, 500, 'STORAGE_UPLOAD_FAILED');
     }
 
-    const pageCount = (input.reportType === 'MARRIAGE_COMPATIBILITY' || input.reportType === 'CAREER_PROSITY') ? 4 : 3;
+    const repType = input.reportType as string;
+    const pageCount = repType === 'FORTUNE_PLUS' ? 35 : (repType === 'FORTUNE' ? 27 : (repType === 'LOVE' ? 23 : (repType === 'VARSHPHAL' ? 16 : (repType === 'FINANCE' ? 12 : (repType === 'RAHU_KETU_TRANSIT' ? 12 : (repType === 'JUPITER_TRANSIT' ? 11 : (repType === 'SATURN' ? 10 : (repType === 'MARRIAGE_COMPATIBILITY' || repType === 'HOROSCOPE') ? 11 : (repType === 'CAREER_PROSITY' ? 13 : (repType === 'CAREER' ? 7 : 3)))))))));
 
-    const report = await prisma.report.create({
-      data: {
+    const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
+    const compRes = await prisma.report.updateMany({
+      where: {
         id: reportId,
-        userId: user.id,
-        birthProfileId: input.birthProfileId,
-        reportType: input.reportType as any,
+        status: { in: activeStatuses as any[] },
+      },
+      data: {
         status: 'COMPLETED',
         stage: 'COMPLETED',
         progress: 100,
@@ -641,21 +1282,33 @@ export class ReportsService {
         fileName,
         fileSize,
         pageCount,
-        metadata: input.partnerProfileId ? { partnerProfileId: input.partnerProfileId } : undefined,
-        createdAt: now,
         updatedAt: now,
         completedAt: now,
       } as any,
     });
 
+    if (compRes.count > 0 && order?.id) {
+      try {
+        await prisma.order.updateMany({
+          where: { id: order.id },
+          data: { fulfillmentStatus: FulfillmentStatus.FULFILLED },
+        });
+      } catch (_) {}
+    }
+
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      include: { order: true },
+    });
+
     return {
-      id: report.id,
+      id: report?.id ?? reportId,
       userId: user.id,
       birthProfileId: input.birthProfileId,
       reportType: input.reportType,
       status: 'COMPLETED',
       report: structuredReport,
-      createdAt: now,
+      createdAt: report?.createdAt ?? new Date(),
     };
   }
 }

@@ -8,15 +8,15 @@ datasource db {
 }
 
 model User {
-  id                     String                  @id @default(uuid())
-  email                  String?                 @unique
-  phoneNumber            String?                 @unique
+  id                     String                      @id @default(uuid())
+  email                  String?                     @unique
+  phoneNumber            String?                     @unique
   phoneVerifiedAt        DateTime?
   passwordHash           String?
-  googleId               String?                 @unique
-  role                   Role                    @default(USER)
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
+  googleId               String?                     @unique
+  role                   Role                        @default(USER)
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
   fullName               String?
   emailVerifiedAt        DateTime?
   birthProfiles          BirthProfile[]
@@ -72,58 +72,67 @@ model OtpVerification {
 }
 
 model BirthProfile {
-  id          String   @id @default(uuid())
-  userId      String
-  name        String
-  dateOfBirth String
-  timeOfBirth String
-  latitude    Float
-  longitude   Float
-  timezone    String
-  placeName   String?
-  country     String?
-  countryCode String?
-  state       String?
-  isResolved  Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports     Report[]
-  consultationBookings ConsultationBooking[]
-  consultationSessions ConsultationSession[]
+  id                     String                @id @default(uuid())
+  userId                 String
+  name                   String
+  dateOfBirth            String
+  timeOfBirth            String
+  latitude               Float
+  longitude              Float
+  timezone               String
+  placeName              String?
+  country                String?
+  countryCode            String?
+  state                  String?
+  isResolved             Boolean               @default(true)
+  disambiguation         String?
+  utcDateTime            DateTime?
+  timezoneOffsetSeconds  Int?
+  disambiguationRequired Boolean               @default(false)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports                Report[]
+  consultationBookings   ConsultationBooking[]
+  consultationSessions   ConsultationSession[]
 
   @@index([userId])
   @@map("birth_profiles")
 }
 
 model Order {
-  id                String            @id @default(uuid())
-  userId            String
-  razorpayOrderId   String            @unique
-  razorpayPaymentId String?           @unique
-  amount            Int               // Total amount in paise (inclusive of tax & discount)
-  subtotal          Int?              // Subtotal before taxes and discounts in paise
-  taxAmount         Int?              @default(0) // Total tax amount in paise
-  discountAmount    Int?              @default(0) // Total discount amount in paise
-  currency          String            @default("INR")
-  status            OrderStatus       @default(PENDING)
-  paymentStatus     PaymentStatus     @default(PENDING)
-  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
-  idempotencyKey    String?           @unique
-  metadata          Json?             // Metadata with validated schema
-  notes             String?
-  reportType        ReportType?       // Optional for legacy backward compatibility
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items             OrderItem[]
-  refunds           Refund[]
-  reports           Report[]
+  id                   String                      @id @default(uuid())
+  userId               String
+  razorpayOrderId      String                      @unique
+  razorpayPaymentId    String?                     @unique
+  amount               Int // Total amount in paise (inclusive of tax & discount)
+  subtotal             Int? // Subtotal before taxes and discounts in paise
+  taxAmount            Int?                        @default(0) // Total tax amount in paise
+  discountAmount       Int?                        @default(0) // Total discount amount in paise
+  currency             String                      @default("INR")
+  status               OrderStatus                 @default(PENDING)
+  paymentStatus        PaymentStatus               @default(PENDING)
+  fulfillmentStatus    FulfillmentStatus           @default(UNFULFILLED)
+  idempotencyKey       String?                     @unique
+  metadata             Json? // Metadata with validated schema
+  notes                String?
+  reportType           ReportType? // Optional for legacy backward compatibility
+  paidAt               DateTime? // Authoritative payment capture timestamp
+  version              Int                         @default(0) // CAS concurrency counter
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  user                 User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                OrderItem[]
+  refunds              Refund[]
+  reports              Report[]
   consultationBookings ConsultationBooking[]
   courseEntitlements   CourseEntitlement[]
+  fulfillmentUnits     FulfillmentUnit[]
+  shipments            Shipment[]
+  refundAllocations    RefundItemAllocation[]
   shippingAddressId    String?
-  shippingAddress      ShippingAddress?          @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
-  shippingAmount       Int?                      @default(0) // Shipping fee in paise
+  shippingAddress      ShippingAddress?            @relation(fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  shippingAmount       Int?                        @default(0) // Shipping fee in paise
   trackingNumber       String?
   courierPartner       String?
   dispatchedAt         DateTime?
@@ -132,29 +141,34 @@ model Order {
 
   @@index([userId])
   @@index([status])
+  @@index([paidAt])
   @@index([createdAt])
   @@map("orders")
 }
 
 model OrderItem {
-  id              String          @id @default(uuid())
-  orderId         String
-  itemType        OrderItemType
-  catalogId       String          // Stable product identifier (e.g., 'report-career', 'consult-video-45')
-  title           String          // Snapshot of title at purchase time
-  description     String?         // Snapshot description
-  quantity        Int             @default(1)
-  unitPrice       Int             // Price per unit in paise
-  taxRate         Int             @default(1800) // Tax rate in basis points (1800 = 18.00%)
-  taxAmount       Int             @default(0) // Tax in paise for this line item
-  totalAmount     Int             // Final total in paise (unitPrice * quantity + taxAmount - discount)
-  currency        String          @default("INR")
-  fulfillmentType FulfillmentType @default(DIGITAL)
-  metadata        Json?           // Item-specific options, e.g. birthProfileId, slotId
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                String                 @id @default(uuid())
+  orderId           String
+  itemType          OrderItemType
+  catalogId         String // Stable product identifier (e.g., 'report-career', 'consult-video-45')
+  title             String // Snapshot of title at purchase time
+  description       String? // Snapshot description
+  quantity          Int                    @default(1)
+  unitPrice         Int // Price per unit in paise
+  taxRate           Int                    @default(1800) // Tax rate in basis points (1800 = 18.00%)
+  taxAmount         Int                    @default(0) // Tax in paise for this line item
+  totalAmount       Int // Final total in paise (unitPrice * quantity + taxAmount - discount)
+  currency          String                 @default("INR")
+  fulfillmentType   FulfillmentType        @default(DIGITAL)
+  fulfillmentStatus FulfillmentStatus      @default(UNFULFILLED)
+  metadata          Json? // Item-specific options, e.g. birthProfileId, slotId
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  order             Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fulfillmentUnits  FulfillmentUnit[]
+  refundAllocations RefundItemAllocation[]
 
+  @@unique([orderId, id])
   @@index([orderId])
   @@index([catalogId])
   @@index([itemType])
@@ -162,20 +176,22 @@ model OrderItem {
 }
 
 model Refund {
-  id                String       @id @default(uuid())
+  id                String                 @id @default(uuid())
   orderId           String
-  razorpayRefundId  String?      @unique
+  razorpayRefundId  String?                @unique
   razorpayPaymentId String?
-  amount            Int          // Refund amount in paise
-  currency          String       @default("INR")
-  status            RefundStatus @default(PENDING)
+  amount            Int // Refund amount in paise
+  currency          String                 @default("INR")
+  status            RefundStatus           @default(PENDING)
   reason            String?
-  idempotencyKey    String?      @unique
+  idempotencyKey    String?                @unique
   notes             String?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  order             Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  order             Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemAllocations   RefundItemAllocation[]
 
+  @@unique([orderId, id])
   @@index([orderId])
   @@index([status])
   @@map("refunds")
@@ -197,20 +213,21 @@ model WebhookEvent {
 }
 
 model Report {
-  id                 String       @id @default(uuid())
+  id                 String           @id @default(uuid())
   userId             String
   birthProfileId     String
   orderId            String?
+  fulfillmentUnitId  String?          @unique
   reportType         ReportType
-  status             ReportStatus @default(QUEUED)
+  status             ReportStatus     @default(QUEUED)
   s3Url              String?
   errorMessage       String?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  stage              String?      @default("QUEUED")
-  progress           Int          @default(0)
-  reportVersion      String       @default("1.0.0")
-  calculationVersion String       @default("1.0.0")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  stage              String?          @default("QUEUED")
+  progress           Int              @default(0)
+  reportVersion      String           @default("1.0.0")
+  calculationVersion String           @default("1.0.0")
   storageKey         String?
   fileName           String?
   fileSize           Int?
@@ -219,12 +236,23 @@ model Report {
   metadata           Json?
   completedAt        DateTime?
   failedAt           DateTime?
-  birthProfile       BirthProfile @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
-  order              Order?       @relation(fields: [orderId], references: [id])
-  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expectedDeliveryAt DateTime?
+  claimToken         String?
+  claimedAt          DateTime?
+  claimExpiresAt     DateTime?
+  claimVersion       Int              @default(0)
+  recoveryAttempts   Int              @default(0)
+  executionAttempts  Int              @default(0)
+  retryAfter         DateTime?
+  birthProfile       BirthProfile     @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
+  order              Order?           @relation(fields: [orderId], references: [id])
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fulfillmentUnit    FulfillmentUnit? @relation(fields: [fulfillmentUnitId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([birthProfileId])
+  @@index([status, expectedDeliveryAt, createdAt])
+  @@index([claimExpiresAt])
   @@map("reports")
 }
 
@@ -329,6 +357,46 @@ enum FulfillmentStatus {
   SCHEDULED
 }
 
+enum ObligationType {
+  REPORT
+  COURSE
+  CONSULTATION
+  DIGITAL_PRODUCT
+  PHYSICAL_PRODUCT
+}
+
+enum FulfillmentUnitStatus {
+  UNFULFILLED
+  PROCESSING
+  SCHEDULED
+  DISPATCHED
+  DELIVERED
+  FULFILLED
+  FAILED
+  CANCELLED
+  INCONSISTENT_MISSING_RECORD
+}
+
+enum ShipmentStatus {
+  LABEL_CREATED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED_ATTEMPT
+  RETURNED_TO_ORIGIN
+  LOST
+}
+
+enum ShipmentItemStatus {
+  ALLOCATED
+  IN_TRANSIT
+  DELIVERED
+  SUPERSEDED_LOST
+  SUPERSEDED_RETURNED
+  CANCELLED
+}
+
 enum OrderItemType {
   REPORT
   CONSULTATION
@@ -356,6 +424,15 @@ enum ReportType {
   CAREER
   KUNDLI
   PLANETARY_SUMMARY
+  HOROSCOPE
+  FINANCE
+  LOVE
+  FORTUNE
+  SATURN
+  JUPITER_TRANSIT
+  RAHU_KETU_TRANSIT
+  VARSHPHAL
+  FORTUNE_PLUS
 }
 
 enum ReportStatus {
@@ -415,44 +492,46 @@ enum ObservationTag {
 }
 
 model ConsultationBooking {
-  id                    String              @id @default(uuid())
-  userId                String
-  birthProfileId        String?
-  orderId               String?
-  consultationId        String              // Catalog ID, e.g. 'consult-budget-friendly'
-  title                 String
-  mode                  ConsultationMode
-  durationMinutes       Int
-  date                  String              // YYYY-MM-DD
-  startTime             String              // HH:mm
-  endTime               String              // HH:mm
-  slotStartTimeUtc      DateTime
-  slotEndTimeUtc        DateTime
-  timezone              String              @default("Asia/Kolkata")
-  practitionerId        String              @default("astro-sushil")
-  practitionerName      String              @default("Astro Sushil")
-  status                BookingStatus       @default(PENDING_PAYMENT)
-  customerName          String
-  customerPhone         String?
-  customerEmail         String?
-  primaryQuestion       String?
-  meetingLink           String?
-  locationAddress       String?
-  reservationExpiresAt  DateTime?
-  internalNotes         String?
-  rescheduleReason      String?
-  cancellationReason    String?
-  cancelledAt           DateTime?
-  confirmedAt           DateTime?
-  completedAt           DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                   String           @id @default(uuid())
+  userId               String
+  birthProfileId       String?
+  orderId              String?
+  consultationId       String // Catalog ID, e.g. 'consult-budget-friendly'
+  title                String
+  mode                 ConsultationMode
+  durationMinutes      Int
+  date                 String // YYYY-MM-DD
+  startTime            String // HH:mm
+  endTime              String // HH:mm
+  slotStartTimeUtc     DateTime
+  slotEndTimeUtc       DateTime
+  timezone             String           @default("Asia/Kolkata")
+  practitionerId       String           @default("astro-sushil")
+  practitionerName     String           @default("Astro Sushil")
+  status               BookingStatus    @default(PENDING_PAYMENT)
+  customerName         String
+  customerPhone        String?
+  customerEmail        String?
+  primaryQuestion      String?
+  meetingLink          String?
+  locationAddress      String?
+  reservationExpiresAt DateTime?
+  internalNotes        String?
+  rescheduleReason     String?
+  cancellationReason   String?
+  cancelledAt          DateTime?
+  confirmedAt          DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  birthProfile          BirthProfile?       @relation(fields: [birthProfileId], references: [id], onDelete: SetNull)
-  order                 Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  slot                  AppointmentSlot?
-  sessions              ConsultationSession[]
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birthProfile      BirthProfile?         @relation(fields: [birthProfileId], references: [id], onDelete: SetNull)
+  order             Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  slot              AppointmentSlot?
+  sessions          ConsultationSession[]
+  fulfillmentUnitId String?               @unique
+  fulfillmentUnit   FulfillmentUnit?      @relation(fields: [fulfillmentUnitId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([date, status])
@@ -462,20 +541,20 @@ model ConsultationBooking {
 }
 
 model AppointmentSlot {
-  id                    String              @id @default(uuid())
-  practitionerId        String              @default("astro-sushil")
-  date                  String              // YYYY-MM-DD
-  startTime             String              // HH:mm
-  endTime               String              // HH:mm
-  startTimeUtc          DateTime
-  endTimeUtc            DateTime
-  status                SlotStatus          @default(AVAILABLE)
-  bookingId             String?             @unique
-  lockedUntil           DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id             String     @id @default(uuid())
+  practitionerId String     @default("astro-sushil")
+  date           String // YYYY-MM-DD
+  startTime      String // HH:mm
+  endTime        String // HH:mm
+  startTimeUtc   DateTime
+  endTimeUtc     DateTime
+  status         SlotStatus @default(AVAILABLE)
+  bookingId      String?    @unique
+  lockedUntil    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
-  booking               ConsultationBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  booking ConsultationBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
 
   @@unique([practitionerId, date, startTime])
   @@index([date, status])
@@ -483,24 +562,24 @@ model AppointmentSlot {
 }
 
 model ConsultationSession {
-  id                    String              @id @default(uuid())
-  adminId               String
-  adminEmail            String?
-  userId                String
-  birthProfileId        String
-  bookingId             String?
-  status                SessionStatus       @default(ACTIVE)
-  startedAt             DateTime            @default(now())
-  endedAt               DateTime?
-  durationSeconds       Int?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id              String        @id @default(uuid())
+  adminId         String
+  adminEmail      String?
+  userId          String
+  birthProfileId  String
+  bookingId       String?
+  status          SessionStatus @default(ACTIVE)
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  birthProfile          BirthProfile        @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
-  booking               ConsultationBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  notes                 ConsultationNote[]
-  observations          SessionObservation[]
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birthProfile BirthProfile         @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
+  booking      ConsultationBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  notes        ConsultationNote[]
+  observations SessionObservation[]
 
   @@index([userId])
   @@index([adminId, status])
@@ -509,32 +588,32 @@ model ConsultationSession {
 }
 
 model ConsultationNote {
-  id                    String              @id @default(uuid())
-  sessionId             String
-  adminId               String
-  content               String
-  section               String?
-  subject               String?
-  version               Int                 @default(1)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id        String   @id @default(uuid())
+  sessionId String
+  adminId   String
+  content   String
+  section   String?
+  subject   String?
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  session               ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@map("consultation_notes")
 }
 
 model SessionObservation {
-  id                    String              @id @default(uuid())
-  sessionId             String
-  adminId               String
-  tag                   ObservationTag
-  note                  String?
-  section               String?
-  createdAt             DateTime            @default(now())
+  id        String         @id @default(uuid())
+  sessionId String
+  adminId   String
+  tag       ObservationTag
+  note      String?
+  section   String?
+  createdAt DateTime       @default(now())
 
-  session               ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@map("session_observations")
@@ -567,74 +646,74 @@ enum EntitlementStatus {
 }
 
 model Course {
-  id                   String              @id @default(uuid())
-  sku                  String              @unique
-  slug                 String              @unique
+  id                   String      @id @default(uuid())
+  sku                  String      @unique
+  slug                 String      @unique
   title                String
   hindiTitle           String?
   shortDescription     String
   hindiDescription     String?
-  instructorName       String              @default("Astro Sushil Kumar Singh")
-  language             String              @default("English")
-  level                CourseLevel         @default(BEGINNER)
+  instructorName       String      @default("Astro Sushil Kumar Singh")
+  language             String      @default("English")
+  level                CourseLevel @default(BEGINNER)
   pricePaise           Int
   originalPricePaise   Int?
-  currency             String              @default("INR")
+  currency             String      @default("INR")
   thumbnail            String?
   thumbnailKey         String?
   platformUrl          String?
-  totalDurationMinutes Int                 @default(0)
-  isPublished          Boolean             @default(true)
-  isFeatured           Boolean             @default(false)
-  rating               Float               @default(5.0)
-  totalReviews         Int                 @default(0)
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  totalDurationMinutes Int         @default(0)
+  isPublished          Boolean     @default(true)
+  isFeatured           Boolean     @default(false)
+  rating               Float       @default(5.0)
+  totalReviews         Int         @default(0)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
-  sections             CourseSection[]
-  lessons              CourseLesson[]
-  entitlements         CourseEntitlement[]
+  sections     CourseSection[]
+  lessons      CourseLesson[]
+  entitlements CourseEntitlement[]
 
   @@index([isPublished, isFeatured])
   @@map("courses")
 }
 
 model CourseSection {
-  id         String         @id @default(uuid())
+  id         String   @id @default(uuid())
   courseId   String
   title      String
   hindiTitle String?
-  orderIndex Int            @default(0)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  course     Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons    CourseLesson[]
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons CourseLesson[]
 
   @@index([courseId, orderIndex])
   @@map("course_sections")
 }
 
 model CourseLesson {
-  id              String           @id @default(uuid())
+  id              String    @id @default(uuid())
   courseId        String
   sectionId       String
   title           String
   hindiTitle      String?
   description     String?
-  orderIndex      Int              @default(0)
-  durationMinutes Int              @default(0)
-  durationSeconds Int              @default(0)
+  orderIndex      Int       @default(0)
+  durationMinutes Int       @default(0)
+  durationSeconds Int       @default(0)
   videoUrl        String?
-  videoType       VideoType        @default(HLS)
-  isFreePreview   Boolean          @default(false)
-  isPublished     Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  videoType       VideoType @default(HLS)
+  isFreePreview   Boolean   @default(false)
+  isPublished     Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  section         CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  progress        LessonProgress[]
+  course   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  section  CourseSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
 
   @@index([sectionId, orderIndex])
   @@index([courseId])
@@ -653,9 +732,11 @@ model CourseEntitlement {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  order     Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course            Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order             Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  fulfillmentUnitId String?          @unique
+  fulfillmentUnit   FulfillmentUnit? @relation(fields: [fulfillmentUnitId], references: [id], onDelete: Restrict)
 
   @@unique([userId, courseId])
   @@index([userId, status])
@@ -664,19 +745,19 @@ model CourseEntitlement {
 }
 
 model LessonProgress {
-  id             String       @id @default(uuid())
+  id             String    @id @default(uuid())
   userId         String
   lessonId       String
   courseId       String
-  watchedSeconds Int          @default(0)
-  isCompleted    Boolean      @default(false)
+  watchedSeconds Int       @default(0)
+  isCompleted    Boolean   @default(false)
   completedAt    DateTime?
-  lastWatchedAt  DateTime     @default(now())
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  lastWatchedAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson         CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
   @@index([userId, courseId])
@@ -691,29 +772,29 @@ enum ProductType {
 }
 
 model Product {
-  id               String          @id @default(uuid())
-  slug             String          @unique
-  catalogId        String          @unique
+  id               String      @id @default(uuid())
+  slug             String      @unique
+  catalogId        String      @unique
   title            String
   hindiTitle       String?
   description      String?
   hindiDescription String?
-  category         String          // WALLPAPER, DIGITAL_ART, DIGITAL_BUNDLE, PHYSICAL_HERB
-  productType      ProductType     @default(DIGITAL_WALLPAPER)
-  mrp              Int             // MRP in paise
-  price            Int             // Selling price in paise
-  currency         String          @default("INR")
-  stock            Int             @default(0) // Available quantity or 9995 for herb, -1 for unlimited digital
-  isAvailable      Boolean         @default(true)
-  requiresShipping Boolean         @default(false)
+  category         String // WALLPAPER, DIGITAL_ART, DIGITAL_BUNDLE, PHYSICAL_HERB
+  productType      ProductType @default(DIGITAL_WALLPAPER)
+  mrp              Int // MRP in paise
+  price            Int // Selling price in paise
+  currency         String      @default("INR")
+  stock            Int         @default(0) // Available quantity or 9995 for herb, -1 for unlimited digital
+  isAvailable      Boolean     @default(true)
+  requiresShipping Boolean     @default(false)
   imageUrl         String?
   galleryImages    Json?
-  variants         Json?           // Variant options e.g. [{ id: "large", name: "Large", price: 249900 }]
-  metadata         Json?           // asset keys, included items for bundles, audio voice notes
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  variants         Json? // Variant options e.g. [{ id: "large", name: "Large", price: 249900 }]
+  metadata         Json? // asset keys, included items for bundles, audio voice notes
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-  entitlements     DigitalProductEntitlement[]
+  entitlements DigitalProductEntitlement[]
 
   @@index([category])
   @@index([productType])
@@ -737,8 +818,8 @@ model ShippingAddress {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders       Order[]
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([userId])
   @@map("shipping_addresses")
@@ -753,16 +834,18 @@ model DigitalProductEntitlement {
   status           EntitlementStatus @default(ACTIVE)
   downloadCount    Int               @default(0)
   lastDownloadedAt DateTime?
-  assetKey         String?           // Storage key or download path
-  bundleAssets     Json?             // Array of asset objects for bundle { name, key, type }
+  assetKey         String? // Storage key or download path
+  bundleAssets     Json? // Array of asset objects for bundle { name, key, type }
   expiresAt        DateTime?
   grantedAt        DateTime          @default(now())
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product          Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order             Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  fulfillmentUnitId String?          @unique
+  fulfillmentUnit   FulfillmentUnit? @relation(fields: [fulfillmentUnitId], references: [id], onDelete: Restrict)
 
   @@index([userId, status])
   @@index([productId])
@@ -770,3 +853,98 @@ model DigitalProductEntitlement {
   @@map("digital_product_entitlements")
 }
 
+model FulfillmentUnit {
+  id             String                @id @default(uuid())
+  orderId        String
+  orderItemId    String
+  obligationType ObligationType
+  unitIndex      Int // 1-based index (1, 2, ... quantity)
+  status         FulfillmentUnitStatus @default(UNFULFILLED)
+  version        Int                   @default(0) // CAS concurrency counter
+
+  report              Report?
+  courseEntitlement   CourseEntitlement?
+  consultationBooking ConsultationBooking?
+  digitalEntitlement  DigitalProductEntitlement?
+  shipmentItems       ShipmentItem[]
+
+  dispatchedAt  DateTime?
+  deliveredAt   DateTime?
+  fulfilledAt   DateTime?
+  failedAt      DateTime?
+  cancelledAt   DateTime?
+  errorCode     String?
+  failureReason String?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem OrderItem @relation(fields: [orderId, orderItemId], references: [orderId, id], onDelete: Restrict)
+
+  @@unique([orderItemId, unitIndex])
+  @@index([orderId, status])
+  @@index([obligationType, status])
+  @@map("fulfillment_units")
+}
+
+model Shipment {
+  id             String         @id @default(uuid())
+  orderId        String
+  carrier        String // e.g. "BlueDart", "Delhivery"
+  trackingNumber String         @unique
+  trackingUrl    String?
+  status         ShipmentStatus @default(LABEL_CREATED)
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  failureReason  String?
+  version        Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  order Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  items ShipmentItem[]
+
+  @@index([orderId])
+  @@index([trackingNumber])
+  @@map("shipments")
+}
+
+model ShipmentItem {
+  id                String             @id @default(uuid())
+  shipmentId        String
+  fulfillmentUnitId String
+  quantity          Int                @default(1)
+  isReplacement     Boolean            @default(false)
+  status            ShipmentItemStatus @default(ALLOCATED)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  shipment        Shipment        @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  fulfillmentUnit FulfillmentUnit @relation(fields: [fulfillmentUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([shipmentId, fulfillmentUnitId])
+  @@index([fulfillmentUnitId])
+  @@map("shipment_items")
+}
+
+model RefundItemAllocation {
+  id              String   @id @default(uuid())
+  orderId         String // Composite foreign key partition
+  refundId        String
+  orderItemId     String
+  amount          Int // Amount in paise (> 0)
+  restockQuantity Int      @default(0)
+  reason          String?
+  createdAt       DateTime @default(now())
+
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  refund    Refund    @relation(fields: [orderId, refundId], references: [orderId, id], onDelete: Restrict)
+  orderItem OrderItem @relation(fields: [orderId, orderItemId], references: [orderId, id], onDelete: Restrict)
+
+  @@unique([refundId, orderItemId])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@map("refund_item_allocations")
+}

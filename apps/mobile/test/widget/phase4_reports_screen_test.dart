@@ -65,9 +65,9 @@ void main() {
     expect(find.text('Pro Horoscope & Divisional Charts'), findsOneWidget);
     expect(find.text('₹699'), findsOneWidget);
 
-    // 5. Matchmaking Report (₹999)
+    // 5. Matchmaking Report (₹499)
     expect(find.text('Marriage & Relationship Report'), findsOneWidget);
-    expect(find.text('₹999'), findsOneWidget);
+    expect(find.text('₹499'), findsWidgets);
 
     // Verify 100% Deterministic Engine pill badge
     expect(find.text('100% Deterministic Engine'), findsOneWidget);

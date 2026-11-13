@@ -14,7 +14,9 @@ import {
   EntitlementSource,
   EntitlementStatus,
   ProductType,
+  ObligationType,
 } from '@prisma/client';
+import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { VERIFIED_PRODUCTS } from './products.seed';
 import {
   ListProductsQuery,
@@ -484,22 +486,34 @@ export class ProductsService {
     }
 
     // Fulfill order in atomic transaction
-    const hasPhysicalItems = order.items.some((i) => i.fulfillmentType === FulfillmentType.PHYSICAL);
-
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update Order status
-      const updatedOrder = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: OrderStatus.PAID,
-          paymentStatus: PaymentStatus.CAPTURED,
-          fulfillmentStatus: hasPhysicalItems ? FulfillmentStatus.PROCESSING : FulfillmentStatus.FULFILLED,
-          razorpayPaymentId: input.razorpayPaymentId,
-        },
-        include: { items: true, shippingAddress: true },
-      });
+      // 1. Lock Order FIRST (Global Lock Hierarchy)
+      await tx.$queryRaw`
+        SELECT id FROM "orders" WHERE id = ${order.id} FOR UPDATE;
+      `;
 
-      // 2. Fulfill items
+      // 2. Lock OrderItems SECOND
+      await tx.$queryRaw`
+        SELECT id FROM "order_items" WHERE "orderId" = ${order.id} ORDER BY id ASC FOR UPDATE;
+      `;
+
+      // 3. Atomically transition order to PAID, CAPTURED, paidAt = clock_timestamp(), version = version + 1
+      await tx.$executeRaw`
+        UPDATE "orders"
+        SET
+          status = 'PAID'::"OrderStatus",
+          "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+          "paidAt" = clock_timestamp(),
+          "version" = version + 1,
+          "razorpayPaymentId" = ${input.razorpayPaymentId},
+          "updatedAt" = clock_timestamp()
+        WHERE id = ${order.id};
+      `;
+
+      // 4. Create fulfillment units idempotently
+      await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
+
+      // 5. Fulfill items
       const createdEntitlements: any[] = [];
 
       for (const item of order.items) {
@@ -522,7 +536,15 @@ export class ProductsService {
                 });
               }
             } else {
-              // Digital product: grant digital entitlement
+              // Digital product: find fulfillment unit and grant digital entitlement
+              const digitalUnits = await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT id FROM "fulfillment_units"
+                WHERE "orderItemId" = ${item.id} AND "obligationType" = 'DIGITAL_PRODUCT'::"ObligationType"
+                ORDER BY "unitIndex" ASC
+                LIMIT 1;
+              `;
+              const digitalUnitId = digitalUnits[0]?.id;
+
               const existingEntitlement = await tx.digitalProductEntitlement.findFirst({
                 where: {
                   userId: order.userId,
@@ -537,6 +559,7 @@ export class ProductsService {
                     userId: order.userId,
                     productId: product.id,
                     orderId: order.id,
+                    fulfillmentUnitId: digitalUnitId || null,
                     source: EntitlementSource.PURCHASE,
                     status: EntitlementStatus.ACTIVE,
                     assetKey: (product.metadata as any)?.digitalAssetKey || product.imageUrl,
@@ -545,13 +568,30 @@ export class ProductsService {
                   include: { product: true },
                 });
                 createdEntitlements.push(entitlement);
+              } else if (!existingEntitlement.fulfillmentUnitId && digitalUnitId) {
+                await tx.digitalProductEntitlement.update({
+                  where: { id: existingEntitlement.id },
+                  data: { fulfillmentUnitId: digitalUnitId },
+                });
+              }
+
+              if (digitalUnitId) {
+                await fulfillmentService.reconcileFulfillmentUnit(order.id, digitalUnitId, tx);
               }
             }
           }
         }
       }
 
-      return { updatedOrder, createdEntitlements };
+      // 6. Reconcile overall order fulfillment status
+      await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+
+      const updatedOrder = await tx.order.findUnique({
+        where: { id: order.id },
+        include: { items: true, shippingAddress: true },
+      });
+
+      return { updatedOrder: updatedOrder!, createdEntitlements };
     });
 
     logger.info(

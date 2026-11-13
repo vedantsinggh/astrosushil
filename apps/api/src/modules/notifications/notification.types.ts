@@ -2,6 +2,9 @@ export type NotificationChannel = 'PUSH' | 'EMAIL' | 'IN_APP';
 
 export type NotificationType =
   | 'REPORT_READY'
+  | 'REPORT_STARTED'
+  | 'REPORT_DELAYED'
+  | 'REPORT_FAILED'
   | 'PAYMENT_SUCCESS'
   | 'SECURITY_ALERT'
   | 'ASTROLOGY_REMINDER'

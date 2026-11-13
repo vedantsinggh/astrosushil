@@ -116,4 +116,72 @@ describe('Multi-Continent Timezone & Historical DST Conversion Tests', () => {
     // 08:00 AEST - 10 hours = 22:00 UTC previous day
     expect(details.utcDateTime).toBe('1996-07-09T22:00:00.000Z');
   });
+
+  // 5. DST TRANSITIONS & SAFEGUARDS
+  it('should correctly handle spring-forward post-jump time (2020-03-08 03:30 New York -> 07:30Z)', () => {
+    const details = normalizeBirthProfile({
+      name: 'Transition Test',
+      dateOfBirth: '2020-03-08',
+      timeOfBirth: '03:30:00',
+      latitude: 40.7128,
+      longitude: -74.006,
+      timezone: 'America/New_York',
+    });
+
+    expect(details.timezoneOffsetMinutes).toBe(-240); // EDT is UTC-4 (-240 mins)
+    expect(details.utcDateTime).toBe('2020-03-08T07:30:00.000Z');
+  });
+
+  it('should reject nonexistent spring-forward gap time (2020-03-08 02:30 New York)', () => {
+    expect(() =>
+      normalizeBirthProfile({
+        name: 'Nonexistent Test',
+        dateOfBirth: '2020-03-08',
+        timeOfBirth: '02:30:00',
+        latitude: 40.7128,
+        longitude: -74.006,
+        timezone: 'America/New_York',
+      })
+    ).toThrowError(/does not exist/);
+  });
+
+  it('should detect ambiguous fall-back time and require disambiguation', () => {
+    // Without disambiguation -> throws ValidationError
+    expect(() =>
+      normalizeBirthProfile({
+        name: 'Ambiguous Test',
+        dateOfBirth: '2020-11-01',
+        timeOfBirth: '01:30:00',
+        latitude: 40.7128,
+        longitude: -74.006,
+        timezone: 'America/New_York',
+      })
+    ).toThrowError(/ambiguous/i);
+
+    // With explicit disambiguation 'earlier' (EDT)
+    const earlier = normalizeBirthProfile({
+      name: 'Ambiguous Test Earlier',
+      dateOfBirth: '2020-11-01',
+      timeOfBirth: '01:30:00',
+      latitude: 40.7128,
+      longitude: -74.006,
+      timezone: 'America/New_York',
+      disambiguation: 'earlier',
+    });
+    expect(earlier.utcDateTime).toBe('2020-11-01T05:30:00.000Z');
+    expect(earlier.timezoneOffsetMinutes).toBe(-240);
+
+    // With explicit disambiguation 'later' (EST)
+    const later = normalizeBirthProfile({
+      name: 'Ambiguous Test Later',
+      dateOfBirth: '2020-11-01',
+      timeOfBirth: '01:30:00',
+      latitude: 40.7128,
+      longitude: -74.006,
+      timezone: 'America/New_York',
+      disambiguation: 'later',
+    });
+    expect(later.utcDateTime).toBe('2020-11-01T06:30:00.000Z');
+    expect(later.timezoneOffsetMinutes).toBe(-300);
+  });
 });

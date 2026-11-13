@@ -190,6 +190,7 @@ class ReportGenerationNotifier extends StateNotifier<ReportGenerationState>
     required String birthProfileId,
     required String reportType,
     String? partnerProfileId,
+    String? orderId,
     bool forceRegenerate = false,
   }) async {
     state = state.copyWith(
@@ -204,6 +205,7 @@ class ReportGenerationNotifier extends StateNotifier<ReportGenerationState>
         birthProfileId: birthProfileId,
         reportType: reportType,
         partnerProfileId: partnerProfileId,
+        orderId: orderId,
         forceRegenerate: forceRegenerate,
         async: true,
       );

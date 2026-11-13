@@ -443,7 +443,7 @@ abstract class AppLocalizations {
   /// No description provided for @marriageReportSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'36-Guna matching, dosha cancellation & remedies'**
+  /// **'36-Guna matching and compatibility analysis'**
   String get marriageReportSubtitle;
 
   /// No description provided for @miniHoroscopeTitle.
@@ -1325,7 +1325,7 @@ abstract class AppLocalizations {
   /// No description provided for @explainGocharaHowToRead.
   ///
   /// In en, this message translates to:
-  /// **'Benefic transits over houses with 28+ SAV bindus unlock opportunities, while challenging transits (like Saturn over 12th, 1st, or 2nd house during Sade Sati) require disciplined focus and caution.'**
+  /// **'Benefic transits over houses with 28+ SAV bindus unlock opportunities, while structured transits (such as Saturn\'s transit over the 12th, 1st, or 2nd house relative to natal Moon) call for disciplined focus and patience.'**
   String get explainGocharaHowToRead;
 
   /// No description provided for @explainSpecialPointsTitle.

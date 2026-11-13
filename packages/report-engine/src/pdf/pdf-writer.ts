@@ -93,8 +93,11 @@ export class PdfWriter {
 
   public sanitizeText(text: string): string {
     return text
+      .replace(/\u2014/g, ' - ')
+      .replace(/\u2013/g, '-')
       .replace(/°/g, ' deg')
       .replace(/•/g, '-')
+      .replace(/[^\x20-\x7E\xA0-\xFF]/g, '')
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)');
@@ -225,8 +228,8 @@ export class PdfWriter {
     objects[1] = `<< /Type /Pages /Count ${pageObjIds.length} /Kids [${kidsStr}] >>`;
 
     // Calculate Byte Offsets for Xref Table
-    let currentOffset = 15; // length of `%PDF-1.4\n`
     const header = '%PDF-1.4\n';
+    let currentOffset = Buffer.byteLength(header, 'ascii');
     const offsets: number[] = [];
 
     for (let i = 0; i < objects.length; i++) {

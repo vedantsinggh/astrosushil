@@ -55,7 +55,8 @@ class AppConfig {
   /// 4. Android Emulator mode `--dart-define=USE_EMULATOR=true` -> `http://10.0.2.2:3000/api/v1`
   /// 5. Host override `--dart-define=API_HOST=...` -> `http://<API_HOST>:3000/api/v1`
   /// 6. Release mode (`kReleaseMode`) -> `https://backend.astrosushil.com/api/v1`
-  /// 7. Development default on local Wi-Fi -> `http://192.168.1.10:3000/api/v1`
+  /// 7. Desktop platforms (Linux, macOS, Windows) -> `http://127.0.0.1:3000/api/v1`
+  /// 8. Development default on local Wi-Fi -> `http://192.168.1.10:3000/api/v1`
   static String get baseUrl {
     // 1. Programmatic runtime override
     if (_baseUrlOverride != null && _baseUrlOverride!.isNotEmpty) {
@@ -98,7 +99,14 @@ class AppConfig {
       return productionApiUrl;
     }
 
-    // 7. Default development configuration for physical Android phone over local Wi-Fi
+    // 7. Desktop platforms (Linux, macOS, Windows) running locally
+    try {
+      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+        return 'http://127.0.0.1:$apiPort$apiPrefix';
+      }
+    } catch (_) {}
+
+    // 8. Default development configuration for physical Android phone over local Wi-Fi
     return 'http://$defaultDevHost:$apiPort$apiPrefix';
   }
 

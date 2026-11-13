@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_card.dart';
@@ -38,6 +39,10 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
+  String? _selectedDisambiguation;
+  ValidationErrorDetail? _ambiguousDetail;
+  ValidationErrorDetail? _nonexistentDetail;
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +60,7 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
 
     if (profile != null) {
       _selectedTimezone = profile.timezone;
+      _selectedDisambiguation = profile.disambiguation;
       if (profile.placeName.isNotEmpty) {
         _selectedLocation = LocationModel(
           id: 'existing-location',
@@ -68,6 +74,12 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
           timezone: profile.timezone,
         );
       }
+
+      if (profile.disambiguationRequired) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _submit();
+        });
+      }
     }
   }
 
@@ -79,6 +91,15 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
     _latitudeController.dispose();
     _longitudeController.dispose();
     super.dispose();
+  }
+
+  void _clearDisambiguationState() {
+    if (_ambiguousDetail != null || _nonexistentDetail != null) {
+      setState(() {
+        _ambiguousDetail = null;
+        _nonexistentDetail = null;
+      });
+    }
   }
 
   Future<void> _pickDate() async {
@@ -108,6 +129,7 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
       },
     );
     if (picked != null) {
+      _clearDisambiguationState();
       setState(() {
         _selectedDate = picked;
         _dateController.text = DateFormat('yyyy-MM-dd').format(picked);
@@ -134,6 +156,7 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
       },
     );
     if (picked != null) {
+      _clearDisambiguationState();
       setState(() {
         _selectedTime = picked;
         final hour = picked.hour.toString().padLeft(2, '0');
@@ -144,6 +167,7 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
   }
 
   void _onLocationSelected(LocationModel? location) {
+    _clearDisambiguationState();
     setState(() {
       _selectedLocation = location;
       if (location != null) {
@@ -180,27 +204,67 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
         countryCode: _selectedLocation!.countryCode.isNotEmpty ? _selectedLocation!.countryCode : null,
         state: _selectedLocation!.state,
         isResolved: true,
+        disambiguation: _selectedDisambiguation,
       );
 
       BirthProfileModel? savedProfile;
       if (widget.existingProfile != null) {
         final auth = ref.read(authStateProvider);
-        savedProfile = await ref
-            .read(birthProfileRepositoryProvider)
-            .updateProfile(widget.existingProfile!.id, dto, isGuest: auth.isGuest);
-        await ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
+        try {
+          savedProfile = await ref
+              .read(birthProfileRepositoryProvider)
+              .updateProfile(widget.existingProfile!.id, dto, isGuest: auth.isGuest);
+          await ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
+        } on ValidationException catch (ve) {
+          final ambiguous = ve.details?.where((d) => d.code == 'AMBIGUOUS_LOCAL_TIME').firstOrNull;
+          final nonexistent = ve.details?.where((d) => d.code == 'NONEXISTENT_LOCAL_TIME').firstOrNull;
+          setState(() {
+            _ambiguousDetail = ambiguous;
+            _nonexistentDetail = nonexistent;
+            if (ambiguous != null && _selectedDisambiguation == null) {
+              _selectedDisambiguation = 'earlier';
+            }
+          });
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+          );
+          return;
+        }
       } else {
         savedProfile = await ref
             .read(birthProfilesListNotifierProvider.notifier)
             .createProfile(dto);
       }
 
-      if (savedProfile != null && mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => BirthChartScreen(profile: savedProfile!),
-          ),
-        );
+      final profileState = ref.read(birthProfilesListNotifierProvider);
+      if (profileState.lastValidationException != null) {
+        final details = profileState.lastValidationException!.details;
+        final ambiguous = details?.where((d) => d.code == 'AMBIGUOUS_LOCAL_TIME').firstOrNull;
+        final nonexistent = details?.where((d) => d.code == 'NONEXISTENT_LOCAL_TIME').firstOrNull;
+
+        setState(() {
+          _ambiguousDetail = ambiguous;
+          _nonexistentDetail = nonexistent;
+          if (ambiguous != null && _selectedDisambiguation == null) {
+            _selectedDisambiguation = 'earlier';
+          }
+        });
+      } else if (savedProfile != null) {
+        setState(() {
+          _ambiguousDetail = null;
+          _nonexistentDetail = null;
+        });
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => BirthChartScreen(profile: savedProfile),
+            ),
+          );
+        }
       }
     }
   }
@@ -209,6 +273,9 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
   Widget build(BuildContext context) {
     final state = ref.watch(birthProfilesListNotifierProvider);
     final isEditing = widget.existingProfile != null;
+
+    final hasDisambiguationOrNonexistent =
+        _ambiguousDetail != null || _nonexistentDetail != null;
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -280,8 +347,164 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
 
                   const SizedBox(height: 18),
 
-                  if (state.errorMessage != null) ...[
+                  // Error banner if standard error and not specifically handled by cards
+                  if (state.errorMessage != null && !hasDisambiguationOrNonexistent) ...[
                     ErrorBanner(message: state.errorMessage!),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Nonexistent Local Time Explanation Card
+                  if (_nonexistentDetail != null) ...[
+                    AstroCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
+                        ),
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 22),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Clock Change: Time Did Not Occur',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF991B1B),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'The local time ${_timeController.text.trim()} did not occur in ${_selectedLocation?.timezone ?? _selectedTimezone} on ${_dateController.text.trim()} because clocks jumped forward 1 hour for Daylight Saving Time.',
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF7F1D1D), height: 1.4),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Please check your official birth records or certificate and adjust the time above before proceeding.',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF991B1B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Ambiguous Local Time Disambiguation Selector Card
+                  if (_ambiguousDetail != null) ...[
+                    AstroCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFBEB),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                        ),
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.schedule_rounded, color: Color(0xFFD97706), size: 22),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Ambiguous Local Birth Time',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF92400E),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Because clocks turned back by one hour on ${_dateController.text.trim()} in ${_selectedLocation?.timezone ?? _selectedTimezone}, this local time occurred twice.',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), height: 1.35),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Entered Time: ${_timeController.text.trim()}  |  Timezone: ${_selectedLocation?.timezone ?? _selectedTimezone}',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Please select which occurrence corresponds to your birth:',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                            ),
+                            const SizedBox(height: 8),
+                            ...(_ambiguousDetail!.candidates ?? []).map((candidate) {
+                              final isSelected = _selectedDisambiguation == candidate.disambiguation;
+                              final isEarlier = candidate.disambiguation == 'earlier';
+                              final offsetStr = candidate.offsetMinutes >= 0
+                                  ? '+${(candidate.offsetMinutes / 60).toStringAsFixed(1)}'
+                                  : (candidate.offsetMinutes / 60).toStringAsFixed(1);
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.65),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFFD97706) : const Color(0xFFE5E7EB),
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                ),
+                                child: RadioListTile<String>(
+                                  value: candidate.disambiguation,
+                                  groupValue: _selectedDisambiguation,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedDisambiguation = val;
+                                    });
+                                  },
+                                  title: Text(
+                                    isEarlier
+                                        ? 'Earlier occurrence (First pass before clock change)'
+                                        : 'Later occurrence (Second pass after clock change)',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    'UTC: ${candidate.utcIsoString.replaceFirst('.000Z', ' UTC')}  |  UTC Offset: ${offsetStr}h',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
+                                  ),
+                                  activeColor: const Color(0xFFD97706),
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 4),
+                            ElevatedButton.icon(
+                              onPressed: state.isLoading ? null : _submit,
+                              icon: const Icon(Icons.check_circle_outline, size: 16),
+                              label: const Text('Confirm Choice & Calculate Chart'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD97706),
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(42),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                   ],
 
@@ -326,17 +549,18 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                           ),
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
-                              return 'Full Name is required';
+                              return 'Please enter your full name';
                             }
                             return null;
                           },
                         ),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 16),
 
-                        // DATE & TIME OF BIRTH ROW
+                        // DATE & TIME ROW
                         Row(
                           children: [
+                            // DATE PICKER
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,26 +578,21 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                     controller: _dateController,
                                     readOnly: true,
                                     onTap: _pickDate,
-                                    style: const TextStyle(fontSize: 14, color: AppColors.primary),
+                                    style: const TextStyle(fontSize: 13, color: AppColors.primary),
                                     decoration: InputDecoration(
                                       hintText: 'YYYY-MM-DD',
-                                      hintStyle: TextStyle(color: AppColors.secondary.withOpacity(0.5)),
-                                      prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.secondary),
+                                      prefixIcon: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.secondary),
                                       filled: true,
                                       fillColor: AppColors.lightBackground,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                       border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: AppColors.lightBorder),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: const BorderSide(color: AppColors.lightBorder),
                                       ),
                                     ),
                                     validator: (val) {
                                       if (val == null || val.trim().isEmpty) {
-                                        return 'Date is required';
+                                        return 'Required';
                                       }
                                       return null;
                                     },
@@ -381,7 +600,10 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                 ],
                               ),
                             ),
+
                             const SizedBox(width: 12),
+
+                            // TIME PICKER
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,26 +621,38 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                     controller: _timeController,
                                     readOnly: true,
                                     onTap: _pickTime,
-                                    style: const TextStyle(fontSize: 14, color: AppColors.primary),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _nonexistentDetail != null ? const Color(0xFFDC2626) : AppColors.primary,
+                                      fontWeight: _nonexistentDetail != null ? FontWeight.bold : FontWeight.normal,
+                                    ),
                                     decoration: InputDecoration(
-                                      hintText: 'HH:mm:ss',
-                                      hintStyle: TextStyle(color: AppColors.secondary.withOpacity(0.5)),
-                                      prefixIcon: const Icon(Icons.access_time_rounded, size: 18, color: AppColors.secondary),
+                                      hintText: 'HH:MM:SS',
+                                      prefixIcon: Icon(
+                                        Icons.access_time_rounded,
+                                        size: 16,
+                                        color: _nonexistentDetail != null ? const Color(0xFFDC2626) : AppColors.secondary,
+                                      ),
                                       filled: true,
-                                      fillColor: AppColors.lightBackground,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      fillColor: _nonexistentDetail != null ? const Color(0xFFFEF2F2) : AppColors.lightBackground,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: AppColors.lightBorder),
+                                        borderSide: BorderSide(
+                                          color: _nonexistentDetail != null ? const Color(0xFFEF4444) : AppColors.lightBorder,
+                                        ),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: AppColors.lightBorder),
+                                        borderSide: BorderSide(
+                                          color: _nonexistentDetail != null ? const Color(0xFFEF4444) : AppColors.lightBorder,
+                                          width: _nonexistentDetail != null ? 1.5 : 1.0,
+                                        ),
                                       ),
                                     ),
                                     validator: (val) {
                                       if (val == null || val.trim().isEmpty) {
-                                        return 'Time is required';
+                                        return 'Required';
                                       }
                                       return null;
                                     },
@@ -428,29 +662,12 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        const Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.secondary),
-                            SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'If exact birth time is approximate, use 12:00 PM (Noon) or check hospital birth records.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.lightTextSecondary,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
 
                         const SizedBox(height: 18),
 
-                        // VERIFIED PLACE OF BIRTH (AUTOCOMPLETE)
+                        // BIRTHPLACE LOCATION AUTOCOMPLETE
                         const Text(
-                          'Place of Birth',
+                          'Place of Birth (City/Town)',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -465,31 +682,31 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
 
                         const SizedBox(height: 14),
 
-                        // ADVANCED LAT / LONG COLLAPSIBLE
+                        // ADVANCED TOGGLE FOR VERIFIED COORDINATES
                         InkWell(
                           onTap: () {
-                            setState(() => _showAdvancedCoordinates = !_showAdvancedCoordinates);
+                            setState(() {
+                              _showAdvancedCoordinates = !_showAdvancedCoordinates;
+                            });
                           },
+                          borderRadius: BorderRadius.circular(8),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  _showAdvancedCoordinates
-                                      ? Icons.keyboard_arrow_up_rounded
-                                      : Icons.keyboard_arrow_down_rounded,
+                                  _showAdvancedCoordinates ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                                   size: 18,
                                   color: AppColors.secondary,
                                 ),
                                 const SizedBox(width: 4),
-                                const Expanded(
-                                  child: Text(
-                                    'Resolved Coordinates (Lat/Long/TZ)',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.secondary,
-                                    ),
+                                Text(
+                                  _showAdvancedCoordinates ? 'Hide verified coordinates' : 'View verified coordinates & timezone',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.secondary,
                                   ),
                                 ),
                               ],

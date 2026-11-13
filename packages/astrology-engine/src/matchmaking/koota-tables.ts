@@ -318,3 +318,59 @@ export const NAKSHATRA_NADI_MAP: Record<number, NadiType> = {
   27: 'ANTYA',   // Revati
 };
 
+/**
+ * 8 Ashtavarga classifications based on name initial (Akshara Varga).
+ * 1. Garuda (A-varga): Vowels
+ * 2. Marjara (Ka-varga): K, Kh, G, Gh, Ng
+ * 3. Simha (Cha-varga): Ch, Chh, J, Jh, Ny
+ * 4. Shwana (Ta-varga / Retroflex): T, Th, D, Dh, N (or T/D)
+ * 5. Sarpa (Ta-varga / Dental): T, Th, D, Dh, N
+ * 6. Mooshak (Pa-varga): P, Ph, B, Bh, M
+ * 7. Mriga (Ya-varga): Y, R, L, V, W
+ * 8. Mesha (Sha-varga): Sh, S, H
+ */
+export function getNameAshtavarga(name: string): { index: number; name: string } {
+  const clean = (name || '').trim().toUpperCase();
+  if (!clean) return { index: 0, name: 'Garuda' };
+
+  const firstChar = clean[0];
+  if (['A', 'E', 'I', 'O', 'U'].includes(firstChar)) {
+    return { index: 0, name: 'Garuda' };
+  } else if (['K', 'G', 'Q'].includes(firstChar)) {
+    return { index: 1, name: 'Marjara' };
+  } else if (['C', 'J'].includes(firstChar)) {
+    return { index: 2, name: 'Simha' };
+  } else if (['T', 'D'].includes(firstChar)) {
+    return { index: 4, name: 'Sarpa' };
+  } else if (['P', 'F', 'B', 'M'].includes(firstChar)) {
+    return { index: 5, name: 'Mooshak' };
+  } else if (['Y', 'R', 'L', 'V', 'W'].includes(firstChar)) {
+    return { index: 6, name: 'Mriga' };
+  } else if (['S', 'H', 'Z', 'X'].includes(firstChar)) {
+    return { index: 7, name: 'Mesha' };
+  }
+  return { index: 0, name: 'Garuda' };
+}
+
+/**
+ * Evaluates Ashtavarga relationship between two names.
+ */
+export function getAshtavargaRelationship(vargaA: string, vargaB: string): string {
+  if (vargaA === vargaB) return 'Friendly';
+  // Natural inimical pairs in classical 8-varga:
+  // Garuda vs Sarpa (Eagle vs Serpent)
+  // Marjara vs Mooshak (Cat vs Rat)
+  // Simha vs Mriga/Mesha (Lion vs Deer/Ram)
+  const inimicalPairs = [
+    ['Garuda', 'Sarpa'], ['Sarpa', 'Garuda'],
+    ['Marjara', 'Mooshak'], ['Mooshak', 'Marjara'],
+    ['Simha', 'Mriga'], ['Mriga', 'Simha'],
+    ['Simha', 'Mesha'], ['Mesha', 'Simha'],
+  ];
+  for (const [v1, v2] of inimicalPairs) {
+    if (vargaA === v1 && vargaB === v2) return 'Inimical';
+  }
+  return 'Friendly';
+}
+
+

@@ -5,6 +5,7 @@ class NormalizedDetailsModel {
   final DateTime utcDateTime;
   final String localDateTime;
   final String timezone;
+  final int? timezoneOffsetSeconds;
   final int timezoneOffsetMinutes;
   final double latitude;
   final double longitude;
@@ -13,6 +14,8 @@ class NormalizedDetailsModel {
   final String? countryCode;
   final String? state;
   final bool isResolved;
+  final String? disambiguation;
+  final bool disambiguationRequired;
 
   const NormalizedDetailsModel({
     required this.profileId,
@@ -20,6 +23,7 @@ class NormalizedDetailsModel {
     required this.utcDateTime,
     required this.localDateTime,
     required this.timezone,
+    this.timezoneOffsetSeconds,
     required this.timezoneOffsetMinutes,
     required this.latitude,
     required this.longitude,
@@ -28,6 +32,8 @@ class NormalizedDetailsModel {
     this.countryCode,
     this.state,
     this.isResolved = true,
+    this.disambiguation,
+    this.disambiguationRequired = false,
   });
 
   factory NormalizedDetailsModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +45,7 @@ class NormalizedDetailsModel {
           : DateTime.now(),
       localDateTime: json['localDateTime'] as String? ?? '',
       timezone: json['timezone'] as String? ?? '',
+      timezoneOffsetSeconds: (json['timezoneOffsetSeconds'] as num?)?.toInt(),
       timezoneOffsetMinutes: (json['timezoneOffsetMinutes'] as num?)?.toInt() ?? 0,
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
@@ -47,6 +54,8 @@ class NormalizedDetailsModel {
       countryCode: json['countryCode'] as String?,
       state: json['state'] as String?,
       isResolved: json['isResolved'] as bool? ?? true,
+      disambiguation: json['disambiguation'] as String?,
+      disambiguationRequired: json['disambiguationRequired'] as bool? ?? false,
     );
   }
 
@@ -57,6 +66,7 @@ class NormalizedDetailsModel {
       'utcDateTime': utcDateTime.toIso8601String(),
       'localDateTime': localDateTime,
       'timezone': timezone,
+      if (timezoneOffsetSeconds != null) 'timezoneOffsetSeconds': timezoneOffsetSeconds,
       'timezoneOffsetMinutes': timezoneOffsetMinutes,
       'latitude': latitude,
       'longitude': longitude,
@@ -65,6 +75,8 @@ class NormalizedDetailsModel {
       if (countryCode != null) 'countryCode': countryCode,
       if (state != null) 'state': state,
       'isResolved': isResolved,
+      if (disambiguation != null) 'disambiguation': disambiguation,
+      'disambiguationRequired': disambiguationRequired,
     };
   }
 }
@@ -84,6 +96,10 @@ class BirthProfileModel {
   final String? countryCode;
   final String? state;
   final bool isResolved;
+  final String? disambiguation;
+  final DateTime? utcDateTime;
+  final int? timezoneOffsetSeconds;
+  final bool disambiguationRequired;
   final DateTime createdAt;
   final DateTime updatedAt;
   final NormalizedDetailsModel? normalizedDetails;
@@ -102,6 +118,10 @@ class BirthProfileModel {
     this.countryCode,
     this.state,
     this.isResolved = true,
+    this.disambiguation,
+    this.utcDateTime,
+    this.timezoneOffsetSeconds,
+    this.disambiguationRequired = false,
     required this.createdAt,
     required this.updatedAt,
     this.normalizedDetails,
@@ -131,6 +151,12 @@ class BirthProfileModel {
       countryCode: json['countryCode'] as String?,
       state: json['state'] as String?,
       isResolved: isResolved,
+      disambiguation: json['disambiguation'] as String?,
+      utcDateTime: json['utcDateTime'] != null
+          ? DateTime.tryParse(json['utcDateTime'] as String)
+          : null,
+      timezoneOffsetSeconds: (json['timezoneOffsetSeconds'] as num?)?.toInt(),
+      disambiguationRequired: json['disambiguationRequired'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -158,6 +184,10 @@ class BirthProfileModel {
       if (countryCode != null) 'countryCode': countryCode,
       if (state != null) 'state': state,
       'isResolved': isResolved,
+      if (disambiguation != null) 'disambiguation': disambiguation,
+      if (utcDateTime != null) 'utcDateTime': utcDateTime!.toIso8601String(),
+      if (timezoneOffsetSeconds != null) 'timezoneOffsetSeconds': timezoneOffsetSeconds,
+      'disambiguationRequired': disambiguationRequired,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (normalizedDetails != null) 'normalizedDetails': normalizedDetails!.toJson(),
@@ -178,6 +208,7 @@ class CreateBirthProfileDto {
   final String? countryCode;
   final String? state;
   final bool isResolved;
+  final String? disambiguation; // Canonical: 'earlier' | 'later'
 
   const CreateBirthProfileDto({
     required this.name,
@@ -191,6 +222,7 @@ class CreateBirthProfileDto {
     this.countryCode,
     this.state,
     this.isResolved = true,
+    this.disambiguation,
   });
 
   Map<String, dynamic> toJson() {
@@ -206,7 +238,7 @@ class CreateBirthProfileDto {
       if (countryCode != null) 'countryCode': countryCode,
       if (state != null) 'state': state,
       'isResolved': isResolved,
+      if (disambiguation != null) 'disambiguation': disambiguation,
     };
   }
 }
-

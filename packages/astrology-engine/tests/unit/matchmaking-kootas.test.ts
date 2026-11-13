@@ -300,7 +300,12 @@ describe('MatchmakingCalculator - 8 Kootas & Manglik Engine (Phase 2U)', () => {
       const pScorpio = createProfile({ rashiIndex: 8, rashiName: 'Vrischika', rashiLord: PlanetSymbol.MARS });
       const result = calculator.calculateBhakoot(pAries, pScorpio);
 
-      expect(result.obtainedPoints).toBe(7);
+      // Raw displayed Ashtakoota table score remains 0 (Dosha: Yes) per reference PDF convention
+      expect(result.rawPoints).toBe(0);
+      expect(result.nominalPoints).toBe(0);
+      expect(result.obtainedPoints).toBe(0);
+      // Effective points in interpretive domain is 7
+      expect(result.effectivePoints).toBe(7);
       expect(result.isDoshaCancelled).toBe(true);
       expect(result.cancellationReason).toContain('ruled by the same planetary lord');
     });
@@ -311,7 +316,12 @@ describe('MatchmakingCalculator - 8 Kootas & Manglik Engine (Phase 2U)', () => {
       const pLeo = createProfile({ rashiIndex: 5, rashiName: 'Simha', rashiLord: PlanetSymbol.SUN });
       const result = calculator.calculateBhakoot(pCancer, pLeo);
 
-      expect(result.obtainedPoints).toBe(7);
+      // Raw displayed Ashtakoota table score remains 0 (Dosha: Yes) per reference PDF convention
+      expect(result.rawPoints).toBe(0);
+      expect(result.nominalPoints).toBe(0);
+      expect(result.obtainedPoints).toBe(0);
+      // Effective points in interpretive domain is 7
+      expect(result.effectivePoints).toBe(7);
       expect(result.isDoshaCancelled).toBe(true);
       expect(result.cancellationReason).toContain('mutual natural friends');
     });

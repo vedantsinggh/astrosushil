@@ -11,6 +11,8 @@ import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/user_report_item_model.dart';
+import '../models/report_purchase_models.dart';
+import '../services/razorpay_checkout_service.dart';
 import '../providers/reports_provider.dart';
 import 'report_generation_screen.dart';
 import 'report_pdf_viewer_screen.dart';
@@ -50,11 +52,21 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   late BirthProfileModel _selectedProfile;
   BirthProfileModel? _selectedPartnerProfile;
   bool _isSubmitting = false;
+  ReportPurchaseStep _purchaseStep = ReportPurchaseStep.idle;
+  ReportPaymentOrder? _activeOrder;
+  String? _purchaseError;
+  IRazorpayCheckoutService? _razorpayService;
 
   @override
   void initState() {
     super.initState();
     _selectedProfile = widget.initialProfile;
+  }
+
+  @override
+  void dispose() {
+    _razorpayService?.dispose();
+    super.dispose();
   }
 
   void _onSelectPartnerProfile(List<BirthProfileModel> profiles) {
@@ -140,9 +152,26 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
+  String _getStepLoadingText(ReportPurchaseStep step) {
+    switch (step) {
+      case ReportPurchaseStep.creatingOrder:
+        return 'Creating Order...';
+      case ReportPurchaseStep.openingCheckout:
+        return 'Opening Checkout...';
+      case ReportPurchaseStep.verifyingPayment:
+        return 'Verifying Payment...';
+      case ReportPurchaseStep.generatingReport:
+        return 'Initiating Report...';
+      default:
+        return 'Processing...';
+    }
+  }
+
   Future<void> _handleGenerateReport({bool forceRegenerate = false}) async {
+    // 1. Prevent simultaneous / double-tap submissions
     if (_isSubmitting) return;
 
+    // 2. Validate input requirements (partner profile for Matchmaking)
     if (widget.reportType == 'MARRIAGE_COMPATIBILITY' &&
         _selectedPartnerProfile == null) {
       final profilesState = ref.read(birthProfilesListNotifierProvider);
@@ -150,7 +179,23 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    // 3. Reject unsupported SKUs client-side
+    if (widget.reportType == 'CHILDBIRTH_FAMILY' ||
+        widget.reportType == 'GUPTA_NADI_DOSSIER') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This report edition is coming soon and cannot be purchased yet.'),
+          backgroundColor: AppColors.midnightNavy,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _purchaseStep = ReportPurchaseStep.creatingOrder;
+      _purchaseError = null;
+    });
 
     AuthRequiredGate.checkAndProceed(
       context: context,
@@ -158,44 +203,127 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       feature: AppFeature.reports,
       featureTitle: widget.title,
       onAllowed: () async {
-        try {
-          final reportId = await ref
-              .read(reportGenerationNotifierProvider.notifier)
-              .createReportJob(
-                birthProfileId: _selectedProfile.id,
-                reportType: widget.reportType,
-                partnerProfileId: _selectedPartnerProfile?.id,
-                forceRegenerate: forceRegenerate,
-              );
+        final reportsService = ref.read(reportsServiceProvider);
 
-          if (mounted) {
-            setState(() => _isSubmitting = false);
-            if (reportId != null) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ReportGenerationScreen(
-                    reportId: reportId,
-                    reportType: widget.reportType,
-                    reportTitle: widget.title,
-                    profile: _selectedProfile,
-                    partnerProfile: _selectedPartnerProfile,
-                  ),
-                ),
-              );
-            } else {
-              final err = ref.read(reportGenerationNotifierProvider).errorMessage ??
-                  'Failed to start report generation.';
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(err), backgroundColor: AppColors.error),
-              );
+        try {
+          // Check if existing active order is already PAID (e.g. interrupted report job creation recovery)
+          ReportPaymentOrder? order = _activeOrder;
+          if (order != null && !order.isPaid) {
+            try {
+              final statusResp = await reportsService.getPaymentOrderStatus(order.orderId);
+              if (statusResp['status'] == 'PAID' || statusResp['paymentStatus'] == 'CAPTURED') {
+                order = ReportPaymentOrder.fromJson(statusResp);
+                _activeOrder = order;
+              }
+            } catch (_) {
+              // Ignore status check blips, proceed with standard order handling
             }
           }
+
+          // Step 1: Request authoritative server order creation if not already paid
+          if (order == null || !order.isPaid) {
+            final idempotencyKey =
+                'ord_rep_${widget.reportType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}';
+            try {
+              order = await reportsService.createReportOrder(
+                reportType: widget.reportType,
+                idempotencyKey: idempotencyKey,
+              );
+              _activeOrder = order;
+            } catch (e) {
+              if (mounted) {
+                final errStr = e.toString().replaceAll('Exception: ', '');
+                setState(() {
+                  _isSubmitting = false;
+                  _purchaseStep = ReportPurchaseStep.orderCreationFailed;
+                  _purchaseError = errStr;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Order Creation Failed: $errStr'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+
+          // If the order is already verified as PAID, bypass checkout and generate report directly
+          if (order.isPaid) {
+            await _proceedToReportGeneration(order.orderId, forceRegenerate);
+            return;
+          }
+
+          // Step 2: Open Native Razorpay Checkout
+          if (!mounted) return;
+          setState(() {
+            _purchaseStep = ReportPurchaseStep.openingCheckout;
+          });
+
+          _razorpayService ??= ref.read(razorpayCheckoutServiceProvider);
+          _razorpayService!.init(
+            onSuccess: ({
+              required String razorpayOrderId,
+              required String razorpayPaymentId,
+              required String razorpaySignature,
+            }) async {
+              await _handlePaymentSuccessCallback(
+                order: order!,
+                razorpayOrderId: razorpayOrderId,
+                razorpayPaymentId: razorpayPaymentId,
+                razorpaySignature: razorpaySignature,
+                forceRegenerate: forceRegenerate,
+              );
+            },
+            onFailure: ({
+              required String errorCode,
+              required String errorMessage,
+            }) {
+              if (mounted) {
+                setState(() {
+                  _isSubmitting = false;
+                  _purchaseStep = ReportPurchaseStep.paymentFailed;
+                  _purchaseError = '$errorCode: $errorMessage';
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Payment Failed ($errorCode): $errorMessage'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            onCancel: () {
+              if (mounted) {
+                setState(() {
+                  _isSubmitting = false;
+                  _purchaseStep = ReportPurchaseStep.paymentCancelled;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Payment cancelled. You can retry whenever you are ready.'),
+                    backgroundColor: AppColors.midnightNavy,
+                  ),
+                );
+              }
+            },
+          );
+
+          _razorpayService!.openCheckout(
+            order: order,
+            reportTitle: widget.title,
+          );
         } catch (e) {
           if (mounted) {
-            setState(() => _isSubmitting = false);
+            setState(() {
+              _isSubmitting = false;
+              _purchaseStep = ReportPurchaseStep.idle;
+              _purchaseError = e.toString();
+            });
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Unable to initiate report generation.'),
+              SnackBar(
+                content: Text('An unexpected error occurred: $e'),
                 backgroundColor: AppColors.error,
               ),
             );
@@ -203,6 +331,151 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         }
       },
     );
+  }
+
+  Future<void> _handlePaymentSuccessCallback({
+    required ReportPaymentOrder order,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    required bool forceRegenerate,
+  }) async {
+    // SECURITY: Client-side success callback is strictly provisional.
+    // We MUST verify with the backend before considering payment complete.
+    if (!mounted) return;
+    setState(() {
+      _purchaseStep = ReportPurchaseStep.verifyingPayment;
+    });
+
+    final reportsService = ref.read(reportsServiceProvider);
+    bool isPaymentVerified = false;
+
+    try {
+      final verifyResult = await reportsService.verifyReportPayment(
+        razorpayOrderId: razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId,
+        razorpaySignature: razorpaySignature,
+      );
+
+      final verifiedOrderMap = verifyResult['order'] as Map<String, dynamic>?;
+      if (verifiedOrderMap != null) {
+        _activeOrder = ReportPaymentOrder.fromJson(verifiedOrderMap);
+        isPaymentVerified = _activeOrder?.isPaid ?? false;
+      } else {
+        isPaymentVerified = verifyResult['message'] != null;
+      }
+    } catch (verifyErr) {
+      // Ambiguous outcome / timeout: check existing order status from backend
+      // NEVER assume a timeout or network disconnect means payment failure.
+      try {
+        final orderStatusResp = await reportsService.getPaymentOrderStatus(order.orderId);
+        if (orderStatusResp['status'] == 'PAID' || orderStatusResp['paymentStatus'] == 'CAPTURED') {
+          _activeOrder = ReportPaymentOrder.fromJson(orderStatusResp);
+          isPaymentVerified = true;
+        }
+      } catch (_) {
+        // Query also failed
+      }
+
+      if (!isPaymentVerified) {
+        if (mounted) {
+          final errStr = verifyErr.toString().replaceAll('Exception: ', '');
+          setState(() {
+            _isSubmitting = false;
+            _purchaseStep = ReportPurchaseStep.verificationFailed;
+            _purchaseError = errStr;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment Verification Failed: $errStr'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    if (isPaymentVerified) {
+      if (mounted) {
+        setState(() {
+          _purchaseStep = ReportPurchaseStep.paymentSuccess;
+        });
+      }
+      await _proceedToReportGeneration(order.orderId, forceRegenerate);
+    }
+  }
+
+  Future<void> _proceedToReportGeneration(String orderId, bool forceRegenerate) async {
+    if (!mounted) return;
+    setState(() {
+      _purchaseStep = ReportPurchaseStep.generatingReport;
+    });
+
+    try {
+      final reportId = await ref
+          .read(reportGenerationNotifierProvider.notifier)
+          .createReportJob(
+            birthProfileId: _selectedProfile.id,
+            reportType: widget.reportType,
+            partnerProfileId: _selectedPartnerProfile?.id,
+            orderId: orderId,
+            forceRegenerate: forceRegenerate,
+          );
+
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _purchaseStep = ReportPurchaseStep.completed;
+        });
+
+        if (reportId != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ReportGenerationScreen(
+                reportId: reportId,
+                reportType: widget.reportType,
+                reportTitle: widget.title,
+                profile: _selectedProfile,
+                partnerProfile: _selectedPartnerProfile,
+              ),
+            ),
+          );
+        } else {
+          final err = ref.read(reportGenerationNotifierProvider).errorMessage ??
+              'Failed to start report generation.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment verified, but report generation initiation failed: $err'),
+              backgroundColor: AppColors.error,
+              action: SnackBarAction(
+                label: 'Retry Generation',
+                textColor: Colors.white,
+                onPressed: () => _proceedToReportGeneration(orderId, forceRegenerate),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _purchaseStep = ReportPurchaseStep.completed;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to initiate report generation: $e'),
+            backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _proceedToReportGeneration(orderId, forceRegenerate),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -683,11 +956,38 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
                 const SizedBox(height: 30),
 
-                // 5. Generate Action Button
+                // Error status notice if any
+                if (_purchaseError != null && !_isSubmitting) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _purchaseError!,
+                            style: const TextStyle(fontSize: 12.5, color: AppColors.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // 5. Generate / Purchase Action Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
+                    key: const Key('report_purchase_button'),
                     onPressed: _isSubmitting ? null : () => _handleGenerateReport(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.midnightNavy,
@@ -698,16 +998,33 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       elevation: 2,
                     ),
                     child: _isSubmitting
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.cardSurfaceWarm,
-                            ),
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.cardSurfaceWarm,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _getStepLoadingText(_purchaseStep),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           )
                         : Text(
-                            'Generate ${widget.title} (${widget.priceText})',
+                            _purchaseStep == ReportPurchaseStep.orderCreationFailed ||
+                                    _purchaseStep == ReportPurchaseStep.paymentFailed ||
+                                    _purchaseStep == ReportPurchaseStep.verificationFailed
+                                ? 'Retry Purchase (${widget.priceText})'
+                                : 'Generate ${widget.title} (${widget.priceText})',
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,

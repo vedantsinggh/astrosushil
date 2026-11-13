@@ -11,6 +11,9 @@ export const directBirthDetailsSchema = z.object({
   country: z.string().optional().nullable(),
   countryCode: z.string().optional().nullable(),
   state: z.string().optional().nullable(),
+  disambiguation: z.enum(['earlier', 'later', 'daylight', 'standard']).optional(),
+  utcDateTime: z.string().optional(),
+  timezoneOffsetSeconds: z.number().int().optional(),
 });
 
 export const VARGA_TYPES_ENUM = [

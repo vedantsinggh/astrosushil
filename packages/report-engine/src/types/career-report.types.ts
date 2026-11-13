@@ -618,6 +618,16 @@ export interface CareerAnalysisModel {
   decisionFramework: string;
   finalSynthesis: string;
   closingNote: string;
+  primaryProfessionalPriority?: string;
+  technicalSkillPriority?: string;
+  communicationSkillPriority?: string;
+  leadershipSkillPriority?: string;
+  networkSkillPriority?: string;
+  mistakeToAvoid?: string;
+  thirtyDayFocus?: string;
+  ninetyDayFocus?: string;
+  oneYearFocus?: string;
+  threeYearDirection?: string;
 }
 
 export interface CareerReportData {

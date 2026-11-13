@@ -823,29 +823,24 @@ describe('astrology-response.mapper serialization regression', () => {
     expect(parsed.parsFortuna).toBeDefined();
   });
 
-  it('should serialize Sade Sati report without {} leakage or NaN', async () => {
+  it('should reject decommissioned Sade Sati calculation with ENDPOINT_DECOMMISSIONED', async () => {
     const { astrologyService } = await import('../src/modules/astrology/astrology.service');
-    const res = await astrologyService.calculateSadeSati({
-      birthDetails: {
-        name: 'Sade Sati Subject',
-        dateOfBirth: '1990-01-15',
-        timeOfBirth: '08:30:00',
-        latitude: 28.6139,
-        longitude: 77.209,
-        timezone: 'Asia/Kolkata',
-      },
-      transitSaturnLongitude: 45.0,
+    await expect(
+      astrologyService.calculateSadeSati({
+        birthDetails: {
+          name: 'Sade Sati Subject',
+          dateOfBirth: '1990-01-15',
+          timeOfBirth: '08:30:00',
+          latitude: 28.6139,
+          longitude: 77.209,
+          timezone: 'Asia/Kolkata',
+        },
+        transitSaturnLongitude: 45.0,
+      })
+    ).rejects.toMatchObject({
+      statusCode: 410,
+      code: 'ENDPOINT_DECOMMISSIONED',
     });
-
-    const serialized = JSON.stringify(res);
-    expect(serialized).not.toBe('{}');
-    expect(serialized).not.toContain('"{}"');
-    expect(serialized).not.toContain('NaN');
-
-    const parsed = JSON.parse(serialized);
-    expect(typeof parsed.isSadeSatiActive).toBe('boolean');
-    expect(typeof parsed.phase).toBe('string');
-    expect(typeof parsed.houseFromMoon).toBe('number');
   });
 
   it('should serialize Chart Variants without {} leakage or NaN', async () => {

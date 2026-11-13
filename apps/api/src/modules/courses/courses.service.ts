@@ -3,6 +3,7 @@ import { COMMERCE_CATALOG } from '../commerce/commerce.catalog';
 import { commerceService } from '../commerce/commerce.service';
 import { paymentService } from '../../services/payment.service';
 import {
+  AppError,
   NotFoundError,
   ValidationError,
   ConflictError,
@@ -18,7 +19,10 @@ import {
   OrderStatus,
   PaymentStatus,
   FulfillmentStatus,
+  ObligationType,
+  OrderItemType,
 } from '@prisma/client';
+import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { logger } from '../../utils/logger';
 
 export interface ListCoursesFilters {
@@ -1145,6 +1149,14 @@ export class CoursesService {
       throw new NotFoundError(`Course '${input.courseId}' not found`);
     }
 
+    // Reject course quantity greater than one (MULTI_SEAT_COURSES_UNSUPPORTED)
+    const courseItem = order.items.find(
+      (it) => it.itemType === OrderItemType.COURSE || it.catalogId.includes(course.sku) || it.catalogId === 'course-gupt-nadi'
+    );
+    if (courseItem && courseItem.quantity > 1) {
+      throw new AppError('Multi-seat courses are unsupported. Course quantity must be 1.', 400, 'MULTI_SEAT_COURSES_UNSUPPORTED');
+    }
+
     // Verify HMAC signature
     const isValidSignature = paymentService.verifySignature(
       order.razorpayOrderId,
@@ -1156,44 +1168,101 @@ export class CoursesService {
       throw new ValidationError('Invalid Razorpay payment signature');
     }
 
-    // Update order status to PAID
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: OrderStatus.PAID,
-        paymentStatus: PaymentStatus.CAPTURED,
-        fulfillmentStatus: FulfillmentStatus.FULFILLED,
-        razorpayPaymentId: input.razorpayPaymentId,
-      },
-    });
+    // Check for idempotent replay
+    if (order.status === OrderStatus.PAID) {
+      const existingEntitlement = await prisma.courseEntitlement.findUnique({
+        where: {
+          userId_courseId: {
+            userId,
+            courseId: course.id,
+          },
+        },
+      });
+      if (existingEntitlement && existingEntitlement.status === EntitlementStatus.ACTIVE) {
+        return {
+          success: true,
+          isEnrolled: true,
+          message: `Enrolled in ${course.title} successfully!`,
+          entitlement: existingEntitlement,
+          course,
+        };
+      }
+    }
 
-    // Idempotently create CourseEntitlement
-    const entitlement = await prisma.courseEntitlement.upsert({
-      where: {
-        userId_courseId: {
+    // Transactionally update order, create fulfillment units, grant entitlement, and reconcile
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Lock Order FIRST (Global Lock Hierarchy)
+      await tx.$queryRaw`
+        SELECT id FROM "orders" WHERE id = ${order.id} FOR UPDATE;
+      `;
+
+      // 2. Lock OrderItems SECOND
+      await tx.$queryRaw`
+        SELECT id FROM "order_items" WHERE "orderId" = ${order.id} ORDER BY id ASC FOR UPDATE;
+      `;
+
+      // 3. Atomically transition order to PAID, CAPTURED, paidAt = clock_timestamp(), version = version + 1
+      await tx.$executeRaw`
+        UPDATE "orders"
+        SET
+          status = 'PAID'::"OrderStatus",
+          "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+          "paidAt" = clock_timestamp(),
+          "version" = version + 1,
+          "razorpayPaymentId" = ${input.razorpayPaymentId},
+          "updatedAt" = clock_timestamp()
+        WHERE id = ${order.id};
+      `;
+
+      // 4. Create fulfillment units idempotently
+      await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
+
+      // 5. Find the COURSE fulfillment unit
+      const courseUnits = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "fulfillment_units"
+        WHERE "orderId" = ${order.id} AND "obligationType" = 'COURSE'::"ObligationType"
+        ORDER BY "unitIndex" ASC
+        LIMIT 1;
+      `;
+      const courseUnitId = courseUnits[0]?.id;
+
+      // 6. Idempotently create CourseEntitlement attached to the exact fulfillment unit
+      const entitlement = await tx.courseEntitlement.upsert({
+        where: {
+          userId_courseId: {
+            userId,
+            courseId: course.id,
+          },
+        },
+        update: {
+          status: EntitlementStatus.ACTIVE,
+          orderId: order.id,
+          fulfillmentUnitId: courseUnitId || null,
+          updatedAt: new Date(),
+        },
+        create: {
           userId,
           courseId: course.id,
+          orderId: order.id,
+          fulfillmentUnitId: courseUnitId || null,
+          source: EntitlementSource.PURCHASE,
+          status: EntitlementStatus.ACTIVE,
         },
-      },
-      update: {
-        status: EntitlementStatus.ACTIVE,
-        orderId: order.id,
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        courseId: course.id,
-        orderId: order.id,
-        source: EntitlementSource.PURCHASE,
-        status: EntitlementStatus.ACTIVE,
-      },
+      });
+
+      // 7. Reconcile fulfillment after access is granted
+      if (courseUnitId) {
+        await fulfillmentService.reconcileFulfillmentUnit(order.id, courseUnitId, tx);
+      }
+
+      return entitlement;
     });
 
     return {
       success: true,
       isEnrolled: true,
       message: `Enrolled in ${course.title} successfully!`,
-      entitlement,
+      entitlement: result,
       course,
     };
   }

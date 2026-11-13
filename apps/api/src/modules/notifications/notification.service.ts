@@ -13,17 +13,17 @@ export class NotificationService {
 
     // Idempotency check: Prevent sending duplicate notification for same entity & type
     if (idempotencyKey || entityId) {
+      const matchKey = idempotencyKey || entityId;
       const existing = await prisma.notification.findFirst({
         where: {
           userId,
           type,
-          createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) }, // within 1 hour
-          metadata: { contains: entityId || idempotencyKey },
+          metadata: { contains: matchKey },
         },
       });
 
       if (existing) {
-        logger.info({ userId, type, entityId }, '[NotificationService] Skipped duplicate notification due to idempotency check');
+        logger.info({ userId, type, entityId, idempotencyKey }, '[NotificationService] Skipped duplicate notification due to idempotency check');
         return {
           notificationId: existing.id,
           channels: {
@@ -70,7 +70,7 @@ export class NotificationService {
     // 1. IN_APP Channel
     if (channels.includes('IN_APP')) {
       try {
-        const metadataObj = { entityId, route: actionRoute, ...templateData };
+        const metadataObj = { entityId, idempotencyKey, route: actionRoute, ...templateData };
         const notif = await prisma.notification.create({
           data: {
             userId,

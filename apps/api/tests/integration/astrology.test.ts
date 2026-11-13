@@ -566,8 +566,8 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
     expect(body.data.parsFortuna).toBeDefined();
   });
 
-  // 15. SADE SATI ENDPOINT TEST
-  it('POST /api/v1/astrology/sade-sati should evaluate Sade Sati and Dhaiyya status', async () => {
+  // 15. SADE SATI ENDPOINT DECOMMISSIONED TEST (Phase 2B.2 Editorial Policy)
+  it('POST /api/v1/astrology/sade-sati is decommissioned and returns 410 with no prohibited classifications', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/astrology/sade-sati',
@@ -584,11 +584,13 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
       },
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(410);
     const body = JSON.parse(response.payload);
-    expect(body.data).toBeDefined();
-    expect(typeof body.data.isSadeSatiActive).toBe('boolean');
-    expect(typeof body.data.phase).toBe('string');
+    expect(body.error).toBeDefined();
+    expect(body.error.code).toBe('ENDPOINT_DECOMMISSIONED');
+    expect(body.error.message).toContain('decommissioned in accordance with editorial policy');
+    expect(response.payload).not.toContain('isSadeSatiActive');
+    expect(response.payload).not.toContain('PHASE_');
   });
 
   // 16. CHART VARIANTS ENDPOINT TEST

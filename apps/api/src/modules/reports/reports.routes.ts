@@ -26,16 +26,18 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
         properties: {
           birthProfileId: { type: 'string', format: 'uuid' },
           forceRegenerate: { type: 'boolean' },
+          orderId: { type: 'string', format: 'uuid' },
         },
       },
     },
     handler: async (request, reply) => {
       setNoCacheHeaders(reply);
-      const { birthProfileId, forceRegenerate } = request.body as {
+      const { birthProfileId, forceRegenerate, orderId } = request.body as {
         birthProfileId: string;
         forceRegenerate?: boolean;
+        orderId?: string;
       };
-      const result = await reportsService.createCareerReportJob({ birthProfileId, forceRegenerate }, request.user);
+      const result = await reportsService.createCareerReportJob({ birthProfileId, forceRegenerate, orderId }, request.user);
       return reply.status(201).send(result);
     },
   });
@@ -51,6 +53,7 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
         birthProfileId: { type: 'string', format: 'uuid' },
         reportType: { type: 'string' },
         orderId: { type: 'string', format: 'uuid' },
+        forceRegenerate: { type: 'boolean' },
       },
     },
   };
@@ -141,14 +144,12 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
 
   const handlePdfDownload = async (request: any, reply: any) => {
     const { id } = request.params as { id: string };
-    const { buffer } = await reportsService.generateReportPdfBuffer(id, request.user);
+    const { buffer, report } = await reportsService.generateReportPdfBuffer(id, request.user);
+    const filename = report.fileName || `astro-sushil-report-${id}.pdf`;
 
     reply.header('Content-Type', 'application/pdf');
     reply.header('Content-Length', buffer.length.toString());
-    reply.header(
-      'Content-Disposition',
-      `attachment; filename="astro-sushil-career-${id}.pdf"`
-    );
+    reply.header('Content-Disposition', `attachment; filename="${filename}"`);
     return reply.send(buffer);
   };
 

@@ -2,9 +2,10 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import crypto from 'crypto';
 import { prisma } from '../../services/prisma.service';
 import { paymentService } from '../../services/payment.service';
+import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
-import { OrderStatus, PaymentStatus, RefundStatus, BookingStatus, SlotStatus, ConsultationMode, FulfillmentStatus, OrderItemType, FulfillmentType, EntitlementSource, EntitlementStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus, RefundStatus, BookingStatus, SlotStatus, ConsultationMode, FulfillmentStatus, FulfillmentUnitStatus, OrderItemType, FulfillmentType, EntitlementSource, EntitlementStatus } from '@prisma/client';
 
 export async function webhooksRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // POST /api/v1/webhooks/razorpay (Public webhook with mandatory HMAC-SHA256 signature verification)
@@ -70,6 +71,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
           const razorpayOrderId = payload.payload?.payment?.entity?.order_id;
           const razorpayPaymentId = payload.payload?.payment?.entity?.id;
           const capturedAmount = payload.payload?.payment?.entity?.amount;
+          const paymentCurrency = payload.payload?.payment?.entity?.currency;
 
           if (razorpayOrderId) {
             const order = await prisma.order.findUnique({
@@ -78,27 +80,84 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
             });
 
             if (order) {
-              // Verify amount matches server order amount
-              if (capturedAmount && order.amount !== capturedAmount) {
+              // 1. Verify amount matches server order amount strictly
+              if (capturedAmount !== undefined && capturedAmount !== null && order.amount !== capturedAmount) {
                 logger.error(
                   { orderId: order.id, expected: order.amount, actual: capturedAmount },
-                  'Webhook payment amount mismatch'
+                  'Webhook payment amount mismatch: Rejecting capture transition'
                 );
-              }
-
-              // Update order to PAID if not already paid or in terminal state
-              if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.CANCELLED) {
-                await prisma.order.update({
-                  where: { id: order.id },
-                  data: {
-                    status: OrderStatus.PAID,
-                    paymentStatus: PaymentStatus.CAPTURED,
-                    razorpayPaymentId: razorpayPaymentId || order.razorpayPaymentId,
+                return reply.status(400).send({
+                  error: {
+                    code: 'PAYMENT_AMOUNT_MISMATCH',
+                    message: `Captured payment amount (${capturedAmount}) does not match order amount (${order.amount})`,
                   },
                 });
-                logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked PAID via webhook payment.captured');
+              }
 
-                // Auto-confirm linked consultation booking if any
+              // 2. Verify currency matches server order currency strictly
+              if (paymentCurrency && order.currency !== paymentCurrency) {
+                logger.error(
+                  { orderId: order.id, expected: order.currency, actual: paymentCurrency },
+                  'Webhook payment currency mismatch: Rejecting capture transition'
+                );
+                return reply.status(400).send({
+                  error: {
+                    code: 'PAYMENT_CURRENCY_MISMATCH',
+                    message: `Captured payment currency (${paymentCurrency}) does not match order currency (${order.currency})`,
+                  },
+                });
+              }
+
+              // 3. Out-of-order & terminal state protection: Never transition terminal states (CANCELLED, REFUNDED)
+              if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.REFUNDED) {
+                logger.warn({ orderId: order.id, status: order.status }, 'Webhook payment.captured received for terminal order; skipping transition');
+                return reply.status(200).send({ status: 'ok', message: 'Order in terminal state, ignoring capture', received: true });
+              }
+
+              // 4. Idempotent check: If order is already PAID, return cleanly and ensure units exist idempotently
+              if (order.status === OrderStatus.PAID) {
+                await fulfillmentService.createFulfillmentUnitsForOrder(order.id);
+                await fulfillmentService.reconcileOrderFulfillment(order.id);
+                logger.info({ orderId: order.id }, 'Order already PAID; webhook payment.captured idempotent confirmation');
+                return reply.status(200).send({ status: 'ok', message: 'Order already paid', received: true, duplicate: true });
+              }
+
+              // 5. Transactionally safe transition using Global Lock Hierarchy: orders -> order_items -> fulfillment_units
+              await prisma.$transaction(async (tx) => {
+                // Lock order FIRST
+                const lockedOrders = await tx.$queryRaw<Array<{ id: string; status: OrderStatus }>>`
+                  SELECT id, status FROM "orders" WHERE id = ${order.id} FOR UPDATE;
+                `;
+                if (!lockedOrders.length || lockedOrders[0].status === OrderStatus.PAID) {
+                  return; // Concurrently verified by direct verify
+                }
+
+                // Lock orderItems SECOND
+                await tx.$queryRaw`
+                  SELECT id FROM "order_items" WHERE "orderId" = ${order.id} ORDER BY id ASC FOR UPDATE;
+                `;
+
+                // Update order to PAID, CAPTURED, paidAt
+                await tx.$executeRaw`
+                  UPDATE "orders"
+                  SET
+                    status = 'PAID'::"OrderStatus",
+                    "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+                    "paidAt" = COALESCE("paidAt", clock_timestamp()),
+                    "version" = version + 1,
+                    "razorpayPaymentId" = COALESCE("razorpayPaymentId", ${razorpayPaymentId || null}),
+                    "updatedAt" = clock_timestamp()
+                  WHERE id = ${order.id};
+                `;
+
+                // Atomically create fulfillment units for this order
+                await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
+                await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+              });
+
+              logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked PAID via webhook payment.captured');
+
+              // Auto-confirm linked consultation booking if any
                 const linkedBooking = await prisma.consultationBooking.findFirst({
                   where: { orderId: order.id },
                 });
@@ -231,8 +290,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                 }
               }
             }
-          }
-        } else if (payload.event === 'payment.failed') {
+          } else if (payload.event === 'payment.failed') {
           const razorpayOrderId = payload.payload?.payment?.entity?.order_id;
           if (razorpayOrderId) {
             const order = await prisma.order.findUnique({
@@ -298,7 +356,9 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
               }
 
               const allRefundsSum =
-                order.refunds.reduce((sum, r) => sum + r.amount, 0) + (existingRefund ? 0 : (refundAmount || 0));
+                order.refunds
+                  .filter((r) => r.status !== RefundStatus.FAILED)
+                  .reduce((sum, r) => sum + r.amount, 0) + (existingRefund ? 0 : (refundAmount || 0));
               const isFull = allRefundsSum >= order.amount;
 
               await prisma.order.update({
@@ -309,14 +369,52 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                 },
               });
 
-              // Revoke digital entitlements on full refund
+              // Revoke digital entitlements and cancel unfulfilled units on full refund
               if (isFull) {
                 await prisma.digitalProductEntitlement.updateMany({
                   where: { orderId: order.id },
                   data: { status: EntitlementStatus.REVOKED },
                 });
+                await prisma.fulfillmentUnit.updateMany({
+                  where: {
+                    orderId: order.id,
+                    status: { in: [FulfillmentUnitStatus.UNFULFILLED, FulfillmentUnitStatus.PROCESSING] },
+                  },
+                  data: {
+                    status: FulfillmentUnitStatus.CANCELLED,
+                    cancelledAt: new Date(),
+                  },
+                });
+                await prisma.report.updateMany({
+                  where: {
+                    orderId: order.id,
+                    status: { notIn: ['COMPLETED'] },
+                  },
+                  data: {
+                    status: 'FAILED',
+                    stage: 'FAILED',
+                    errorCode: 'ORDER_REFUNDED',
+                    errorMessage: 'Order was refunded; report generation cancelled.',
+                    claimToken: null,
+                    claimExpiresAt: null,
+                    claimVersion: { increment: 1 },
+                    failedAt: new Date(),
+                    updatedAt: new Date(),
+                  },
+                });
+                await fulfillmentService.reconcileOrderFulfillment(order.id);
               }
             }
+          }
+        } else if (payload.event === 'refund.failed') {
+          const refundEntity = payload.payload?.refund?.entity;
+          const refundId = refundEntity?.id;
+          if (refundId) {
+            await prisma.refund.updateMany({
+              where: { razorpayRefundId: refundId },
+              data: { status: RefundStatus.FAILED },
+            });
+            logger.warn({ refundId }, 'Refund marked FAILED via webhook refund.failed');
           }
         }
 

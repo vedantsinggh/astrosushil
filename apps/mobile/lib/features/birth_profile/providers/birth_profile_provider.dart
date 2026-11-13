@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/network/network_state_manager.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/birth_profile_repository.dart';
@@ -28,22 +29,29 @@ class BirthProfilesState {
   final bool isLoading;
   final List<BirthProfileModel> profiles;
   final String? errorMessage;
+  final ValidationException? lastValidationException;
 
   const BirthProfilesState({
     this.isLoading = false,
     this.profiles = const [],
     this.errorMessage,
+    this.lastValidationException,
   });
 
   BirthProfilesState copyWith({
     bool? isLoading,
     List<BirthProfileModel>? profiles,
     String? errorMessage,
+    ValidationException? lastValidationException,
+    bool clearValidationException = false,
   }) {
     return BirthProfilesState(
       isLoading: isLoading ?? this.isLoading,
       profiles: profiles ?? this.profiles,
       errorMessage: errorMessage,
+      lastValidationException: clearValidationException
+          ? null
+          : (lastValidationException ?? this.lastValidationException),
     );
   }
 }
@@ -65,7 +73,7 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
   }
 
   Future<void> fetchProfiles() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, errorMessage: null, clearValidationException: true);
     try {
       if (_authState.isGuest) {
         final guestProfile = await _repository.getGuestProfile();
@@ -90,7 +98,7 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
   }
 
   Future<BirthProfileModel?> createProfile(CreateBirthProfileDto dto) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, errorMessage: null, clearValidationException: true);
     try {
       if (_authState.isGuest || !_authState.isAuthenticated) {
         final newProfile = await _repository.saveGuestProfile(dto);
@@ -104,6 +112,14 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
         state = state.copyWith(isLoading: false, profiles: updatedList);
         return newProfile;
       }
+    } on ValidationException catch (ve) {
+      if (!mounted) return null;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ve.message,
+        lastValidationException: ve,
+      );
+      return null;
     } catch (e) {
       if (!mounted) return null;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
@@ -113,12 +129,20 @@ class BirthProfilesNotifier extends StateNotifier<BirthProfilesState> {
 
   /// Migrate guest profile to user account
   Future<BirthProfileModel?> migrateGuestProfile(CreateBirthProfileDto dto) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, errorMessage: null, clearValidationException: true);
     try {
       final migrated = await _repository.migrateGuestProfile(dto);
       if (!mounted) return migrated;
       await fetchProfiles();
       return migrated;
+    } on ValidationException catch (ve) {
+      if (!mounted) return null;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ve.message,
+        lastValidationException: ve,
+      );
+      return null;
     } catch (e) {
       if (!mounted) return null;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());

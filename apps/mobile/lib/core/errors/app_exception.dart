@@ -26,17 +26,66 @@ class ValidationException extends AppException {
   const ValidationException(super.message, {super.code = 'VALIDATION_ERROR', this.details});
 }
 
+/// Detail item for ambiguous DST candidate interpretations
+class AmbiguousTimeCandidateModel {
+  final String disambiguation; // 'earlier' | 'later'
+  final String utcIsoString;
+  final int utcTimestampMs;
+  final int timezoneOffsetSeconds;
+  final int offsetMinutes;
+
+  const AmbiguousTimeCandidateModel({
+    required this.disambiguation,
+    required this.utcIsoString,
+    required this.utcTimestampMs,
+    required this.timezoneOffsetSeconds,
+    required this.offsetMinutes,
+  });
+
+  factory AmbiguousTimeCandidateModel.fromJson(Map<String, dynamic> json) {
+    return AmbiguousTimeCandidateModel(
+      disambiguation: json['disambiguation'] as String? ?? 'earlier',
+      utcIsoString: json['utcIsoString'] as String? ?? '',
+      utcTimestampMs: (json['utcTimestampMs'] as num?)?.toInt() ?? 0,
+      timezoneOffsetSeconds: (json['timezoneOffsetSeconds'] as num?)?.toInt() ??
+          (((json['offsetMinutes'] as num?)?.toInt() ?? 0) * 60),
+      offsetMinutes: (json['offsetMinutes'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// Detail item for field validation errors
 class ValidationErrorDetail {
   final String field;
   final String message;
+  final String? code;
+  final String? localIsoString;
+  final String? timezone;
+  final List<AmbiguousTimeCandidateModel>? candidates;
 
-  const ValidationErrorDetail({required this.field, required this.message});
+  const ValidationErrorDetail({
+    required this.field,
+    required this.message,
+    this.code,
+    this.localIsoString,
+    this.timezone,
+    this.candidates,
+  });
 
   factory ValidationErrorDetail.fromJson(Map<String, dynamic> json) {
+    List<AmbiguousTimeCandidateModel>? candidates;
+    if (json['candidates'] is List) {
+      candidates = (json['candidates'] as List)
+          .map((c) => AmbiguousTimeCandidateModel.fromJson(Map<String, dynamic>.from(c as Map)))
+          .toList();
+    }
     return ValidationErrorDetail(
       field: json['field'] as String? ?? '',
       message: json['message'] as String? ?? '',
+      code: json['code'] as String?,
+      localIsoString: json['localIsoString'] as String?,
+      timezone: json['timezone'] as String?,
+      candidates: candidates,
     );
   }
 }

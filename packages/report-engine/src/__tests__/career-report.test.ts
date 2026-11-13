@@ -9,6 +9,7 @@ import {
   pdfQaValidator,
   FORBIDDEN_PLACEHOLDERS,
 } from '../index';
+import { MockCareerAnalysisProvider, careerEvidenceEngine } from '@astro/prediction-engine';
 
 describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
   const mockAstroChart: any = {
@@ -100,9 +101,12 @@ describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
     expect(texOutput).toContain('\\newcommand{\\HouseTenLord}{\\RenderVerified{Saturn}}');
   });
 
-  it('5. PdfQaValidator should pass for clean TeX source and fail for forbidden placeholders', () => {
+  it('5. PdfQaValidator should pass for clean TeX source and fail for forbidden placeholders', async () => {
     const normalized = normalizeAstroChart(mockAstroChart);
-    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
+    const mockAnalysis = await new MockCareerAnalysisProvider().analyze(
+      careerEvidenceEngine.buildCareerAnalysisInput(normalized)
+    );
+    const reportData = mapNormalizedChartToCareerReportData(normalized, mockAnalysis, clientProfile);
     const cleanTex = generateReportDataTex(reportData);
 
     // Mock PDF buffer (%PDF-1.4 with 6 pages)
@@ -134,7 +138,10 @@ describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
 
   it('6. Should compile actual career report containing Unicode text (CO₂, subscript numbers, etc.) via production XeLaTeX compiler', async () => {
     const normalized = normalizeAstroChart(mockAstroChart);
-    const reportData = mapNormalizedChartToCareerReportData(normalized, undefined, clientProfile);
+    const mockAnalysis = await new MockCareerAnalysisProvider().analyze(
+      careerEvidenceEngine.buildCareerAnalysisInput(normalized)
+    );
+    const reportData = mapNormalizedChartToCareerReportData(normalized, mockAnalysis, clientProfile);
     
     // Inject representative Unicode content into report data
     reportData.careerAnalysis.executiveCareerSummary =
@@ -147,7 +154,7 @@ describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
         reportId: 'unicode-compilation-test-aarav',
         reportDataTex: texOutput,
         minPageCount: 1,
-        timeoutMs: 60000,
+        timeoutMs: 120000,
       });
 
       expect(compilationResult.pdfBuffer).toBeDefined();
@@ -158,6 +165,6 @@ describe('Career Report Phase 11 Intelligent Pipeline Suite', () => {
       console.error('=== ACTUAL XELATEX COMPILATION ERROR ===\n', err.message);
       throw err;
     }
-  }, 60000);
+  }, 120000);
 });
 

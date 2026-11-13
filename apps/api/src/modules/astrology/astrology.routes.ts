@@ -25,7 +25,7 @@ import {
   avakhadaRequestSchema,
   vimshopakaRequestSchema,
 } from './astrology.schemas';
-import { AuthenticationError } from '../../errors/app-error';
+import { AuthenticationError, AppError } from '../../errors/app-error';
 
 export async function astrologyRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // Use optional authentication hook for astrology routes to support Guest Mode
@@ -149,7 +149,7 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
     schema: {
       tags: ['Astrology'],
       summary: 'Calculate Ashtakoota Matchmaking (Guna Milan)',
-      description: 'Evaluates 36-point Guna Milan score and Manglik Dosha for Boy and Girl.',
+      description: 'Evaluates 36-point Guna Milan score and Manglik status for Boy and Girl.',
     },
     handler: async (request, reply) => {
       const input = matchmakingRequestSchema.parse(request.body);
@@ -164,7 +164,7 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
     schema: {
       tags: ['Astrology'],
       summary: 'Calculate deterministic Kundli compatibility and Ashtakoota matching',
-      description: 'Evaluates complete 36-point Ashtakoota (8 Kootas: Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) and independent pairwise Manglik Dosha comparison.',
+      description: 'Evaluates complete 36-point Ashtakoota (8 Kootas: Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) and independent pairwise Manglik status comparison.',
     },
     handler: async (request, reply) => {
       const input = compatibilityRequestSchema.parse(request.body);
@@ -357,18 +357,35 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
     },
   });
 
-  // POST /api/v1/astrology/sade-sati
+  // POST /api/v1/astrology/sade-sati (DECOMMISSIONED - Phase 2B.2 Editorial Policy)
   fastify.post('/sade-sati', {
     config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     schema: {
       tags: ['Astrology'],
-      summary: 'Calculate deterministic Sade Sati and Dhaiyya status',
-      description: 'Evaluates 7.5-year Sade Sati (Phase 1 Setting, Phase 2 Peak, Phase 3 Rising) and 2.5-year Dhaiyya (Kantaka 4th and Ashtama 8th from Moon) for a birth chart.',
+      summary: 'Decommissioned endpoint',
+      description: 'The sade-sati endpoint has been decommissioned in accordance with editorial policy. General planetary transit calculations are available via /api/v1/astrology/gochara.',
+      response: {
+        410: {
+          type: 'object',
+          properties: {
+            error: {
+              type: 'object',
+              properties: {
+                code: { type: 'string' },
+                message: { type: 'string' },
+                requestId: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
     },
-    handler: async (request: any, reply: any) => {
-      const input = sadeSatiRequestSchema.parse(request.body);
-      const result = await astrologyService.calculateSadeSati(input, request.user);
-      return reply.status(200).send({ data: result });
+    handler: async () => {
+      throw new AppError(
+        'The /api/v1/astrology/sade-sati endpoint has been decommissioned in accordance with editorial policy. General planetary transit calculations are available via /api/v1/astrology/gochara.',
+        410,
+        'ENDPOINT_DECOMMISSIONED'
+      );
     },
   });
 
