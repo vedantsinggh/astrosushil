@@ -14,10 +14,23 @@ export interface AnnualLocationInput {
   altitudeMeters?: number;
 }
 
+export interface NatalSunProvenance {
+  source: string;                     // e.g. "CANONICAL_EPHEMERIS", "RECORDED_BIRTH_TIME", "EXTERNAL_VERIFIED_EPHEMERIS"
+  epoch?: string;                      // e.g. "J2000"
+  ayanamsa: string;                   // e.g. "LAHIRI"
+  coordinateConvention: string;       // e.g. "GEOCENTRIC_SIDEREAL_ECLIPTIC"
+  uncertaintyDegrees: number;         // e.g. 0.0001 (exact/timed) vs > 0.05 (approximate)
+  timestampUncertaintyHours?: number; // e.g. uncertainty in return instant
+  isSufficientlyPrecise: boolean;     // whether uncertainty <= MAX_ALLOWABLE_SUN_UNCERTAINTY (0.01°)
+}
+
 export interface VarshaphalaCalculationOptions {
   targetYear: number;                 // e.g. 2026
   annualLocation?: AnnualLocationInput; // Optional annual location (defaults to natal location)
   targetDate?: Date | string;        // Optional query date for active annual dasha lookup
+  isTimeUnknown?: boolean;           // Whether the birth time is unrecorded / unknown
+  natalSunLongitude?: number;        // Explicit natal Sun longitude if already reliably established
+  natalSunProvenance?: NatalSunProvenance; // Detailed provenance and uncertainty tracking
 }
 
 export interface SolarReturnDetails {
@@ -41,6 +54,7 @@ export interface SolarReturnDetails {
     placeName?: string;
   };
   iterations: number;
+  provenance?: NatalSunProvenance;
 }
 
 export interface VarshaLagna extends CalculatedPoint {
@@ -51,6 +65,7 @@ export interface VarshaLagna extends CalculatedPoint {
   nakshatraName: string;
   pada: number;
   lord: PlanetSymbol;
+  isIndeterminate?: boolean;
 }
 
 export interface AnnualPlanet extends PlanetPosition {
@@ -75,6 +90,7 @@ export interface MunthaDetails {
   houseInNatalChart: number;          // 1 to 12
   progressionYears: number;           // Completed years passed from birth
   progressionIndex: number;           // Progression step index (completedYears % 12)
+  isIndeterminate?: boolean;
   evidence?: {
     natalLagnaRashiIndex: number;
     natalLagnaLongitude: number;
@@ -96,8 +112,10 @@ export interface PanchadhikariCandidate {
   planet: PlanetSymbol;
   sourceDescription: string;
   aspectsVarshaLagna: boolean;
+  aspectToVarshaLagna?: number; // Relative sign distance from candidate to Varsha Lagna (e.g. 4 for 4th-house square aspect)
   harshaBalaScore: number;
   houseInVarshaChart: number;
+  isIndeterminate?: boolean;
 }
 
 export interface PanchadhikariDetails {
@@ -114,6 +132,7 @@ export interface VarsheshaDetails {
   harshaBalaScore: number;
   candidates: PanchadhikariCandidate[];
   convention: string;
+  isIndeterminate?: boolean;
 }
 
 export interface PlanetHarshaBala {
@@ -213,6 +232,8 @@ export interface VarshaphalaChart {
   convention: VarshaphalaConvention;
   natalBirthDetails: BirthDetails;
   solarReturn: SolarReturnDetails;
+  nextSolarReturn?: SolarReturnDetails;
+  actualCycleDays?: number;
   varshaLagna: VarshaLagna;
   natalLagna: CalculatedPoint;
   planets: Record<PlanetSymbol, AnnualPlanet>;

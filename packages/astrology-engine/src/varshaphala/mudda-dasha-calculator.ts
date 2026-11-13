@@ -45,11 +45,13 @@ export class MuddaDashaCalculator {
   /**
    * Calculates Mudda Dasha for the Varshaphala year starting at solarReturnDate.
    * Starts with the lord of the Moon's nakshatra in the annual chart.
+   * Uses the actual solar return cycle interval if nextSolarReturn is provided.
    */
   public static calculate(
     annualChart: AstroChart,
     solarReturnDate: Date,
-    targetDate?: Date | string
+    targetDate?: Date | string,
+    nextSolarReturnDate?: Date
   ): MuddaDashaTree {
     const annualMoon = annualChart.planets[PlanetSymbol.MOON];
     const moonNakshatraIndex = annualMoon?.nakshatraIndex ?? 1; // 1-indexed (1..27)
@@ -58,15 +60,23 @@ export class MuddaDashaCalculator {
     const startIndex = PLANET_CYCLE.indexOf(startingLord);
     const periods: DashaPeriod[] = [];
 
+    // Calculate actual cycle duration in ms and days
+    const totalDurationMs = nextSolarReturnDate
+      ? (nextSolarReturnDate.getTime() - solarReturnDate.getTime())
+      : (SOLAR_YEAR_DAYS * MS_PER_DAY);
+    const actualCycleDays = totalDurationMs / MS_PER_DAY;
+    const totalEndMs = solarReturnDate.getTime() + totalDurationMs;
     let currentStartMs = solarReturnDate.getTime();
 
     for (let i = 0; i < 9; i++) {
       const planetIndex = (startIndex + i) % 9;
       const planet = PLANET_CYCLE[planetIndex];
       const years = VIMSHOTTARI_YEARS[planet];
-      const durationDays = (years / 120) * SOLAR_YEAR_DAYS;
-      const durationMs = durationDays * MS_PER_DAY;
-      const endMs = currentStartMs + durationMs;
+      const fraction = years / 120;
+      const durationDays = fraction * actualCycleDays;
+      const durationMs = fraction * totalDurationMs;
+      // Snap the final period to the exact annual boundary to prevent sub-millisecond drift
+      const endMs = (i === 8) ? totalEndMs : Math.round(currentStartMs + durationMs);
 
       const startDate = new Date(currentStartMs);
       const endDate = new Date(endMs);
@@ -77,8 +87,8 @@ export class MuddaDashaCalculator {
         order: i + 1,
         startDateIso: startDate.toISOString(),
         endDateIso: endDate.toISOString(),
-        durationYears: durationDays / SOLAR_YEAR_DAYS,
-        nominalYears: durationDays / SOLAR_YEAR_DAYS,
+        durationYears: durationDays / actualCycleDays,
+        nominalYears: durationDays / actualCycleDays,
         isBirthDasha: i === 0,
       });
 
@@ -86,17 +96,19 @@ export class MuddaDashaCalculator {
     }
 
     const startIso = solarReturnDate.toISOString();
-    const endIso = new Date(solarReturnDate.getTime() + SOLAR_YEAR_DAYS * MS_PER_DAY).toISOString();
+    const endIso = new Date(totalEndMs).toISOString();
 
     let activeDasha: ActiveDashaInfo | undefined;
     const queryDate = targetDate ? new Date(targetDate) : solarReturnDate;
 
     if (!isNaN(queryDate.getTime())) {
       const queryMs = queryDate.getTime();
-      const activePeriod = periods.find((p) => {
+      const activePeriod = periods.find((p, idx) => {
         const pStart = new Date(p.startDateIso).getTime();
         const pEnd = new Date(p.endDateIso).getTime();
-        return queryMs >= pStart && queryMs < pEnd;
+        return (idx === 8)
+          ? (queryMs >= pStart && queryMs <= pEnd)
+          : (queryMs >= pStart && queryMs < pEnd);
       });
 
       if (activePeriod) {
@@ -119,7 +131,7 @@ export class MuddaDashaCalculator {
     return {
       dashaSystem: 'MUDDA',
       birthLord: startingLord,
-      totalCycleDays: SOLAR_YEAR_DAYS,
+      totalCycleDays: actualCycleDays,
       startDateIso: startIso,
       endDateIso: endIso,
       periods,

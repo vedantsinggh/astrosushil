@@ -4,12 +4,14 @@ import '@fastify/jwt';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 import { astrologyService } from '../../src/modules/astrology/astrology.service';
+import { featureAccessService } from '../../src/services/feature-access.service';
 
 describe('Reports API & PDF Generation Integration Tests', () => {
   let app: FastifyInstance;
 
   const profilesDb = new Map<string, any>();
   const reportsDb = new Map<string, any>();
+  const ordersDb = new Map<string, any>();
 
   const user1Id = '11111111-1111-1111-1111-111111111111';
   const user2Id = '22222222-2222-2222-2222-222222222222';
@@ -51,8 +53,52 @@ describe('Reports API & PDF Generation Integration Tests', () => {
       updatedAt: new Date(),
     });
 
+    // Populate valid paid order fixtures for commerce & entitlement verification
+    const order1Id = '55555555-5555-5555-5555-555555555555';
+    ordersDb.set(order1Id, {
+      id: order1Id,
+      userId: user1Id,
+      status: 'PAID',
+      paymentStatus: 'CAPTURED',
+      fulfillmentStatus: 'PENDING',
+      reportType: 'KUNDLI',
+      paidAt: new Date(),
+      items: [
+        { id: 'item-1', orderId: order1Id, itemType: 'REPORT', catalogId: 'report-kundli', quantity: 1, price: 999 },
+        { id: 'item-2', orderId: order1Id, itemType: 'REPORT', catalogId: 'report-planetary-summary', quantity: 1, price: 499 },
+      ],
+      reports: [],
+    });
+
+    (vi.spyOn(featureAccessService, 'evaluateFeatureAccess') as any).mockResolvedValue({
+      allowed: true,
+      source: 'SUPPORT_ENTITLEMENT_GRANT',
+    });
+
     (vi.spyOn(prisma.birthProfile, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
       return profilesDb.get(where.id) || null;
+    });
+
+    (vi.spyOn(prisma.order, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
+      return ordersDb.get(where.id) || null;
+    });
+
+    (vi.spyOn(prisma.order, 'findFirst') as any).mockImplementation(async ({ where }: any) => {
+      return Array.from(ordersDb.values()).find((o) => {
+        if (where.userId && o.userId !== where.userId) return false;
+        if (where.status && o.status !== where.status) return false;
+        return true;
+      }) || null;
+    });
+
+    (vi.spyOn(prisma.order, 'updateMany') as any).mockImplementation(async ({ where, data }: any) => {
+      let count = 0;
+      for (const [id, o] of ordersDb.entries()) {
+        if (where.id && o.id !== where.id) continue;
+        Object.assign(o, data);
+        count++;
+      }
+      return { count };
     });
 
     (vi.spyOn(prisma.report, 'create') as any).mockImplementation(async ({ data }: any) => {
@@ -62,13 +108,38 @@ describe('Reports API & PDF Generation Integration Tests', () => {
         userId: data.userId,
         birthProfileId: data.birthProfileId,
         orderId: data.orderId || null,
+        fulfillmentUnitId: data.fulfillmentUnitId || null,
         reportType: data.reportType,
-        status: data.status || 'COMPLETED',
+        status: data.status || 'QUEUED',
+        stage: data.stage || 'QUEUED',
+        progress: data.progress ?? 0,
+        storageKey: data.storageKey || null,
+        fileName: data.fileName || null,
+        fileSize: data.fileSize || 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       reportsDb.set(id, record);
       return record;
+    });
+
+    (vi.spyOn(prisma.report, 'updateMany') as any).mockImplementation(async ({ where, data }: any) => {
+      let count = 0;
+      for (const [id, r] of reportsDb.entries()) {
+        if (where.id && r.id !== where.id) continue;
+        if (where.status?.in && !where.status.in.includes(r.status)) continue;
+        Object.assign(r, data);
+        count++;
+      }
+      return { count };
+    });
+
+    (vi.spyOn(prisma.report, 'update') as any).mockImplementation(async ({ where, data }: any) => {
+      const r = reportsDb.get(where.id);
+      if (r) {
+        Object.assign(r, data);
+      }
+      return r || null;
     });
 
     (vi.spyOn(prisma.report, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
@@ -207,17 +278,22 @@ describe('Reports API & PDF Generation Integration Tests', () => {
     expect(body.error.code).toBe('NOT_FOUND');
   });
 
-  // 12. Incomplete chart data is rejected during PDF generation
-  it('12. Incomplete chart data is rejected during PDF generation (returns 422)', async () => {
+  // 12. Incomplete chart data is rejected during report generation (returns 422)
+  it('12. Incomplete chart data is rejected during report generation (returns 422)', async () => {
     const spy = vi.spyOn(astrologyService, 'calculateChartForProfile').mockResolvedValueOnce({
       data: { metadata: {} } as any,
       chart: { ascendant: {}, planets: [], houses: [] } as any, // Missing ascendant sign
     });
 
     const response = await app.inject({
-      method: 'GET',
-      url: `/api/v1/reports/${user1ReportId}/pdf`,
+      method: 'POST',
+      url: '/api/v1/reports',
       headers: { authorization: `Bearer ${user1Token}` },
+      payload: {
+        birthProfileId: user1ProfileId,
+        reportType: 'KUNDLI',
+        forceRegenerate: true,
+      },
     });
 
     expect(response.statusCode).toBe(422);

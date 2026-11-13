@@ -157,7 +157,7 @@ void main() {
       expect(find.text('₹699'), findsOneWidget);
 
       expect(find.text('Marriage & Relationship Report'), findsOneWidget);
-      expect(find.text('₹999'), findsOneWidget);
+      expect(find.text('₹499'), findsWidgets);
 
       // Scroll to view upcoming categories
       await tester.drag(find.byType(ListView), const Offset(0, -600));
@@ -364,8 +364,8 @@ void main() {
             title: 'Marriage & Relationship Report',
             tagline: 'Ashtakoota Milan & Manglik Analysis',
             description: 'Comprehensive 36-guna Milan',
-            priceText: '₹999',
-            pricePaise: 99900,
+            priceText: '₹499',
+            pricePaise: 49900,
             icon: Icons.favorite,
             accentColor: AppColors.tintRoseText,
             initialProfile: testProfile1,

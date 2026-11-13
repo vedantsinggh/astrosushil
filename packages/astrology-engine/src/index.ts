@@ -24,3 +24,6 @@ export * from './jaimini/index';
 export * from './kp/index';
 export * from './metadata/index';
 export * from './evidence/index';
+export * from './saturn/index';
+export * from './jupiter/index';
+export * from './rahu-ketu/index';

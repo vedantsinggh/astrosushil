@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { HealthStatusResponse } from '@astro/shared';
 import { config } from '../config';
 import { checkDatabaseHealth } from '../services/prisma.service';
-import { redisQueueService } from '../services/redis-queue.service';
+import { postgresQueueService } from '../services/postgres-queue.service';
 
 export async function healthRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // Liveness endpoint GET /health (Fast non-blocking probe)
@@ -24,26 +24,26 @@ export async function healthRoutes(fastify: FastifyInstance, _options: FastifyPl
 
   const readinessHandler = async (_request: any, reply: any) => {
     const isDbConnected = await checkDatabaseHealth();
-    const isRedisConnected = await redisQueueService.checkHealth();
+    const isQueueHealthy = await postgresQueueService.checkHealth();
 
-    const payload: HealthStatusResponse & { database: string; redis: string } = {
-      status: isDbConnected && isRedisConnected ? 'ok' : 'degraded',
+    const payload: HealthStatusResponse & { database: string; queue: string } = {
+      status: isDbConnected && isQueueHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       service: 'astro-api',
       environment: config.NODE_ENV,
       database: isDbConnected ? 'connected' : 'disconnected',
-      redis: isRedisConnected ? 'connected' : 'disconnected',
+      queue: isQueueHealthy ? 'connected' : 'disconnected',
     };
 
-    const statusCode = isDbConnected && isRedisConnected ? 200 : 503;
+    const statusCode = isDbConnected && isQueueHealthy ? 200 : 503;
     return reply.status(statusCode).send(payload);
   };
 
-  // Readiness endpoint GET /ready (Dependency readiness check including DB)
+  // Readiness endpoint GET /ready (Dependency readiness check including DB and Queue)
   fastify.get('/ready', {
     schema: {
       tags: ['Health'],
-      summary: 'Readiness probe checking database connectivity',
+      summary: 'Readiness probe checking database and queue connectivity',
     },
     handler: readinessHandler,
   });
@@ -52,7 +52,7 @@ export async function healthRoutes(fastify: FastifyInstance, _options: FastifyPl
   fastify.get('/health/ready', {
     schema: {
       tags: ['Health'],
-      summary: 'Readiness probe checking database connectivity (Kubernetes alias)',
+      summary: 'Readiness probe checking database and queue connectivity (Kubernetes alias)',
     },
     handler: readinessHandler,
   });

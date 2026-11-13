@@ -90,9 +90,16 @@ export class TransitIngressSolver {
         const toSignDef = getRashiByLongitude(nextState.longitude);
 
         // Determine target boundary degree
-        // If moving direct into toSignDef: boundary = (toSignDef.index - 1) * 30
-        // If moving retrograde: boundary = (prevState.index - 1) * 30
-        let targetBoundaryLon = (toSignDef.index - 1) * 30.0;
+        // Direct ingress into toSignDef: boundary = (toSignDef.index - 1) * 30.0
+        // Retrograde ingress into toSignDef: boundary = (fromSignDef.index - 1) * 30.0
+        const isRetrogradeIngress =
+          prevState.isRetrograde ||
+          (fromSignDef.index === 1 && toSignDef.index === 12) ||
+          (toSignDef.index < fromSignDef.index && !(fromSignDef.index === 12 && toSignDef.index === 1));
+
+        let targetBoundaryLon = isRetrogradeIngress
+          ? (fromSignDef.index - 1) * 30.0
+          : (toSignDef.index - 1) * 30.0;
         if (targetBoundaryLon >= 360) targetBoundaryLon = 0;
 
         const exactJD = await this.bisectBoundaryCrossing(
@@ -153,7 +160,14 @@ export class TransitIngressSolver {
         const fromNakDef = getNakshatraByLongitude(prevState.longitude);
         const toNakDef = getNakshatraByLongitude(nextState.longitude);
 
-        let targetBoundaryLon = (toNakDef.index - 1) * (360 / 27);
+        const isRetrogradeNak =
+          prevState.isRetrograde ||
+          (fromNakDef.index === 1 && toNakDef.index === 27) ||
+          (toNakDef.index < fromNakDef.index && !(fromNakDef.index === 27 && toNakDef.index === 1));
+
+        let targetBoundaryLon = isRetrogradeNak
+          ? (fromNakDef.index - 1) * (360 / 27)
+          : (toNakDef.index - 1) * (360 / 27);
         if (targetBoundaryLon >= 360) targetBoundaryLon = 0;
 
         const exactJD = await this.bisectBoundaryCrossing(

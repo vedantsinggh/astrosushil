@@ -54,24 +54,26 @@ const SEVEN_VEDIC_PLANETS = [
 export class HarshaBalaCalculator {
   public calculateHarshaBala(
     planets: Record<PlanetSymbol, PlanetPosition>,
-    varshaLagnaRashiIndex: number
+    varshaLagnaRashiIndex?: number
   ): HarshaBalaScores {
+    const isUntimed = !varshaLagnaRashiIndex || varshaLagnaRashiIndex <= 0;
+
     // 1. Determine Day vs Night return based on Sun's house position in annual chart
     const sunPos = planets[PlanetSymbol.SUN];
     const sunRashi = sunPos?.rashiIndex ?? 1;
-    const sunHouse = ((sunRashi - varshaLagnaRashiIndex + 12) % 12) + 1;
-    const isDayReturn = (sunHouse >= 7 && sunHouse <= 12);
+    const sunHouse = isUntimed ? 0 : (((sunRashi - varshaLagnaRashiIndex! + 12) % 12) + 1);
+    const isDayReturn = !isUntimed && (sunHouse >= 7 && sunHouse <= 12);
 
     const scores: Partial<HarshaBalaScores> = {};
 
     for (const p of SEVEN_VEDIC_PLANETS) {
       const pos = planets[p];
       const rashi = pos?.rashiIndex ?? 1;
-      const house = ((rashi - varshaLagnaRashiIndex + 12) % 12) + 1;
+      const house = isUntimed ? 0 : (((rashi - varshaLagnaRashiIndex! + 12) % 12) + 1);
       const isOddSign = (rashi % 2 !== 0);
 
-      // Factor 1: Sthana Bala (Joy House) -> 5 points
-      const sthanaBala = house === JOY_HOUSES[p] ? 5 : 0;
+      // Factor 1: Sthana Bala (Joy House) -> 5 points (withheld if untimed)
+      const sthanaBala = (!isUntimed && house === JOY_HOUSES[p]) ? 5 : 0;
 
       // Factor 2: Uccha / Swakshetra Bala (Own or Exaltation sign) -> 5 points
       const ucchaBala = OWN_AND_EXALTATION_RASHIS[p].includes(rashi) ? 5 : 0;
@@ -88,10 +90,12 @@ export class HarshaBalaCalculator {
       let dinaRatriBala = 0;
       if (p === PlanetSymbol.MERCURY) {
         dinaRatriBala = 5; // Mercury always receives Dina/Ratri joy points
-      } else if (isDayReturn && DIURNAL_PLANETS.has(p)) {
-        dinaRatriBala = 5;
-      } else if (!isDayReturn && NOCTURNAL_PLANETS.has(p)) {
-        dinaRatriBala = 5;
+      } else if (!isUntimed) {
+        if (isDayReturn && DIURNAL_PLANETS.has(p)) {
+          dinaRatriBala = 5;
+        } else if (!isDayReturn && NOCTURNAL_PLANETS.has(p)) {
+          dinaRatriBala = 5;
+        }
       }
 
       const totalScore = sthanaBala + ucchaBala + striPurushaBala + dinaRatriBala;
@@ -117,8 +121,11 @@ export class HarshaBalaCalculator {
   public calculateHarshaYogas(
     scores: HarshaBalaScores,
     planets: Record<PlanetSymbol, PlanetPosition>,
-    varshaLagnaRashiIndex: number
+    varshaLagnaRashiIndex?: number
   ): HarshaYogaResult[] {
+    if (!varshaLagnaRashiIndex || varshaLagnaRashiIndex <= 0) {
+      return []; // Withhold house-dependent yogas for untimed charts
+    }
     const results: HarshaYogaResult[] = [];
 
     for (const p of SEVEN_VEDIC_PLANETS) {
@@ -152,7 +159,9 @@ export class HarshaBalaCalculator {
     yogas: HarshaYogaResult[];
   } {
     const calc = new HarshaBalaCalculator();
-    const varshaLagnaRashi = annualChart.ascendant?.rashiIndex ?? 1;
+    const varshaLagnaRashi = (annualChart.ascendant && !(annualChart.ascendant as any).isIndeterminate)
+      ? annualChart.ascendant.rashiIndex
+      : 0;
     const scores = calc.calculateHarshaBala(annualChart.planets, varshaLagnaRashi);
     const yogas = calc.calculateHarshaYogas(scores, annualChart.planets, varshaLagnaRashi);
     return { scores, yogas };

@@ -17,7 +17,9 @@ import {
   OrderItemType,
   PaymentStatus,
   FulfillmentStatus,
+  ObligationType,
 } from '@prisma/client';
+import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { logger } from '../../utils/logger';
 
 export interface SlotInterval {
@@ -458,17 +460,44 @@ export class ConsultationsService {
 
     // Transactionally confirm booking and update order
     const confirmedBooking = await prisma.$transaction(async (tx) => {
-      // 1. Update order
+      let consultUnitId: string | null = null;
+
+      // 1. Update order and create fulfillment units
       if (booking.orderId) {
-        await tx.order.update({
-          where: { id: booking.orderId },
-          data: {
-            status: 'PAID',
-            paymentStatus: PaymentStatus.CAPTURED,
-            fulfillmentStatus: FulfillmentStatus.SCHEDULED,
-            razorpayPaymentId: input.razorpayPaymentId,
-          },
-        });
+        // Lock Order FIRST
+        await tx.$queryRaw`
+          SELECT id FROM "orders" WHERE id = ${booking.orderId} FOR UPDATE;
+        `;
+
+        // Lock OrderItems SECOND
+        await tx.$queryRaw`
+          SELECT id FROM "order_items" WHERE "orderId" = ${booking.orderId} ORDER BY id ASC FOR UPDATE;
+        `;
+
+        // Transition order to PAID atomically
+        await tx.$executeRaw`
+          UPDATE "orders"
+          SET
+            status = 'PAID'::"OrderStatus",
+            "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+            "paidAt" = clock_timestamp(),
+            "version" = version + 1,
+            "razorpayPaymentId" = ${input.razorpayPaymentId},
+            "updatedAt" = clock_timestamp()
+          WHERE id = ${booking.orderId};
+        `;
+
+        // Create fulfillment units
+        await fulfillmentService.createFulfillmentUnitsForOrder(booking.orderId, tx);
+
+        // Find CONSULTATION fulfillment unit
+        const units = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM "fulfillment_units"
+          WHERE "orderId" = ${booking.orderId} AND "obligationType" = 'CONSULTATION'::"ObligationType"
+          ORDER BY "unitIndex" ASC
+          LIMIT 1;
+        `;
+        consultUnitId = units[0]?.id || null;
       }
 
       // 2. Update booking
@@ -476,6 +505,7 @@ export class ConsultationsService {
         where: { id: booking.id },
         data: {
           status: BookingStatus.CONFIRMED,
+          fulfillmentUnitId: consultUnitId || undefined,
           confirmedAt: new Date(),
           reservationExpiresAt: null,
           meetingLink,
@@ -491,6 +521,11 @@ export class ConsultationsService {
           lockedUntil: null,
         },
       });
+
+      // 4. Reconcile fulfillment unit
+      if (booking.orderId && consultUnitId) {
+        await fulfillmentService.reconcileFulfillmentUnit(booking.orderId, consultUnitId, tx);
+      }
 
       return updated;
     });
@@ -737,15 +772,7 @@ export class ConsultationsService {
         data: { status: SlotStatus.AVAILABLE, bookingId: null, lockedUntil: null },
       });
 
-      // Update order fulfillment
-      if (booking.orderId) {
-        await tx.order.update({
-          where: { id: booking.orderId },
-          data: { fulfillmentStatus: FulfillmentStatus.CANCELLED },
-        });
-      }
-
-      return await tx.consultationBooking.update({
+      const updatedBooking = await tx.consultationBooking.update({
         where: { id: booking.id },
         data: {
           status: BookingStatus.CANCELLED,
@@ -753,6 +780,18 @@ export class ConsultationsService {
           cancelledAt: new Date(),
         },
       });
+
+      // Update order fulfillment via reconciliation without destroying other items
+      if (booking.orderId && booking.fulfillmentUnitId) {
+        await fulfillmentService.reconcileFulfillmentUnit(booking.orderId, booking.fulfillmentUnitId, tx);
+      } else if (booking.orderId) {
+        await tx.order.update({
+          where: { id: booking.orderId },
+          data: { fulfillmentStatus: FulfillmentStatus.CANCELLED },
+        });
+      }
+
+      return updatedBooking;
     });
 
     try {

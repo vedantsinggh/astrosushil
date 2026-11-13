@@ -2,9 +2,10 @@ import { prisma } from '../../services/prisma.service';
 import { paymentService } from '../../services/payment.service';
 import { commerceCatalog, CalculatedOrder } from './commerce.catalog';
 import { notificationService } from '../notifications/notification.service';
-import { NotFoundError, ValidationError, ForbiddenError } from '../../errors/app-error';
+import { AppError, NotFoundError, ValidationError, ForbiddenError } from '../../errors/app-error';
 import { logger } from '../../utils/logger';
-import { OrderStatus, PaymentStatus, RefundStatus, ReportType } from '@prisma/client';
+import { Prisma, OrderStatus, PaymentStatus, RefundStatus, ReportType, OrderItemType, FulfillmentType, EntitlementStatus, FulfillmentUnitStatus } from '@prisma/client';
+import { fulfillmentService } from '../fulfillment/fulfillment.service';
 
 export interface CreateOrderParams {
   items?: Array<{ catalogId: string; quantity?: number; metadata?: Record<string, any> }>;
@@ -19,11 +20,19 @@ export interface VerifyPaymentParams {
   razorpaySignature: string;
 }
 
+export interface ItemAllocationInput {
+  orderItemId: string;
+  amountPaise: number;
+  restockQuantity?: number;
+  reason?: string;
+}
+
 export interface RequestRefundParams {
   orderId: string;
   amountPaise?: number; // Optional; if omitted, full refundable balance is refunded
   reason?: string;
   idempotencyKey?: string;
+  itemAllocations?: ItemAllocationInput[];
 }
 
 export class CommerceService {
@@ -209,15 +218,67 @@ export class CommerceService {
       throw new ValidationError('Invalid payment signature');
     }
 
-    // Atomic transaction for Order state transition and audit trail
+    // Atomic transaction for Order state transition, fulfillment units creation, and audit trail
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      const paidOrder = await tx.order.update({
+      // 1. Lock Order FIRST (Global Lock Hierarchy)
+      const lockedOrders = await tx.$queryRaw<Array<{
+        id: string;
+        status: OrderStatus;
+        paymentStatus: PaymentStatus;
+        paidAt: Date | null;
+        version: number;
+        amount: number;
+        currency: string;
+      }>>`
+        SELECT id, status, "paymentStatus", "paidAt", version, amount, currency
+        FROM "orders"
+        WHERE id = ${order.id}
+        FOR UPDATE;
+      `;
+      if (!lockedOrders.length) {
+        throw new NotFoundError('Order not found');
+      }
+      const lockedOrder = lockedOrders[0];
+
+      // Concurrent idempotency check under lock
+      if (lockedOrder.status === OrderStatus.PAID) {
+        const currentPaid = await tx.order.findUnique({
+          where: { id: order.id },
+          include: { items: true },
+        });
+        return currentPaid!;
+      }
+
+      // 2. Lock OrderItems SECOND in ASC Order
+      await tx.$queryRaw`
+        SELECT id
+        FROM "order_items"
+        WHERE "orderId" = ${order.id}
+        ORDER BY id ASC
+        FOR UPDATE;
+      `;
+
+      // 3. Atomically transition order to PAID, CAPTURED, paidAt = clock_timestamp(), version = version + 1
+      await tx.$executeRaw`
+        UPDATE "orders"
+        SET
+          status = 'PAID'::"OrderStatus",
+          "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+          "paidAt" = COALESCE("paidAt", clock_timestamp()),
+          "version" = version + 1,
+          "razorpayPaymentId" = ${input.razorpayPaymentId},
+          "updatedAt" = clock_timestamp()
+        WHERE id = ${order.id};
+      `;
+
+      // 4. Create fulfillment units atomically for all purchased items
+      await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
+
+      // 5. Reconcile order fulfillment status (keeps commercial status = PAID)
+      await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+
+      const paidOrder = await tx.order.findUnique({
         where: { id: order.id },
-        data: {
-          status: OrderStatus.PAID,
-          paymentStatus: PaymentStatus.CAPTURED,
-          razorpayPaymentId: input.razorpayPaymentId,
-        },
         include: { items: true },
       });
 
@@ -234,7 +295,7 @@ export class CommerceService {
         });
       }
 
-      return paidOrder;
+      return paidOrder!;
     });
 
     logger.info(
@@ -248,6 +309,7 @@ export class CommerceService {
         userId: user.id,
         type: 'PAYMENT_SUCCESS',
         entityId: updatedOrder.id,
+        idempotencyKey: `payment_success:${updatedOrder.id}`,
         route: 'OPEN_PAYMENTS',
         templateData: {
           amountRupees: (updatedOrder.amount / 100).toFixed(2),
@@ -263,6 +325,211 @@ export class CommerceService {
       message: 'Payment verified successfully',
       order: updatedOrder,
     };
+  }
+
+  /**
+   * Item-level refund allocation obeying lock hierarchy:
+   * orders -> order_items -> refunds -> refund_item_allocations.
+   */
+  public async allocateRefundToItem(
+    params: {
+      orderId: string;
+      refundId: string;
+      orderItemId: string;
+      amountPaise: number;
+      restockQuantity?: number;
+      reason?: string;
+    },
+    txClient?: Prisma.TransactionClient
+  ) {
+    const execute = async (tx: Prisma.TransactionClient) => {
+      // 1. Validate positive allocation amount
+      if (!params.amountPaise || params.amountPaise <= 0) {
+        throw new ValidationError('Refund allocation amount must be greater than zero');
+      }
+
+      // 2. Lock Order FIRST
+      const orders = await tx.$queryRaw<Array<{ id: string; status: OrderStatus; amount: number }>>`
+        SELECT id, status, amount
+        FROM "orders"
+        WHERE id = ${params.orderId}
+        FOR UPDATE;
+      `;
+      if (!orders.length) {
+        throw new NotFoundError(`Order ${params.orderId} not found`);
+      }
+
+      // 3. Lock OrderItems SECOND in ASC Order
+      const items = await tx.$queryRaw<Array<{
+        id: string;
+        orderId: string;
+        totalAmount: number;
+        quantity: number;
+        itemType: OrderItemType;
+        fulfillmentType: FulfillmentType;
+      }>>`
+        SELECT id, "orderId", "totalAmount", quantity, "itemType", "fulfillmentType"
+        FROM "order_items"
+        WHERE "orderId" = ${params.orderId}
+        ORDER BY id ASC
+        FOR UPDATE;
+      `;
+
+      const targetItem = items.find((it) => it.id === params.orderItemId);
+      if (!targetItem) {
+        throw new AppError(
+          `OrderItem ${params.orderItemId} does not belong to order ${params.orderId}`,
+          400,
+          'ORDER_MISMATCH'
+        );
+      }
+
+      // 4. Lock Refund THIRD
+      const refunds = await tx.$queryRaw<Array<{
+        id: string;
+        orderId: string;
+        amount: number;
+        status: RefundStatus;
+      }>>`
+        SELECT id, "orderId", amount, status
+        FROM "refunds"
+        WHERE id = ${params.refundId} AND "orderId" = ${params.orderId}
+        FOR UPDATE;
+      `;
+      if (!refunds.length) {
+        throw new AppError(
+          `Refund ${params.refundId} does not belong to order ${params.orderId}`,
+          400,
+          'ORDER_MISMATCH'
+        );
+      }
+      const refund = refunds[0];
+
+      // 5. Check if allocation already exists (Idempotency)
+      const existing = await tx.refundItemAllocation.findUnique({
+        where: {
+          refundId_orderItemId: {
+            refundId: params.refundId,
+            orderItemId: params.orderItemId,
+          },
+        },
+      });
+
+      if (existing) {
+        if (existing.amount === params.amountPaise) {
+          return existing; // Idempotent replay
+        }
+      }
+
+      // 6. Cumulative check: sum of allocations for this refund must not exceed refund.amount
+      const refundAllocRows = await tx.$queryRaw<Array<{ total: bigint | number | null }>>`
+        SELECT COALESCE(SUM(amount), 0) as total
+        FROM "refund_item_allocations"
+        WHERE "refundId" = ${params.refundId}
+          AND "orderItemId" != ${params.orderItemId};
+      `;
+      const currentRefundAllocated = Number(refundAllocRows[0]?.total || 0);
+      if (currentRefundAllocated + params.amountPaise > refund.amount) {
+        throw new AppError(
+          `Refund allocation (${params.amountPaise} paise) exceeds remaining unallocated refund balance (${refund.amount - currentRefundAllocated} paise)`,
+          400,
+          'ALLOCATION_EXCEEDS_REFUND'
+        );
+      }
+
+      // 7. Cumulative check: sum of allocations for this orderItem across all non-failed refunds must not exceed orderItem.amount
+      const itemAllocRows = await tx.$queryRaw<Array<{ total: bigint | number | null }>>`
+        SELECT COALESCE(SUM(ria.amount), 0) as total
+        FROM "refund_item_allocations" ria
+        JOIN "refunds" r ON r.id = ria."refundId"
+        WHERE ria."orderItemId" = ${params.orderItemId}
+          AND r.status != 'FAILED'
+          AND ria."refundId" != ${params.refundId};
+      `;
+      const currentItemAllocated = Number(itemAllocRows[0]?.total || 0);
+      const remainingItemBalance = targetItem.totalAmount - currentItemAllocated;
+      if (params.amountPaise > remainingItemBalance) {
+        throw new AppError(
+          `Refund allocation (${params.amountPaise} paise) exceeds item refundable balance (${remainingItemBalance} paise)`,
+          400,
+          'ALLOCATION_EXCEEDS_ITEM_BALANCE'
+        );
+      }
+
+      // 8. Persist allocation
+      const allocation = await tx.refundItemAllocation.upsert({
+        where: {
+          refundId_orderItemId: {
+            refundId: params.refundId,
+            orderItemId: params.orderItemId,
+          },
+        },
+        update: {
+          amount: params.amountPaise,
+          restockQuantity: params.restockQuantity || 0,
+          reason: params.reason || null,
+        },
+        create: {
+          orderId: params.orderId,
+          refundId: params.refundId,
+          orderItemId: params.orderItemId,
+          amount: params.amountPaise,
+          restockQuantity: params.restockQuantity || 0,
+          reason: params.reason || null,
+        },
+      });
+
+      // If this item is now fully refunded, cancel its unfulfilled fulfillment units & in-flight reports
+      if (currentItemAllocated + params.amountPaise >= targetItem.totalAmount) {
+        await tx.fulfillmentUnit.updateMany({
+          where: {
+            orderItemId: targetItem.id,
+            status: { in: [FulfillmentUnitStatus.UNFULFILLED, FulfillmentUnitStatus.PROCESSING] },
+          },
+          data: {
+            status: FulfillmentUnitStatus.CANCELLED,
+            cancelledAt: new Date(),
+          },
+        });
+
+        const unitsWithReport = await tx.fulfillmentUnit.findMany({
+          where: {
+            orderItemId: targetItem.id,
+          },
+          select: { id: true },
+        });
+
+        const unitIds = unitsWithReport.map((u) => u.id);
+        if (unitIds.length > 0) {
+          await tx.report.updateMany({
+            where: {
+              fulfillmentUnitId: { in: unitIds },
+              status: { notIn: ['COMPLETED'] },
+            },
+            data: {
+              status: 'FAILED',
+              stage: 'FAILED',
+              errorCode: 'ORDER_REFUNDED',
+              errorMessage: 'Line item was refunded; report generation cancelled.',
+              claimToken: null,
+              claimExpiresAt: null,
+              claimVersion: { increment: 1 },
+              failedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        }
+
+        await fulfillmentService.reconcileOrderFulfillment(params.orderId, tx);
+      }
+
+      return allocation;
+    };
+
+    if (txClient) {
+      return execute(txClient);
+    }
+    return prisma.$transaction(execute, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 
   /**
@@ -296,7 +563,7 @@ export class CommerceService {
       throw new ValidationError('Cannot refund an order without a captured payment ID');
     }
 
-    // Calculate existing processed/pending refunds
+    // Calculate existing processed/pending refunds (excluding FAILED)
     const existingRefundTotal = order.refunds
       .filter((r) => r.status !== RefundStatus.FAILED)
       .reduce((sum, r) => sum + r.amount, 0);
@@ -329,16 +596,59 @@ export class CommerceService {
     }
 
     // Call payment gateway to issue refund
-    const rzRefund = await paymentService.createRazorpayRefund(
-      order.razorpayPaymentId,
-      refundAmount,
-      { reason: input.reason || 'Client requested refund' }
-    );
+    let rzRefund: any;
+    try {
+      rzRefund = await paymentService.createRazorpayRefund(
+        order.razorpayPaymentId,
+        refundAmount,
+        { reason: input.reason || 'Client requested refund' }
+      );
+    } catch (gatewayErr: any) {
+      // Record failed refund attempt without altering order payment status
+      await prisma.refund.create({
+        data: {
+          orderId: order.id,
+          razorpayPaymentId: order.razorpayPaymentId,
+          amount: refundAmount,
+          currency: order.currency,
+          status: RefundStatus.FAILED,
+          reason: `Gateway error: ${gatewayErr?.message || 'Refund failed'}`,
+          idempotencyKey: input.idempotencyKey || null,
+        },
+      });
+      throw gatewayErr;
+    }
+
+    if (rzRefund.status === 'failed') {
+      const failedRefund = await prisma.refund.create({
+        data: {
+          orderId: order.id,
+          razorpayRefundId: rzRefund.id,
+          razorpayPaymentId: order.razorpayPaymentId,
+          amount: refundAmount,
+          currency: order.currency,
+          status: RefundStatus.FAILED,
+          reason: input.reason || 'Payment provider rejected refund',
+          idempotencyKey: input.idempotencyKey || null,
+        },
+      });
+      return { refund: failedRefund, order };
+    }
 
     const isFullRefund = (existingRefundTotal + refundAmount) >= order.amount;
 
     // Atomically persist refund record and update order status
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Lock Order FIRST
+      await tx.$queryRaw`
+        SELECT id FROM "orders" WHERE id = ${order.id} FOR UPDATE;
+      `;
+
+      // 2. Lock OrderItems SECOND in ASC Order
+      await tx.$queryRaw`
+        SELECT id FROM "order_items" WHERE "orderId" = ${order.id} ORDER BY id ASC FOR UPDATE;
+      `;
+
       const refundRecord = await tx.refund.create({
         data: {
           orderId: order.id,
@@ -352,6 +662,24 @@ export class CommerceService {
         },
       });
 
+      // 3. Process item allocations if specified
+      if (input.itemAllocations && input.itemAllocations.length > 0) {
+        for (const alloc of input.itemAllocations) {
+          await this.allocateRefundToItem(
+            {
+              orderId: order.id,
+              refundId: refundRecord.id,
+              orderItemId: alloc.orderItemId,
+              amountPaise: alloc.amountPaise,
+              restockQuantity: alloc.restockQuantity,
+              reason: alloc.reason,
+            },
+            tx
+          );
+        }
+      }
+
+      // Update commercial order and payment status
       const updatedOrder = await tx.order.update({
         where: { id: order.id },
         data: {
@@ -360,6 +688,42 @@ export class CommerceService {
         },
         include: { refunds: true, items: true },
       });
+
+      // Revoke entitlements and cancel unfulfilled units on full refund
+      if (isFullRefund) {
+        await tx.digitalProductEntitlement.updateMany({
+          where: { orderId: order.id },
+          data: { status: EntitlementStatus.REVOKED },
+        });
+        await tx.fulfillmentUnit.updateMany({
+          where: {
+            orderId: order.id,
+            status: { in: [FulfillmentUnitStatus.UNFULFILLED, FulfillmentUnitStatus.PROCESSING] },
+          },
+          data: {
+            status: FulfillmentUnitStatus.CANCELLED,
+            cancelledAt: new Date(),
+          },
+        });
+        await tx.report.updateMany({
+          where: {
+            orderId: order.id,
+            status: { notIn: ['COMPLETED'] },
+          },
+          data: {
+            status: 'FAILED',
+            stage: 'FAILED',
+            errorCode: 'ORDER_REFUNDED',
+            errorMessage: 'Order was refunded; report generation cancelled.',
+            claimToken: null,
+            claimExpiresAt: null,
+            claimVersion: { increment: 1 },
+            failedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+      }
 
       if ((tx as any).auditLog) {
         await (tx as any).auditLog.create({
@@ -394,6 +758,7 @@ export class CommerceService {
       include: {
         items: true,
         refunds: true,
+        reports: true,
       },
     });
 
@@ -418,6 +783,7 @@ export class CommerceService {
       include: {
         items: true,
         refunds: true,
+        reports: true,
       },
       orderBy: { createdAt: 'desc' },
     });

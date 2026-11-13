@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { prisma } from './prisma.service';
-import { ReportStatus, FulfillmentStatus, OrderStatus } from '@prisma/client';
+import { ReportStatus, FulfillmentStatus, OrderStatus, FulfillmentUnitStatus } from '@prisma/client';
 import { storageService } from './storage.service';
 import { astrologyService } from '../modules/astrology/astrology.service';
 import { notificationService } from '../modules/notifications/notification.service';
@@ -21,6 +21,15 @@ import {
   generatePlanetaryReport,
   generateProHoroscopeReport,
   generateMatchmakingReport,
+  generateCareerReport,
+  generateFinanceReport,
+  generateLoveReport,
+  generateFortuneReport,
+  generateFortunePlusReport,
+  generateSaturnReport,
+  generateJupiterReport,
+  generateRahuKetuReport,
+  generateVarshphalReport,
   validateAstrologyDataForReport,
   DeterministicInterpretationProvider,
   reportPdfService,
@@ -36,7 +45,8 @@ export type ReportJobStage =
   | 'COMPLETED'
   | 'FAILED';
 
-import { redisQueueService } from './redis-queue.service';
+import { postgresQueueService, ClaimedReportJob } from './postgres-queue.service';
+import { fulfillmentService } from '../modules/fulfillment/fulfillment.service';
 import { distributedLockService } from './distributed-lock.service';
 
 export interface ReportJobProgress {
@@ -46,6 +56,23 @@ export interface ReportJobProgress {
 }
 
 export class CareerReportWorker {
+  public static readonly SUPPORTED_REPORT_TYPES = [
+    'CAREER',
+    'KUNDLI',
+    'PLANETARY_SUMMARY',
+    'CAREER_PROSITY',
+    'MARRIAGE_COMPATIBILITY',
+    'HOROSCOPE',
+    'FINANCE',
+    'LOVE',
+    'FORTUNE',
+    'FORTUNE_PLUS',
+    'SATURN',
+    'JUPITER_TRANSIT',
+    'RAHU_KETU_TRANSIT',
+    'VARSHPHAL',
+  ] as const;
+
   private isProcessing = false;
   private isRecovering = false;
   private recoveryTimer: NodeJS.Timeout | null = null;
@@ -102,13 +129,12 @@ export class CareerReportWorker {
   }
 
   /**
-   * Enqueues a report generation job by ID and kicks off worker processing loop.
+   * Enqueues a report generation job by ID using the PostgreSQL queue.
    */
-  public enqueueReportJob(reportId: string): void {
-    redisQueueService.enqueueJob(reportId).then((enqueued) => {
-      if (enqueued) {
-        this.markJobEnqueued(reportId).catch(() => {});
-      } else {
+  public async enqueueReportJob(reportId: string): Promise<boolean> {
+    try {
+      const enqueued = await postgresQueueService.enqueueJob(reportId);
+      if (!enqueued) {
         if (!this.jobQueue.includes(reportId)) {
           this.jobQueue.push(reportId);
         }
@@ -116,18 +142,45 @@ export class CareerReportWorker {
           this.processQueue();
         });
       }
-    }).catch(() => {
+
+      // In test and debug mode, deliver report as soon as it is ready
+      const isTestOrDebug =
+        process.env.NODE_ENV !== 'production' ||
+        process.env.DEBUG === 'true' ||
+        process.env.AUTO_DELIVER_WHEN_READY === 'true';
+
+      if (isTestOrDebug && process.env.NODE_ENV !== 'test') {
+        setImmediate(async () => {
+          try {
+            const claim = await postgresQueueService.claimJobById(reportId);
+            if (claim) {
+              logger.info(
+                { reportId: claim.id, claimToken: claim.claimToken },
+                '[CareerReportWorker] Instant execution triggered in test/debug mode: delivering report as soon as it is ready'
+              );
+              await this.executeReportPipeline(claim.id, claim.claimToken, claim.claimVersion);
+            }
+          } catch (execErr: any) {
+            logger.warn({ reportId, err: execErr?.message }, '[CareerReportWorker] Instant delivery notice');
+          }
+        });
+      }
+
+      return enqueued;
+    } catch (err: any) {
+      logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Error enqueuing report job');
       if (!this.jobQueue.includes(reportId)) {
         this.jobQueue.push(reportId);
       }
       setImmediate(() => {
         this.processQueue();
       });
-    });
+      return false;
+    }
   }
 
   /**
-   * Marks a report as successfully enqueued to Redis in metadata.
+   * Marks a report as successfully enqueued in metadata (backward compatibility helper).
    */
   public async markJobEnqueued(reportId: string): Promise<void> {
     try {
@@ -147,7 +200,7 @@ export class CareerReportWorker {
   }
 
   /**
-   * Recovers stuck in-progress report jobs and orphaned PROCESSING orders.
+   * Recovers stuck in-progress report jobs whose leases have expired in PostgreSQL.
    * Distributed lock-protected across multiple worker processes.
    */
   public async recoverStaleJobs(): Promise<{ recoveredReports: number; recoveredOrders: number; skipped?: boolean }> {
@@ -180,191 +233,131 @@ export class CareerReportWorker {
   }
 
   /**
-   * Core recovery routine executed under distributed lock.
+   * Core recovery routine executed under distributed lock using PostgreSQL atomic queue recovery.
    */
-  private async executeStaleRecovery(): Promise<{ recoveredReports: number; recoveredOrders: number; redisUnavailable?: boolean }> {
-    let recoveredReports = 0;
-    let recoveredOrders = 0;
-
-    // Check Redis health first to prevent falsely failing paid reports during temporary broker outages
-    const isRedisEnvironmentConfigured = Boolean(
-      process.env.REDIS_URL || process.env.REDIS_HOST || process.env.UPSTASH_REDIS_REST_URL
-    );
-    const isRedisHealthy = redisQueueService.isConfigured && (await redisQueueService.checkHealth());
-    if (isRedisEnvironmentConfigured && !isRedisHealthy) {
-      logger.warn('[CareerReportWorker] Redis broker unreachable. Deferring queue recovery to avoid failing valid jobs.');
-      return { recoveredReports: 0, recoveredOrders: 0, redisUnavailable: true };
-    }
-
+  private async executeStaleRecovery(): Promise<{ recoveredReports: number; recoveredOrders: number }> {
     try {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const result = await postgresQueueService.recoverStaleJobs();
+      const orphanedReconciled = await fulfillmentService.reconcileOrphanedCompletedReports();
+      const slaResult = await this.monitorReportDeadlines();
 
-      // 1. Recover abandoned or stalled reports
-      const staleReports = await prisma.report.findMany({
-        where: {
-          status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'] as any[] },
-          updatedAt: { lt: fiveMinutesAgo },
-        },
-      });
-
-      for (const r of staleReports) {
-        const metadata = ((r.metadata || {}) as Record<string, any>);
-        const recoveryAttempts = (metadata.recoveryAttempts as number) || 0;
-        const MAX_QUEUED_RECOVERY_ATTEMPTS = 3;
-
-        // Check whether report is waiting in Redis queue backlog
-        const isPendingInQueue = await redisQueueService.isInPendingQueue(r.id);
-
-        if (r.status === 'QUEUED') {
-          if (isPendingInQueue) {
-            // Requirement 1: Never fail an enqueued QUEUED report merely because it has waited five minutes!
-            // It is waiting in queue backlog. Worker has not claimed it yet.
-            if (metadata.enqueued !== true) {
-              // Self-heal crash window: API crashed after Redis enqueue but before PostgreSQL metadata update
-              await this.markJobEnqueued(r.id);
-              logger.info({ reportId: r.id }, '[CareerReportWorker] Self-healed unconfirmed enqueued metadata for job in queue.');
-            }
-            logger.info(
-              { reportId: r.id, updatedAt: r.updatedAt },
-              '[CareerReportWorker] Report is waiting in Redis queue backlog. Preserving QUEUED state without failing.'
-            );
-            continue;
-          }
-
-          // Not in pending queue. Distinguish un-enqueued crash window vs claimed/abandoned jobs
-          const wasClaimed = await redisQueueService.isClaimedByWorker(r.id);
-          const isAbandonedUnenqueued = metadata.enqueued === false && !wasClaimed;
-
-          if (isAbandonedUnenqueued) {
-            // API crash window before enqueue: DB committed but not enqueued
-            if (recoveryAttempts < MAX_QUEUED_RECOVERY_ATTEMPTS) {
-              try {
-                const enqueued = await redisQueueService.enqueueJob(r.id);
-                if (enqueued) {
-                  const nextAttempts = recoveryAttempts + 1;
-                  const now = new Date();
-                  const updateResult = await prisma.report.updateMany({
-                    where: { id: r.id, status: 'QUEUED' },
-                    data: {
-                      updatedAt: now,
-                      metadata: {
-                        ...metadata,
-                        enqueued: true,
-                        recoveryAttempts: nextAttempts,
-                        lastReenqueuedAt: now.toISOString(),
-                      },
-                    } as any,
-                  });
-
-                  if (updateResult.count > 0) {
-                    if (r.orderId) {
-                      await prisma.order.updateMany({
-                        where: {
-                          id: r.orderId,
-                          status: OrderStatus.PAID,
-                          fulfillmentStatus: { in: [FulfillmentStatus.UNFULFILLED, FulfillmentStatus.FAILED] },
-                        },
-                        data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
-                      });
-                    }
-                    logger.warn(
-                      { reportId: r.id, attempt: nextAttempts, maxAttempts: MAX_QUEUED_RECOVERY_ATTEMPTS },
-                      '[CareerReportWorker] Re-enqueued abandoned QUEUED report successfully'
-                    );
-                    recoveredReports++;
-                  }
-                } else {
-                  logger.warn(
-                    { reportId: r.id },
-                    '[CareerReportWorker] Redis unavailable when attempting to re-enqueue QUEUED report. Preserving for next recovery iteration.'
-                  );
-                }
-              } catch (enqueueErr: any) {
-                logger.error({ reportId: r.id, err: enqueueErr?.message }, '[CareerReportWorker] Error re-enqueueing abandoned report');
-              }
-            } else {
-              // Exceeded max recovery attempts
-              logger.error(
-                { reportId: r.id, recoveryAttempts },
-                '[CareerReportWorker] Abandoned QUEUED report exceeded max re-enqueue attempts. Transitioning to FAILED.'
-              );
-              const failed = await this.failJob(
-                r.id,
-                'QUEUE_RECOVERY_EXHAUSTED',
-                'Report processing timed out after multiple re-enqueue attempts. Please retry.'
-              );
-              if (failed) recoveredReports++;
-            }
-          } else {
-            // Worker claimed it or was enqueued and dequeued, but worker died!
-            logger.warn(
-              { reportId: r.id, status: r.status, updatedAt: r.updatedAt },
-              '[CareerReportWorker] Worker dequeued job but crashed or abandoned it > 5 minutes ago. Attempting conditional failure transition.'
-            );
-            const failed = await this.failJobIfStale(
-              r.id,
-              r.updatedAt,
-              'WORKER_TIMEOUT_RECOVERED',
-              'Report processing timed out or server restarted. Please try again.'
-            );
-            if (failed) recoveredReports++;
-          }
-        } else {
-          // Status is in CALCULATING, ANALYZING, RENDERING, COMPILING, UPLOADING
-          // In-flight stage crashed (heartbeats expired > 5 minutes ago)
-          logger.warn(
-            { reportId: r.id, status: r.status, updatedAt: r.updatedAt },
-            '[CareerReportWorker] Job heartbeat expired > 5 minutes. Attempting conditional failure transition.'
-          );
-          const failed = await this.failJobIfStale(
-            r.id,
-            r.updatedAt,
-            'WORKER_TIMEOUT_RECOVERED',
-            'Report processing timed out or server restarted. Please try again.'
-          );
-          if (failed) recoveredReports++;
-        }
-      }
-
-      // 2. Recover orphaned orders stuck in PROCESSING without active reports
-      const staleOrders = await prisma.order.findMany({
-        where: {
-          status: OrderStatus.PAID,
-          fulfillmentStatus: FulfillmentStatus.PROCESSING,
-          updatedAt: { lt: fiveMinutesAgo },
-        },
-        include: { reports: true },
-      });
-
-      for (const ord of staleOrders) {
-        const hasLiveOrCompletedReport = ord.reports.some(
-          (r) => r.status === 'COMPLETED' || (!['FAILED', 'CANCELLED'].includes(r.status) && r.updatedAt >= fiveMinutesAgo)
-        );
-
-        if (!hasLiveOrCompletedReport) {
-          logger.warn(
-            { orderId: ord.id },
-            '[CareerReportWorker] Recovering orphaned PROCESSING order without active report. Resetting to FAILED (recoverable).'
-          );
-          await prisma.order.updateMany({
-            where: { id: ord.id, fulfillmentStatus: FulfillmentStatus.PROCESSING },
-            data: { fulfillmentStatus: FulfillmentStatus.FAILED },
-          });
-          recoveredOrders++;
-        }
-      }
-
-      if (recoveredReports > 0 || recoveredOrders > 0) {
+      if (result.recoveredCount > 0 || result.failedCount > 0 || orphanedReconciled > 0 || slaResult.alertsTriggered > 0) {
         logger.info(
-          { recoveredReports, recoveredOrders },
-          '[CareerReportWorker] Stale recovery execution completed successfully.'
+          { requeued: result.recoveredCount, failed: result.failedCount, orphanedReconciled, sla: slaResult },
+          '[CareerReportWorker] PostgreSQL queue stale recovery & SLA monitoring completed'
         );
       }
+      return {
+        recoveredReports: result.recoveredCount + result.failedCount + orphanedReconciled,
+        recoveredOrders: 0,
+      };
     } catch (err: any) {
       logger.error({ err: err?.message || err }, '[CareerReportWorker] Error in executeStaleRecovery');
+      return { recoveredReports: 0, recoveredOrders: 0 };
+    }
+  }
+
+  /**
+   * Evaluates delivery deadlines for in-progress reports with 24-hour SLAs.
+   * Tracks approaching deadlines and overdue escalation idempotently via report metadata.
+   */
+  public async monitorReportDeadlines(): Promise<{ approachingCount: number; overdueCount: number; alertsTriggered: number }> {
+    const now = new Date();
+    let approachingCount = 0;
+    let overdueCount = 0;
+    let alertsTriggered = 0;
+
+    try {
+      const activeReports = await prisma.report.findMany({
+        where: {
+          orderId: { not: null },
+          expectedDeliveryAt: { not: null },
+          status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'] as any[] },
+        },
+        include: { order: true },
+      });
+
+      for (const report of activeReports) {
+        const deadline = report.expectedDeliveryAt!;
+        const metadata = ((report as any).metadata || {}) as Record<string, any>;
+        const isActivelyLeased = Boolean(report.claimExpiresAt && report.claimExpiresAt > now);
+
+        // Case 1: OVERDUE (now > expectedDeliveryAt)
+        if (now > deadline) {
+          overdueCount++;
+          if (!metadata.slaOverdueNotifiedAt) {
+            alertsTriggered++;
+            if (isActivelyLeased) {
+              logger.error(
+                { reportId: report.id, userId: report.userId, claimToken: report.claimToken, expectedDeliveryAt: deadline },
+                '[SLA_MONITOR] Report is OVERDUE with active lease. Worker is actively processing.'
+              );
+            } else {
+              logger.error(
+                { reportId: report.id, userId: report.userId, expectedDeliveryAt: deadline },
+                '[SLA_MONITOR] Report is OVERDUE with NO active lease. Re-queuing job.'
+              );
+              if (!report.claimToken) {
+                await postgresQueueService.enqueueJob(report.id);
+              }
+            }
+
+            try {
+              await notificationService.sendNotification({
+                userId: report.userId,
+                type: 'REPORT_DELAYED',
+                entityId: report.id,
+                idempotencyKey: `report_delayed:${report.id}`,
+                route: 'OPEN_REPORT',
+                templateData: {
+                  reportName: report.reportType || 'Career Intelligence Report',
+                  reportId: report.id,
+                },
+              });
+            } catch (notifErr: any) {
+              logger.warn({ reportId: report.id, notifErr: notifErr?.message }, '[SLA_MONITOR] Failed to send delay notification');
+            }
+
+            await prisma.report.updateMany({
+              where: { id: report.id },
+              data: {
+                metadata: {
+                  ...metadata,
+                  slaOverdueNotifiedAt: now.toISOString(),
+                  escalationStage: 'OVERDUE',
+                },
+              } as any,
+            });
+          }
+        }
+        // Case 2: APPROACHING DEADLINE (remaining time <= 2 hours)
+        else if (deadline.getTime() - now.getTime() <= 2 * 60 * 60 * 1000) {
+          approachingCount++;
+          if (!metadata.slaApproachingNotifiedAt) {
+            alertsTriggered++;
+            logger.warn(
+              { reportId: report.id, userId: report.userId, remainingMinutes: Math.round((deadline.getTime() - now.getTime()) / 60000), isActivelyLeased },
+              '[SLA_MONITOR] Report approaching SLA delivery deadline (< 2h remaining)'
+            );
+
+            await prisma.report.updateMany({
+              where: { id: report.id },
+              data: {
+                metadata: {
+                  ...metadata,
+                  slaApproachingNotifiedAt: now.toISOString(),
+                  escalationStage: 'APPROACHING',
+                },
+              } as any,
+            });
+          }
+        }
+      }
+    } catch (err: any) {
+      logger.error({ err: err?.message || err }, '[CareerReportWorker] Error during monitorReportDeadlines');
     }
 
-    return { recoveredReports, recoveredOrders };
+    return { approachingCount, overdueCount, alertsTriggered };
   }
 
   private async processQueue(): Promise<void> {
@@ -388,84 +381,33 @@ export class CareerReportWorker {
   }
 
   /**
-   * Atomically claims a report for execution using Redis atomic token-stamping
-   * and PostgreSQL conditional atomic CAS state transition.
+   * Atomically claims a report for execution using PostgreSQL atomic token-stamping.
    */
-  public async acquireWorkerClaim(reportId: string, claimToken: string): Promise<boolean> {
-    // 1. Acquire distributed claim in Redis (SET NX PX)
-    const redisOk = await redisQueueService.acquireReportClaim(reportId, claimToken);
-    if (!redisOk) {
-      logger.warn(
-        { reportId, claimToken },
-        '[CareerReportWorker] Redis claim rejected: report already claimed by another active worker'
-      );
-      return false;
-    }
-
-    // 2. Fetch existing report to preserve existing metadata
-    const existing = await prisma.report.findUnique({
-      where: { id: reportId },
-      select: { metadata: true, status: true },
-    });
-
-    if (!existing || !['QUEUED', 'PENDING'].includes(existing.status)) {
-      logger.warn(
-        { reportId, status: existing?.status },
-        '[CareerReportWorker] Report is not in claimable state (must be QUEUED or PENDING)'
-      );
-      await redisQueueService.releaseReportClaim(reportId, claimToken);
-      return false;
-    }
-
-    const currentMeta = (existing.metadata && typeof existing.metadata === 'object')
-      ? (existing.metadata as Record<string, any>)
-      : {};
-
-    const now = new Date();
-    // 3. PostgreSQL atomic CAS transition: QUEUED/PENDING -> CALCULATING
-    const updateRes = await prisma.report.updateMany({
-      where: {
-        id: reportId,
-        status: { in: ['QUEUED', 'PENDING'] },
-      },
-      data: {
-        status: 'CALCULATING',
-        stage: 'CALCULATING',
-        progress: 15,
-        updatedAt: now,
-        metadata: {
-          ...currentMeta,
-          claimToken,
-          claimedAt: now.toISOString(),
-        },
-      },
-    });
-
-    if (updateRes.count === 0) {
-      logger.warn(
-        { reportId, claimToken },
-        '[CareerReportWorker] PostgreSQL atomic claim failed: report was claimed or transitioned concurrently'
-      );
-      await redisQueueService.releaseReportClaim(reportId, claimToken);
-      return false;
-    }
-
-    logger.info({ reportId, claimToken }, '[CareerReportWorker] Worker claim successfully acquired');
-    return true;
+  public async acquireWorkerClaim(reportId: string): Promise<ClaimedReportJob | null> {
+    return await postgresQueueService.claimJobById(reportId);
   }
 
   /**
    * Complete End-to-End Async Pipeline Execution
    */
-  public async executeReportPipeline(reportId: string, customClaimToken?: string): Promise<void> {
+  public async executeReportPipeline(
+    reportId: string,
+    customClaimToken?: string,
+    customClaimVersion?: number
+  ): Promise<void> {
     const startTime = Date.now();
-    const claimToken = customClaimToken || randomUUID();
+    let claimToken = customClaimToken;
+    let claimVersion = customClaimVersion;
 
-    // 1. Atomically acquire worker claim
-    const claimed = await this.acquireWorkerClaim(reportId, claimToken);
-    if (!claimed) {
-      logger.info({ reportId, claimToken }, '[CareerReportWorker] Could not acquire worker claim. Skipping execution.');
-      return;
+    // 1. Atomically acquire worker claim if not already provided
+    if (!claimToken || claimVersion === undefined) {
+      const claim = await this.acquireWorkerClaim(reportId);
+      if (!claim) {
+        logger.info({ reportId }, '[CareerReportWorker] Could not acquire worker claim. Skipping execution.');
+        return;
+      }
+      claimToken = claim.claimToken;
+      claimVersion = claim.claimVersion;
     }
 
     // 2. Fetch DB report record with relations
@@ -476,23 +418,23 @@ export class CareerReportWorker {
 
     if (!report) {
       logger.error({ reportId }, '[CareerReportWorker] Report record not found');
-      await redisQueueService.releaseReportClaim(reportId, claimToken);
       return;
     }
 
-    const supportedReportTypes = ['CAREER', 'KUNDLI', 'PLANETARY_SUMMARY', 'CAREER_PROSITY', 'MARRIAGE_COMPATIBILITY'];
+    const supportedReportTypes = ['CAREER', 'KUNDLI', 'PLANETARY_SUMMARY', 'CAREER_PROSITY', 'MARRIAGE_COMPATIBILITY', 'HOROSCOPE', 'FINANCE', 'LOVE', 'FORTUNE'];
     if (!supportedReportTypes.includes(report.reportType)) {
       await this.failJob(
         reportId,
         'REPORT_TYPE_NOT_SUPPORTED',
         `Report type ${report.reportType} is not supported. Dedicated generator is not available.`,
-        claimToken
+        claimToken,
+        claimVersion
       );
       return;
     }
 
     const heartbeatIntervalMs = parseInt(process.env.WORKER_HEARTBEAT_INTERVAL_MS || '20000', 10);
-    const claimLeaseTtlMs = 60000; // 60s lease renewed every 20s
+    const claimLeaseTtlSeconds = 60; // 60s lease renewed every 20s
     let heartbeatTimer: NodeJS.Timeout | null = null;
     let isHeartbeating = false;
     let lostOwnership = false;
@@ -502,20 +444,15 @@ export class CareerReportWorker {
         if (isHeartbeating || lostOwnership) return;
         isHeartbeating = true;
         try {
-          // 1. Atomically renew Redis claim lease
-          const renewed = await redisQueueService.renewReportClaim(reportId, claimToken, claimLeaseTtlMs);
-          if (!renewed) {
-            lostOwnership = true;
-            logger.warn({ reportId, claimToken }, '[CareerReportWorker] Lost Redis claim lease during renewal. Halting execution.');
-            stopHeartbeat();
-            return;
-          }
-
-          // 2. Touch PostgreSQL heartbeat
-          const alive = await this.touchHeartbeat(reportId, claimToken);
+          const alive = await postgresQueueService.touchHeartbeat(
+            reportId,
+            claimToken!,
+            claimVersion!,
+            claimLeaseTtlSeconds
+          );
           if (!alive) {
             lostOwnership = true;
-            logger.warn({ reportId, claimToken }, '[CareerReportWorker] Lost DB ownership during heartbeat touch. Halting execution.');
+            logger.warn({ reportId, claimToken, claimVersion }, '[CareerReportWorker] Lost DB ownership during heartbeat touch. Halting execution.');
             stopHeartbeat();
             return;
           }
@@ -543,7 +480,14 @@ export class CareerReportWorker {
         logger.warn({ reportId, claimToken, stage }, '[CareerReportWorker] Aborting setStage because ownership was previously lost.');
         return false;
       }
-      const ok = await this.updateJobStatus(reportId, status, progress, stage, claimToken);
+      const ok = await postgresQueueService.updateJobStatus(
+        reportId,
+        claimToken!,
+        claimVersion!,
+        status,
+        stage,
+        progress
+      );
       if (!ok) {
         lostOwnership = true;
         logger.warn({ reportId, claimToken, stage }, '[CareerReportWorker] Lost ownership during stage update. Aborting execution.');
@@ -555,7 +499,7 @@ export class CareerReportWorker {
     try {
       startHeartbeat();
 
-      if (report.reportType === 'CAREER') {
+      if (report.reportType === 'CAREER' || report.reportType === 'CAREER_PROSITY') {
 
         const normalizedChart = await astrologyService.calculateNormalizedChart(
           { birthProfileId: report.birthProfileId },
@@ -638,7 +582,7 @@ export class CareerReportWorker {
         // --- STAGE 5: COMPILING (75%) ---
         if (!(await setStage('COMPILING', 75, 'COMPILING'))) return;
 
-        let compilationResult;
+        let compilationResult: any;
         try {
           compilationResult = await latexCompiler.compileReport({
             reportId,
@@ -647,9 +591,32 @@ export class CareerReportWorker {
             timeoutMs: 180000,
           });
         } catch (compileErr: any) {
-          const cleanMsg = compileErr?.message ? compileErr.message.split('\n')[0] : 'LaTeX PDF compilation failed.';
-          await this.failJob(reportId, 'LATEX_COMPILE_FAILED', cleanMsg, claimToken);
-          return;
+          logger.warn({ reportId, err: compileErr.message }, '[CareerReportWorker] LaTeX compilation unavailable or failed; gracefully falling back to vector PDF pipeline');
+          try {
+            const tier = report.reportType === 'CAREER_PROSITY' ? 'PRO' : 'BASIC';
+            const profileInput = {
+              name: report.birthProfile.name,
+              dateOfBirth: report.birthProfile.dateOfBirth,
+              timeOfBirth: report.birthProfile.timeOfBirth,
+              placeName: report.birthProfile.placeName,
+              timezone: report.birthProfile.timezone,
+              latitude: report.birthProfile.latitude,
+              longitude: report.birthProfile.longitude,
+            };
+            const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, { id: report.userId, role: 'USER' });
+            const structuredReport = await generateCareerReport(profileInput, chartResponse, new DeterministicInterpretationProvider(), { tier });
+            const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
+            const pageCount = tier === 'PRO' ? 13 : 7;
+            compilationResult = {
+              pdfBuffer,
+              pageCount,
+              fileSize: pdfBuffer.length,
+            };
+          } catch (fallbackErr: any) {
+            const cleanMsg = compileErr?.message ? compileErr.message.split('\n')[0] : 'LaTeX PDF compilation failed.';
+            await this.failJob(reportId, 'LATEX_COMPILE_FAILED', cleanMsg, claimToken);
+            return;
+          }
         }
 
         // --- STAGE 5.5: VALIDATING / QA (85%) ---
@@ -712,41 +679,36 @@ export class CareerReportWorker {
         }
 
         // --- STAGE 7: COMPLETED (100%) ---
-        const now = new Date();
-        const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'];
-        const completedRes = await prisma.report.updateMany({
-          where: {
-            id: reportId,
-            status: { in: activeStatuses as any[] },
-            metadata: {
-              path: ['claimToken'],
-              equals: claimToken,
-            },
-          },
-          data: {
-            status: 'COMPLETED',
-            stage: 'COMPLETED',
-            progress: 100,
-            s3Url: null,
-            storageKey,
-            fileName,
-            fileSize: uploadResult.fileSize,
-            pageCount: compilationResult.pageCount,
-            completedAt: now,
-            updatedAt: now,
-          } as any,
-        });
+        const completedRes = await postgresQueueService.completeJob(
+          reportId,
+          claimToken!,
+          claimVersion!,
+          storageKey,
+          fileName,
+          uploadResult.fileSize,
+          compilationResult.pageCount
+        );
 
-        if (completedRes.count === 0) {
+        if (!completedRes) {
           logger.warn(
             { reportId, claimToken },
             '[CareerReportWorker] Career report completion skipped because report is no longer in active state or claimToken mismatch'
           );
+          try {
+            await storageService.delete(storageKey);
+          } catch (_) {}
           return;
         }
 
-        // Fulfill associated paid order if bound
-        if (report.orderId) {
+        // Fulfill associated paid order or reconcile fulfillment unit
+        if (report.orderId && report.fulfillmentUnitId) {
+          try {
+            await fulfillmentService.reconcileFulfillmentUnit(report.orderId, report.fulfillmentUnitId);
+            logger.info({ orderId: report.orderId, fulfillmentUnitId: report.fulfillmentUnitId, reportId }, '[CareerReportWorker] FulfillmentUnit reconciled');
+          } catch (ordErr: any) {
+            logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[CareerReportWorker] Failed to reconcile fulfillment unit');
+          }
+        } else if (report.orderId) {
           try {
             await prisma.order.updateMany({
               where: { id: report.orderId },
@@ -770,6 +732,7 @@ export class CareerReportWorker {
             userId: report.userId,
             type: 'REPORT_READY',
             entityId: report.id,
+            idempotencyKey: `report_ready:${report.id}`,
             route: 'OPEN_REPORT',
             templateData: {
               reportName: 'Career Intelligence Report',
@@ -874,8 +837,73 @@ export class CareerReportWorker {
               structuredReport = await generateKundliReport(profileInput, chartResponse, interpretationProvider);
             } else if (report.reportType === 'PLANETARY_SUMMARY') {
               structuredReport = await generatePlanetaryReport(profileInput, chartResponse, interpretationProvider);
-            } else if (report.reportType === 'CAREER_PROSITY') {
+            } else if ((report.reportType as string) === 'HOROSCOPE' || (report.reportType as string) === 'RASHI_BHAVISHYA') {
               structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, interpretationProvider);
+            } else if ((report.reportType as string) === 'CAREER' || (report.reportType as string) === 'CAREER_PROSITY') {
+              const tier = (report.reportType as string) === 'CAREER_PROSITY' ? 'PRO' : 'BASIC';
+              structuredReport = await generateCareerReport(profileInput, chartResponse, interpretationProvider, { tier });
+            } else if ((report.reportType as string) === 'FINANCE') {
+              structuredReport = await generateFinanceReport(profileInput, chartResponse, interpretationProvider);
+            } else if ((report.reportType as string) === 'LOVE') {
+              structuredReport = await generateLoveReport(profileInput, chartResponse, interpretationProvider);
+            } else if ((report.reportType as string) === 'FORTUNE') {
+              structuredReport = await generateFortuneReport(profileInput, chartResponse, interpretationProvider);
+            } else if ((report.reportType as string) === 'FORTUNE_PLUS') {
+              structuredReport = await generateFortunePlusReport(profileInput, chartResponse, interpretationProvider);
+            } else if ((report.reportType as string) === 'SATURN') {
+              structuredReport = await generateSaturnReport(profileInput, {
+                zodiacType: 'SIDEREAL',
+                ayanamsa: 'LAHIRI',
+                houseSystem: 'WHOLE_SIGN',
+                nodeCalculation: 'MEAN_NODE',
+              }, chartResponse, interpretationProvider);
+            } else if ((report.reportType as string) === 'JUPITER_TRANSIT') {
+              const referenceDate = metadata.referenceDate || report.createdAt || new Date();
+              const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
+              if (!metadata.referenceDate) {
+                metadata.referenceDate = referenceDateIso;
+                await prisma.report.update({
+                  where: { id: reportId },
+                  data: { metadata: { ...metadata, referenceDate: referenceDateIso } },
+                });
+              }
+              structuredReport = await generateJupiterReport(profileInput, {
+                zodiacType: 'SIDEREAL',
+                ayanamsa: 'LAHIRI',
+                houseSystem: 'WHOLE_SIGN',
+                nodeCalculation: 'MEAN_NODE',
+              }, chartResponse, interpretationProvider, { referenceDate: referenceDateIso });
+            } else if ((report.reportType as string) === 'RAHU_KETU_TRANSIT') {
+              const referenceDate = metadata.referenceDate || report.createdAt || new Date();
+              const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
+              if (!metadata.referenceDate) {
+                metadata.referenceDate = referenceDateIso;
+                await prisma.report.update({
+                  where: { id: reportId },
+                  data: { metadata: { ...metadata, referenceDate: referenceDateIso } },
+                });
+              }
+              structuredReport = await generateRahuKetuReport(profileInput, {
+                zodiacType: 'SIDEREAL',
+                ayanamsa: 'LAHIRI',
+                houseSystem: 'WHOLE_SIGN',
+                nodeCalculation: 'MEAN_NODE',
+              }, chartResponse, interpretationProvider, { referenceDate: referenceDateIso });
+            } else if ((report.reportType as string) === 'VARSHPHAL') {
+              const targetYear = metadata.targetYear || metadata.year || (report.createdAt ? new Date(report.createdAt).getFullYear() : new Date().getFullYear());
+              if (!metadata.targetYear) {
+                metadata.targetYear = targetYear;
+                await prisma.report.update({
+                  where: { id: reportId },
+                  data: { metadata: { ...metadata, targetYear } },
+                });
+              }
+              structuredReport = await generateVarshphalReport(profileInput, {
+                zodiacType: 'SIDEREAL',
+                ayanamsa: 'LAHIRI',
+                houseSystem: 'WHOLE_SIGN',
+                nodeCalculation: 'MEAN_NODE',
+              }, chartResponse, interpretationProvider, { targetYear });
             } else {
               await this.failJob(reportId, 'REPORT_TYPE_NOT_SUPPORTED', `Report type ${report.reportType} is not supported. Dedicated generator is not available.`, claimToken);
               return;
@@ -948,42 +976,37 @@ export class CareerReportWorker {
         }
 
         // --- STAGE 7: COMPLETED (100%) ---
-        const pageCount = (report.reportType === 'MARRIAGE_COMPATIBILITY' || report.reportType === 'CAREER_PROSITY') ? 4 : 3;
-        const now = new Date();
-        const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'];
-        const completedRes = await prisma.report.updateMany({
-          where: {
-            id: reportId,
-            status: { in: activeStatuses as any[] },
-            metadata: {
-              path: ['claimToken'],
-              equals: claimToken,
-            },
-          },
-          data: {
-            status: 'COMPLETED',
-            stage: 'COMPLETED',
-            progress: 100,
-            s3Url: null,
-            storageKey,
-            fileName,
-            fileSize: uploadResult.fileSize,
-            pageCount,
-            completedAt: now,
-            updatedAt: now,
-          } as any,
-        });
+        const pageCount = (report.reportType as string) === 'FORTUNE_PLUS' ? 35 : ((report.reportType as string) === 'FORTUNE' ? 27 : ((report.reportType as string) === 'LOVE' ? 23 : ((report.reportType as string) === 'VARSHPHAL' ? 16 : ((report.reportType as string) === 'FINANCE' ? 12 : ((report.reportType as string) === 'RAHU_KETU_TRANSIT' ? 12 : ((report.reportType as string) === 'JUPITER_TRANSIT' ? 11 : ((report.reportType as string) === 'SATURN' ? 10 : (report.reportType === 'MARRIAGE_COMPATIBILITY' || report.reportType === 'HOROSCOPE') ? 11 : 3)))))));
+        const completedRes = await postgresQueueService.completeJob(
+          reportId,
+          claimToken!,
+          claimVersion!,
+          storageKey,
+          fileName,
+          uploadResult.fileSize,
+          pageCount
+        );
 
-        if (completedRes.count === 0) {
+        if (!completedRes) {
           logger.warn(
             { reportId, claimToken },
             '[ConsumerReportWorker] Report completion skipped because report is no longer in active state or claimToken mismatch'
           );
+          try {
+            await storageService.delete(storageKey);
+          } catch (_) {}
           return;
         }
 
-        // Fulfill associated paid order if bound
-        if (report.orderId) {
+        // Fulfill associated paid order or reconcile fulfillment unit
+        if (report.orderId && report.fulfillmentUnitId) {
+          try {
+            await fulfillmentService.reconcileFulfillmentUnit(report.orderId, report.fulfillmentUnitId);
+            logger.info({ orderId: report.orderId, fulfillmentUnitId: report.fulfillmentUnitId, reportId }, '[ConsumerReportWorker] FulfillmentUnit reconciled');
+          } catch (ordErr: any) {
+            logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[ConsumerReportWorker] Failed to reconcile fulfillment unit');
+          }
+        } else if (report.orderId) {
           try {
             await prisma.order.updateMany({
               where: { id: report.orderId },
@@ -1007,6 +1030,7 @@ export class CareerReportWorker {
             userId: report.userId,
             type: 'REPORT_READY',
             entityId: report.id,
+            idempotencyKey: `report_ready:${report.id}`,
             route: 'OPEN_REPORT',
             templateData: {
               reportName: report.reportType,
@@ -1019,11 +1043,9 @@ export class CareerReportWorker {
       }
     } catch (err: any) {
       logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Pipeline error occurred');
-      await this.failJob(reportId, 'PIPELINE_ERROR', err?.message || 'An unexpected worker error occurred.', claimToken);
+      await this.failJob(reportId, 'PIPELINE_ERROR', err?.message || 'An unexpected worker error occurred.', claimToken, claimVersion);
     } finally {
       stopHeartbeat();
-      await redisQueueService.releaseReportClaim(reportId, claimToken);
-      await redisQueueService.completeJob(reportId, claimToken);
     }
   }
 
@@ -1045,9 +1067,6 @@ export class CareerReportWorker {
         return { success: false, reason: 'ORDER_NOT_PAID' };
       }
 
-      const currentMeta = (report.metadata || {}) as Record<string, any>;
-      const nextVersion = ((currentMeta.claimVersion as number) || 0) + 1;
-
       const res = await tx.report.updateMany({
         where: { id: reportId, status: 'FAILED' },
         data: {
@@ -1057,15 +1076,11 @@ export class CareerReportWorker {
           errorCode: null,
           errorMessage: null,
           failedAt: null,
+          claimToken: null,
+          claimExpiresAt: null,
+          recoveryAttempts: 0,
+          retryAfter: null,
           updatedAt: new Date(),
-          metadata: {
-            ...currentMeta,
-            enqueued: false,
-            claimToken: null,
-            claimVersion: nextVersion,
-            recoveryAttempts: 0,
-            retriedAt: new Date().toISOString(),
-          },
         } as any,
       });
 
@@ -1073,7 +1088,12 @@ export class CareerReportWorker {
         return { success: false, reason: 'CONCURRENT_RETRY' };
       }
 
-      if (report.orderId) {
+      if (report.orderId && report.fulfillmentUnitId) {
+        await tx.fulfillmentUnit.updateMany({
+          where: { id: report.fulfillmentUnitId, status: FulfillmentUnitStatus.FAILED },
+          data: { status: FulfillmentUnitStatus.PROCESSING },
+        });
+      } else if (report.orderId) {
         await tx.order.updateMany({
           where: { id: report.orderId, status: OrderStatus.PAID },
           data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
@@ -1088,19 +1108,17 @@ export class CareerReportWorker {
       return false;
     }
 
-    // Only enqueue once DB state transition strictly committed!
-    const enqueued = await redisQueueService.enqueueJob(reportId);
-    if (enqueued) {
-      await this.markJobEnqueued(reportId);
-    }
-    return true;
+    return await postgresQueueService.enqueueJob(reportId);
   }
 
   /**
    * Directly touches heartbeat timestamp for an active report.
-   * If claimToken is provided, respects ownership fencing.
+   * If claimToken and claimVersion are provided, respects ownership fencing.
    */
-  public async touchHeartbeat(reportId: string, claimToken?: string): Promise<boolean> {
+  public async touchHeartbeat(reportId: string, claimToken?: string, claimVersion?: number): Promise<boolean> {
+    if (claimToken && claimVersion !== undefined) {
+      return await postgresQueueService.touchHeartbeat(reportId, claimToken, claimVersion);
+    }
     const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'];
     try {
       const whereClause: any = {
@@ -1108,7 +1126,7 @@ export class CareerReportWorker {
         status: { in: activeStatuses as any[] },
       };
       if (claimToken) {
-        whereClause.metadata = { path: ['claimToken'], equals: claimToken };
+        whereClause.claimToken = claimToken;
       }
 
       const res = await prisma.report.updateMany({
@@ -1132,8 +1150,12 @@ export class CareerReportWorker {
     status: ReportStatus,
     progress: number,
     stage: string,
-    claimToken?: string
+    claimToken?: string,
+    claimVersion?: number
   ): Promise<boolean> {
+    if (claimToken && claimVersion !== undefined) {
+      return await postgresQueueService.updateJobStatus(reportId, claimToken, claimVersion, status, stage, progress);
+    }
     const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING'];
     try {
       const whereClause: any = {
@@ -1141,7 +1163,7 @@ export class CareerReportWorker {
         status: { in: activeStatuses as any[] },
       };
       if (claimToken) {
-        whereClause.metadata = { path: ['claimToken'], equals: claimToken };
+        whereClause.claimToken = claimToken;
       }
 
       const res = await prisma.report.updateMany({
@@ -1175,7 +1197,6 @@ export class CareerReportWorker {
     ];
 
     try {
-      // Atomic conditional CAS: only succeeds if updatedAt has NOT changed since the query!
       const updateResult = await prisma.report.updateMany({
         where: {
           id: reportId,
@@ -1188,6 +1209,8 @@ export class CareerReportWorker {
           progress: 0,
           errorCode,
           errorMessage,
+          claimToken: null,
+          claimExpiresAt: null,
           failedAt: now,
           updatedAt: now,
         } as any,
@@ -1203,16 +1226,36 @@ export class CareerReportWorker {
 
       logger.warn({ reportId, errorCode, errorMessage }, '[CareerReportWorker] Job marked as FAILED by stale recovery');
 
-      // Clean up Redis claim now that DB is FAILED
-      await redisQueueService.completeJob(reportId).catch(() => {});
-
-      // Update order fulfillmentStatus to FAILED (only if no completed report exists)
       const failedReport = await prisma.report.findUnique({
         where: { id: reportId },
-        select: { orderId: true },
+        select: { userId: true, reportType: true, orderId: true, fulfillmentUnitId: true },
       });
 
-      if (failedReport?.orderId) {
+      if (failedReport?.userId) {
+        try {
+          await notificationService.sendNotification({
+            userId: failedReport.userId,
+            type: 'REPORT_FAILED',
+            entityId: reportId,
+            idempotencyKey: `report_failed:${reportId}`,
+            route: 'OPEN_REPORT',
+            templateData: {
+              reportName: failedReport.reportType || 'Career Intelligence Report',
+              reportId,
+            },
+          });
+        } catch (notifErr: any) {
+          logger.warn({ reportId, notifErr: notifErr?.message }, '[CareerReportWorker] Failed to dispatch report failure notification');
+        }
+      }
+
+      if (failedReport?.orderId && failedReport?.fulfillmentUnitId) {
+        try {
+          await fulfillmentService.reconcileFulfillmentUnit(failedReport.orderId, failedReport.fulfillmentUnitId);
+        } catch (fErr: any) {
+          logger.warn({ orderId: failedReport.orderId, err: fErr?.message }, '[CareerReportWorker] Failed to reconcile fulfillment unit on stale fail');
+        }
+      } else if (failedReport?.orderId) {
         const order = await prisma.order.findUnique({
           where: { id: failedReport.orderId },
           include: { reports: true },
@@ -1247,51 +1290,76 @@ export class CareerReportWorker {
     reportId: string,
     errorCode: string,
     errorMessage: string,
-    claimToken?: string
+    claimToken?: string,
+    claimVersion?: number
   ): Promise<boolean> {
     const now = new Date();
-    const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
-
     try {
-      const whereClause: any = {
-        id: reportId,
-        status: { in: activeStatuses as any[] },
-      };
-      if (claimToken) {
-        whereClause.metadata = { path: ['claimToken'], equals: claimToken };
+      let ok = false;
+      if (claimToken && claimVersion !== undefined) {
+        ok = await postgresQueueService.failJob(reportId, claimToken, claimVersion, errorCode, errorMessage);
+      } else {
+        const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
+        const updateResult = await prisma.report.updateMany({
+          where: {
+            id: reportId,
+            status: { in: activeStatuses as any[] },
+          },
+          data: {
+            status: 'FAILED',
+            stage: 'FAILED',
+            progress: 0,
+            errorCode,
+            errorMessage,
+            failedAt: now,
+            claimToken: null,
+            claimExpiresAt: null,
+            updatedAt: now,
+          } as any,
+        });
+        ok = updateResult.count > 0;
       }
 
-      const updateResult = await prisma.report.updateMany({
-        where: whereClause,
-        data: {
-          status: 'FAILED',
-          stage: 'FAILED',
-          progress: 0,
-          errorCode,
-          errorMessage,
-          failedAt: now,
-          updatedAt: now,
-        } as any,
-      });
-
-      if (updateResult.count === 0) {
+      if (!ok) {
         logger.warn(
           { reportId, errorCode },
-          '[CareerReportWorker] Skipped failJob: report is not in an active state (already COMPLETED or FAILED).'
+          '[CareerReportWorker] Skipped failJob: report is not in an active state or ownership token mismatch'
         );
         return false;
       }
-
-      await redisQueueService.completeJob(reportId, claimToken).catch(() => {});
 
       logger.warn({ reportId, errorCode, errorMessage }, '[CareerReportWorker] Job marked as FAILED');
 
       const failedReport = await prisma.report.findUnique({
         where: { id: reportId },
-        select: { orderId: true },
+        select: { userId: true, reportType: true, orderId: true, fulfillmentUnitId: true },
       });
 
-      if (failedReport?.orderId) {
+      if (failedReport?.userId) {
+        try {
+          await notificationService.sendNotification({
+            userId: failedReport.userId,
+            type: 'REPORT_FAILED',
+            entityId: reportId,
+            idempotencyKey: `report_failed:${reportId}`,
+            route: 'OPEN_REPORT',
+            templateData: {
+              reportName: failedReport.reportType || 'Career Intelligence Report',
+              reportId,
+            },
+          });
+        } catch (notifErr: any) {
+          logger.warn({ reportId, notifErr: notifErr?.message }, '[CareerReportWorker] Failed to dispatch report failure notification');
+        }
+      }
+
+      if (failedReport?.orderId && failedReport?.fulfillmentUnitId) {
+        try {
+          await fulfillmentService.reconcileFulfillmentUnit(failedReport.orderId, failedReport.fulfillmentUnitId);
+        } catch (fErr: any) {
+          logger.warn({ orderId: failedReport.orderId, err: fErr?.message }, '[CareerReportWorker] Failed to reconcile fulfillment unit on failure');
+        }
+      } else if (failedReport?.orderId) {
         const order = await prisma.order.findUnique({
           where: { id: failedReport.orderId },
           include: { reports: true },

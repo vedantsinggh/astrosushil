@@ -39,6 +39,70 @@ export function renderNotificationTemplate(
       };
     }
 
+    case 'REPORT_STARTED': {
+      const reportName = data.reportName || 'Astrology Report';
+      const isTestOrDebug = process.env.NODE_ENV !== 'production' || process.env.DEBUG === 'true';
+      const timelineMsg = isTestOrDebug
+        ? 'It will be delivered as soon as it is ready.'
+        : 'It will be delivered within 24 hours of payment.';
+      return {
+        title: '⏳ Report Generation Underway',
+        body: `We have begun compiling your ${reportName}. ${timelineMsg}`,
+        emailSubject: `⏳ Generation Started: ${reportName}`,
+        emailText: `Hello ${userName},\n\nWe have started calculating and compiling your ${reportName}. It will be delivered as soon as it is ready.\n\nThank you for choosing Astro Sushil.`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #38BDF8; margin-top: 0;">⏳ Report Generation Underway</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>We have begun compiling your <strong>${reportName}</strong>. Our deterministic engine is performing planetary calculations.</p>
+            <p>${isTestOrDebug ? 'Priority compilation enabled: delivered as soon as it is ready.' : 'Guaranteed delivery within 24 hours of payment capture.'}</p>
+            <p style="font-size: 12px; color: #94A3B8;">Astro Sushil Platform — Deterministic Vedic Astrology</p>
+          </div>
+        `,
+        route: 'OPEN_REPORT',
+      };
+    }
+
+    case 'REPORT_DELAYED': {
+      const reportName = data.reportName || 'Astrology Report';
+      const reportId = data.reportId || '';
+      return {
+        title: '⏱️ Delivery Status Update',
+        body: `Your ${reportName} is taking slightly longer than anticipated due to detailed chart verification. Our team is actively monitoring progress.`,
+        emailSubject: `⏱️ Delivery Status Update: ${reportName}`,
+        emailText: `Hello ${userName},\n\nYour ${reportName} is undergoing additional astronomical verification. We are prioritizing completion.\n\nThank you for your patience.`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #F59E0B; margin-top: 0;">⏱️ Delivery Status Update</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>Your <strong>${reportName}</strong> is undergoing additional calculations. Our team has been alerted and is actively monitoring completion.</p>
+            <p style="font-size: 12px; color: #94A3B8;">Astro Sushil Platform — Operational SLA Team</p>
+          </div>
+        `,
+        route: 'OPEN_REPORT',
+      };
+    }
+
+    case 'REPORT_FAILED': {
+      const reportName = data.reportName || 'Astrology Report';
+      const reportId = data.reportId || '';
+      return {
+        title: '⚠️ Report Generation Alert',
+        body: `We encountered an issue while generating your ${reportName}. Our team has been notified and will resolve this promptly.`,
+        emailSubject: `⚠️ Report Generation Notice: ${reportName}`,
+        emailText: `Hello ${userName},\n\nWe encountered a technical issue while generating your ${reportName}. Our support engineering team has been alerted and will address this promptly.\n\nWe apologize for the inconvenience.`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #0F172A; color: #F8FAFC; border-radius: 8px;">
+            <h2 style="color: #EF4444; margin-top: 0;">⚠️ Report Generation Alert</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+            <p>We encountered an issue during calculation of your <strong>${reportName}</strong>. Our engineering team has been notified automatically and is investigating.</p>
+            <p style="font-size: 12px; color: #94A3B8;">Astro Sushil Platform — Support Engineering</p>
+          </div>
+        `,
+        route: 'OPEN_REPORT',
+      };
+    }
+
     case 'PAYMENT_SUCCESS': {
       const amountRupees = data.amountRupees || '0';
       const orderId = data.orderId || '';

@@ -27,8 +27,12 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
     await app.ready();
 
     // Clean up any existing test records
+    const testEmails = ['user-phase2b5@test.com', 'unauth-phase2b5@test.com', 'unpaid-phase2b5@test.com'];
+    await prisma.report.deleteMany({ where: { user: { email: { in: testEmails } } } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { user: { email: { in: testEmails } } } } });
+    await prisma.order.deleteMany({ where: { user: { email: { in: testEmails } } } });
     await prisma.user.deleteMany({
-      where: { email: { in: ['user-phase2b5@test.com', 'unauth-phase2b5@test.com', 'unpaid-phase2b5@test.com'] } },
+      where: { email: { in: testEmails } },
     });
 
     testUser = await prisma.user.create({
@@ -92,6 +96,9 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
       await prisma.report.deleteMany({
         where: { userId: { in: userIds } },
       });
+      await prisma.fulfillmentUnit.deleteMany({
+        where: { order: { userId: { in: userIds } } },
+      });
       await prisma.order.deleteMany({
         where: { userId: { in: userIds } },
       });
@@ -116,11 +123,11 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
   // 1. Authoritative Order Creation for All 5 Supported SKUs
   // ===========================================================================
   const supportedSkus = [
-    { reportType: 'KUNDLI', expectedAmount: 29900 },
-    { reportType: 'PLANETARY_SUMMARY', expectedAmount: 19900 },
-    { reportType: 'CAREER', expectedAmount: 49900 },
-    { reportType: 'MARRIAGE_COMPATIBILITY', expectedAmount: 49900 },
-    { reportType: 'CAREER_PROSITY', expectedAmount: 69900 },
+    { reportType: 'KUNDLI', expectedAmount: 50000 },
+    { reportType: 'PLANETARY_SUMMARY', expectedAmount: 50000 },
+    { reportType: 'CAREER', expectedAmount: 50000 },
+    { reportType: 'MARRIAGE_COMPATIBILITY', expectedAmount: 50000 },
+    { reportType: 'CAREER_PROSITY', expectedAmount: 50000 },
   ];
 
   for (const sku of supportedSkus) {

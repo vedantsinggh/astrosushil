@@ -11,6 +11,16 @@ export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
   CAREER_PROSITY: 69900,         // ₹699
   CHILDBIRTH_FAMILY: 49900,      // ₹499
   GUPTA_NADI_DOSSIER: 99900,     // ₹999
+  HOROSCOPE: 49900,              // ₹499
+  FINANCE: 49900,                // ₹499
+  LOVE: 49900,                   // ₹499
+  FORTUNE: 49900,                // ₹499
+  SATURN: 49900,                 // ₹499
+  // UNRESOLVED PRICING - RELEASE BLOCKER: Pending formal commercial sign-off
+  JUPITER_TRANSIT: 0,
+  RAHU_KETU_TRANSIT: 0,
+  VARSHPHAL: 0,
+  FORTUNE_PLUS: 0,
 };
 
 export interface RazorpayOrderResult {
@@ -41,6 +51,10 @@ export class PaymentService {
     receipt?: string,
     notes?: Record<string, string>
   ): Promise<RazorpayOrderResult> {
+    if (!amountPaise || amountPaise <= 0) {
+      throw new Error('Approved pricing is pending sign-off for this report type');
+    }
+
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
     const isProduction = config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:astro_mobile/core/config/app_config.dart';
 
@@ -7,12 +9,15 @@ void main() {
       AppConfig.resetBaseUrl();
     });
 
-    test('1. Default development API base URL points to laptop LAN IP on port 3000', () {
+    test('1. Default development API base URL points to localhost on desktop and LAN IP on mobile', () {
       AppConfig.resetBaseUrl();
       expect(AppConfig.apiPort, equals(3000));
       expect(AppConfig.apiPrefix, equals('/api/v1'));
       expect(AppConfig.defaultDevHost, equals('192.168.1.10'));
-      expect(AppConfig.baseUrl, equals('http://192.168.1.10:3000/api/v1'));
+      final expectedDefault = (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows))
+          ? 'http://127.0.0.1:3000/api/v1'
+          : 'http://192.168.1.10:3000/api/v1';
+      expect(AppConfig.baseUrl, equals(expectedDefault));
     });
 
     test('2. Programmatic setBaseUrl overrides baseUrl and normalizes paths', () {
@@ -29,7 +34,10 @@ void main() {
       expect(AppConfig.baseUrl, equals('http://custom-host:8080/api/v1'));
 
       AppConfig.resetBaseUrl();
-      expect(AppConfig.baseUrl, equals('http://192.168.1.10:3000/api/v1'));
+      final expectedDefault = (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows))
+          ? 'http://127.0.0.1:3000/api/v1'
+          : 'http://192.168.1.10:3000/api/v1';
+      expect(AppConfig.baseUrl, equals(expectedDefault));
     });
 
     test('3. normalizeApiUrl handles variations without duplicate /api/v1 pathing', () {

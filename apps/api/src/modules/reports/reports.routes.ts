@@ -53,6 +53,7 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
         birthProfileId: { type: 'string', format: 'uuid' },
         reportType: { type: 'string' },
         orderId: { type: 'string', format: 'uuid' },
+        forceRegenerate: { type: 'boolean' },
       },
     },
   };

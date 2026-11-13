@@ -100,6 +100,24 @@ class UserReportItemModel {
         return 'Career & Professional Life';
       case 'CAREER_PROSITY':
         return 'Pro Horoscope & Divisional Charts';
+      case 'HOROSCOPE':
+        return 'Personalised Horoscope 2026';
+      case 'FINANCE':
+        return 'Personalised Finance & Wealth Dossier';
+      case 'LOVE':
+        return 'Personalised Love & Relationship Report';
+      case 'FORTUNE':
+        return 'Personalised Fortune Report Plus';
+      case 'FORTUNE_PLUS':
+        return 'Personalised Fortune Report Plus (Comprehensive Edition)';
+      case 'SATURN':
+        return 'Saturn in Your Birth Chart Report';
+      case 'JUPITER_TRANSIT':
+        return 'Jupiter Transit Report';
+      case 'RAHU_KETU_TRANSIT':
+        return 'Rahu-Ketu Transit Report';
+      case 'VARSHPHAL':
+        return 'Varshphal (Annual Solar Return) Report';
       case 'MARRIAGE_COMPATIBILITY':
         return 'Marriage & Relationship Report';
       case 'CHILDBIRTH_FAMILY':
@@ -121,6 +139,24 @@ class UserReportItemModel {
         return '10TH HOUSE & VOCATIONAL DNA';
       case 'CAREER_PROSITY':
         return 'SHODASHVARGAS (D1–D12) & SHADBALA';
+      case 'HOROSCOPE':
+        return 'ANNUAL CHANDRA LAGNA & 2026 TRANSIT DOSSIER';
+      case 'FINANCE':
+        return 'WEALTH AXIS, DHANA YOGAS & 3-YEAR CASHFLOW';
+      case 'LOVE':
+        return 'ROMANCE, DARAKARAKA SPOUSE & MARRIAGE TIMING';
+      case 'FORTUNE':
+        return 'CHALDEAN NUMEROLOGY, LO-SHU GRID & 17-PART VEDIC BLUEPRINT';
+      case 'FORTUNE_PLUS':
+        return '25-CHAPTER VEDIC NUMEROLOGY & ASTROLOGICAL DOSSIER';
+      case 'SATURN':
+        return 'LORD SHANI, KARMIC LESSONS & SADE SATI TIMELINE';
+      case 'JUPITER_TRANSIT':
+        return 'COSMIC WISDOM, 56-PT BAV & GURU TRANSITS';
+      case 'RAHU_KETU_TRANSIT':
+        return 'KARMIC AXIS, 180° OPPOSITION & SHADOW NODES';
+      case 'VARSHPHAL':
+        return 'TAJIKA MUNTHA, VARSHESH & 12-MONTH PREDICTIVE ROADMAP';
       case 'MARRIAGE_COMPATIBILITY':
         return 'ASHTAKOOTA 36-GUNA MILAN & MANGLIK';
       default:
@@ -129,20 +165,7 @@ class UserReportItemModel {
   }
 
   String get displayPrice {
-    switch (reportType.toUpperCase()) {
-      case 'KUNDLI':
-        return '₹299';
-      case 'PLANETARY_SUMMARY':
-        return '₹199';
-      case 'CAREER':
-        return '₹499';
-      case 'CAREER_PROSITY':
-        return '₹699';
-      case 'MARRIAGE_COMPATIBILITY':
-        return '₹999';
-      default:
-        return '₹499';
-    }
+    return '₹500';
   }
 
   IconData get icon {
@@ -155,6 +178,24 @@ class UserReportItemModel {
         return Icons.work_outline_rounded;
       case 'CAREER_PROSITY':
         return Icons.military_tech_rounded;
+      case 'HOROSCOPE':
+        return Icons.stars_rounded;
+      case 'FINANCE':
+        return Icons.account_balance_wallet_outlined;
+      case 'LOVE':
+        return Icons.favorite_outline_rounded;
+      case 'FORTUNE':
+        return Icons.diamond_outlined;
+      case 'FORTUNE_PLUS':
+        return Icons.diamond_rounded;
+      case 'SATURN':
+        return Icons.hourglass_empty_rounded;
+      case 'JUPITER_TRANSIT':
+        return Icons.auto_awesome_rounded;
+      case 'RAHU_KETU_TRANSIT':
+        return Icons.all_inclusive_rounded;
+      case 'VARSHPHAL':
+        return Icons.calendar_month_rounded;
       case 'MARRIAGE_COMPATIBILITY':
         return Icons.favorite_rounded;
       default:

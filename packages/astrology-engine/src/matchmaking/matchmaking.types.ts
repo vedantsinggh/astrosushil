@@ -51,14 +51,25 @@ export type BhakootDistance =
   | '6/8'
   | '7/7';
 
+export const BHAKOOT_DISTANCE_NAMES: Record<BhakootDistance, string> = {
+  '1/1': 'Eka Rashi',
+  '7/7': 'Samasaptaka',
+  '3/11': 'Tritiya-Ekadasha',
+  '4/10': 'Chaturtha-Dashama',
+  '5/9': 'Nav-Pancham',
+  '6/8': 'Shadashtak',
+  '2/12': 'Dwi-Dwadash',
+};
+
 export type BhakootCondition = 'AUSPICIOUS' | 'DOSHA';
 export type NadiCondition = 'DIFFERENT_NADI' | 'SAME_NADI_DOSHA';
 
-export type ManglikSeverity = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+export type ManglikSeverity = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'INDETERMINATE';
 export type ManglikComparisonVerdict =
   | 'BOTH_NON_MANGLIK'
   | 'BOTH_MANGLIK'
-  | 'MANGLIK_MISMATCH';
+  | 'MANGLIK_MISMATCH'
+  | 'INDETERMINATE_BIRTH_TIME_REQUIRED';
 
 /**
  * Derived Moon and astrological placement facts for one person.
@@ -82,6 +93,7 @@ export interface DerivedMoonProfile {
     gender: YoniGender;
   };
   nadi: NadiType;
+  varga?: string; // Ashtavarga based on name initial (Garuda, Marjara, Simha, Shwana, Sarpa, Mooshak, Mriga, Mesha)
 }
 
 /**
@@ -159,9 +171,13 @@ export interface BhakootResult extends KootaBaseResult {
   personARashi: string;
   personBRashi: string;
   relativeDistance: BhakootDistance;
+  relationshipName?: string;
   condition: BhakootCondition;
   isDoshaCancelled: boolean;
   cancellationReason?: string;
+  rawPoints?: number; // Raw table points before dosha cancellation (e.g. 0 when 5/9 dosha present)
+  nominalPoints?: number; // Raw table points before dosha cancellation (alias for rawPoints)
+  effectivePoints?: number; // Post-cancellation points (e.g. 7 if dosha is mitigated/cancelled)
 }
 
 export interface NadiResult extends KootaBaseResult {
@@ -179,6 +195,7 @@ export interface NadiResult extends KootaBaseResult {
 export interface AshtakootaResult {
   totalMaxPoints: number; // Always 36
   totalObtainedPoints: number;
+  totalEffectivePoints?: number;
   isCompatible: boolean; // >= 18 points standard classical threshold
   kootas: {
     varna: VarnaResult;
@@ -211,15 +228,22 @@ export interface ManglikStatus {
     rashiIndex: number;
     rashiName: string;
     longitude: number;
-    houseFromLagna: number;
-    houseFromMoon: number;
+    houseFromLagna?: number;
+    houseFromMoon?: number;
+    houseFromVenus?: number;
   };
   manglikHousesFromLagna: number[];
   manglikHousesFromMoon: number[];
+  manglikHousesFromVenus?: number[];
   severity: ManglikSeverity;
   cancellationFactors: string[];
   isCancelled: boolean;
   effectiveManglik: boolean;
+  isIndeterminate?: boolean;
+  statusFromLagna?: 'MANGLIK' | 'NON_MANGLIK' | 'INDETERMINATE';
+  statusFromMoon?: 'MANGLIK' | 'NON_MANGLIK' | 'INDETERMINATE';
+  statusFromVenus?: 'MANGLIK' | 'NON_MANGLIK' | 'INDETERMINATE';
+  status?: 'Present' | 'Not Present' | 'Indeterminate';
 }
 
 /**

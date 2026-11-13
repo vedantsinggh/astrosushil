@@ -193,7 +193,7 @@ describe('Phase 2B.2 Editorial Compliance & Dosha Removal Suite', () => {
       expect(pdfBuffer.length).toBeGreaterThan(1000);
 
       const pdfText = pdfBuffer.toString('utf-8');
-      expect(pdfText).toContain('2. MANGLIK PLACEMENT COMPARATIVE EVALUATION');
+      expect(pdfText).toContain('MANGLIK PLACEMENT COMPARATIVE EVALUATION');
       expect(pdfText).not.toContain('2. MANGLIK (KUJA DOSHA) COMPARATIVE VERDICT');
       expect(pdfText).not.toContain('Kumbha Vivaha');
       expect(pdfText).not.toContain('Nadi Shanti');

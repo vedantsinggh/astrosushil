@@ -101,6 +101,9 @@ describe('Phase 6: Courses & Learning Platform Integration Suite', { timeout: 35
     await prisma.courseEntitlement.deleteMany({
       where: { userId: { in: [userA.id, userB.id, adminUser.id] } },
     });
+    await prisma.fulfillmentUnit.deleteMany({
+      where: { order: { userId: { in: [userA.id, userB.id, adminUser.id] } } },
+    });
     await prisma.orderItem.deleteMany({
       where: { order: { userId: { in: [userA.id, userB.id, adminUser.id] } } },
     });

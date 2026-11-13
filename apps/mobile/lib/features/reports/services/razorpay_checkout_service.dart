@@ -127,7 +127,7 @@ class NativeRazorpayCheckoutService implements IRazorpayCheckoutService {
 
     final key = order.razorpayKey.isNotEmpty
         ? order.razorpayKey
-        : 'rzp_test_placeholder_key';
+        : 'rzp_test_TzKn7xm9pztKyo';
 
     final options = {
       'key': key,
