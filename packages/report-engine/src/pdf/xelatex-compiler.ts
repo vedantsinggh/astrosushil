@@ -24,7 +24,7 @@ export class LocalXeLatexCompiler implements LatexCompiler {
    */
   public async compileReport(options: LatexCompilationOptions): Promise<LatexCompilationResult> {
     const reportId = options.reportId;
-    const timeoutMs = options.timeoutMs || 60000;
+    const timeoutMs = options.timeoutMs || 180000;
     const templateDir = options.templateDir || this.defaultTemplateDir;
 
     // 1. Create isolated temporary directory: /tmp/astro-sushil/reports/{reportId}
@@ -40,20 +40,11 @@ export class LocalXeLatexCompiler implements LatexCompiler {
       fs.mkdirSync(outputDir, { recursive: true });
       fs.mkdirSync(assetsDir, { recursive: true });
 
-      // 2. Copy main.tex from production template directory
-      const srcMainTex = path.join(templateDir, 'main.tex');
-      const dstMainTex = path.join(baseTempDir, 'main.tex');
-      if (fs.existsSync(srcMainTex)) {
-        fs.copyFileSync(srcMainTex, dstMainTex);
-      } else {
-        throw new Error(`Production template main.tex not found at: ${srcMainTex}`);
-      }
-
-      // Copy assets if present
-      const srcAssets = path.join(templateDir, 'assets');
-      if (fs.existsSync(srcAssets)) {
-        fs.cpSync(srcAssets, assetsDir, { recursive: true });
-      }
+      // 2. Copy all template files and subdirectories (main.tex, parts/, assets/)
+      fs.cpSync(templateDir, baseTempDir, {
+        recursive: true,
+        filter: (src) => !src.endsWith('.aux') && !src.endsWith('.pdf') && !src.endsWith('.log'),
+      });
 
       // 3. Write generated report_data.tex
       const dstReportDataTex = path.join(baseTempDir, 'report_data.tex');
@@ -80,21 +71,21 @@ export class LocalXeLatexCompiler implements LatexCompiler {
         for (let pass = 1; pass <= 3; pass++) {
           await execFileAsync(
             'xelatex',
-            ['-no-shell-escape', '-interaction=nonstopmode', `-output-directory=${outputDir}`, 'main.tex'],
+            ['-no-shell-escape', '-interaction=nonstopmode', 'main.tex'],
             { cwd: baseTempDir, timeout: timeoutMs }
           );
         }
       } catch (execErr: any) {
-        const logError = this.extractLatexLogError(outputDir, execErr);
+        const logError = this.extractLatexLogError(baseTempDir, execErr);
         console.error(
           `[REPORT][LATEX] Local XeLaTeX compilation failed for reportId ${reportId} (Exit Code: ${execErr.code ?? 'UNKNOWN'}):\n${logError}`
         );
         throw new Error(`XELATEX_COMPILATION_FAILED (Exit Code ${execErr?.code ?? 'UNKNOWN'}): ${logError}`);
       }
 
-      const generatedPdfPath = path.join(outputDir, 'main.pdf');
+      const generatedPdfPath = path.join(baseTempDir, 'main.pdf');
       if (!fs.existsSync(generatedPdfPath)) {
-        const logError = this.extractLatexLogError(outputDir);
+        const logError = this.extractLatexLogError(baseTempDir);
         throw new Error(`XELATEX_OUTPUT_MISSING: XeLaTeX completed but output PDF file main.pdf was not found. Log errors:\n${logError}`);
       }
 

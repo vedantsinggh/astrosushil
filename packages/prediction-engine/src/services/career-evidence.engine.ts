@@ -3,6 +3,9 @@ import {
   NormalizedPlanet,
   NormalizedHouse,
   PlanetSymbol,
+  getAspectedHouses,
+  AspectType,
+  RASHIS,
 } from '@astro/astrology-engine';
 import {
   CareerAnalysisInput,
@@ -21,6 +24,7 @@ import {
   NetworkingEvidence,
   PlanetaryEvidenceItem,
   HouseEvidenceItem,
+  AspectEvidenceRecord,
   YogaEvidence,
   EvidenceConflicts,
   TimingEvidence,
@@ -50,7 +54,7 @@ export class CareerEvidenceEngine {
     const networkingEvidence = this.evaluateNetworkingEvidence(chart);
 
     const planetaryEvidence = this.evaluatePlanetaryEvidence(chart);
-    const houseEvidence = this.evaluateHouseEvidence(chart);
+    const houseEvidence = this.evaluateHouseEvidence(chart, planetaryEvidence);
     const yogaEvidence = this.evaluateYogaEvidence(chart);
     const timingEvidence = this.evaluateTimingEvidence(chart);
 
@@ -776,6 +780,10 @@ export class CareerEvidenceEngine {
   // --------------------------------------------------------------------------
 
   private evaluatePlanetaryEvidence(chart: NormalizedChart): PlanetaryEvidenceItem[] {
+    if (!chart || !chart.planets || !Array.isArray(chart.planets)) {
+      return [];
+    }
+
     return chart.planets.map((planet) => {
       const supportingCareerFactors: string[] = [
         `${planet.name} in ${planet.sign} (House ${planet.house})`,
@@ -790,6 +798,61 @@ export class CareerEvidenceEngine {
         conflictingCareerFactors.push(`${planet.name} is Combust, indicating solar pressure`);
       }
 
+      // -------------------------------------------------------------
+      // Authentic Parashari Aspect Calculation (Drishti)
+      // -------------------------------------------------------------
+      const pUpper = planet.name.toUpperCase();
+      const isRahuKetu = pUpper === 'RAHU' || pUpper === 'KETU';
+      const aspectRecords: AspectEvidenceRecord[] = [];
+
+      // Parashari tradition restricts full Drishti to classical 7 planets.
+      // Rahu and Ketu remain excluded unless an explicitly configured tradition is selected.
+      if (!isRahuKetu && typeof planet.house === 'number' && planet.house >= 1 && planet.house <= 12) {
+        let sym: PlanetSymbol | undefined;
+        try {
+          sym = pUpper as PlanetSymbol;
+        } catch {
+          sym = undefined;
+        }
+
+        if (sym) {
+          const rawAspects = getAspectedHouses(sym, planet.house);
+          for (const raw of rawAspects) {
+            const meta = this.resolveAspectMetadata(raw.aspectType);
+            const targetHouse = raw.house;
+            const targetHouseDef = chart.houses?.find((h) => h.number === targetHouse);
+
+            let targetSign = targetHouseDef?.sign;
+            if (!targetSign && chart.ascendant?.sign) {
+              const ascIdx = RASHIS.findIndex((r) => r.englishName.toLowerCase() === chart.ascendant.sign.toLowerCase()) + 1;
+              const tSignIdx = (((ascIdx > 0 ? ascIdx : 1) - 1 + (targetHouse - 1)) % 12) + 1;
+              targetSign = RASHIS[tSignIdx - 1]?.englishName || 'Unknown';
+            }
+
+            aspectRecords.push({
+              sourcePlanet: planet.name,
+              sourceSign: planet.sign,
+              sourceHouse: planet.house,
+              targetHouse,
+              targetSign: targetSign || `House ${targetHouse}`,
+              aspectType: meta.label,
+              aspectOrdinal: meta.ordinal,
+              tradition: 'Parashari',
+              calculationReference: 'BPHS Ch. 26 Parashari Drishti',
+            });
+          }
+        }
+      }
+
+      // Sort aspect records by aspectOrdinal ascending (e.g. 3rd, 7th, 10th)
+      aspectRecords.sort((a, b) => a.aspectOrdinal - b.aspectOrdinal);
+
+      if (aspectRecords.length > 0) {
+        supportingCareerFactors.push(
+          `Casts aspect on: ${aspectRecords.map((a) => `House ${a.targetHouse} (${a.aspectType})`).join(', ')}`
+        );
+      }
+
       return {
         planet: planet.name,
         sign: planet.sign,
@@ -799,7 +862,8 @@ export class CareerEvidenceEngine {
         retrograde: planet.retrograde,
         combustion: planet.combust,
         lordship: planet.lordship || [],
-        aspects: [],
+        aspects: aspectRecords.map((a) => a.targetHouse),
+        aspectRecords,
         relevantCareerHouses: [2, 5, 6, 9, 10, 11, 12].filter((h) => planet.lordship?.includes(h) || planet.house === h),
         supportingCareerFactors,
         conflictingCareerFactors,
@@ -807,12 +871,81 @@ export class CareerEvidenceEngine {
     });
   }
 
-  private evaluateHouseEvidence(chart: NormalizedChart): HouseEvidenceItem[] {
+  private resolveAspectMetadata(aspectType: AspectType): { ordinal: number; label: string } {
+    switch (aspectType) {
+      case 'SPECIAL_3RD':
+        return { ordinal: 3, label: '3rd aspect' };
+      case 'SPECIAL_4TH':
+        return { ordinal: 4, label: '4th aspect' };
+      case 'SPECIAL_5TH':
+        return { ordinal: 5, label: '5th aspect' };
+      case 'OPPOSITION_7TH':
+        return { ordinal: 7, label: '7th aspect' };
+      case 'SPECIAL_8TH':
+        return { ordinal: 8, label: '8th aspect' };
+      case 'SPECIAL_9TH':
+        return { ordinal: 9, label: '9th aspect' };
+      case 'SPECIAL_10TH':
+        return { ordinal: 10, label: '10th aspect' };
+      default:
+        return { ordinal: 7, label: '7th aspect' };
+    }
+  }
+
+  private evaluateHouseEvidence(
+    chart: NormalizedChart,
+    planetaryEvidence?: PlanetaryEvidenceItem[]
+  ): HouseEvidenceItem[] {
     const targetHouses = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const planetsEv = planetaryEvidence || this.evaluatePlanetaryEvidence(chart);
+
+    // Map all aspects received by house
+    const aspectsReceivedMap = new Map<number, AspectEvidenceRecord[]>();
+    for (const hNum of targetHouses) {
+      aspectsReceivedMap.set(hNum, []);
+    }
+
+    for (const p of planetsEv) {
+      for (const rec of p.aspectRecords || []) {
+        if (aspectsReceivedMap.has(rec.targetHouse)) {
+          aspectsReceivedMap.get(rec.targetHouse)!.push(rec);
+        }
+      }
+    }
 
     return targetHouses.map((houseNum) => {
       const house = this.findHouse(chart, houseNum);
       const lordPlanet = this.findPlanet(chart, house.lord);
+
+      const rawReceived = aspectsReceivedMap.get(houseNum) || [];
+      // Deduplicate aspect records by sourcePlanet + aspectOrdinal
+      const seen = new Set<string>();
+      const aspectRecords: AspectEvidenceRecord[] = [];
+      for (const r of rawReceived) {
+        const key = `${r.sourcePlanet}:${r.aspectOrdinal}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          aspectRecords.push(r);
+        }
+      }
+
+      // Sort aspects received by source house ascending
+      aspectRecords.sort((a, b) => a.sourceHouse - b.sourceHouse);
+
+      const aspectsStrings = aspectRecords.map(
+        (a) => `${a.sourcePlanet} (${a.aspectType} from House ${a.sourceHouse}, ${a.sourceSign})`
+      );
+
+      const supportingFactors: string[] = [`House ${houseNum} in ${house.sign} ruled by ${house.lord}`];
+      if (aspectRecords.length > 0) {
+        supportingFactors.push(
+          `Aspects received: ${aspectRecords.map((a) => `${a.sourcePlanet} (${a.aspectType})`).join(', ')}`
+        );
+      }
+
+      const relevantPlanets = Array.from(
+        new Set([house.lord, ...(house.occupants || []), ...aspectRecords.map((a) => a.sourcePlanet)])
+      ).filter(Boolean);
 
       return {
         houseNumber: houseNum,
@@ -820,9 +953,10 @@ export class CareerEvidenceEngine {
         lord: house.lord,
         lordPlacement: { house: lordPlanet?.house || houseNum, sign: lordPlanet?.sign || house.sign },
         occupants: house.occupants || [],
-        aspects: [],
-        relevantPlanets: [house.lord, ...(house.occupants || [])],
-        supportingFactors: [`House ${houseNum} in ${house.sign} ruled by ${house.lord}`],
+        aspects: aspectsStrings,
+        aspectRecords,
+        relevantPlanets,
+        supportingFactors,
         conflictingFactors: [],
         strength: lordPlanet?.dignity === 'EXALTED' || lordPlanet?.dignity === 'OWN_SIGN' ? 'STRONG' : 'SUPPORTIVE',
       };

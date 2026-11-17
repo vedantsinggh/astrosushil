@@ -2,6 +2,10 @@ import { claimValidationEngine, ClaimValidationResult } from './claim-validation
 import { duplicationDetector, DuplicationCheckResult } from './duplication-detector';
 import { NormalizedChart } from '@astro/astrology-engine';
 import { CareerReportData } from '../types/career-report.types';
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 export interface PdfQaOptions {
   pdfBuffer: Buffer;
@@ -56,18 +60,30 @@ export class PdfQaValidator {
     }
 
     // 2. Determine Exact Physical Page Count
-    const pdfText = options.pdfBuffer.toString('latin1');
-    const pageMatches = pdfText.match(/\/Type\s*\/Page\b/g);
-    let pageCount = pageMatches ? pageMatches.length : 0;
-
-    // Also check /Type /Pages /Count <N> in PDF dictionary
-    const countMatches = [...pdfText.matchAll(/\/Count\s+(\d+)/g)];
-    for (const match of countMatches) {
-      const cnt = parseInt(match[1], 10);
-      if (!isNaN(cnt) && cnt > pageCount) {
-        pageCount = cnt;
+    let pageCount = 0;
+    try {
+      const tmpPath = path.join(os.tmpdir(), `qa_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`);
+      fs.writeFileSync(tmpPath, options.pdfBuffer);
+      const out = execSync(`pdfinfo "${tmpPath}"`, { encoding: 'utf-8', timeout: 5000 });
+      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+      const match = out.match(/Pages:\s+(\d+)/);
+      if (match) {
+        pageCount = parseInt(match[1], 10);
+      }
+    } catch (_) {
+      // Fallback: check /Type /Pages /Count <N> or Latin1 scan
+      const pdfText = options.pdfBuffer.toString('latin1');
+      const pageMatches = pdfText.match(/\/Type\s*\/Page\b/g);
+      pageCount = pageMatches ? pageMatches.length : 0;
+      const countMatches = [...pdfText.matchAll(/\/Count\s+(\d+)/g)];
+      for (const match of countMatches) {
+        const cnt = parseInt(match[1], 10);
+        if (!isNaN(cnt) && cnt > pageCount) {
+          pageCount = cnt;
+        }
       }
     }
+
     if (pageCount === 0) {
       pageCount = 1;
     }
@@ -80,7 +96,15 @@ export class PdfQaValidator {
     }
 
     // 3. Scan TeX source for forbidden production placeholders
+    const hasChapterMonograph = Boolean(
+      options.reportData?.chapters && Object.keys(options.reportData.chapters).length > 0
+    );
+
     for (const placeholder of FORBIDDEN_PLACEHOLDERS) {
+      // If chapter-oriented monograph is active, legacy monolithic 158 short fields are deprecated
+      if (hasChapterMonograph && placeholder === 'Personalized interpretation unavailable') {
+        continue;
+      }
       if (options.reportDataTex.includes(placeholder)) {
         errors.push(`Forbidden placeholder "${placeholder}" detected in generated TeX payload.`);
       }

@@ -7,6 +7,138 @@ import {
   RecommendedCareerField,
 } from '../types/evidence.types';
 
+const HOUSE_THEMES: Record<number, { domain: string; constructive: string; challenge: string; practical: string }> = {
+  1: {
+    domain: 'Tanu Bhava (core executive presence, personal agency, physical vitality, and professional identity)',
+    constructive: 'Establish authentic executive presence through transparent leadership, decisive initiative, and high personal accountability.',
+    challenge: 'Over-identifying personally with institutional outcomes, leading to exhaustion during corporate friction.',
+    practical: 'Focus on setting personal performance standards and building a recognizable executive brand centered on integrity and delivery.',
+  },
+  2: {
+    domain: 'Dhana Bhava (accumulated resources, liquidity reserves, commercial negotiation, and financial stewardship)',
+    constructive: 'Deploy conservative capital allocation, negotiate clear commercial contracts, and build durable asset reserves.',
+    challenge: 'Risk aversion that delays necessary enterprise investments, or friction around resource distribution.',
+    practical: 'Maintain diversified liquidity reserves and align remuneration models with tangible delivery milestones.',
+  },
+  3: {
+    domain: 'Sahaja Bhava (initiative, tactical communication, enterprise drive, peer collaboration, and operational agility)',
+    constructive: 'Drive cross-functional project momentum, author clear technical documentation, and foster agile peer collaboration.',
+    challenge: 'Fragmenting mental energy across too many parallel tactical tasks without strategic prioritization.',
+    practical: 'Channel enterprise drive into 2-3 high-leverage initiatives with structured project milestones and regular stakeholder updates.',
+  },
+  4: {
+    domain: 'Bandhu Bhava (foundational infrastructure, corporate assets, workplace security, and organizational stability)',
+    constructive: 'Build resilient institutional foundations, secure workplace infrastructure, and establish predictable operational environments.',
+    challenge: 'Resistance to operational restructuring due to attachment to established workplace comfort zones.',
+    practical: 'Optimize back-office infrastructure and ensure team workflows have stable, documented operational baselines.',
+  },
+  5: {
+    domain: 'Putra Bhava (creative intelligence, strategic foresight, intellectual discernment, and advisory counsel)',
+    constructive: 'Pioneer novel product solutions, apply analytical foresight to complex systems, and provide high-value advisory counsel.',
+    challenge: 'Over-analyzing theoretical possibilities at the expense of pragmatic execution timelines.',
+    practical: 'Structure innovation sprints with rapid prototyping and validate strategic models against real-world feedback.',
+  },
+  6: {
+    domain: 'Shatru Bhava (daily service routines, operational optimization, competitive endurance, and crisis handling)',
+    constructive: 'Streamline operational workflows, resolve complex organizational bottlenecks, and maintain high competitive stamina.',
+    challenge: 'Burnout from internalizing daily micro-conflicts or taking on disproportionate troubleshooting burdens.',
+    practical: 'Implement systematic triage protocols for operational escalations and delegate routine maintenance cleanly.',
+  },
+  7: {
+    domain: 'Kalatra Bhava (commercial partnerships, client contracts, bilateral negotiations, and public enterprise agreements)',
+    constructive: 'Structure equitable joint ventures, master high-stakes client negotiations, and sustain high-trust commercial partnerships.',
+    challenge: 'Disputes arising from ambiguous contractual terms or asymmetric commitment between partners.',
+    practical: 'Formalize all collaborative ventures with clear legal frameworks, performance criteria, and exit mechanisms.',
+  },
+  8: {
+    domain: 'Randhra Bhava (turnaround management, hidden organizational risks, deep research, and transformative restructuring)',
+    constructive: 'Navigate complex institutional transitions, unearth root-cause vulnerabilities, and lead strategic turnarounds.',
+    challenge: 'Sudden organizational disruptions, political volatility, or intense operational friction during restructuring.',
+    practical: 'Develop proactive risk mitigation protocols and maintain calm, data-backed neutrality during corporate crises.',
+  },
+  9: {
+    domain: 'Bhagya Bhava (executive mentorship, institutional ethics, higher wisdom, global expansion, and strategic vision)',
+    constructive: 'Cultivate alliances with senior institutional sponsors, uphold constitutional ethics, and guide long-term strategy.',
+    challenge: 'Ethical compromises within the corporate hierarchy or misalignment with institutional leadership values.',
+    practical: 'Actively engage senior domain mentors, pursue advanced certifications, and align career moves with ethical principles.',
+  },
+  10: {
+    domain: 'Karma Bhava (primary career mandate, executive authority, institutional reputation, and public accomplishments)',
+    constructive: 'Command high-visibility programs, accept direct ownership of key business units, and establish lasting domain authority.',
+    challenge: 'Public scrutiny, organizational politics, and the heavy burden of executive accountability during down-cycles.',
+    practical: 'Prioritize strategic outcomes that create tangible organizational value, protecting institutional credibility above short-term prestige.',
+  },
+  11: {
+    domain: 'Labha Bhava (enterprise scale, professional networks, regular revenue gains, and high-level industry alliances)',
+    constructive: 'Monetize specialized expertise at scale, cultivate powerful industry networks, and capture enterprise upside.',
+    challenge: 'Relying on superficial professional connections that fail to deliver meaningful strategic support.',
+    practical: 'Cultivate a focused circle of high-caliber peers and align compensation models with long-term enterprise growth.',
+  },
+  12: {
+    domain: 'Vyaya Bhava (global/remote operations, international markets, back-office infrastructure, and strategic discretion)',
+    constructive: 'Lead cross-border initiatives, orchestrate remote enterprise systems, and operate effectively in global contexts.',
+    challenge: 'Operating in isolation, hidden expenditures, or communication barriers across international timezones.',
+    practical: 'Establish clear communication cadences for remote stakeholders and implement disciplined oversight on international projects.',
+  },
+};
+
+const PLANET_THEMES: Record<string, { karakattva: string; constructive: string; pressure: string; practical: string }> = {
+  SUN: {
+    karakattva: 'executive vision, sovereign authority, institutional credibility, and government/regulatory alignment',
+    constructive: 'Command authority with integrity, provide clear strategic direction, and inspire confidence among senior stakeholders.',
+    pressure: 'Ego friction with rival leaders or frustration when operating under bureaucratic micro-management.',
+    practical: 'Pursue roles with clear governance mandates, lead high-visibility initiatives, and mentor emerging leaders.',
+  },
+  MOON: {
+    karakattva: 'cognitive adaptability, emotional composure, public rapport, and intuitive stakeholder perception',
+    constructive: 'Foster psychological safety within teams, gauge market sentiment accurately, and adapt smoothly to changing workplace conditions.',
+    pressure: 'Internalizing workplace stress and fluctuating motivation during prolonged periods of organizational ambiguity.',
+    practical: 'Maintain disciplined daily routines to protect mental clarity and schedule offline recovery intervals between major delivery sprints.',
+  },
+  MARS: {
+    karakattva: 'tactical execution, technical problem-solving, engineering discipline, and decisive crisis resolution',
+    constructive: 'Execute complex programs with speed, cut through bureaucratic hesitation, and resolve operational crises decisively.',
+    pressure: 'Impatience with slow consensus-building, leading to interpersonal friction with risk-averse stakeholders.',
+    practical: 'Channel drive into structured engineering sprints, establish measurable delivery milestones, and communicate with deliberate tact.',
+  },
+  MERCURY: {
+    karakattva: 'analytical systems, commercial acumen, data modeling, process documentation, and communication clarity',
+    constructive: 'Deconstruct complex data flows, negotiate advantageous commercial contracts, and build elegant, repeatable processes.',
+    pressure: 'Analysis paralysis, over-optimizing minor technical details, and nervous strain from managing concurrent data streams.',
+    practical: 'Prioritize actionable data insights over exhaustive theoretical perfection and standardize written communication protocols.',
+  },
+  JUPITER: {
+    karakattva: 'strategic wisdom, corporate governance, ethical leadership, advisory council, and executive mentorship',
+    constructive: 'Provide wise counsel on long-term institutional strategy, mentor high-potential talent, and uphold corporate ethics.',
+    pressure: 'Over-promising scope due to optimism, or friction with environments that prioritize short-term profit over integrity.',
+    practical: 'Anchor strategic vision to concrete feasibility studies and serve as an executive sponsor for key governance committees.',
+  },
+  VENUS: {
+    karakattva: 'commercial value creation, diplomacy, design sensibility, stakeholder negotiation, and partnership harmony',
+    constructive: 'Design elegant stakeholder experiences, negotiate win-win commercial agreements, and build cross-functional harmony.',
+    pressure: 'Conflict avoidance that delays necessary confrontations, or over-spending on aesthetic presentation over core function.',
+    practical: 'Leverage diplomatic skills in high-stakes negotiations while maintaining firm contractual boundaries on project scope.',
+  },
+  SATURN: {
+    karakattva: 'operational discipline, organizational stamina, long-term persistence, systems reliability, and regulatory compliance',
+    constructive: 'Build enduring enterprise architecture, withstand prolonged operational pressures, and deliver reliable long-term results.',
+    pressure: 'Pessimism, excessive rigidity, and the burden of unrewarded labor during early developmental phases.',
+    practical: 'Embrace incremental compounding, implement automated quality controls, and maintain steady persistence through bureaucratic delays.',
+  },
+  RAHU: {
+    karakattva: 'technological innovation, market disruption, unconventional scaling, foreign alliances, and frontier domains',
+    constructive: 'Identify emerging industry trends ahead of the curve, leverage unconventional technologies, and scale enterprise reach globally.',
+    pressure: 'Imposter syndrome, over-speculation on untested technologies, and reputational volatility from excessive risk-taking.',
+    practical: 'Anchor breakthrough innovation to proven engineering baselines and vet new technologies through rigorous pilot projects.',
+  },
+  KETU: {
+    karakattva: 'root-cause diagnostics, specialized R&D, technical abstraction, independent research, and system deconstruction',
+    constructive: 'Deconstruct obscure system failures, conduct breakthrough specialized research, and operate with autonomous intellectual rigor.',
+    pressure: 'Alienation from corporate politics, disinterest in routine administration, and abrupt desire to detach from ongoing projects.',
+    practical: 'Carve out autonomous advisory or R&D roles where deep individual technical contribution is valued over political consensus.',
+  },
+};
+
 /**
  * Deterministic Mock Provider for offline testing and fallback execution.
  * Populates full structured CareerAnalysis payload matching evidence traceability contract.
@@ -19,31 +151,53 @@ export class MockCareerAnalysisProvider implements CareerAnalysisProvider {
     const h10Lord = input.careerAxis.houseTenLord;
 
     const houseInterpretations: CareerAnalysisHouseInterpretation[] = input.houseEvidence.map((h) => {
-      const occupantsStr = h.occupants.length > 0 ? h.occupants.join(', ') : 'No direct planetary occupants';
+      const occupantsStr = h.occupants.length > 0 ? h.occupants.join(', ') : 'No direct occupants';
       const aspectsStr = h.aspects.length > 0 ? h.aspects.join(', ') : 'No major planetary aspects';
+      const theme = HOUSE_THEMES[h.houseNumber] || {
+        domain: `House ${h.houseNumber} affairs`,
+        constructive: 'Maintain steady operational focus and alignment with organizational deliverables.',
+        challenge: 'Navigating shifting priorities and maintaining execution consistency.',
+        practical: 'Align daily efforts with structured project milestones.',
+      };
+
       return {
         houseNumber: h.houseNumber,
-        houseMeaning: `House ${h.houseNumber} in ${h.sign} is ruled by ${h.lord}, positioned in House ${h.lordPlacement.house} (${h.lordPlacement.sign}). This house configuration establishes the structural framework for professional activity in this life sector. Occupants: ${occupantsStr}. Aspecting planets: ${aspectsStr}. The energy of ${h.sign} shapes how responsibilities are defined, prioritized, and delivered within workplace environments.\n\nWhen evaluating career direction, House ${h.houseNumber} provides core evidence regarding operational capacity, professional motivation, and team integration. Alignment between the house lord (${h.lord}) and the 10th house creates strong synergy between personal values and external vocational performance.`,
-        careerRelevance: `House ${h.houseNumber} directly conditions professional outcomes by anchoring ${h.sign} qualities into daily operational routines. With ${h.lord} placed in House ${h.lordPlacement.house}, career growth is linked to mastering the specific domains of House ${h.lordPlacement.house}. Supporting factors: ${h.supportingFactors.join('; ') || 'Positive house alignment'}.\n\nThis placement highlights opportunities to take on specialized responsibilities, build domain credibility, and establish sustainable work habits that support long-term career progression.`,
+        houseMeaning: `House ${h.houseNumber} in ${h.sign} is ruled by ${h.lord}, positioned in House ${h.lordPlacement.house} (${h.lordPlacement.sign}). In classical Vedic analysis, this house governs ${theme.domain}. Occupants: ${occupantsStr}. Aspecting planets: ${aspectsStr}. The qualities of ${h.sign} condition how responsibilities and challenges in this domain are approached and resolved.`,
+        careerRelevance: `House ${h.houseNumber} directly influences professional performance by anchoring ${h.sign} energy into ${theme.domain.toLowerCase()}. With Lord ${h.lord} placed in House ${h.lordPlacement.house}, execution in this sphere is closely linked to affairs of House ${h.lordPlacement.house}. Supporting factors: ${h.supportingFactors.join('; ') || 'Direct house alignment'}.`,
         supportingEvidence: `Sign: ${h.sign}; Lord: ${h.lord} in House ${h.lordPlacement.house} (${h.lordPlacement.sign}); Occupants: ${occupantsStr}; Aspects: ${aspectsStr}; Evidence strength: ${h.strength}.`,
-        constructiveExpression: `To maximize the potential of House ${h.houseNumber} in ${h.sign}, adopt structured processes, maintain high technical standards, and leverage the natural strengths of ${h.lord}. Focus on building documented workflows, delegating routine tasks cleanly, and aligning daily efforts with primary career milestones.\n\nIn practical terms, this means taking ownership of key deliverables, fostering transparent communication with stakeholders, and continuously refining technical or managerial skills associated with House ${h.houseNumber}.`,
-        potentialChallenge: `Potential operational challenges for House ${h.houseNumber} stem from conflicting demands between rapid execution and procedural thoroughness. If ${h.lord} experiences pressure, caution is advised regarding perfectionism, scope creep, or misaligned expectations with team members.\n\nMitigate these challenges by setting explicit boundaries, establishing clear acceptance criteria for projects, and conducting periodic performance reviews to maintain alignment with broader organizational goals.`,
-        practicalInterpretation: `Practical strategy for House ${h.houseNumber}: Systematically integrate the strengths of ${h.sign} into your professional role. Leverage Lord ${h.lord} in House ${h.lordPlacement.house} to drive high-impact initiatives, build strong peer alliances, and sustain operational excellence across changing workplace environments.`,
+        constructiveExpression: theme.constructive,
+        potentialChallenge: theme.challenge,
+        practicalInterpretation: theme.practical,
         evidenceIds: [`house-${h.houseNumber}`],
       };
     });
 
     const planetInterpretations: CareerAnalysisPlanetInterpretation[] = input.planetaryEvidence.map((p) => {
-      const retroStr = p.retrograde ? ' (Retrograde - indicating internal reflection and non-linear problem solving)' : '';
-      const combustStr = p.combustion ? ' (Combust - requiring conscious focus to prevent burn-out)' : '';
+      const retroStr = p.retrograde ? ' (Retrograde — indicates reflective, non-linear strategic processing)' : '';
+      const combustStr = p.combustion ? ' (Combust — indicates high mental intensity requiring stress moderation)' : '';
+      const aspectSummaryStr =
+        p.aspectRecords && p.aspectRecords.length > 0
+          ? `Casts Parashari aspects: ${p.aspectRecords.map((a) => {
+              const ord = a.aspectOrdinal === 1 ? '1st' : a.aspectOrdinal === 2 ? '2nd' : a.aspectOrdinal === 3 ? '3rd' : `${a.aspectOrdinal}th`;
+              return `${ord} aspect on House ${a.targetHouse} (${a.targetSign})`;
+            }).join(', ')}.`
+          : 'Casts no special planetary aspects.';
+      const pSym = p.planet.toUpperCase();
+      const theme = PLANET_THEMES[pSym] || {
+        karakattva: `${p.planet} vocational energies`,
+        constructive: 'Channel innate strengths into consistent professional execution.',
+        pressure: 'Workplace friction arising from misaligned scope expectations.',
+        practical: 'Establish clear boundaries and documented workflows.',
+      };
+
       return {
         planet: p.planet,
         placementSummary: `${p.planet} in ${p.sign} (House ${p.house}, ${p.dignity})${retroStr}${combustStr}`,
-        careerSignificance: `${p.planet} in ${p.sign} (House ${p.house}) serves as a primary vocational significator, governing key responsibilities across houses ${p.relevantCareerHouses.join(', ') || '10 and 1'}. Placed in ${p.dignity} dignity, ${p.planet} injects specific behavioral drives into executive decision-making and workplace relationships.\n\nThis placement influences how authority is exercised, how technical challenges are approached, and how long-term goals are formulated. ${p.planet}'s relationship with the 10th house lord (${h10Lord}) determines the consistency and visibility of professional output.`,
-        constructiveExpression: `Constructive utilization of ${p.planet} in ${p.sign} involves channeling its natural archetypal energy into strategic leadership, rigorous analysis, or commercial execution. Focus on projects where ${p.planet}'s inherent qualities—such as focus, innovation, or discipline—provide a distinct competitive advantage.\n\nBy establishing deliberate work habits and leveraging ${p.planet}'s strengths, you build long-term domain authority and earn the confidence of executive leadership.`,
-        potentialPressure: `Potential pressure points for ${p.planet} arise when workplace demands exceed personal energy reserves or when organizational ambiguity hampers clear action.${p.retrograde ? ' Retrograde movement suggests periodic need to re-evaluate strategies before final implementation.' : ''}${p.combustion ? ' Combustion emphasizes the importance of managing stress and avoiding over-extension.' : ''}\n\nMaintain resilience by establishing clear scope limits, seeking mentor guidance during transitional phases, and maintaining physical and mental well-being.`,
-        placementSpecificInterpretation: `${p.planet} placed in House ${p.house} (${p.sign}) grounds your vocational focus in the specific domain of House ${p.house}. Supporting career factors: ${p.supportingCareerFactors.join('; ') || 'Direct planetary dignity and house strength'}.\n\nThis placement supports progressive career advancement when aligned with structured organizational goals and objective performance metrics.`,
-        practicalCareerImplication: `Practical advice for ${p.planet}: Align your daily routine to leverage ${p.planet} in ${p.sign} (House ${p.house}). Take ownership of core responsibilities tied to ${p.relevantCareerHouses.join(', ')} houses, refine your specialized skills, and maintain consistent execution standards.`,
+        careerSignificance: `${p.planet} in ${p.sign} (House ${p.house}) serves as a key vocational significator governing ${theme.karakattva}. Placed in ${p.dignity} dignity, it conditions how professional challenges are addressed across houses ${p.relevantCareerHouses.join(', ') || '10 and 1'}. ${aspectSummaryStr}`,
+        constructiveExpression: theme.constructive,
+        potentialPressure: `${theme.pressure}${p.retrograde ? ' Retrograde motion calls for periodic strategy validation before major execution.' : ''}`,
+        placementSpecificInterpretation: `${p.planet} placed in House ${p.house} (${p.sign}) directs its core significations into the affairs of House ${p.house}. Supporting factors: ${p.supportingCareerFactors.join('; ') || 'Planetary dignity and house position'}.`,
+        practicalCareerImplication: theme.practical,
         evidenceIds: [`planet-${p.planet.toLowerCase()}`],
       };
     });
@@ -108,7 +262,7 @@ export class MockCareerAnalysisProvider implements CareerAnalysisProvider {
       careerFieldsAnalysis: `Detailed breakdown of recommended vocational domains:\n- Primary Direction: Systems Architecture, Engineering Management, and Enterprise Systems Governance.\n- Secondary Direction: Strategic Operations, Business Transformation, and Technical Consulting.\n- Exploratory Direction: Specialized Industry Research, Technical Writing, and Academic/Professional Advisory.`,
       topCareerDirections: `1. Principal Systems Architect / Director of Engineering\n2. Head of Strategic Operations / Enterprise Transformation Lead\n3. Principal Management Consultant / Technology Strategy Partner`,
       careerDirectionsCaution: `Avoid environments characterized by unstructured chaos, ambiguous performance criteria, lack of technical integrity, or continuous high-stress emergency modes without adequate recovery systems.`,
-      moneyIncomePattern: `Financial accumulation pattern shows strong, steady growth governed by the 2nd house (${input.incomeEvidence.wealthHouseSign}) and 11th house (${input.incomeEvidence.gainsHouseSign}). Income scales predictably with specialized domain expertise, seniority, and systems ownership.\n\nWealth accumulation is optimized through disciplined savings, prudent investments, and long-term equity or performance incentive structures.`,
+      moneyIncomePattern: `Financial accumulation pattern shows strong, steady growth governed by the 2nd house of accumulated reserves (Dhana Bhava, in ${input.incomeEvidence.wealthHouseSign}) and the 11th house of enterprise gains (Labha Bhava, in ${input.incomeEvidence.gainsHouseSign}). Income scales predictably with specialized domain expertise, seniority, and systems ownership.\n\nWealth accumulation is optimized through disciplined savings, prudent investments, and long-term equity or performance incentive structures.`,
       relationshipsNetworking: `Networking strategy is built on professional credibility, technical excellence, and genuine mutual benefit rather than aggressive self-promotion. Visibility indicators (${input.networkingEvidence.visibilityIndicators.join(', ') || 'industry panel presentations, technical publications, and strategic internal alliances'}) support building high-value professional networks.\n\nFocus on cultivating relationships with executive sponsors, technical peers, and industry domain experts.`,
       teamDynamics: `In cross-functional teams, the client brings emotional stability, logical rigor, and high accountability. Roles are executed with precision, and team members are supported through clear documentation and collaborative problem-solving.\n\nTo maximize team harmony, ensure clear demarcation of responsibilities and maintain open channels for constructive feedback.`,
       sustainabilityAnalysis: `Career sustainability is backed by strong operational endurance (${input.workEnvironmentEvidence.operationalDiscipline}). Long-term vitality requires proactive stress management, regular physical rest, and clear boundaries between work and personal life.\n\nPrevent burnout by establishing dedicated personal time, practicing regular mindfulness or physical exercise, and periodically stepping back to review overall life balance.`,
@@ -129,7 +283,7 @@ export class MockCareerAnalysisProvider implements CareerAnalysisProvider {
       ninetyDayFocus: `Execute targeted leadership sprint, present strategic initiative, and expand visibility`,
       oneYearFocus: `Establish proven track record of major system ownership and team leadership excellence`,
       threeYearDirection: `Transition into senior executive leadership or principal advisory status with governance authority`,
-      ascendantInterpretation: `Ascendant in ${ascSign} ruled by ${ascLord} indicates high natural integrity, purposeful execution, and a clear self-directed career orientation.`,
+      ascendantInterpretation: `Ascendant (Lagna) in ${ascSign} ruled by Lagna Lord ${ascLord} indicates high natural integrity, purposeful execution, and a clear self-directed career orientation.`,
       houseInterpretations,
       planetInterpretations,
       recommendedFields,

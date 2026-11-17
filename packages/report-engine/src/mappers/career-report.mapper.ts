@@ -24,12 +24,15 @@ import {
   GhatChakraCalculator,
   TaraChakraCalculator,
   PlanetSymbol,
+  getAspectedHouses,
   AstrologyConfig,
   BirthDetails,
   RASHIS,
+  NAKSHATRAS,
+  getNakshatraByLongitude,
   normalizeBirthTime,
 } from '@astro/astrology-engine';
-import { CareerAnalysis } from '@astro/prediction-engine';
+import { CareerAnalysis, VocationalSynthesisEngine } from '@astro/prediction-engine';
 import {
   CareerReportData,
   HouseReportModel,
@@ -101,15 +104,15 @@ const VARGA_DEFINITIONS: Record<
     division: 7,
     name: 'Saptamsha',
     sanskritName: 'Saptamsa',
-    purpose: 'Procreative output, progeny, partnerships, and subordinate alignment.',
-    careerRelevance: 'Talent management, leadership delegation, and output produced through subordinates.',
+    purpose: 'Procreative output, progeny, and creative fruits (putra-pautradi).',
+    careerRelevance: 'Classically indicates progeny; modern consulting sometimes draws an informal symbolic analogy to creative projects or team delegation.',
   },
   D9: {
     division: 9,
     name: 'Navamsha',
     sanskritName: 'Navamsa / Dharmamsa',
-    purpose: 'Dharma, inner potential, soul purpose, marriage, and second-half life trajectory.',
-    careerRelevance: 'Essential validation of D1 planetary strengths; reveals ultimate career fruition after age 32.',
+    purpose: 'Dharma, inner potential, soul purpose, and marriage (bharyadi).',
+    careerRelevance: 'Essential classical validation of D1 planetary potencies; reveals mature vocational fruition and inner dharmic alignment.',
   },
   D10: {
     division: 10,
@@ -122,64 +125,64 @@ const VARGA_DEFINITIONS: Record<
     division: 12,
     name: 'Dwadashamsha',
     sanskritName: 'Dvadasamsa / Suryamsa',
-    purpose: 'Ancestral legacy, parents, past karma, and institutional inheritance.',
-    careerRelevance: 'Family enterprise succession, paternal influences on career, and institutional pedigree.',
+    purpose: 'Parental lineage, ancestral heritage, and parents (mata-pitror).',
+    careerRelevance: 'Classically evaluates parental heritage; modern consulting examines family business succession or inherited institutional standing.',
   },
   D16: {
     division: 16,
     name: 'Shodashamsha',
     sanskritName: 'Sodasamsa / Kalamsa',
-    purpose: 'Conveyances, comfort, executive perks, vehicles, and inner contentment.',
-    careerRelevance: 'Executive benefits, corporate vehicles, prestige assets, and workplace satisfaction.',
+    purpose: 'Conveyances, comfort, executive perks, vehicles, and inner contentment (sukha-chintanam).',
+    careerRelevance: 'Executive benefits, workplace facilities, comfort assets, and day-to-day satisfaction.',
   },
   D20: {
     division: 20,
     name: 'Vimshamsha',
     sanskritName: 'Vimsamsa',
-    purpose: 'Spiritual focus, ethical alignment, meditative depth, and devotion.',
-    careerRelevance: 'Corporate ethics, corporate social responsibility, and integrity in high-stakes governance.',
+    purpose: 'Spiritual focus, devotion, upasana, and religious inclinations (upasana-jnanam).',
+    careerRelevance: 'Classically evaluates spiritual disciplines; modern consulting analogizes this to ethical grounding, stewardship, and governance principles.',
   },
   D24: {
     division: 24,
     name: 'Chaturvimshamsha',
     sanskritName: 'Siddhamsa / Chaturvimsamsa',
-    purpose: 'Higher education, technical skill acquisition, wisdom, and intellectual mastery.',
-    careerRelevance: 'Domain expertise, research acumen, advanced certifications, and intellectual authority.',
+    purpose: 'Higher education, technical skill acquisition, wisdom, and intellectual mastery (vidya).',
+    careerRelevance: 'Domain expertise, technical acumen, advanced credentials, and specialized research knowledge.',
   },
   D27: {
     division: 27,
     name: 'Bhamsa',
     sanskritName: 'Saptavimsamsa / Nakshatramsa',
-    purpose: 'Subtle strength, physical and mental stamina, and endurance under pressure.',
-    careerRelevance: 'Resilience under corporate crises, cognitive endurance, and capacity to withstand fatigue.',
+    purpose: 'General constitutional strength, vital capacity, and physical/mental endurance (bala-abala).',
+    careerRelevance: 'Classically evaluates general strength and vulnerability; modern consulting examines resilience under operational stress and crisis endurance.',
   },
   D30: {
     division: 30,
     name: 'Trimshamsha',
     sanskritName: 'Trimsamsa',
-    purpose: 'Misfortunes, vulnerabilities, litigations, and hidden adversaries.',
-    careerRelevance: 'Corporate risks, compliance liabilities, regulatory vulnerabilities, and conflict mitigation.',
+    purpose: 'Misfortunes, vulnerabilities, litigations, and hidden adversaries (arishta-chintanam).',
+    careerRelevance: 'Operational risk assessment, legal/regulatory vulnerabilities, and defensive dispute mitigation.',
   },
   D40: {
     division: 40,
     name: 'Khavedamsha',
     sanskritName: 'Khavedamsa / Swavedamsa',
-    purpose: 'Subtle auspicious trends and fine-grained karma.',
-    careerRelevance: 'Unexpected professional breakthroughs, auspicious institutional appointments, and windfalls.',
+    purpose: 'Subtle auspicious and inauspicious karmic effects (shubhashubham).',
+    careerRelevance: 'General auspicious potentials; sensitive to birth-time uncertainty due to its narrow 0°45′ division, requiring evaluation against birth-record precision rather than asserting fixed career windfalls.',
   },
   D45: {
     division: 45,
     name: 'Akshavedamsha',
     sanskritName: 'Akshavedamsa',
-    purpose: 'Moral character, purity of conduct, and overall life orientation.',
-    careerRelevance: 'Trustworthiness in leadership, institutional stewardship, and ethical reputation.',
+    purpose: 'Moral character, purity of conduct, and ethical orientation (charitra).',
+    careerRelevance: 'Ethical predisposition and character; sensitive to birth-time uncertainty across its 0°40′ division, reflecting subtle traits rather than deterministic governance outcomes.',
   },
   D60: {
     division: 60,
     name: 'Shashtiamsha',
     sanskritName: 'Sasthyamsa',
-    purpose: 'Comprehensive karmic blueprint and definitive validation of fine planetary strengths.',
-    careerRelevance: 'Ultimate arbiter of career destiny, past-life merit, and enduring executive legacy.',
+    purpose: 'Microscopic karmic evaluation across all life domains (akhila-vikshanam).',
+    careerRelevance: 'Classical microscopic arbiter of underlying planetary potency; spans 0°30′ of arc, making its rising sign sensitive to birth-time uncertainty depending on rising speed and geographical latitude.',
   },
 };
 
@@ -187,6 +190,207 @@ const SIGN_NAMES = [
   'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
   'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
 ];
+
+export const NAKSHATRA_DEITIES: Record<string, { deity: string; shakti: string }> = {
+  Ashwini: { deity: 'Ashvini Kumaras', shakti: 'Power of swift initiative and restorative healing' },
+  Bharani: { deity: 'Yama', shakti: 'Power of disciplined endurance and ethical accountability' },
+  Krittika: { deity: 'Agni', shakti: 'Power of sharp discernment, purification, and decisive action' },
+  Rohini: { deity: 'Brahma / Prajapati', shakti: 'Power of organic creation, fertility, and continuous growth' },
+  Mrigashira: { deity: 'Soma', shakti: 'Power of intellectual search, curiosity, and research depth' },
+  Ardra: { deity: 'Rudra', shakti: 'Power of transformative breakthroughs, perseverance, and renewal' },
+  Punarvasu: { deity: 'Aditi', shakti: 'Power of renewal, ethical restoration, and strategic patience' },
+  Pushya: { deity: 'Brihaspati', shakti: 'Power of nourishment, executive wisdom, and institutional stewardship' },
+  Ashlesha: { deity: 'Sarpas', shakti: 'Power of strategic intuition, penetrative insight, and focus' },
+  Magha: { deity: 'Pitris', shakti: 'Power of ancestral authority, lineage, and institutional governance' },
+  'Purva Phalguni': { deity: 'Bhaga', shakti: 'Power of commercial value creation, aesthetic appeal, and diplomacy' },
+  'Uttara Phalguni': { deity: 'Aryaman', shakti: 'Power of executive patronage, enduring partnerships, and contracts' },
+  Hasta: { deity: 'Savitar', shakti: 'Power of precision craftsmanship, technological dexterity, and delivery' },
+  Chitra: { deity: 'Tvashtar (Vishwakarma)', shakti: 'Power of architectural design, structural aesthetics, and ingenuity' },
+  Swati: { deity: 'Vayu', shakti: 'Power of commercial adaptability, independent mobility, and trade' },
+  Vishakha: { deity: 'Indragni', shakti: 'Power of focused ambition, goal attainment, and milestone achievement' },
+  Anuradha: { deity: 'Mitra', shakti: 'Power of organizational alliances, loyalty, and structured collaboration' },
+  Jyeshtha: { deity: 'Indra', shakti: 'Power of executive seniority, sovereign command, and courage' },
+  Mula: { deity: 'Nirriti', shakti: 'Power of root-cause investigation, deconstruction, and core fundamentals' },
+  'Purva Ashadha': { deity: 'Apas', shakti: 'Power of strategic invincibility, persuasive rhetoric, and momentum' },
+  'Uttara Ashadha': { deity: 'Vishvadevas', shakti: 'Power of institutional victory, collective dharma, and permanence' },
+  Shravana: { deity: 'Vishnu', shakti: 'Power of attentive listening, continuous learning, and market wisdom' },
+  Dhanishta: { deity: 'Ashta Vasus', shakti: 'Power of enterprise resourcefulness, rhythm, and material fruition' },
+  Shatabhisha: { deity: 'Varuna', shakti: 'Power of systemic containment, deep diagnostics, and strategic discretion' },
+  'Purva Bhadrapada': { deity: 'Aja Ekapada', shakti: 'Power of transformative vision, radical focus, and spiritual resolve' },
+  'Uttara Bhadrapada': { deity: 'Ahirbudhnya', shakti: 'Power of deep foundation stability, resilience, and patience' },
+  Revati: { deity: 'Pushan', shakti: 'Power of safe navigation, abundance, and international commercial exchange' },
+};
+
+function getAscendantTraitSummary(sign: string): string {
+  switch (sign.toLowerCase()) {
+    case 'aries': return 'decisive executive initiative, pioneering courage, and direct tactical problem-solving';
+    case 'taurus': return 'deliberate resource stewardship, endurance, pragmatic methodology, and structural consistency';
+    case 'gemini': return 'intellectual agility, multimodal communication, data synthesis, and rapid adaptation';
+    case 'cancer': return 'intuitive stakeholder perception, institutional loyalty, protective leadership, and team rapport';
+    case 'leo': return 'natural institutional authority, sovereign vision, high accountability, and executive presence';
+    case 'virgo': return 'rigorous analytical precision, operational optimization, meticulous quality control, and methodical systems thinking';
+    case 'libra': return 'strategic diplomacy, commercial value negotiation, balanced consensus-building, and partnership ergonomics';
+    case 'scorpio': return 'penetrative strategic depth, turnaround resilience, investigative persistence, and crisis composure';
+    case 'sagittarius': return 'principled long-term vision, ethical governance, expansive strategic council, and institutional mentorship';
+    case 'capricorn': return 'uncompromising organizational discipline, long-term persistence, systems architecture, and structural stamina';
+    case 'aquarius': return 'visionary systems thinking, objective intellectual neutrality, collective enterprise scaling, and technological foresight';
+    case 'pisces': return 'holistic strategic intuition, global perspective, reflective discernment, and cross-functional empathy';
+    default: return 'purposeful executive direction and objective professional agency';
+  }
+}
+
+export function synthesizeVargaCommentary(
+  vType: string,
+  def: { division: number; name: string; sanskritName: string; purpose: string; careerRelevance: string },
+  ascSign: string,
+  ascLord: string,
+  placements: Array<{ planet: string; sign: string; house: number; isRetrograde: boolean }>,
+  hasValidData: boolean
+): { status: 'VERIFIED' | 'UNAVAILABLE'; commentary: string } {
+  if (!hasValidData || placements.length === 0) {
+    return {
+      status: 'UNAVAILABLE',
+      commentary: `Divisional chart data for ${def.name} (${vType.toUpperCase()}) is unavailable from the calculation engine; harmonic analysis for ${def.purpose.toLowerCase()} cannot be evaluated reliably.`,
+    };
+  }
+
+  const kendraOccupants = placements.filter((p) => [1, 4, 7, 10].includes(p.house)).map((p) => p.planet);
+  const trikonaOccupants = placements.filter((p) => [5, 9].includes(p.house)).map((p) => p.planet);
+
+  switch (vType.toUpperCase()) {
+    case 'D1': {
+      const angularStr = kendraOccupants.length > 0 ? `Key angular planets (${kendraOccupants.join(', ')}) establish core operational strengths.` : 'Planetary distribution favors strategic adaptability.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The root Rashi chart establishes foundational physical vitality and general life direction with ${ascSign} rising, ruled by ${ascLord}. In career analysis, D1 defines the client's baseline constitution, temperament, and primary vocational inclinations. ${angularStr}`,
+      };
+    }
+    case 'D2': {
+      const wealthPlanets = placements.filter((p) => ['Jupiter', 'Venus', 'Mercury'].includes(p.planet) && [1, 2, 11].includes(p.house)).map((p) => p.planet);
+      const wealthStr = wealthPlanets.length > 0 ? `Prominent wealth significators in key positions (${wealthPlanets.join(', ')}) support asset accumulation.` : 'Financial flow emphasizes disciplined budgeting and systematic capital accumulation.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Hora chart specifically evaluates wealth allocation, liquidity, and fiscal temperament under ${ascSign} governance. Unlike the primary career chart, D2 focuses strictly on financial sustainability and earning capacity rather than professional title. ${wealthStr}`,
+      };
+    }
+    case 'D3': {
+      const mars = placements.find((p) => p.planet.toUpperCase() === 'MARS');
+      const marsStr = mars ? `Mars in House ${mars.house} (${mars.sign}) conditions operational bold initiatives.` : 'Execution boldness is grounded in methodical team collaboration.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Drekkana chart analyzes operational drive, courage, initiative, and peer collaborations with ${ascSign} rising. D3 reveals how the client handles execution bottlenecks, drives team projects forward, and maintains physical stamina under deadlines. ${marsStr}`,
+      };
+    }
+    case 'D4': {
+      const h4Occupants = placements.filter((p) => p.house === 4).map((p) => p.planet);
+      const assetStr = h4Occupants.length > 0 ? `House 4 occupied by ${h4Occupants.join(', ')} reinforces organizational stability.` : 'Fixed asset stability is supported by steady corporate infrastructure.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Chaturthamsha chart evaluates fixed corporate assets, office infrastructure, and institutional stability with ${ascSign} Lagna ruled by ${ascLord}. D4 reflects the client's capacity to build lasting enterprise foundations and secure working environments. ${assetStr}`,
+      };
+    }
+    case 'D7': {
+      const subPlanets = placements.filter((p) => [5, 7, 11].includes(p.house)).map((p) => p.planet);
+      const teamStr = subPlanets.length > 0 ? `Planets in collaborative houses (${subPlanets.join(', ')}) are interpreted in modern heuristic analogies as supporting team synergy.` : 'Delegation and team collaboration depend on structured reporting and clear communication.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Saptamsha chart classically evaluates progeny and creative lineage (putra-pautradi). While modern career consultations sometimes draw an informal symbolic analogy between procreative fruit and team delegation or organizational mentorship, classical Jyotish treats D7 strictly as a family lineage chart, and such modern inferences should not be treated as established classical vocational rules. ${teamStr}`,
+      };
+    }
+    case 'D9': {
+      const sunOrSat = placements.filter((p) => ['Sun', 'Saturn', 'Jupiter'].includes(p.planet) && [1, 9, 10].includes(p.house)).map((p) => p.planet);
+      const dharmaStr = sunOrSat.length > 0 ? `Key planets in dharma and karma sectors (${sunOrSat.join(', ')}) confirm steady maturation of career trajectory.` : 'Inner vocational alignment compounds steadily with maturity and experience.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Navamsha chart reveals inner dharma, foundational planetary potency, and the deeper fruition of natal potential. D9 validates whether D1 career opportunities reflect authentic, durable vocations or face internal misalignment. ${dharmaStr}`,
+      };
+    }
+    case 'D10': {
+      const h10Planets = placements.filter((p) => p.house === 10).map((p) => p.planet);
+      const careerStr = h10Planets.length > 0 ? `House 10 occupied by ${h10Planets.join(', ')} directly empowers leadership stature and public recognition.` : `Governed by ${ascLord}, professional hierarchy advancement relies on proven competence and institutional trust.`;
+      return {
+        status: 'VERIFIED',
+        commentary: `The Dashamsha chart is the classical primary divisional tool for analyzing professional stature, executive hierarchy, and public honors. With ${ascSign} rising in D10, the client's executive standing and institutional mandate are directly tested and realized here. ${careerStr}`,
+      };
+    }
+    case 'D12': {
+      const sun = placements.find((p) => p.planet.toUpperCase() === 'SUN');
+      const lineageStr = sun ? `Sun in House ${sun.house} (${sun.sign}) highlights parental heritage influence.` : 'Professional ethos is shaped by inherited standards of integrity.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Dwadashamsha chart classically examines parental lineage and ancestral heritage (mata-pitror) with ${ascSign} rising. In modern career analysis, D12 is sometimes consulted for inherited family business backgrounds or ancestral vocations, though classical doctrine restricts its primary scope to parents and does not establish a universal rule for institutional standing. ${lineageStr}`,
+      };
+    }
+    case 'D16': {
+      const venus = placements.find((p) => p.planet.toUpperCase() === 'VENUS');
+      const perkStr = venus ? `Venus in House ${venus.house} enhances corporate ergonomics and comfort.` : 'Day-to-day executive satisfaction is derived from structured, predictable workflows.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Shodashamsha chart evaluates conveyances, executive amenities, and inner psychological contentment in daily work with ${ascSign} rising. D16 assesses workplace ergonomics and work-life balance rather than macro-level promotions. ${perkStr}`,
+      };
+    }
+    case 'D20': {
+      const jup = placements.find((p) => p.planet.toUpperCase() === 'JUPITER');
+      const ethicStr = jup ? `Jupiter in House ${jup.house} (${jup.sign}) anchors high philosophical and ethical standards.` : 'Decision-making is guided by consistent ethical standards and inner reflection.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Vimshamsha chart classically evaluates spiritual devotion, upasana, and religious disciplines with ${ascSign} rising. While modern career consultations analogize this to fiduciary integrity and corporate ethics, classical Jyotish uses D20 strictly for inner spiritual practices, not corporate governance mandates. ${ethicStr}`,
+      };
+    }
+    case 'D24': {
+      const mercOrJup = placements.filter((p) => ['Mercury', 'Jupiter'].includes(p.planet) && [1, 4, 5, 9].includes(p.house)).map((p) => p.planet);
+      const studyStr = mercOrJup.length > 0 ? `Intellectual significators in key knowledge houses (${mercOrJup.join(', ')}) support deep domain specialization.` : 'Technical capability grows through methodical practice and continuous learning.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Chaturvimshamsha (Siddhamsa) chart evaluates higher education, advanced technical skill acquisition, and specialized research acumen with ${ascSign} rising. D24 reflects the client's capacity for complex domain mastery and intellectual authority. ${studyStr}`,
+      };
+    }
+    case 'D27': {
+      const sat = placements.find((p) => p.planet.toUpperCase() === 'SATURN');
+      const staminaStr = sat ? `Saturn in House ${sat.house} strengthens resilience during prolonged stress.` : 'Endurance under pressure is maintained through deliberate pacing and boundary management.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Bhamsa (Saptavimshamsha) chart classically evaluates general constitutional strength, vitality, and vulnerability (bala-abala) with ${ascSign} rising. In modern workplace consulting, it is referenced for endurance under stress and resilience during intense operational cycles, though classical shastras define its scope around general physical and mental stamina rather than workplace burnout. ${staminaStr}`,
+      };
+    }
+    case 'D30': {
+      const mal = placements.filter((p) => ['Saturn', 'Mars', 'Rahu', 'Ketu'].includes(p.planet) && [6, 8, 12].includes(p.house)).map((p) => p.planet);
+      const riskStr = mal.length > 0 ? `Challenging influences in dusthana houses (${mal.join(', ')}) advise strict compliance auditing and risk hedges.` : 'Risk exposure is mitigated through transparent contracts and conservative operating protocols.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Trimshamsha chart evaluates operational risk factors, compliance liabilities, and conflict mitigation with ${ascSign} rising. D30 is used defensively to identify corporate vulnerabilities and legal hurdles rather than for career advancement. ${riskStr}`,
+      };
+    }
+    case 'D40': {
+      const ben = placements.filter((p) => ['Jupiter', 'Venus', 'Moon'].includes(p.planet) && [1, 5, 9, 11].includes(p.house)).map((p) => p.planet);
+      const oppStr = ben.length > 0 ? `Benefic influences in auspicious houses (${ben.join(', ')}) indicate general auspicious support.` : 'Progress is earned through compounding effort rather than speculative windfalls.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Khavedamsha chart classically indicates subtle auspicious and inauspicious karmic trends (shubhashubham) with ${ascSign} rising. Because each Khavedamsha spans 0°45′ of arc, the rising sign's duration in clock time varies based on geographical latitude and the ascendant's speed of rising (oblique ascension). Consequently, higher harmonic indications must be evaluated against birth-time precision and interpreted as subtle karmic predispositions rather than rigid vocational predictions. ${oppStr}`,
+      };
+    }
+    case 'D45': {
+      const trik = trikonaOccupants.length > 0 ? `Trikona occupants (${trikonaOccupants.join(', ')}) reinforce moral character and ethics.` : 'Leadership trust is established through consistent follow-through and transparency.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Akshavedamsha chart evaluates moral conduct and character (charitra) with ${ascSign} rising. Spanning 0°40′ of arc, its findings reflect subtle ethical predispositions and must be weighed in light of birth-time certainty. ${trik}`,
+      };
+    }
+    case 'D60': {
+      const kendraStr = kendraOccupants.length > 0 ? `Major planets in angles (${kendraOccupants.join(', ')}) indicate foundational karmic potency.` : 'Karmic momentum supports steady, self-directed professional maturation.';
+      return {
+        status: 'VERIFIED',
+        commentary: `The Shashtiamsha chart classically provides a microscopic evaluation of fine karmic merit across all life domains (akhila-vikshanam) with ${ascSign} rising. Spanning 0°30′ of arc, its ascendant motion varies with latitude and local oblique ascension, making it highly sensitive to birth-time uncertainty. While D60 provides valuable microscopic confirmation of underlying planetary dignity, it should not be treated as an isolated career predictor without assessing chart calculation certainty. ${kendraStr}`,
+      };
+    }
+    default: {
+      return {
+        status: 'VERIFIED',
+        commentary: `${def.name} (${vType.toUpperCase()}) evaluates ${def.purpose.toLowerCase()} With ${ascSign} rising, this varga conditions ${def.careerRelevance.toLowerCase()}`,
+      };
+    }
+  }
+}
 
 const SIGN_ABBR = ['Ar', 'Ta', 'Ge', 'Cn', 'Le', 'Vi', 'Li', 'Sc', 'Sg', 'Cp', 'Aq', 'Pi'];
 
@@ -349,18 +553,33 @@ export function mapNormalizedChartToCareerReportData(
     const degInSign = p ? (typeof p.degree === 'number' ? p.degree : 0) : 0;
     const totalLong = ((sIdx > 0 ? sIdx : 1) - 1) * 30 + degInSign;
 
+    const rawPos = ('planets' in chartInput && !Array.isArray((chartInput as any).planets))
+      ? (chartInput as AstroChart).planets?.[sym as PlanetSymbol]
+      : undefined;
+
+    const pSpeedLongitude = typeof p?.speedLongitude === 'number'
+      ? p.speedLongitude
+      : (typeof rawPos?.speedLongitude === 'number' ? rawPos.speedLongitude : undefined);
+
+    const pLatitude = typeof p?.latitude === 'number'
+      ? p.latitude
+      : (typeof rawPos?.latitude === 'number' ? rawPos.latitude : 0);
+
+    const isRetro = p?.retrograde ?? rawPos?.isRetrograde ?? false;
+
     planetsRecord[sym] = {
       planet: sym,
       longitude: totalLong,
-      latitude: 0,
-      speed: 1,
+      latitude: pLatitude,
+      speedLongitude: pSpeedLongitude,
+      speed: typeof pSpeedLongitude === 'number' ? pSpeedLongitude : 1,
       rashiIndex: sIdx > 0 ? sIdx : 1,
       rashiName: p?.sign || getSignName(sIdx),
       degreeInRashi: degInSign,
       house: p?.house || 1,
       nakshatra: p?.nakshatra || 'Ashwini',
       pada: p?.pada || 1,
-      isRetrograde: p?.retrograde ?? false,
+      isRetrograde: isRetro,
       isCombust: (p as any)?.combust ?? false,
     };
   }
@@ -451,7 +670,11 @@ export function mapNormalizedChartToCareerReportData(
   ];
   const vargaMap: Record<string, any> = {};
   for (const vType of vargaTypes) {
-    vargaMap[vType] = vargaCalc.calculateVarga(rawChartForCalc, vType);
+    try {
+      vargaMap[vType] = vargaCalc.calculateVarga(rawChartForCalc, vType);
+    } catch {
+      vargaMap[vType] = null;
+    }
   }
 
   // 2. Calculate Strength (Shadbala, Bhava Bala, Vimshopaka)
@@ -464,8 +687,25 @@ export function mapNormalizedChartToCareerReportData(
 
   // 4. Calculate Vimshottari Dasha
   const moonPlanet = chart.planets.find((p) => p.name.toUpperCase() === 'MOON');
-  const moonDeg = moonPlanet ? (typeof moonPlanet.degree === 'number' ? moonPlanet.degree : 0) : 0;
-  const dashaTree = dashaCalc.calculateVimshottariDasha(moonDeg, validBirthDate, 3);
+  if (!moonPlanet) {
+    throw new Error('CAREER REPORT ERROR: Moon placement is missing from chart.');
+  }
+
+  const moonSignIdx = moonPlanet.rashiIndex || (SIGN_NAMES.findIndex((s) => s.toLowerCase() === moonPlanet.sign.toLowerCase()) + 1);
+  if (moonSignIdx < 1 || moonSignIdx > 12) {
+    throw new Error(`CAREER REPORT ERROR: Invalid Moon rashi index (${moonSignIdx}). Must be in range [1, 12].`);
+  }
+
+  const moonDegInSign = typeof moonPlanet.degree === 'number' ? moonPlanet.degree : NaN;
+  if (isNaN(moonDegInSign) || moonDegInSign < 0 || moonDegInSign >= 30) {
+    throw new Error(`CAREER REPORT ERROR: Invalid Moon degree in sign (${moonDegInSign}). Must be in range [0, 30).`);
+  }
+
+  const totalMoonLong = typeof moonPlanet.absoluteDegree === 'number' && !isNaN(moonPlanet.absoluteDegree)
+    ? normalizeDegree(moonPlanet.absoluteDegree)
+    : normalizeDegree((moonSignIdx - 1) * 30 + moonDegInSign);
+
+  const dashaTree = dashaCalc.calculateVimshottariDasha(totalMoonLong, validBirthDate, 3);
 
   // 5. Calculate Yogas
   const yogasResult = yogaCalc.evaluateYogas(rawChartForCalc, { includeUndetected: false });
@@ -497,7 +737,7 @@ export function mapNormalizedChartToCareerReportData(
   const transitRahuLong = normalizeDegree(rahuPos.longitude - ayanamsaOffset);
   const transitKetuLong = normalizeDegree(ketuPos.longitude - ayanamsaOffset);
 
-  const sadeSatiEvaluation = SadeSatiCalculator.evaluateSadeSati(moonDeg, transitSaturnLong);
+  const sadeSatiEvaluation = SadeSatiCalculator.evaluateSadeSati(totalMoonLong, transitSaturnLong);
 
   // 10. Run Data Consistency Validator
   validateReportDataConsistency(chart, vargaMap, shadbalaResult, ashtakavargaResult, dashaTree);
@@ -570,6 +810,23 @@ export function mapNormalizedChartToCareerReportData(
   const ascLord = chart.ascendant.lord || RASHIS[ascSignIdx - 1]?.ruler || chart.houses.find((h) => h.number === 1)?.lord || 'Mars';
   const ascLordPlanet = chart.planets.find((p) => p.name.toUpperCase() === (ascLord || '').toUpperCase());
   const ascLordDeg = ascLordPlanet ? (typeof ascLordPlanet.degree === 'number' ? ascLordPlanet.degree : 0) : 0;
+  const ascTotalLongForNak = (((ascSignIdx - 1) * 30) + (chart.ascendant.degree || 0));
+  const ascNakDef = (chart.ascendant.nakshatra ? NAKSHATRAS.find((n) => n.name.toLowerCase() === chart.ascendant.nakshatra.toLowerCase()) : undefined) || getNakshatraByLongitude(ascTotalLongForNak);
+  const ascNakLord = ascNakDef ? ascNakDef.lord : 'Unavailable';
+
+  const ascCareerInterpretation =
+    analysis?.ascendantInterpretation ||
+    (analysis?.houseInterpretations?.find((hi) => hi.houseNumber === 1)?.careerRelevance) ||
+    `With an Ascendant in ${chart.ascendant.sign} (${formatDeg(chart.ascendant.degree || 0)}, ${chart.ascendant.nakshatra || 'verified star'}), the professional persona is characterized by ${getAscendantTraitSummary(chart.ascendant.sign)}. In Vedic astrology, the Ascendant (Lagna) represents your foundational physical constitution, executive demeanor, and public professional brand. This placement shapes how stakeholders perceive your leadership presence and conditions your baseline working style across corporate environments.`;
+
+  const ascLordPlanetInt = analysis?.planetInterpretations?.find((pi) => pi.planet.toUpperCase() === (ascLord || '').toUpperCase());
+  const ascLordInterpretation =
+    (analysis as any)?.ascendantLordInterpretation ||
+    (ascLordPlanetInt?.placementSpecificInterpretation
+      ? `As governor of personal agency and professional drive (Lagna Lord), ${ascLordPlanetInt.placementSpecificInterpretation}`
+      : undefined) ||
+    ascLordPlanetInt?.careerSignificance ||
+    `Lagna Lord ${ascLord} serves as the prime governor of personal agency, professional vitality, and executive drive. Positioned in House ${ascLordPlanet?.house || 1} in ${ascLordPlanet?.sign || chart.ascendant.sign} (${ascLordPlanet?.dignity || 'Direct'}), it directly anchors your career energy into the specific affairs of House ${ascLordPlanet?.house || 1}. This placement links personal ambition with operational delivery, establishing durable professional credibility through consistent execution.`;
 
   const ascModel: AscendantReportModel = {
     sign: chart.ascendant.sign,
@@ -577,9 +834,7 @@ export function mapNormalizedChartToCareerReportData(
     nakshatra: chart.ascendant.nakshatra || 'Ashwini',
     pada: `Pada ${chart.ascendant.pada || 1}`,
     status: 'VERIFIED',
-    careerInterpretation:
-      analysis?.careerIdentity ||
-      `With an Ascendant in ${chart.ascendant.sign}, the professional identity is characterized by clarity, self-reliance, and objective executive purpose. Lagna Lord ${ascLord} placed in House ${ascLordPlanet?.house || 1} (${ascLordPlanet?.sign || chart.ascendant.sign}) indicates strong personal agency and decisive execution.`,
+    careerInterpretation: ascCareerInterpretation,
     lord: ascLord,
     lordSign: ascLordPlanet?.sign || chart.ascendant.sign,
     lordHouse: ascLordPlanet?.house ? `House ${ascLordPlanet.house}` : 'House 1',
@@ -588,11 +843,9 @@ export function mapNormalizedChartToCareerReportData(
     lordCondition: ascLordPlanet?.dignity || 'Direct',
     lordRelationships: `Placed in House ${ascLordPlanet?.house || 1}`,
     lordStatus: 'VERIFIED',
-    lordInterpretation:
-      analysis?.careerDNAAnalysis ||
-      `Lagna Lord ${ascLord} governs personal vitality and leadership presence. Positioned in House ${ascLordPlanet?.house || 1}, it anchors executive direction and establishes enduring professional reputation.`,
+    lordInterpretation: ascLordInterpretation,
     rashiIndex: ascSignIdx,
-    nakshatraLord: 'Verified Star Lord',
+    nakshatraLord: ascNakLord,
   };
 
   // -------------------------------------------------------------
@@ -663,6 +916,30 @@ export function mapNormalizedChartToCareerReportData(
       ? houseInt!.practicalInterpretation
       : 'Personalized interpretation unavailable';
 
+    const aspectingPlanetsDetails: string[] = [];
+    for (const pl of chart.planets) {
+      const plSym = pl.name.toUpperCase();
+      if (plSym === 'RAHU' || plSym === 'KETU' || typeof pl.house !== 'number') continue;
+      const raw = getAspectedHouses(plSym as PlanetSymbol, pl.house);
+      const match = raw.find((r) => r.house === i);
+      if (match) {
+        let label = '7th aspect';
+        switch (match.aspectType) {
+          case 'SPECIAL_3RD': label = '3rd aspect'; break;
+          case 'SPECIAL_4TH': label = '4th aspect'; break;
+          case 'SPECIAL_5TH': label = '5th aspect'; break;
+          case 'OPPOSITION_7TH': label = '7th aspect'; break;
+          case 'SPECIAL_8TH': label = '8th aspect'; break;
+          case 'SPECIAL_9TH': label = '9th aspect'; break;
+          case 'SPECIAL_10TH': label = '10th aspect'; break;
+        }
+        aspectingPlanetsDetails.push(`${pl.name} (${label} from House ${pl.house}, ${pl.sign})`);
+      }
+    }
+    const houseAspectsStr = aspectingPlanetsDetails.length > 0
+      ? aspectingPlanetsDetails.join(', ')
+      : 'No major planetary aspects';
+
     const key = houseKeys[i - 1];
     houseModels[key] = {
       houseNumber: i,
@@ -672,7 +949,7 @@ export function mapNormalizedChartToCareerReportData(
       lord: houseLord,
       lordPlacement: lordPlacementStr,
       occupants: occStr,
-      aspects: (h as any)?.aspectingPlanets?.join(', ') || 'Aspect analysis integrated',
+      aspects: (h as any)?.aspectingPlanets?.join(', ') || houseAspectsStr,
       condition: `Cusp in ${houseSign}`,
       nakshatraInfo: `House Cusp Nakshatra`,
       careerInterpretation: houseInterpretationText,
@@ -730,6 +1007,31 @@ export function mapNormalizedChartToCareerReportData(
       ? (planetInt!.practicalCareerImplication || (planetInt as any).practicalCareerInterpretation)
       : 'Personalized interpretation unavailable';
 
+    const pHouseNum = typeof p?.house === 'number' ? p.house : 1;
+    let planetAspectsStr = 'No Parashari aspects cast';
+    if (sym !== 'RAHU' && sym !== 'KETU' && pHouseNum >= 1 && pHouseNum <= 12) {
+      const rawAspects = getAspectedHouses(sym as PlanetSymbol, pHouseNum);
+      const metaAspects = rawAspects.map((ra) => {
+        let ordinal = 7;
+        let label = '7th aspect';
+        switch (ra.aspectType) {
+          case 'SPECIAL_3RD': ordinal = 3; label = '3rd aspect'; break;
+          case 'SPECIAL_4TH': ordinal = 4; label = '4th aspect'; break;
+          case 'SPECIAL_5TH': ordinal = 5; label = '5th aspect'; break;
+          case 'OPPOSITION_7TH': ordinal = 7; label = '7th aspect'; break;
+          case 'SPECIAL_8TH': ordinal = 8; label = '8th aspect'; break;
+          case 'SPECIAL_9TH': ordinal = 9; label = '9th aspect'; break;
+          case 'SPECIAL_10TH': ordinal = 10; label = '10th aspect'; break;
+        }
+        const tSign = chart.houses?.find((h) => h.number === ra.house)?.sign || `House ${ra.house}`;
+        return { ordinal, text: `${label} on House ${ra.house} (${tSign})` };
+      });
+      metaAspects.sort((a, b) => a.ordinal - b.ordinal);
+      if (metaAspects.length > 0) {
+        planetAspectsStr = metaAspects.map((m) => m.text).join(', ');
+      }
+    }
+
     const key = sym.toLowerCase();
 
     planetModels[key] = {
@@ -743,7 +1045,7 @@ export function mapNormalizedChartToCareerReportData(
       retrograde: isRetro ? 'Yes (Vakra)' : 'No (Direct)',
       combustion: isCombust ? 'Yes (Combust)' : 'No',
       lordship: Array.isArray(p?.lordship) && p!.lordship.length > 0 ? `House ${p!.lordship.join(' and ')}` : 'Calculated Lordship',
-      aspectsRelationships: (p as any)?.aspectsTo ? `Aspects ${(p as any).aspectsTo.join(', ')}` : 'Full planetary aspects evaluated',
+      aspectsRelationships: (p as any)?.aspectsTo ? `Aspects ${(p as any).aspectsTo.join(', ')}` : planetAspectsStr,
       strength: pDignity === 'EXALTED' || pDignity === 'OWN_SIGN' ? 'Strong' : 'Moderate',
       careerSignificance: careerSignificanceText,
       constructiveExpression: planetConstructiveText,
@@ -772,11 +1074,19 @@ export function mapNormalizedChartToCareerReportData(
     const vPlacements: Array<{ planet: string; signIndex: number; isRetrograde?: boolean }> = [];
     const placementList: Array<{ planet: string; sign: string; house: number; isRetrograde: boolean }> = [];
 
+    const hasValidVargaData = Boolean(
+      rawVarga &&
+      rawVarga.ascendant &&
+      rawVarga.placements &&
+      Object.keys(rawVarga.placements).length > 0
+    );
+
     const ascPlacement = rawVarga?.ascendant;
     const vAscSignIdx = ascPlacement?.rashiIndex || 1;
-    const vAscSignName = getSignName(vAscSignIdx);
+    const vAscSignName = hasValidVargaData ? getSignName(vAscSignIdx) : 'Unavailable';
+    const vAscLord = hasValidVargaData ? (RASHIS[(vAscSignIdx > 0 ? vAscSignIdx : 1) - 1]?.ruler || 'Mars') : 'Unavailable';
 
-    if (rawVarga?.placements) {
+    if (hasValidVargaData && rawVarga?.placements) {
       for (const pSym of planetSymbols) {
         const pData = rawVarga.placements[pSym];
         if (pData) {
@@ -791,7 +1101,15 @@ export function mapNormalizedChartToCareerReportData(
       }
     }
 
-    const vargaKundliNodes = buildKundliHouseNodesFromPlacements(vAscSignIdx, vPlacements);
+    const vargaKundliNodes = hasValidVargaData ? buildKundliHouseNodesFromPlacements(vAscSignIdx, vPlacements) : {};
+    const { status: vStatus, commentary: vargaAnalysisText } = synthesizeVargaCommentary(
+      vType,
+      def,
+      vAscSignName,
+      vAscLord,
+      placementList,
+      hasValidVargaData
+    );
 
     vargasReport[key] = {
       vargaType: vType,
@@ -801,11 +1119,11 @@ export function mapNormalizedChartToCareerReportData(
       purpose: def.purpose,
       careerRelevance: def.careerRelevance,
       ascendantSign: vAscSignName,
-      ascendantLord: 'Calculated Varga Lord',
-      status: 'VERIFIED',
+      ascendantLord: vAscLord,
+      status: vStatus,
       kundliHouseNodes: vargaKundliNodes,
       placements: placementList,
-      analysisText: `${def.name} (${vType}) divisional analysis verifies specific planetary strengths in ${def.purpose.toLowerCase()} This confirms sustainable career growth and institutional credibility.`,
+      analysisText: vargaAnalysisText,
     };
   }
 
@@ -813,37 +1131,38 @@ export function mapNormalizedChartToCareerReportData(
   // Map D10 Dashamsha in Depth
   // -------------------------------------------------------------
   const d10Chart = vargasReport['d10'];
-  const d10AscSign = d10Chart.ascendantSign;
+  const hasValidD10 = d10Chart && d10Chart.status === 'VERIFIED';
+  const d10AscSign = hasValidD10 ? d10Chart.ascendantSign : 'Unavailable';
   const d10AscSignIdx = SIGN_NAMES.findIndex((s) => s.toLowerCase() === d10AscSign.toLowerCase()) + 1;
-  const d10AscLord = RASHIS[(d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1]?.ruler || 'Mars';
-  const d10AscLordPlanet = d10Chart.placements.find((p) => p.planet.toUpperCase() === d10AscLord.toUpperCase());
+  const d10AscLord = hasValidD10 ? (RASHIS[(d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1]?.ruler || 'Mars') : 'Unavailable';
+  const d10AscLordPlanet = hasValidD10 ? d10Chart.placements.find((p) => p.planet.toUpperCase() === d10AscLord.toUpperCase()) : undefined;
   const d10AscLordPlacement = d10AscLordPlanet
     ? `${d10AscLord} in ${d10AscLordPlanet.sign} (House ${d10AscLordPlanet.house})`
-    : `${d10AscLord} governing D10 Lagna`;
+    : hasValidD10 ? `${d10AscLord} governing D10 Lagna` : 'Unavailable';
 
-  const d10House10SignIdx = (( (d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1 + 9) % 12) + 1;
-  const d10House10Sign = getSignName(d10House10SignIdx);
-  const d10House10Lord = RASHIS[d10House10SignIdx - 1]?.ruler || 'Saturn';
-  const d10H10LordPlanet = d10Chart.placements.find((p) => p.planet.toUpperCase() === d10House10Lord.toUpperCase());
+  const d10House10SignIdx = hasValidD10 ? ((( (d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1 + 9) % 12) + 1) : 1;
+  const d10House10Sign = hasValidD10 ? getSignName(d10House10SignIdx) : 'Unavailable';
+  const d10House10Lord = hasValidD10 ? (RASHIS[d10House10SignIdx - 1]?.ruler || 'Saturn') : 'Unavailable';
+  const d10H10LordPlanet = hasValidD10 ? d10Chart.placements.find((p) => p.planet.toUpperCase() === d10House10Lord.toUpperCase()) : undefined;
   const d10House10LordPlacement = d10H10LordPlanet
     ? `${d10House10Lord} in ${d10H10LordPlanet.sign} (House ${d10H10LordPlanet.house})`
-    : `${d10House10Lord} governing 10th House in D10`;
+    : hasValidD10 ? `${d10House10Lord} governing 10th House in D10` : 'Unavailable';
 
-  const d10House6SignIdx = (( (d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1 + 5) % 12) + 1;
-  const d10House6Sign = getSignName(d10House6SignIdx);
-  const d10House6Lord = RASHIS[d10House6SignIdx - 1]?.ruler || 'Mercury';
+  const d10House6SignIdx = hasValidD10 ? ((( (d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1 + 5) % 12) + 1) : 1;
+  const d10House6Sign = hasValidD10 ? getSignName(d10House6SignIdx) : 'Unavailable';
+  const d10House6Lord = hasValidD10 ? (RASHIS[d10House6SignIdx - 1]?.ruler || 'Mercury') : 'Unavailable';
 
-  const d10House7SignIdx = (( (d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1 + 6) % 12) + 1;
-  const d10House7Sign = getSignName(d10House7SignIdx);
-  const d10House7Lord = RASHIS[d10House7SignIdx - 1]?.ruler || 'Venus';
+  const d10House7SignIdx = hasValidD10 ? ((( (d10AscSignIdx > 0 ? d10AscSignIdx : 1) - 1 + 6) % 12) + 1) : 1;
+  const d10House7Sign = hasValidD10 ? getSignName(d10House7SignIdx) : 'Unavailable';
+  const d10House7Lord = hasValidD10 ? (RASHIS[d10House7SignIdx - 1]?.ruler || 'Venus') : 'Unavailable';
 
-  const d10Sun = d10Chart.placements.find((p) => p.planet === 'SUN');
-  const d10Saturn = d10Chart.placements.find((p) => p.planet === 'SATURN');
+  const d10Sun = hasValidD10 ? d10Chart.placements.find((p) => p.planet === 'SUN') : undefined;
+  const d10Saturn = hasValidD10 ? d10Chart.placements.find((p) => p.planet === 'SATURN') : undefined;
   const d10AmKPlanet = jaiminiResult.charaKarakas.find((k) => k.code === 'AmK')?.planet || 'MERCURY';
-  const d10AmK = d10Chart.placements.find((p) => p.planet.toUpperCase() === d10AmKPlanet.toUpperCase());
+  const d10AmK = hasValidD10 ? d10Chart.placements.find((p) => p.planet.toUpperCase() === d10AmKPlanet.toUpperCase()) : undefined;
 
-  const d10KendraOccupants = d10Chart.placements.filter((p) => [1, 4, 7, 10].includes(p.house)).map((p) => p.planet);
-  const d10TrikonaOccupants = d10Chart.placements.filter((p) => [5, 9].includes(p.house)).map((p) => p.planet);
+  const d10KendraOccupants = hasValidD10 ? d10Chart.placements.filter((p) => [1, 4, 7, 10].includes(p.house)).map((p) => p.planet) : [];
+  const d10TrikonaOccupants = hasValidD10 ? d10Chart.placements.filter((p) => [5, 9].includes(p.house)).map((p) => p.planet) : [];
 
   const d10Report: D10DashamshaReportModel = {
     chart: d10Chart,
@@ -853,45 +1172,71 @@ export function mapNormalizedChartToCareerReportData(
     tenthHouseSign: d10House10Sign,
     tenthHouseLord: d10House10Lord,
     tenthHouseLordPlacement: d10House10LordPlacement,
-    tenthHouseOccupants: d10Chart.placements.filter((p) => p.house === 10).map((p) => p.planet).join(', ') || 'No direct occupants (aspected by Kendra lords)',
+    tenthHouseOccupants: hasValidD10
+      ? (d10Chart.placements.filter((p) => p.house === 10).map((p) => p.planet).join(', ') || 'No direct occupants (aspected by Kendra lords)')
+      : 'Unavailable',
     sixthHouseSign: d10House6Sign,
     sixthHouseLord: d10House6Lord,
     seventhHouseSign: d10House7Sign,
     seventhHouseLord: d10House7Lord,
-    sunInD10: d10Sun ? `Sun in ${d10Sun.sign} (House ${d10Sun.house}) confers executive authority` : 'Sun position in D10 calculated',
-    saturnInD10: d10Saturn ? `Saturn in ${d10Saturn.sign} (House ${d10Saturn.house}) grants operational perseverance` : 'Saturn position in D10 calculated',
-    amatyakarakaInD10: d10AmK ? `Amatyakaraka ${d10AmKPlanet} in ${d10AmK.sign} (House ${d10AmK.house}) drives vocational mastery` : `Amatyakaraka ${d10AmKPlanet} position in D10 evaluated`,
-    d10DignitySummary: `Planetary alignments in D10 Dashamsha (${d10KendraOccupants.length > 0 ? `Kendras: ${d10KendraOccupants.join(', ')}` : 'Kendra axis verified'}; ${d10TrikonaOccupants.length > 0 ? `Trikonas: ${d10TrikonaOccupants.join(', ')}` : 'Trikona axis verified'}) substantiate the primary D1 career trajectory, ensuring executive endurance.`,
-    d1D10Synthesis:
-      analysis?.planetarySynthesis ||
-      `The synthesis between D1 Rashi (${chart.ascendant.sign} Lagna, 10th Lord ${houseModels.houseTen.lord}) and D10 Dashamsha (${d10AscSign} Lagna, 10th Lord ${d10House10Lord}) confirms that foundational vocational potentials indicated in the birth chart are reinforced by strong divisional placements, providing resilience during high-responsibility leadership assignments.`,
-    status: 'VERIFIED',
+    sunInD10: d10Sun ? `Sun in ${d10Sun.sign} (House ${d10Sun.house}) confers executive authority` : (hasValidD10 ? 'Sun position in D10 calculated' : 'Unavailable'),
+    saturnInD10: d10Saturn ? `Saturn in ${d10Saturn.sign} (House ${d10Saturn.house}) grants operational perseverance` : (hasValidD10 ? 'Saturn position in D10 calculated' : 'Unavailable'),
+    amatyakarakaInD10: d10AmK ? `Amatyakaraka ${d10AmKPlanet} in ${d10AmK.sign} (House ${d10AmK.house}) drives vocational mastery` : (hasValidD10 ? `Amatyakaraka ${d10AmKPlanet} position in D10 evaluated` : 'Unavailable'),
+    d10DignitySummary: hasValidD10
+      ? `Planetary alignments in D10 Dashamsha (${d10KendraOccupants.length > 0 ? `Kendras: ${d10KendraOccupants.join(', ')}` : 'Kendra axis verified'}; ${d10TrikonaOccupants.length > 0 ? `Trikonas: ${d10TrikonaOccupants.join(', ')}` : 'Trikona axis verified'}) substantiate the primary D1 career trajectory, ensuring executive endurance.`
+      : 'D10 Dashamsha chart data is unavailable from the calculation engine; fine-grained professional stature cannot be evaluated.',
+    d1D10Synthesis: hasValidD10
+      ? (analysis?.planetarySynthesis ||
+        `The synthesis between D1 Rashi (${chart.ascendant.sign} Lagna, 10th Lord ${houseModels.houseTen.lord}) and D10 Dashamsha (${d10AscSign} Lagna, 10th Lord ${d10House10Lord}) confirms that foundational vocational potentials indicated in the birth chart are reinforced by strong divisional placements, providing resilience during high-responsibility leadership assignments.`)
+      : 'D10 Dashamsha data is unavailable; career synthesis relies solely on D1 primary chart indicators without divisional refinement.',
+    status: hasValidD10 ? 'VERIFIED' : 'UNAVAILABLE',
   };
 
   // -------------------------------------------------------------
   // Map Nakshatras
   // -------------------------------------------------------------
-  const nakshatraItems = chart.planets.map((p) => ({
-    planet: p.name,
-    nakshatra: p.nakshatra || 'Ashwini',
-    pada: p.pada || 1,
-    lord: 'Governing Star Lord',
-    deity: 'Vedic Archetype Deity',
-    shakti: 'Power of Vocational Accomplishment',
-    careerSignificance: `${p.name} in ${p.nakshatra} Pada ${p.pada} channels focused vocational drive and intellectual discernment.`,
-  }));
+  const moonNakDef = (moonPlanet?.nakshatra ? NAKSHATRAS.find((n) => n.name.toLowerCase() === moonPlanet.nakshatra.toLowerCase()) : undefined) || (moonPlanet ? getNakshatraByLongitude(totalMoonLong) : undefined);
+  const moonNakName = moonPlanet?.nakshatra || moonNakDef?.name || 'Unavailable';
+  const moonNakLord = moonNakDef ? moonNakDef.lord : 'Unavailable';
+
+  const ascTotalLongForNak2 = (((ascSignIdx - 1) * 30) + (chart.ascendant.degree || 0));
+  const ascNakDef2 = (chart.ascendant.nakshatra ? NAKSHATRAS.find((n) => n.name.toLowerCase() === chart.ascendant.nakshatra.toLowerCase()) : undefined) || getNakshatraByLongitude(ascTotalLongForNak2);
+  const ascNakName = chart.ascendant.nakshatra || ascNakDef2?.name || 'Unavailable';
+  const ascNakLord2 = ascNakDef2 ? ascNakDef2.lord : 'Unavailable';
+
+  const nakshatraItems = chart.planets.map((p) => {
+    const pSignIdx = SIGN_NAMES.findIndex((s) => s.toLowerCase() === p.sign.toLowerCase()) + 1;
+    const pTotalLong = ((( (pSignIdx > 0 ? pSignIdx : 1) - 1) * 30) + (typeof p.degree === 'number' ? p.degree : 0));
+    const nakDef = (p.nakshatra ? NAKSHATRAS.find((n) => n.name.toLowerCase() === p.nakshatra.toLowerCase()) : undefined) || getNakshatraByLongitude(pTotalLong);
+    const nakName = p.nakshatra || nakDef?.name || 'Unavailable';
+    const nakInfo = NAKSHATRA_DEITIES[nakName];
+    const deity = nakInfo ? nakInfo.deity : 'Unavailable';
+    const shakti = nakInfo ? nakInfo.shakti : 'Traditional nakshatra shakti unavailable';
+    const starLord = nakDef ? nakDef.lord : 'Unavailable';
+    return {
+      planet: p.name,
+      nakshatra: nakName,
+      pada: p.pada || 1,
+      lord: starLord,
+      deity,
+      shakti,
+      careerSignificance: deity !== 'Unavailable'
+        ? `${p.name} occupies ${nakName} (governed by ${starLord}, Pada ${p.pada || 1}), channeling the ${shakti.toLowerCase()} into executive focus and workplace responsibilities.`
+        : `${p.name} occupies ${nakName} (governed by ${starLord}, Pada ${p.pada || 1}); nakshatra deity data is unavailable for this placement.`,
+    };
+  });
 
   const nakshatraAnalysis: NakshatraAnalysisReportModel = {
-    moonNakshatra: chart.planets.find((p) => p.name.toUpperCase() === 'MOON')?.nakshatra || 'Rohini',
+    moonNakshatra: moonNakName,
     moonPada: chart.planets.find((p) => p.name.toUpperCase() === 'MOON')?.pada || 1,
-    moonNakshatraLord: 'Moon Star Lord',
-    ascendantNakshatra: chart.ascendant.nakshatra || 'Bharani',
+    moonNakshatraLord: moonNakLord,
+    ascendantNakshatra: ascNakName,
     ascendantPada: chart.ascendant.pada || 1,
-    ascendantNakshatraLord: 'Lagna Star Lord',
+    ascendantNakshatraLord: ascNakLord2,
     taraChakraStatus: 'Janma, Sampat, and Kshema Taras support progressive career initiatives.',
     nakshatraTable: nakshatraItems,
     careerNakshatraSynthesis:
-      'The confluence of Ascendant and Moon Nakshatras establishes a pragmatic, perceptive cognitive style well-suited for complex decision-making.',
+      `The confluence of Ascendant Nakshatra (${ascNakName}, ruled by ${ascNakLord2}) and Moon Nakshatra (${moonNakName}, ruled by ${moonNakLord}) establishes a pragmatic, perceptive cognitive style well-suited for high-accountability executive decision-making.`,
     status: 'VERIFIED',
   };
 
@@ -942,13 +1287,17 @@ export function mapNormalizedChartToCareerReportData(
     rank: s.rank,
   }));
 
+  const hasCompleteMotionData = standardPlanetSymbols.every((sym) => {
+    return typeof planetsRecord[sym]?.speedLongitude === 'number';
+  });
+
   const shadbalaReport: ShadbalaReportModel = {
     planets: shadbalaRows,
     strongestPlanet: shadbalaResult.summary[0]?.planet || 'SUN',
     weakestPlanet: shadbalaResult.summary[shadbalaResult.summary.length - 1]?.planet || 'SATURN',
     interpretation:
       `Planetary strength evaluation reveals ${shadbalaResult.summary[0]?.planet} as the strongest planetary anchor (${shadbalaResult.summary[0]?.totalRupas.toFixed(2)} Rupas, Ratio ${shadbalaResult.summary[0]?.ratio.toFixed(2)}), providing formidable strategic drive and resilience.`,
-    status: 'VERIFIED',
+    status: hasCompleteMotionData ? 'VERIFIED' : 'DERIVED',
   };
 
   const bhavaBalaRows = bhavaBalaResult.houses.map((h) => ({
@@ -1004,16 +1353,24 @@ export function mapNormalizedChartToCareerReportData(
   // -------------------------------------------------------------
   const savSigns: Record<number, number> = {};
   const savHouses: Record<number, number> = {};
+  const hasValidSav = Boolean(
+    ashtakavargaResult?.sav?.signs &&
+    typeof ashtakavargaResult.sav.signs === 'object' &&
+    Object.keys(ashtakavargaResult.sav.signs).length >= 12
+  );
+
   for (let s = 1; s <= 12; s++) {
-    savSigns[s] = ashtakavargaResult.sav.signs[s] || 28;
+    const rawVal = hasValidSav ? ashtakavargaResult?.sav?.signs?.[s] : undefined;
+    const binduVal = typeof rawVal === 'number' ? rawVal : 28;
+    savSigns[s] = binduVal;
     const hNum = ((s - ascSignIdx + 12) % 12) + 1;
-    savHouses[hNum] = ashtakavargaResult.sav.signs[s] || 28;
+    savHouses[hNum] = binduVal;
   }
 
-  const bavTable = Object.entries(ashtakavargaResult.bav).map(([planet, table]: [string, any]) => ({
+  const bavTable = Object.entries(ashtakavargaResult?.bav || {}).map(([planet, table]: [string, any]) => ({
     planet,
-    signs: table.signList || [4, 5, 3, 4, 5, 4, 3, 5, 4, 5, 3, 4],
-    total: table.totalPoints || 48,
+    signs: table?.signList || [4, 5, 3, 4, 5, 4, 3, 5, 4, 5, 3, 4],
+    total: table?.totalPoints || 48,
   }));
 
   const h10Bindus = savHouses[10] ?? 28;
@@ -1022,6 +1379,7 @@ export function mapNormalizedChartToCareerReportData(
   const h6Bindus = savHouses[6] ?? 28;
 
   const getSavBenchmarkStr = (hNum: number, b: number) => {
+    if (!hasValidSav) return `House ${hNum} Sarvashtakavarga bindus unavailable`;
     if (b > 28) return `House ${hNum} (${b} bindus) exceeds the benchmark of 28 bindus`;
     if (b < 28) return `House ${hNum} (${b} bindus) stands below the benchmark of 28 bindus`;
     return `House ${hNum} (${b} bindus) meets the benchmark of 28 bindus`;
@@ -1169,11 +1527,19 @@ export function mapNormalizedChartToCareerReportData(
   // -------------------------------------------------------------
   const saturnSignIdx = Math.floor(transitSaturnLong / 30) + 1;
   const saturnHouseFromLagna = ((saturnSignIdx - ascSignIdx + 12) % 12) + 1;
-  const saturnHouseFromMoon = ((saturnSignIdx - (chart.planets.find((p) => p.name.toUpperCase() === 'MOON')?.house || 1) + 12) % 12) + 1;
+  const saturnHouseFromMoon = ((saturnSignIdx - moonSignIdx + 12) % 12) + 1;
 
   const jupiterSignIdx = Math.floor(transitJupiterLong / 30) + 1;
   const jupiterHouseFromLagna = ((jupiterSignIdx - ascSignIdx + 12) % 12) + 1;
-  const jupiterHouseFromMoon = ((jupiterSignIdx - (chart.planets.find((p) => p.name.toUpperCase() === 'MOON')?.house || 1) + 12) % 12) + 1;
+  const jupiterHouseFromMoon = ((jupiterSignIdx - moonSignIdx + 12) % 12) + 1;
+
+  const saturnAspect3rd = ((saturnHouseFromLagna - 1 + 2) % 12) + 1;
+  const saturnAspect7th = ((saturnHouseFromLagna - 1 + 6) % 12) + 1;
+  const saturnAspect10th = ((saturnHouseFromLagna - 1 + 9) % 12) + 1;
+
+  const jupiterAspect5th = ((jupiterHouseFromLagna - 1 + 4) % 12) + 1;
+  const jupiterAspect7th = ((jupiterHouseFromLagna - 1 + 6) % 12) + 1;
+  const jupiterAspect9th = ((jupiterHouseFromLagna - 1 + 8) % 12) + 1;
 
   const transitReport: TransitReportModel = {
     referenceDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -1181,7 +1547,7 @@ export function mapNormalizedChartToCareerReportData(
       sign: getSignName(saturnSignIdx),
       houseFromLagna: saturnHouseFromLagna,
       houseFromMoon: saturnHouseFromMoon,
-      aspects: `Aspects House ${((saturnHouseFromLagna + 2) % 12) + 1}, House ${((saturnHouseFromLagna + 6) % 12) + 1}, House ${((saturnHouseFromLagna + 9) % 12) + 1}`,
+      aspects: `Aspects House ${saturnAspect3rd}, House ${saturnAspect7th}, House ${saturnAspect10th}`,
       sadeSatiPhase: sadeSatiEvaluation.isSadeSatiActive
         ? `Transit Phase Active (House ${sadeSatiEvaluation.houseFromMoon} from Moon: ${sadeSatiEvaluation.phaseName.replace(/Sade Sati/gi, 'Saturn-Moon Transit Cycle')})`
         : 'Transit Phase Inactive (Saturn outside 12th, 1st, or 2nd house from natal Moon)',
@@ -1192,7 +1558,7 @@ export function mapNormalizedChartToCareerReportData(
       sign: getSignName(jupiterSignIdx),
       houseFromLagna: jupiterHouseFromLagna,
       houseFromMoon: jupiterHouseFromMoon,
-      aspects: `Benefic 5th, 7th, and 9th aspects cast on House ${((jupiterHouseFromLagna + 4) % 12) + 1}, House ${((jupiterHouseFromLagna + 6) % 12) + 1}, House ${((jupiterHouseFromLagna + 8) % 12) + 1}`,
+      aspects: `Benefic 5th, 7th, and 9th aspects cast on House ${jupiterAspect5th}, House ${jupiterAspect7th}, House ${jupiterAspect9th}`,
       careerImpact: `Jupiter transiting House ${jupiterHouseFromLagna} fosters professional expansion, mentorship opportunities, and favorable stakeholder rapport.`,
     },
     rahuKetuTransit: {
@@ -1371,294 +1737,167 @@ export function mapNormalizedChartToCareerReportData(
   // -------------------------------------------------------------
   // Map Comprehensive Career Analysis Synthesis
   // -------------------------------------------------------------
+  const vocationalEngine = new VocationalSynthesisEngine();
+  const amkKarak = jaiminiResult.charaKarakas.find((k) => k.code === 'AmK')?.planet;
+  const akKarak = jaiminiResult.charaKarakas.find((k) => k.code === 'AK')?.planet;
+
+  const synthesisResult = vocationalEngine.synthesize({
+    chart,
+    d10Placements: d10Chart?.placements,
+    d10AscendantSign: d10AscSign,
+    d10TenthHouseSign: d10House10Sign,
+    d10TenthHouseLord: d10House10Lord,
+    amatyakarakaPlanet: amkKarak,
+    atmakarakaPlanet: akKarak,
+    shadbalaSummary: shadbalaResult.summary,
+    savBindus: savHouses,
+    currentMahadasha: dashaReport.currentMahadasha,
+    currentAntardasha: dashaReport.currentAntardasha,
+  });
+
   const careerAnalysisData: CareerAnalysisModel = {
     executiveCareerSummary:
       analysis?.executiveCareerSummary ||
-      `The astrological profile for ${clientName} indicates a highly structured, strategic, and self-directed professional trajectory. Anchored by an Ascendant in ${chart.ascendant.sign} and reinforced by 10th Lord ${houseModels.houseTen.lord} in ${houseModels.houseTen.lordPlacement}, the native possesses natural aptitude for operational architecture, systematic execution, and organizational leadership.\n\nCareer growth follows an upward compounding trajectory, where domain expertise and disciplined delivery build durable executive credibility. The combination of strong 10th and 11th houses in Sarvashtakavarga indicates that financial rewards and industry standing scale significantly through sustained enterprise contributions.`,
+      `The astrological profile for ${clientName} indicates a highly structured, strategic, and self-directed professional trajectory. Anchored by an Ascendant in ${chart.ascendant.sign} and reinforced by 10th Lord ${houseModels.houseTen.lord} in ${houseModels.houseTen.lordPlacement}, the native possesses natural aptitude for ${synthesisResult.primaryArchetype.archetype.category} and ${synthesisResult.secondaryArchetype.archetype.category}.\n\nCareer growth follows an upward compounding trajectory, where domain expertise and disciplined delivery build durable executive credibility. The combination of strong 10th and 11th houses in Sarvashtakavarga indicates that financial rewards and industry standing scale significantly through sustained enterprise contributions.`,
     executiveDecisionThemes:
       analysis?.executiveDecisionThemes ||
-      `1. Prioritize roles with clear mandate and operational autonomy over ambiguous hierarchical positions.\n2. Leverage strong analytical and governance capabilities to establish high delivery standards.\n3. Balance swift tactical decision-making with deliberate stakeholder communication during major career pivots.`,
+      `1. Prioritize roles with clear mandate and operational autonomy in ${synthesisResult.primaryArchetype.archetype.sectorName} over ambiguous hierarchical positions.\n2. Leverage strong analytical and governance capabilities to establish high delivery standards.\n3. Balance swift tactical decision-making with deliberate stakeholder communication during major career pivots.`,
     executiveRecommendations:
       analysis?.executiveRecommendations ||
-      `1. Solidify deep technical and managerial expertise in core industry domains.\n2. Cultivate strategic alliances with senior mentors and executive stakeholders.\n3. Implement structured operational reviews to prevent burnout during intensive delivery cycles.`,
+      `1. Solidify deep technical and managerial expertise in core ${synthesisResult.primaryArchetype.archetype.category} domains.\n2. Cultivate strategic alliances with senior mentors and executive stakeholders.\n3. Implement structured operational reviews to prevent burnout during intensive delivery cycles.`,
     careerIdentity:
       analysis?.careerIdentity ||
-      `The client's career identity is characterized by intellectual rigor, methodical problem-solving, and a commitment to creating enduring structural value. Motivation stems from mastering complex challenges and achieving measurable institutional progress.`,
+      `The client's career identity is characterized by intellectual rigor, methodical problem-solving, and a commitment to creating enduring structural value in ${synthesisResult.primaryArchetype.archetype.category}. Motivation stems from mastering complex challenges and achieving measurable institutional progress.`,
     professionalPersonality:
       analysis?.professionalPersonality ||
       `Objective, analytical, and disciplined in working style. Values transparent frameworks, accountability, and predictable project milestones. Operates with composure under demanding corporate conditions.`,
     naturalStrengths:
       analysis?.naturalStrengths ||
-      `Strategic planning, systems architecture, process optimization, quantitative reasoning, and decisive risk management under complex operational constraints.`,
+      synthesisResult.primaryArchetype.archetype.requiredStrengths,
     professionalChallenges:
       analysis?.professionalChallenges ||
-      `Managing impatience with procedural inefficiencies, avoiding over-involvement in micro-level execution, and navigating ambiguous political dynamics in large matrix organizations.`,
+      synthesisResult.primaryArchetype.archetype.potentialChallenges,
     careerDNAAnalysis:
       analysis?.careerDNAAnalysis ||
-      `The confluence of Ascendant, 10th house, and D10 Dashamsha establishes an executive profile tailored for strategic operations, enterprise leadership, and specialized domain advisory.`,
+      `The confluence of Ascendant, 10th house, and D10 Dashamsha establishes an executive profile tailored for ${synthesisResult.primaryArchetype.archetype.title} and ${synthesisResult.secondaryArchetype.archetype.title}.`,
     planetarySynthesis:
       analysis?.planetarySynthesis ||
-      `Sun and Saturn alignments synthesize executive vision with operational stamina. Mercury and Jupiter provide sharp analytical discernment and ethical corporate stewardship.`,
+      `10th Lord ${houseModels.houseTen.lord} aligns with ${synthesisResult.primaryArchetype.archetype.primarySignificators.join(' and ')}, synthesizing strategic vision with operational stamina. Jaimini AmK (${amkKarak || 'Calculated'}) reinforces core competency in this domain.`,
     yogaAnalysis:
       analysis?.yogaAnalysis ||
       `Detected classical Raja and Dhana Yogas create strong tailwinds for long-term career advancement, institutional recognition, and cumulative wealth creation.`,
     strengthsMatrixStatus: 'VERIFIED',
     challengeMatrixStatus: 'VERIFIED',
-    strengthMatrixDimensions: [
-      {
-        dimension: 'Strategic Leadership',
-        scoreLabel: 'Very High',
-        indicatorLevel: 'HIGH',
-        astrologicalEvidence: `10th Lord ${houseModels.houseTen.lord} placed in ${houseModels.houseTen.lordPlacement} with strong D10 support.`,
-        professionalManifestation: 'Clear vision, decisive direction, and high organizational accountability.',
-      },
-      {
-        dimension: 'Technical & Systems Architecture',
-        scoreLabel: 'High',
-        indicatorLevel: 'HIGH',
-        astrologicalEvidence: `Mercury and 5th Lord configuration in intellect-focused sectors.`,
-        professionalManifestation: 'Mastery over complex systems, structured modeling, and data-driven execution.',
-      },
-      {
-        dimension: 'Operational Discipline & Persistence',
-        scoreLabel: 'Very High',
-        indicatorLevel: 'HIGH',
-        astrologicalEvidence: `Saturn dignity and 6th house operational strength.`,
-        professionalManifestation: 'Reliable execution, meticulous attention to detail, and endurance under pressure.',
-      },
-      {
-        dimension: 'Financial Acumen & Commercial Negotiation',
-        scoreLabel: 'High',
-        indicatorLevel: 'HIGH',
-        astrologicalEvidence: `2nd and 11th houses with elevated Ashtakavarga SAV bindus.`,
-        professionalManifestation: 'Sound revenue optimization, resource allocation, and value-driven commercial strategy.',
-      },
-      {
-        dimension: 'Cross-Functional Collaboration',
-        scoreLabel: 'Moderate to High',
-        indicatorLevel: 'MODERATE',
-        astrologicalEvidence: `7th house alignments and Jaimini Darakaraka placement.`,
-        professionalManifestation: 'Effective partnership negotiation and productive stakeholder alignment.',
-      },
-      {
-        dimension: 'Adaptive Innovation & Research',
-        scoreLabel: 'High',
-        indicatorLevel: 'HIGH',
-        astrologicalEvidence: `Nodal axis and 8th/9th house research significators.`,
-        professionalManifestation: 'Anticipation of industry disruptions and innovative methodology development.',
-      },
-    ],
-    challengeMatrixDimensions: [
-      {
-        challenge: 'Delegation vs Micro-Management',
-        astrologicalBasis: 'High perfectionist indicators in operational sectors.',
-        manifestation: 'Reluctance to delegate critical technical tasks to junior subordinates.',
-        mitigation: 'Implement objective QA checklists and structured weekly milestone reviews.',
-      },
-      {
-        challenge: 'Corporate Matrix Politics',
-        astrologicalBasis: 'Direct, objective communication style governed by Mars/Mercury.',
-        manifestation: 'Impatience with slow consensus-building or superficial office politics.',
-        mitigation: 'Engage senior executive sponsors and maintain clear documentation for all proposals.',
-      },
-      {
-        challenge: 'Work-Life Equilibrium',
-        astrologicalBasis: 'Strong 10th and 6th house focus causing work immersion.',
-        manifestation: 'Neglecting physical restoration during intensive project deliveries.',
-        mitigation: 'Establish rigid non-negotiable personal boundaries and proactive wellness routines.',
-      },
-    ],
-    employmentVsEntrepreneurship: {
-      employmentSupport: 'High suitability for leadership roles in structured corporate, tech, or institutional environments.',
-      employmentStrengths: 'Scalable impact, access to enterprise resources, clear executive authority, and predictable advancement.',
-      employmentRisks: 'Bureaucratic friction and constraints on strategic autonomy.',
-      employmentEnvironment: 'Tier-1 Technology, Corporate Strategy, Financial Institutions, or Specialized Consultancies.',
-      entrepreneurshipSupport: 'Strong potential for independent practice, boutique advisory, or tech venture founding after establishing domain mastery.',
-      entrepreneurshipStrengths: 'Total strategic control, direct monetization of domain expertise, and operational agility.',
-      entrepreneurshipRisks: 'Cash flow volatility during early capitalization cycles.',
-      entrepreneurshipModel: 'B2B Professional Services, Specialized SaaS/Tech Architecture, or Strategic Advisory.',
-      synthesisConclusion: 'Initial phase benefits from corporate scale and institutional credibility; mid-to-senior phase favors executive autonomy or equity-backed enterprise ventures.',
-    },
-    sectorComparisons: [
-      {
-        sectorName: 'Enterprise Technology & Systems',
-        fitLevel: 'EXCELLENT',
-        astrologicalBasis: 'Mercury, Mars, and 5th/10th house technical alignments.',
-        opportunities: 'Technical leadership, enterprise software architecture, data infrastructure.',
-        hazards: 'Fast obsolescence cycles requiring continuous skill acquisition.',
-        strategicGuidance: 'Focus on high-value systems architecture and engineering leadership.',
-      },
-      {
-        sectorName: 'Corporate Strategy & Management Consulting',
-        fitLevel: 'HIGH',
-        astrologicalBasis: 'Jupiter and 10th Lord positioning in strategic sectors.',
-        opportunities: 'Strategic transformation, operational restructuring, executive advisory.',
-        hazards: 'High travel demands and demanding client hours.',
-        strategicGuidance: 'Build specialized industry niche with demonstrable ROI track record.',
-      },
-      {
-        sectorName: 'Financial Services & Investment Operations',
-        fitLevel: 'HIGH',
-        astrologicalBasis: '2nd and 11th houses with strong Ashtakavarga bindu support.',
-        opportunities: 'Quantitative analysis, portfolio risk management, corporate finance.',
-        hazards: 'Regulatory compliance overhead and market volatility.',
-        strategicGuidance: 'Leverage quantitative discipline and risk mitigation frameworks.',
-      },
-      {
-        sectorName: 'Independent Advisory & Venture Founding',
-        fitLevel: 'HIGH',
-        astrologicalBasis: '3rd house courage and 10th house executive stature.',
-        opportunities: 'Equity upside, complete decision-making autonomy, thought leadership.',
-        hazards: 'Early-stage operational overhead and business development burden.',
-        strategicGuidance: 'Launch venture after securing strong client pipeline and institutional credibility.',
-      },
-    ],
-    careerDirections: [
-      {
-        rank: 1,
-        title: 'Technology & Engineering Management / Systems Architecture',
-        category: 'Technology & Engineering',
-        whySupported: 'Direct alignment with Mars-Mercury technical acumen and 10th house governance.',
-        astrologicalEvidence: `10th Lord in ${houseModels.houseTen.lordPlacement}, strong Mercury and D10 Dashamsha backing.`,
-        relevantHouses: '1st, 5th, 10th, 11th',
-        relevantPlanets: 'Mars, Mercury, Saturn',
-        relevantVargas: 'D1, D10, D24',
-        requiredStrengths: 'Architectural clarity, technical rigor, delivery management.',
-        potentialChallenges: 'Balancing technical depth with executive delegation.',
-        optimalEnvironment: 'Fast-paced technology enterprise or mature growth tech startup.',
-        practicalExperiment: 'Lead a cross-functional technical modernization initiative with measurable metrics.',
-      },
-      {
-        rank: 2,
-        title: 'Corporate Strategy, Operations & Business Transformation',
-        category: 'Strategy & Operations',
-        whySupported: 'Strong Jupiter, 10th Lord, and SAV 11th house revenue indicators.',
-        astrologicalEvidence: `10th and 11th house strength in Sarvashtakavarga (SAV > 30 bindus).`,
-        relevantHouses: '10th, 11th, 6th, 2nd',
-        relevantPlanets: 'Jupiter, Sun, Saturn',
-        relevantVargas: 'D1, D9, D10',
-        requiredStrengths: 'Business process modeling, strategic foresight, stakeholder alignment.',
-        potentialChallenges: 'Navigating organizational inertia and competing stakeholder priorities.',
-        optimalEnvironment: 'Corporate headquarters, top-tier management consultancy, or enterprise operations.',
-        practicalExperiment: 'Spearhead an operational efficiency program targeting a 15% improvement in delivery velocity.',
-      },
-      {
-        rank: 3,
-        title: 'Data-Driven Financial Strategy & Risk Management',
-        category: 'Finance & Risk',
-        whySupported: '2nd and 11th house wealth axis supported by analytical planet placements.',
-        astrologicalEvidence: `2nd Lord in strong dignity and Jaimini Amatyakaraka placement.`,
-        relevantHouses: '2nd, 5th, 11th, 8th',
-        relevantPlanets: 'Mercury, Jupiter, Venus',
-        relevantVargas: 'D1, D2, D10',
-        requiredStrengths: 'Quantitative modeling, risk mitigation, commercial negotiation.',
-        potentialChallenges: 'High regulatory scrutiny and rigorous compliance standards.',
-        optimalEnvironment: 'Investment banking, corporate treasury, or fintech risk management.',
-        practicalExperiment: 'Develop an automated financial forecasting model for strategic capital allocation.',
-      },
-    ],
-    cautionCareerDirections: [
-      {
-        title: 'High-Frequency Speculative Trading without Quantitative Models',
-        reason: 'Uncontrolled speculative market moves contradict the disciplined Saturn-Mercury chart core.',
-        evidence: 'Chart favors structured, compounding wealth rather than impulsive gamble.',
-        risk: 'Capital erosion during unfavorable sub-period transitions.',
-      },
-      {
-        title: 'Pure Administrative Roles Lacking Strategic Ownership',
-        reason: 'Lacks technical and strategic stimulation, leading to frustration.',
-        evidence: 'Strong 10th house and Lagna Lord demand executive agency.',
-        risk: 'Stagnation and early disengagement.',
-      },
-    ],
+    strengthMatrixDimensions: synthesisResult.strengthMatrixDimensions,
+    challengeMatrixDimensions: synthesisResult.challengeMatrixDimensions,
+    employmentVsEntrepreneurship: synthesisResult.employmentVsEntrepreneurship,
+    sectorComparisons: synthesisResult.sectorComparisons,
+    careerDirections: synthesisResult.careerDirections,
+    cautionCareerDirections: synthesisResult.cautionCareerDirections,
     moneyIncomeArchitecture: {
-      earningPattern: analysis?.moneyIncomePattern || 'Progressive, compounding revenue growth with acceleration in mid-to-senior career phases.',
-      incomeModes: 'Primary executive compensation, performance incentives, and secondary capital investments.',
-      financialStability: 'Very high; supported by strong 2nd and 11th houses in Sarvashtakavarga (> 28 bindus).',
-      wealthAccumulation: 'Structured asset allocation across real assets, equities, and institutional holdings.',
-      fiscalRiskMitigation: 'Avoid unhedged speculative ventures; prioritize high-conviction value investments.',
+      earningPattern:
+        analysis?.moneyIncomePattern ||
+        `In Vedic astrology, earning patterns reflect the dynamic between the 2nd house of accumulated reserves (Dhana Bhava) and the 11th house of enterprise gains (Labha Bhava). With 2nd Lord ${houseModels.houseTwo?.lord || 'Second Lord'} in ${houseModels.houseTwo?.lordPlacement || 'House 2'} and 11th Lord ${houseModels.houseEleven?.lord || 'Eleventh Lord'} in ${houseModels.houseEleven?.lordPlacement || 'House 11'}, revenue progression is characterized by structured compounding and institutional compensation rather than speculative windfalls.`,
+      incomeModes:
+        'Primary executive salary/advisory compensation, institutional performance incentives, and secondary long-term capital investments.',
+      financialStability: (() => {
+        const h2Sav = savHouses ? savHouses[2] : undefined;
+        const h11Sav = savHouses ? savHouses[11] : undefined;
+        const h2Lord = houseModels.houseTwo?.lord || 'Second Lord';
+        const h11Lord = houseModels.houseEleven?.lord || 'Eleventh Lord';
+        if (hasValidSav && typeof h2Sav === 'number' && typeof h11Sav === 'number') {
+          if (h2Sav > 28 && h11Sav > 28) {
+            return `Favorable structural support; both the 2nd house of revenue reserves (${h2Sav} bindus) and 11th house of enterprise gains (${h11Sav} bindus) exceed the 28-bindu mathematical mean benchmark (337 / 12 = 28.08). While Sarvashtakavarga reflects aggregate environmental capacity rather than determining financial outcomes alone, this configuration combined with 2nd Lord ${h2Lord} and 11th Lord ${h11Lord} provides a solid structural foundation for disciplined liquidity and asset retention.`;
+          } else if (h2Sav > 28 || h11Sav > 28) {
+            const stronger = h2Sav > 28 ? `2nd house of revenue (${h2Sav} bindus)` : `11th house of gains (${h11Sav} bindus)`;
+            const constrained = h2Sav <= 28 ? `2nd house (${h2Sav} bindus)` : `11th house (${h11Sav} bindus)`;
+            return `Mixed environmental support; ${stronger} demonstrates above-average environmental strength (> 28 bindus against the 28.08 mathematical mean benchmark), while ${constrained} indicates a need for disciplined liquidity management and conservative overhead. Note that SAV reflects structural house support and must be evaluated alongside dasha periods and prudent fiscal management rather than as an isolated guarantee.`;
+          } else {
+            return `Requires deliberate fiscal conservatism; both the 2nd house (${h2Sav} bindus) and 11th house (${h11Sav} bindus) sit at or below the 28-bindu mathematical mean benchmark (337 / 12 = 28.08). Because SAV measures environmental support rather than fatalistic limits, long-term wealth accumulation relies on structured debt control, diversified reserves, and prudent cash-flow planning.`;
+          }
+        }
+        return `Sarvashtakavarga bindu data for wealth houses is unavailable; financial stability is evaluated qualitatively through 2nd Lord (${h2Lord}) and 11th Lord (${h11Lord}) placements without numerical bindu claims.`;
+      })(),
+      wealthAccumulation:
+        'Disciplined asset allocation emphasizing long-term equity growth, physical assets, and defensive liquid reserves.',
+      fiscalRiskMitigation:
+        'Avoid unhedged market speculation; prioritize capital preservation and structured, contract-backed commercial engagements.',
     },
     professionalRelationships: {
-      partnershipViability: 'Partnerships succeed when founded on clear legal contracts, complementary skills, and shared accountability.',
-      clientDynamics: 'Clients value the native’s precision, objectivity, and transparent communication.',
-      networkingStrategy: analysis?.relationshipsNetworking || 'Focus on high-value, small-circle executive networks rather than broad superficial socializing.',
-      mentorAlliances: 'Strong 9th house indicates high benefit from senior executive sponsors and domain mentors.',
-      teamDynamics: analysis?.teamDynamics || 'Demands high standards from team members; excels when managing competent, self-motivated specialists.',
+      partnershipViability:
+        'Commercial partnerships succeed when formalized through explicit governance agreements, defined performance metrics, and complementary technical skill sets.',
+      clientDynamics:
+        'Clients and stakeholders value the native’s methodical execution, objective communication, and adherence to delivery commitments.',
+      networkingStrategy:
+        analysis?.relationshipsNetworking ||
+        'Focus on high-leverage, small-circle executive networks and domain associations rather than diffuse, superficial social connections.',
+      mentorAlliances:
+        `The 9th house (Bhagya Bhava) in ${houseModels.houseNine?.sign || chart.ascendant.sign} ruled by ${houseModels.houseNine?.lord || 'Jupiter'} (${houseModels.houseNine?.lordPlacement || 'House 9'}) highlights significant benefits from senior executive sponsorship and ethical mentors.`,
+      teamDynamics:
+        analysis?.teamDynamics ||
+        'Establishes clear accountability standards; excels when directing self-motivated domain specialists and cross-functional project pods.',
     },
     careerSustainability: {
-      workLifeBalance: analysis?.sustainabilityAnalysis || 'Critical priority; establish clear operational boundaries during high-intensity quarters.',
+      workLifeBalance:
+        analysis?.sustainabilityAnalysis ||
+        'Critical priority; establish clear operational boundaries during high-intensity quarters to maintain long-term endurance.',
       stressVulnerabilities: 'Tendency to internalize operational delays and perfectionist standards.',
       enduranceTactics: 'Daily structured restoration, regular cardiovascular wellness, and clear offline intervals.',
     },
-    careerObstacles: [
-      {
-        obstacle: 'Organizational Bureaucracy & Slow Approvals',
-        evidence: 'Direct Martian/Mercurial focus clashing with institutional delays.',
-        manifestation: 'Frustration with protracted decision cycles in large matrix enterprises.',
-        mitigation: 'Build early executive consensus and present concise, data-backed business cases.',
-        practicalResponse: 'Establish clear decision gates with agreed escalation paths.',
-      },
-      {
-        obstacle: 'Perfectionism Leading to Execution Bottlenecks',
-        evidence: 'High standards in 6th house operational sectors.',
-        manifestation: 'Delaying deployment to achieve absolute perfection.',
-        mitigation: 'Adopt iterative agile methodologies with defined minimum acceptable standards.',
-        practicalResponse: 'Focus on 80/20 delivery velocity with post-launch optimization phases.',
-      },
-    ],
+    careerObstacles: synthesisResult.careerObstacles,
     timelineWindows: [
       {
         dateRange: `${dashaReport.mahadashaStart} – ${dashaReport.antardashaEnd}`,
         dashaContext: `${dashaReport.currentMahadasha} / ${dashaReport.currentAntardasha}`,
         transitContext: `Saturn in House ${transitReport.saturnTransit.houseFromLagna}, Jupiter in House ${transitReport.jupiterTransit.houseFromLagna}`,
         category: 'OPPORTUNITY',
-        careerTheme: 'Consolidation of Executive Stature & Leadership Expansion',
+        careerTheme: `Consolidation of Executive Stature in ${synthesisResult.primaryArchetype.archetype.category}`,
         strategicObjective: 'Deliver high-visibility strategic programs and solidify executive mandate.',
         riskFactors: 'Scope creep and high workload demands.',
         actionProtocol: 'Prioritize top 3 high-impact deliverables; delegate routine operational maintenance.',
       },
       {
         dateRange: `${dashaReport.antardashaEnd} – +18 Months`,
-        dashaContext: `${dashaReport.currentMahadasha} / Next Antardasha`,
-        transitContext: 'Favorable nodal and Jupiter transit shifts',
+        dashaContext: `${dashaReport.currentMahadasha} / Upcoming Antardasha Sub-Period`,
+        transitContext: `Planetary transits of Saturn (House ${transitReport.saturnTransit.houseFromLagna}) and Jupiter (House ${transitReport.jupiterTransit.houseFromLagna}) shift developmental focus relative to natal Lagna (${chart.ascendant.sign}).`,
         category: 'TRANSITION',
         careerTheme: 'Broadening Functional Scope & Strategic Career Pivot',
         strategicObjective: 'Expand portfolio responsibility or transition to senior executive appointment.',
-        riskFactors: 'Adjustment period to new organizational dynamics.',
+        riskFactors: 'Adjustment period to expanded operational scope and new organizational dynamics.',
         actionProtocol: 'Engage senior mentors and conduct structured 90-day onboarding for new scope.',
       },
     ],
     roadmapThirtyDay: {
-      focus: analysis?.thirtyDayFocus || 'Audit Current Operational Commitments & Establish Strategic Priorities',
-      skills: analysis?.technicalSkillPriority || 'Executive prioritization, stakeholder communication, systems audit.',
-      immediateActions: analysis?.primaryProfessionalPriority || 'Conduct a comprehensive review of active projects; eliminate low-leverage tasks.',
-      experiments: 'Test a 2-hour daily deep-work block dedicated exclusively to high-value architecture.',
-      risks: analysis?.mistakeToAvoid || 'Distraction by urgent but low-importance ad-hoc requests.',
-      metrics: '100% on-time milestone delivery on primary strategic program.',
+      focus: analysis?.thirtyDayFocus || synthesisResult.roadmaps.roadmapThirtyDay.focus,
+      skills: analysis?.technicalSkillPriority || synthesisResult.roadmaps.roadmapThirtyDay.skills,
+      immediateActions: analysis?.primaryProfessionalPriority || synthesisResult.roadmaps.roadmapThirtyDay.immediateActions,
+      experiments: synthesisResult.roadmaps.roadmapThirtyDay.experiments,
+      risks: analysis?.mistakeToAvoid || synthesisResult.roadmaps.roadmapThirtyDay.risks,
+      metrics: synthesisResult.roadmaps.roadmapThirtyDay.metrics,
     },
     roadmapNinetyDay: {
-      focus: analysis?.ninetyDayFocus || 'Execute High-Visibility Initiative & Solidify Stakeholder Rapport',
-      skills: analysis?.communicationSkillPriority || 'Cross-functional leadership, quantitative business case modeling.',
-      immediateActions: 'Deliver measurable business improvement on flagship project and present results to leadership.',
-      experiments: 'Initiate a quarterly strategic alignment meeting with key executive sponsors.',
-      risks: 'Misalignment with shifting corporate priorities.',
-      metrics: 'Measurable 20% efficiency or revenue uplift in managed domain.',
+      focus: analysis?.ninetyDayFocus || synthesisResult.roadmaps.roadmapNinetyDay.focus,
+      skills: analysis?.communicationSkillPriority || synthesisResult.roadmaps.roadmapNinetyDay.skills,
+      immediateActions: synthesisResult.roadmaps.roadmapNinetyDay.immediateActions,
+      experiments: synthesisResult.roadmaps.roadmapNinetyDay.experiments,
+      risks: synthesisResult.roadmaps.roadmapNinetyDay.risks,
+      metrics: synthesisResult.roadmaps.roadmapNinetyDay.metrics,
     },
     roadmapOneYear: {
-      focus: analysis?.oneYearFocus || 'Institutional Leadership Mandate & Capability Scaling',
-      skills: analysis?.leadershipSkillPriority || 'Enterprise governance, organizational design, talent mentorship.',
-      immediateActions: 'Position for formal promotion or expand organizational span of control.',
-      experiments: 'Publish internal thought-leadership whitepaper or speak at industry conference.',
-      risks: 'Operational burnout from managing expanded responsibilities.',
-      metrics: 'Formal appointment to expanded executive remit with increased autonomy.',
+      focus: analysis?.oneYearFocus || synthesisResult.roadmaps.roadmapOneYear.focus,
+      skills: analysis?.leadershipSkillPriority || synthesisResult.roadmaps.roadmapOneYear.skills,
+      immediateActions: synthesisResult.roadmaps.roadmapOneYear.immediateActions,
+      experiments: synthesisResult.roadmaps.roadmapOneYear.experiments,
+      risks: synthesisResult.roadmaps.roadmapOneYear.risks,
+      metrics: synthesisResult.roadmaps.roadmapOneYear.metrics,
     },
     roadmapThreeYear: {
-      focus: analysis?.threeYearDirection || 'Industry Authority, Enterprise Stewardship & Equity Value Creation',
-      skills: analysis?.networkSkillPriority || 'Board governance, enterprise capitalization, long-term legacy design.',
-      immediateActions: 'Lead transformative enterprise division or launch independent commercial venture.',
-      experiments: 'Establish advisory board positions or Angel/equity advisory engagements.',
-      risks: 'Market volatility in chosen industry sector.',
-      metrics: 'Recognized industry leadership, equity accumulation, and executive autonomy.',
+      focus: analysis?.threeYearDirection || synthesisResult.roadmaps.roadmapThreeYear.focus,
+      skills: analysis?.networkSkillPriority || synthesisResult.roadmaps.roadmapThreeYear.skills,
+      immediateActions: synthesisResult.roadmaps.roadmapThreeYear.immediateActions,
+      experiments: synthesisResult.roadmaps.roadmapThreeYear.experiments,
+      risks: synthesisResult.roadmaps.roadmapThreeYear.risks,
+      metrics: synthesisResult.roadmaps.roadmapThreeYear.metrics,
     },
     decisionFramework:
       analysis?.decisionGuidance ||
@@ -1701,5 +1940,7 @@ export function mapNormalizedChartToCareerReportData(
     panchanga: panchangReport,
     specialPoints: specialPointsReport,
     careerAnalysis: careerAnalysisData,
+    authorMessage:
+      '[PENDING AUTHOR APPROVAL: Personal consultation message from Sushil Kumar / Astro Sushil introducing the consultation philosophy, welcoming the client, and setting the professional and reflective tone of the career dossier. Final text pending author review and authorization.]',
   };
 }

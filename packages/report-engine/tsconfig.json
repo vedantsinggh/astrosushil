@@ -8,7 +8,7 @@
     "types": ["node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["src/__tests__", "**/*.test.ts"],
+  "exclude": ["src/__tests__", "**/*.test.ts", "src/scripts/**"],
   "references": [
     { "path": "../shared" },
     { "path": "../prediction-engine" }

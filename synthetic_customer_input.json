@@ -1,0 +1,14 @@
+{
+  "clientName": "Dr. Ananya Iyer",
+  "gender": "female",
+  "dateOfBirth": "1991-08-24",
+  "timeOfBirth": "09:15:00",
+  "birthPlace": "Bengaluru, Karnataka, India",
+  "latitude": 12.9716,
+  "longitude": 77.5946,
+  "timeZone": "Asia/Kolkata (+05:30)",
+  "education": "Ph.D. in Computational Systems Biology & Distributed Data Architectures",
+  "profession": "Senior Staff Research Scientist & Systems Lead",
+  "consultationFocus": "Long-term institutional leadership, venture transition vs sovereign advisory, IP monetization, executive timing"
+}
+

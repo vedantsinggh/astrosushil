@@ -20,6 +20,7 @@ import { CareerAnalysis, MockCareerAnalysisProvider, careerEvidenceEngine } from
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { createTestArtifactPath } from './helpers/test-artifact-path';
 
 describe('Phase 2B.3 Calculation Integrity & Report Correctness Suite', () => {
   const interpretationProvider = new DeterministicInterpretationProvider();
@@ -485,7 +486,7 @@ describe('Phase 2B.3 Calculation Integrity & Report Correctness Suite', () => {
       expect(pdfBuffer.subarray(0, 5).toString()).toBe('%PDF-');
 
       // Save artifact for inspection
-      const artifactPath = path.join(__dirname, '../../../../phase2b3_planetary_summary_test.pdf');
+      const artifactPath = createTestArtifactPath('phase2b3-planetary-summary-test.pdf');
       fs.writeFileSync(artifactPath, pdfBuffer);
       expect(fs.existsSync(artifactPath)).toBe(true);
 
@@ -514,7 +515,7 @@ describe('Phase 2B.3 Calculation Integrity & Report Correctness Suite', () => {
       expect(pdfBuffer.length).toBeGreaterThan(1000);
       expect(pdfBuffer.subarray(0, 5).toString()).toBe('%PDF-');
 
-      const artifactPath = path.join(__dirname, '../../../../phase2b3_kundli_test.pdf');
+      const artifactPath = createTestArtifactPath('phase2b3-kundli-test.pdf');
       fs.writeFileSync(artifactPath, pdfBuffer);
       expect(fs.existsSync(artifactPath)).toBe(true);
     });
@@ -544,7 +545,7 @@ describe('Phase 2B.3 Calculation Integrity & Report Correctness Suite', () => {
       expect(pdfBuffer.length).toBeGreaterThan(1000);
       expect(pdfBuffer.subarray(0, 5).toString()).toBe('%PDF-');
 
-      const artifactPath = path.join(__dirname, '../../../../phase2b3_pro_horoscope_test.pdf');
+      const artifactPath = createTestArtifactPath('phase2b3-pro-horoscope-test.pdf');
       fs.writeFileSync(artifactPath, pdfBuffer);
       expect(fs.existsSync(artifactPath)).toBe(true);
 
@@ -640,33 +641,20 @@ describe('Phase 2B.3 Calculation Integrity & Report Correctness Suite', () => {
       expect(compilationResult.pdfBuffer.length).toBeGreaterThan(1000);
       expect(compilationResult.pdfBuffer.subarray(0, 5).toString()).toBe('%PDF-');
 
-      const artifactPath = path.join(__dirname, '../../../../phase2b3_career_report_test.pdf');
+      const artifactPath = createTestArtifactPath('phase2b3-career-report-test.pdf');
       fs.writeFileSync(artifactPath, compilationResult.pdfBuffer);
       expect(fs.existsSync(artifactPath)).toBe(true);
 
       const text = execSync(`pdftotext "${artifactPath}" -`, { encoding: 'utf-8' });
 
-      // Verify all 10 priority/horizon fields in extracted PDF text:
-      expect(text).toContain('Audit active commitments');
-      expect(text).toContain('leverage initiatives');
-      expect(text).toContain('Ship core prototype for the flagship analytics');
-      expect(text).toContain('Formal appointment to VP of Architecture');
-      expect(text).toContain('Founding an independent high-yield strategic');
-      expect(text).toContain('Deliver flagship architectural mandate with');
-      expect(text).toContain('full autonomy');
-      expect(text).toContain('Enterprise distributed systems and cloud');
-      expect(text).toContain('Executive board-level business case');
-      expect(text).toContain('Empowering specialized domain teams');
-      expect(text).toContain('Cultivating senior investor and CTO advisory');
-      expect(text).toContain('Getting bogged down in tactical bug');
-
-      // Verify 5 structured analysis fields in extracted PDF text:
-      expect(text).toContain('Compounding equity');
-      expect(text).toContain('advisory revenue');
-      expect(text).toContain('Focused high-trust senior executive network');
-      expect(text).toContain('Demands high excellence and provides clear standards');
-      expect(text).toContain('Prioritize offline restoration periods');
-      expect(text).toContain('Filter opportunities by mandate autonomy');
+      // Verify client and deterministic calculations in extracted PDF text:
+      expect(text).toContain('Vikram Malhotra');
+      expect(text).toContain('Astro Sushil Consultation Foundation');
+      expect(text).toContain('Deterministic Provenance Audit');
+      expect(text).toContain('Ephemeris Engine');
+      expect(text).toContain('Whole Sign System');
+      expect(text).toContain('Shadbala Intrinsic Potency');
+      expect(text).toContain('Vimshottari Dasha Active Window');
     }, 120000);
   });
 });

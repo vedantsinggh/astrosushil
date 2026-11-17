@@ -239,6 +239,18 @@ export interface NetworkingEvidence {
   strength: EvidenceStrength;
 }
 
+export interface AspectEvidenceRecord {
+  sourcePlanet: string;
+  sourceSign: string;
+  sourceHouse: number;
+  targetHouse: number;
+  targetSign: string;
+  aspectType: string;
+  aspectOrdinal: number;
+  tradition: 'Parashari' | string;
+  calculationReference: string;
+}
+
 export interface PlanetaryEvidenceItem {
   planet: string;
   sign: string;
@@ -249,6 +261,7 @@ export interface PlanetaryEvidenceItem {
   combustion: boolean;
   lordship: number[];
   aspects: number[];
+  aspectRecords: AspectEvidenceRecord[];
   relevantCareerHouses: number[];
   supportingCareerFactors: string[];
   conflictingCareerFactors: string[];
@@ -261,6 +274,7 @@ export interface HouseEvidenceItem {
   lordPlacement: { house: number; sign: string };
   occupants: string[];
   aspects: string[];
+  aspectRecords: AspectEvidenceRecord[];
   relevantPlanets: string[];
   supportingFactors: string[];
   conflictingFactors: string[];

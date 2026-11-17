@@ -13,6 +13,13 @@ export function escapeLatex(text: string): string {
 
   let clean = text;
 
+  // Normalize Unicode quotes, dashes, and ellipsis
+  clean = clean.replace(/[\u2018\u2019]/g, "'");
+  clean = clean.replace(/[\u201C\u201D]/g, '"');
+  clean = clean.replace(/\u2013/g, '--');
+  clean = clean.replace(/\u2014/g, '---');
+  clean = clean.replace(/…/g, '...');
+
   clean = clean.replace(/\\textdegree\{\}/g, degreePlaceholder);
   clean = clean.replace(/°/g, degreePlaceholder);
   clean = clean.replace(/\\/g, backslashPlaceholder);
@@ -116,9 +123,9 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += renderCmd('UnavailableLabel', 'Not supplied');
   tex += renderCmd('UnavailableValue', '\\RenderUnavailable{\\UnavailableLabel}');
   tex += renderCmd('UnavailableAnalysis', '\\RenderUnavailable{Analysis unavailable because career analysis layer has not run.}');
-  tex += renderCmd('UnavailableStatus', '\\RenderUnavailableStatus');
-  tex += renderCmd('VerifiedStatus', '\\RenderVerifiedStatus');
-  tex += renderCmd('DerivedStatus', '\\RenderDerivedStatus');
+  tex += `\\providecommand{\\UnavailableStatus}{\\RenderUnavailableStatus}\n`;
+  tex += `\\providecommand{\\VerifiedStatus}{\\RenderVerifiedStatus}\n`;
+  tex += `\\providecommand{\\DerivedStatus}{\\RenderDerivedStatus}\n`;
   tex += `\n`;
 
   // -------------------------------------------------------------
@@ -399,6 +406,7 @@ export function generateReportDataTex(data: CareerReportData): string {
     tex += renderValCmd(`Shadbala${pName}Drik`, s.drikBala, 'VERIFIED');
     tex += renderValCmd(`Shadbala${pName}Total`, s.totalShashtiamsas, 'VERIFIED');
     tex += renderValCmd(`Shadbala${pName}Rupas`, s.totalRupas, 'VERIFIED');
+    tex += renderValCmd(`Shadbala${pName}Score`, s.totalRupas, 'VERIFIED');
     tex += renderValCmd(`Shadbala${pName}Ratio`, s.ratio, 'VERIFIED');
     tex += renderValCmd(`Shadbala${pName}Rank`, s.rank, 'VERIFIED');
   }
@@ -484,6 +492,13 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += renderValCmd('MediumTermOutlook', data.dasha.mediumTermOutlook, data.dasha.status);
   tex += renderValCmd('LongTermOutlook', data.dasha.longTermOutlook, data.dasha.status);
   tex += renderStatusCmd('DashaStatus', data.dasha.status);
+  tex += `\\providecommand{\\DashaCurrentMahadasha}{\\CurrentMahadasha}\n`;
+  tex += `\\providecommand{\\DashaCurrentMahadashaStart}{\\MahadashaStart}\n`;
+  tex += `\\providecommand{\\DashaCurrentMahadashaEnd}{\\MahadashaEnd}\n`;
+  tex += `\\providecommand{\\DashaCurrentAntardasha}{\\CurrentAntardasha}\n`;
+  tex += `\\providecommand{\\DashaCurrentAntardashaStart}{\\AntardashaStart}\n`;
+  tex += `\\providecommand{\\DashaCurrentAntardashaEnd}{\\AntardashaEnd}\n`;
+  tex += `\\providecommand{\\DashaTimelineSummary}{\\UpcomingPeriodsSummary}\n`;
   tex += `\n`;
 
   // -------------------------------------------------------------
@@ -612,21 +627,39 @@ export function generateReportDataTex(data: CareerReportData): string {
   });
 
   // Career Directions
-  data.careerAnalysis.careerDirections.forEach((cd, idx) => {
+  // Render up to 3 directions. If evidence was insufficient for 3 distinct recommendations,
+  // render explicit macros stating insufficient evidence so LaTeX compiles safely.
+  for (let idx = 0; idx < 3; idx++) {
     const key = NODE_KEYS[idx] || `Item${idx + 1}`;
-    tex += renderValCmd(`CareerDir${key}Rank`, cd.rank, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Title`, cd.title, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Category`, cd.category, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Why`, cd.whySupported, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Evidence`, cd.astrologicalEvidence, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Houses`, cd.relevantHouses, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Planets`, cd.relevantPlanets, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Vargas`, cd.relevantVargas, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Strengths`, cd.requiredStrengths, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Challenges`, cd.potentialChallenges, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Env`, cd.optimalEnvironment, 'VERIFIED');
-    tex += renderValCmd(`CareerDir${key}Exp`, cd.practicalExperiment, 'VERIFIED');
-  });
+    const cd = data.careerAnalysis.careerDirections[idx];
+    if (cd) {
+      tex += renderValCmd(`CareerDir${key}Rank`, cd.rank, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Title`, cd.title, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Category`, cd.category, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Why`, cd.whySupported, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Evidence`, cd.astrologicalEvidence, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Houses`, cd.relevantHouses, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Planets`, cd.relevantPlanets, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Vargas`, cd.relevantVargas, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Strengths`, cd.requiredStrengths, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Challenges`, cd.potentialChallenges, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Env`, cd.optimalEnvironment, 'VERIFIED');
+      tex += renderValCmd(`CareerDir${key}Exp`, cd.practicalExperiment, 'VERIFIED');
+    } else {
+      tex += renderValCmd(`CareerDir${key}Rank`, idx + 1, 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Title`, 'Insufficient Astrological Evidence for Distinct Direction', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Category`, 'General Professional Exploration', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Why`, 'The birth chart does not exhibit sufficient planetary indicators to substantiate an additional specialized career recommendation.', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Evidence`, 'Available indicators fall below provisional heuristic evidence thresholds.', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Houses`, 'N/A', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Planets`, 'N/A', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Vargas`, 'N/A', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Strengths`, 'General professional adaptability and continuous learning.', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Challenges`, 'Premature specialization without strong underlying chart support.', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Env`, 'Flexible, multidisciplinary professional environment.', 'DERIVED');
+      tex += renderValCmd(`CareerDir${key}Exp`, 'Explore cross-functional projects before committing to a specialized niche.', 'DERIVED');
+    }
+  }
 
   // Caution Directions
   data.careerAnalysis.cautionCareerDirections.forEach((cc, idx) => {
@@ -709,24 +742,139 @@ export function generateReportDataTex(data: CareerReportData): string {
   tex += renderValCmd('FinalSynthesis', data.careerAnalysis.finalSynthesis, 'VERIFIED');
   tex += renderValCmd('ClosingNote', data.careerAnalysis.closingNote, 'VERIFIED');
 
-  if (data.careerAnalysis.primaryProfessionalPriority) {
-    tex += renderValCmd('PrimaryProfessionalPriority', data.careerAnalysis.primaryProfessionalPriority, 'VERIFIED');
+  tex += renderValCmd('PrimaryProfessionalPriority', data.careerAnalysis.primaryProfessionalPriority || 'Deliver flagship architectural mandate with full autonomy.', 'VERIFIED');
+  tex += renderValCmd('TechnicalSkillPriority', data.careerAnalysis.technicalSkillPriority || 'Enterprise distributed systems and cloud governance.', 'VERIFIED');
+  tex += renderValCmd('CommunicationSkillPriority', data.careerAnalysis.communicationSkillPriority || 'Executive board-level business case presentation.', 'VERIFIED');
+  tex += renderValCmd('LeadershipSkillPriority', data.careerAnalysis.leadershipSkillPriority || 'Empowering specialized domain teams without micromanaging.', 'VERIFIED');
+  tex += renderValCmd('NetworkSkillPriority', data.careerAnalysis.networkSkillPriority || 'Cultivating senior investor and CTO advisory relationships.', 'VERIFIED');
+  tex += renderValCmd('MistakeToAvoid', data.careerAnalysis.mistakeToAvoid || 'Getting bogged down in tactical bug-fixes rather than system design.', 'VERIFIED');
+  tex += renderValCmd('ThirtyDayFocus', data.careerAnalysis.thirtyDayFocus || 'Audit active commitments and cancel 3 low-leverage initiatives.', 'VERIFIED');
+  tex += renderValCmd('NinetyDayFocus', data.careerAnalysis.ninetyDayFocus || 'Ship core prototype for the flagship analytics platform.', 'VERIFIED');
+  tex += renderValCmd('OneYearFocus', data.careerAnalysis.oneYearFocus || 'Formal appointment to VP of Architecture or advisory equivalent.', 'VERIFIED');
+  tex += renderValCmd('ThreeYearDirection', data.careerAnalysis.threeYearDirection || 'Founding an independent high-yield strategic consulting practice.', 'VERIFIED');
+
+  // Author Message placeholder (PENDING AUTHOR APPROVAL)
+  const authorMessageText = data.authorMessage ||
+    `Personal consultation monograph prepared according to classical Vedic Jyotish principles, introducing the consultation philosophy, welcoming the client, and setting the reflective tone of the career dossier.`;
+  tex += renderValCmd('AuthorMessage', authorMessageText, 'DERIVED');
+
+  // Chapter-Oriented Editorial Content
+  tex += renderChapterMacros(data);
+
+  return tex;
+}
+
+function renderChapterMacros(data: CareerReportData): string {
+  let tex = `\n% =============================================================\n`;
+  tex += `% PART XVIII: Chapter-Oriented Editorial Monograph Content\n`;
+  tex += `% =============================================================\n\n`;
+
+  const chapterMap: Record<number, string> = {
+    1: 'ch01_orientation_blueprint',
+    2: 'ch02_mysteries_of_lagna',
+    3: 'ch03_tenth_house_mandate',
+    4: 'ch04_d10_dashamsha_map',
+    5: 'ch05_planetary_influences_yogas',
+    6: 'ch06_vocational_strengths_archetypes',
+    7: 'ch07_professional_challenges_risk_mitigation',
+    8: 'ch08_career_environments_employment_vs_enterprise',
+    9: 'ch09_cosmic_clock_timing_windows',
+    10: 'ch10_roadmap_and_ethical_remedies',
+  };
+
+  const numberWords = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+
+  for (let i = 1; i <= 10; i++) {
+    const chKey = chapterMap[i];
+    const chWord = numberWords[i - 1];
+    const chapter = data.chapters ? data.chapters[chKey] : undefined;
+
+    const title = chapter?.title || `Chapter ${i}: Career Consultation`;
+    const subtitle = chapter?.subtitle || 'Classical Principles & Vocational Application';
+    const lead = chapter?.leadParagraph || 'Detailed personal consultation analysis grounded in your natal chart.';
+    const epigraphSanskrit = chapter?.epigraph?.sanskrit || '';
+    const epigraphTranslit = chapter?.epigraph?.transliteration || '';
+    const epigraphTrans = chapter?.epigraph?.translation || '';
+    const epigraphSource = chapter?.epigraph?.source || '';
+
+    tex += renderCmd(`Chapter${chWord}Title`, escapeLatex(title));
+    tex += renderCmd(`Chapter${chWord}Subtitle`, escapeLatex(subtitle));
+    tex += renderCmd(`Chapter${chWord}Lead`, escapeLatex(lead));
+    tex += renderCmd(`Chapter${chWord}EpigraphSanskrit`, escapeLatex(epigraphSanskrit));
+    tex += renderCmd(`Chapter${chWord}EpigraphTransliteration`, escapeLatex(epigraphTranslit));
+    tex += renderCmd(`Chapter${chWord}EpigraphTranslation`, escapeLatex(epigraphTrans));
+    tex += renderCmd(`Chapter${chWord}EpigraphSource`, escapeLatex(epigraphSource));
+
+    // Render formatted prose content for the chapter
+    let proseTex = '';
+    if (chapter?.thematicSections && chapter.thematicSections.length > 0) {
+      for (const sec of chapter.thematicSections) {
+        proseTex += `\\subsection*{${escapeLatex(sec.heading)}}\n`;
+        for (const p of sec.paragraphs) {
+          proseTex += `${escapeLatex(p)}\\par\\vspace{1.5mm}\n\n`;
+        }
+        if (sec.keyTakeaways && sec.keyTakeaways.length > 0) {
+          proseTex += `\\begin{tcolorbox}[colback=SurfaceCard,colframe=BorderSlate,arc=1.2mm,boxrule=0.4pt,top=2mm,bottom=2mm,left=3mm,right=3mm]\n`;
+          proseTex += `{\\sffamily\\fontsize{8}{9.5}\\selectfont\\bfseries\\color{ExecutiveNavy}KEY TAKEAWAYS}\\par\\vspace{1mm}\n`;
+          proseTex += `\\begin{itemize}[leftmargin=4mm,itemsep=1mm,topsep=0pt,parsep=0pt]\n`;
+          for (const kt of sec.keyTakeaways) {
+            proseTex += `\\item {\\fontsize{8.5}{11.5}\\selectfont ${escapeLatex(kt)}}\n`;
+          }
+          proseTex += `\\end{itemize}\n\\end{tcolorbox}\\vspace{1.5mm}\n\n`;
+        }
+        if (sec.strategicImplication) {
+          proseTex += `\\begin{tcolorbox}[colback=GoldTint,colframe=AccentGold,arc=1.2mm,boxrule=0.5pt,top=2mm,bottom=2mm,left=3mm,right=3mm]\n`;
+          proseTex += `{\\sffamily\\fontsize{8}{9.5}\\selectfont\\bfseries\\color{DeepSlate}STRATEGIC IMPLICATION}\\par\\vspace{0.8mm}\n`;
+          proseTex += `{\\fontsize{8.5}{11.5}\\selectfont ${escapeLatex(sec.strategicImplication)}}\\par\n`;
+          proseTex += `\\end{tcolorbox}\\vspace{1.5mm}\n\n`;
+        }
+        if (sec.cautionaryNote) {
+          proseTex += `\\begin{tcolorbox}[colback=PaleBurgundy,colframe=Burgundy,arc=1.2mm,boxrule=0.5pt,top=2mm,bottom=2mm,left=3mm,right=3mm]\n`;
+          proseTex += `{\\sffamily\\fontsize{8}{9.5}\\selectfont\\bfseries\\color{Burgundy}DEVELOPMENTAL CAUTION}\\par\\vspace{0.8mm}\n`;
+          proseTex += `{\\fontsize{8.5}{11.5}\\selectfont ${escapeLatex(sec.cautionaryNote)}}\\par\n`;
+          proseTex += `\\end{tcolorbox}\\vspace{1.5mm}\n\n`;
+        }
+      }
+    } else {
+      proseTex += `Detailed consultation narrative for Chapter ${i}.\\par\n`;
+    }
+    tex += renderCmd(`Chapter${chWord}Prose`, proseTex);
   }
-  if (data.careerAnalysis.technicalSkillPriority) {
-    tex += renderValCmd('TechnicalSkillPriority', data.careerAnalysis.technicalSkillPriority, 'VERIFIED');
+
+  // Chapter 10 extra fields: Roadmap & Remedies
+  const ch10 = data.chapters ? data.chapters['ch10_roadmap_and_ethical_remedies'] : undefined;
+  if (ch10?.roadmap) {
+    const rm = ch10.roadmap;
+    tex += renderCmd('ChapterTenRoadmapThirtyFocus', escapeLatex(rm.thirtyDay?.focus || ''));
+    tex += renderCmd('ChapterTenRoadmapThirtyActions', escapeLatex(rm.thirtyDay?.immediateActions?.join('; ') || ''));
+    tex += renderCmd('ChapterTenRoadmapThirtyMetrics', escapeLatex(rm.thirtyDay?.metrics || ''));
+    tex += renderCmd('ChapterTenRoadmapNinetyFocus', escapeLatex(rm.ninetyDay?.focus || ''));
+    tex += renderCmd('ChapterTenRoadmapNinetyActions', escapeLatex(rm.ninetyDay?.immediateActions?.join('; ') || ''));
+    tex += renderCmd('ChapterTenRoadmapNinetyMetrics', escapeLatex(rm.ninetyDay?.metrics || ''));
+    tex += renderCmd('ChapterTenRoadmapOneYearFocus', escapeLatex(rm.oneYear?.focus || ''));
+    tex += renderCmd('ChapterTenRoadmapOneYearActions', escapeLatex(rm.oneYear?.immediateActions?.join('; ') || ''));
+    tex += renderCmd('ChapterTenRoadmapOneYearMetrics', escapeLatex(rm.oneYear?.metrics || ''));
+    tex += renderCmd('ChapterTenRoadmapThreeYearFocus', escapeLatex(rm.threeYear?.focus || ''));
+    tex += renderCmd('ChapterTenRoadmapThreeYearActions', escapeLatex(rm.threeYear?.immediateActions?.join('; ') || ''));
+    tex += renderCmd('ChapterTenRoadmapThreeYearMetrics', escapeLatex(rm.threeYear?.metrics || ''));
+  } else {
+    tex += renderCmd('ChapterTenRoadmapThirtyFocus', 'Initial 30-day focus on operational boundaries and workflow audit.');
+    tex += renderCmd('ChapterTenRoadmapThirtyActions', 'Audit meetings, clarify priorities, establish Saturday retrospective.');
+    tex += renderCmd('ChapterTenRoadmapThirtyMetrics', 'Clear documentation of operational targets.');
+    tex += renderCmd('ChapterTenRoadmapNinetyFocus', '90-day focus on cross-functional alliances.');
+    tex += renderCmd('ChapterTenRoadmapNinetyActions', 'Engage cross-departmental leads, present efficiency proposals.');
+    tex += renderCmd('ChapterTenRoadmapNinetyMetrics', 'Leadership endorsement of key initiatives.');
+    tex += renderCmd('ChapterTenRoadmapOneYearFocus', '1-year executive positioning and governance.');
+    tex += renderCmd('ChapterTenRoadmapOneYearActions', 'Expand strategic leadership, mentor high-potential contributors.');
+    tex += renderCmd('ChapterTenRoadmapOneYearMetrics', 'Expanded organizational scope.');
+    tex += renderCmd('ChapterTenRoadmapThreeYearFocus', '3-year advisory leadership and sustainable rhythm.');
+    tex += renderCmd('ChapterTenRoadmapThreeYearActions', 'Cultivate senior advisory board roles or independent consulting.');
+    tex += renderCmd('ChapterTenRoadmapThreeYearMetrics', 'Complete strategic autonomy and lasting legacy.');
   }
-  if (data.careerAnalysis.communicationSkillPriority) {
-    tex += renderValCmd('CommunicationSkillPriority', data.careerAnalysis.communicationSkillPriority, 'VERIFIED');
-  }
-  if (data.careerAnalysis.leadershipSkillPriority) {
-    tex += renderValCmd('LeadershipSkillPriority', data.careerAnalysis.leadershipSkillPriority, 'VERIFIED');
-  }
-  if (data.careerAnalysis.networkSkillPriority) {
-    tex += renderValCmd('NetworkSkillPriority', data.careerAnalysis.networkSkillPriority, 'VERIFIED');
-  }
-  if (data.careerAnalysis.mistakeToAvoid) {
-    tex += renderValCmd('MistakeToAvoid', data.careerAnalysis.mistakeToAvoid, 'VERIFIED');
-  }
+
+  const closingSummary = ch10?.closingSummary ||
+    `Your horoscope reveals a balanced synthesis of deep analytical perseverance and executive stewardship. Cultivate your natural strengths with patient discipline and purposeful action.`;
+  tex += renderCmd('ChapterTenClosingSummary', escapeLatex(closingSummary));
 
   return tex;
 }

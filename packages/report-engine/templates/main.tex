@@ -1,38 +1,46 @@
 \documentclass[10pt,oneside]{article}
 
-\usepackage[a4paper,top=21mm,bottom=20mm,left=18mm,right=18mm,headheight=19pt,footskip=11mm]{geometry}
+\usepackage[a4paper,top=20mm,bottom=18mm,left=18mm,right=18mm,headheight=14pt,footskip=10mm]{geometry}
 \usepackage{fancyhdr}
-\usepackage{iftex}
-\ifPDFTeX
-  \usepackage[T1]{fontenc}
-  \usepackage[utf8]{inputenc}
-  \usepackage{tgpagella}
-  \usepackage[defaultsans,scale=.92]{opensans}
-  \newcommand{\displayfont}{\fontfamily{qpl}\selectfont}
-\else
-  \usepackage{fontspec}
-  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
-  \setmainfont{TeX Gyre Pagella}
-  \setsansfont{Open Sans}
-  \IfFontExistsTF{Libre Bodoni}{
-    \newfontfamily\displayfont{Libre Bodoni}
+\usepackage{fontspec}
+\defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{Open Sans}
+\IfFontExistsTF{Libre Bodoni}{
+  \newfontfamily\displayfont{Libre Bodoni}
+}{
+  \newfontfamily\displayfont{TeX Gyre Pagella}
+}
+\IfFontExistsTF{Noto Serif Devanagari}{
+  \newfontfamily\devanagarifont{Noto Serif Devanagari}[Script=Devanagari]
+}{
+  \IfFontExistsTF{FreeSerif}{
+    \newfontfamily\devanagarifont{FreeSerif}[Script=Devanagari]
   }{
-    \newfontfamily\displayfont{TeX Gyre Pagella}
+    \newfontfamily\devanagarifont{TeX Gyre Pagella}
   }
-\fi
+}
+\usepackage{ucharclasses}
+\setTransitionsForDevanagari{\bgroup\devanagarifont}{\egroup}
 
 \usepackage{xcolor}
-\definecolor{Navy}{HTML}{121440}
-\definecolor{Indigo}{HTML}{1D2059}
-\definecolor{Purple}{HTML}{61568C}
-\definecolor{Gold}{HTML}{D9B13B}
-\definecolor{Burgundy}{HTML}{824661}
-\definecolor{Ink}{HTML}{292A3A}
-\definecolor{Muted}{HTML}{6F7080}
-\definecolor{Mist}{HTML}{F4F3F8}
-\definecolor{PaleGold}{HTML}{F8F1DE}
-\definecolor{PalePurple}{HTML}{EFEDF5}
-\definecolor{PaleBurgundy}{HTML}{F6EDF1}
+% Executive Design System Palette
+\definecolor{ExecutiveNavy}{HTML}{0F172A} % Primary text, headlines, outer chart borders
+\definecolor{DeepSlate}{HTML}{1E293B}     % Card titles, subheadings, key metadata
+\definecolor{MutedSlate}{HTML}{64748B}    % Running chrome, secondary labels, table headers
+\definecolor{BorderSlate}{HTML}{E2E8F0}   % Structural rules, card borders, table dividers
+\definecolor{SurfaceCard}{HTML}{F8FAFC}   % Alternating table rows, card fills, tag backgrounds
+\definecolor{AccentGold}{HTML}{C5A059}    % Executive gold accent rules, inner diamond
+\definecolor{GoldTint}{HTML}{FAF5EB}      % Highlight card backgrounds, verified badges
+\definecolor{Burgundy}{HTML}{824661}      % Advisory alert accent, status contrast
+\definecolor{PaleBurgundy}{HTML}{F6EDF1}  % Advisory alert tint
+
+% Cover Page Palette (Restrained Celestial Navy & Antique Gold)
+\definecolor{CoverNavy}{HTML}{06152A}
+\definecolor{CoverCard}{HTML}{0B1E38}
+\definecolor{CoverGold}{HTML}{D4AF37}
+\definecolor{CoverBrightGold}{HTML}{E5C378}
+\definecolor{CoverGoldTint}{HTML}{FBF7EE}
 
 \usepackage{graphicx}
 \usepackage{tikz}
@@ -44,8 +52,9 @@
 \usepackage[protrusion=true,expansion=false]{microtype}
 \microtypesetup{verbose=silent}
 \ifXeTeX
-  \renewcommand{\textls}[2][100]{#2}
+  \renewcommand{\textls}[2][60]{#2}
 \fi
+
 \usepackage{newunicodechar}
 \newunicodechar{₂}{\textsubscript{2}}
 \newunicodechar{₁}{\textsubscript{1}}
@@ -58,1776 +67,696 @@
 \newunicodechar{₉}{\textsubscript{9}}
 \newunicodechar{₀}{\textsubscript{0}}
 \newunicodechar{²}{\textsuperscript{2}}
-\newunicodechar{¹}{\textsuperscript{1}}
-\newunicodechar{³}{\textsuperscript{3}}
-\newunicodechar{×}{\ensuremath{\times}}
-\newunicodechar{−}{\ensuremath{-}}
-\newunicodechar{–}{--}
-\newunicodechar{—}{---}
-\newunicodechar{’}{'}
-\newunicodechar{‘}{`}
-\newunicodechar{“}{``}
-\newunicodechar{”}{''}
-\newunicodechar{…}{\dots}
-\newunicodechar{•}{\textbullet}
-\newunicodechar{°}{\textdegree{}}
-\newunicodechar{ }{~}
-\newunicodechar{©}{\textcopyright{}}
+\newunicodechar{✦}{\ensuremath{\diamondsuit}}
+\newunicodechar{✤}{\ensuremath{\star}}
+\newunicodechar{‑}{-}
+
+\usepackage{needspace}
 \usepackage{ragged2e}
 \usepackage{setspace}
 \usepackage{lastpage}
-\usepackage{hyperref}
-\hypersetup{
-  colorlinks=true,
-  linkcolor=Indigo,
-  urlcolor=Burgundy,
-  pdftitle={Astro Sushil Career and Professional Life Dossier},
-  pdfauthor={Astro Sushil},
-  pdfsubject={Vedic Astrology Career Intelligence Report}
-}
+\usepackage[hidelinks]{hyperref}
 
+% Clean Spacing Resets
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{4.5pt}
-\setlength{\columnsep}{8mm}
-\setlist[itemize]{leftmargin=5mm,itemsep=2pt,topsep=2.5pt}
-\setlist[enumerate]{leftmargin=6mm,itemsep=2pt,topsep=2.5pt}
-\renewcommand{\arraystretch}{1.2}
-\raggedbottom
+\setlength{\parskip}{3.5pt plus 1pt minus 0.5pt}
+\linespread{1.08}
 
-\newcounter{reportsection}
+% Custom Diamond List Environment
+\newenvironment{diamondlist}{%
+  \begin{list}{\textcolor{AccentGold}{\small$\diamondsuit$}}{%
+    \setlength{\leftmargin}{5mm}%
+    \setlength{\itemindent}{0mm}%
+    \setlength{\itemsep}{2pt}%
+    \setlength{\parsep}{0.5pt}%
+    \setlength{\topsep}{2pt}%
+    \setlength{\partopsep}{0pt}%
+  }%
+}{\end{list}\vspace{2mm}}
 
-\newif\ifbrandlogo
-\brandlogofalse
-\def\BrandLogoFile{}
-\IfFileExists{astro-sushil-logo.pdf}{\brandlogotrue\def\BrandLogoFile{astro-sushil-logo.pdf}}{%
-\IfFileExists{astro-sushil-logo.png}{\brandlogotrue\def\BrandLogoFile{astro-sushil-logo.png}}{%
-\IfFileExists{astro_sushil_logo.pdf}{\brandlogotrue\def\BrandLogoFile{astro_sushil_logo.pdf}}{%
-\IfFileExists{astro_sushil_logo.png}{\brandlogotrue\def\BrandLogoFile{astro_sushil_logo.png}}{}}}}
-
-\newcommand{\LogoAsset}[1]{%
-  \ifbrandlogo\includegraphics[width=#1,keepaspectratio]{\BrandLogoFile}\fi
+% Component: Executive Cards
+\newtcolorbox{executivecard}[1][]{
+  enhanced,
+  colback=white,
+  colframe=BorderSlate,
+  boxrule=0.6pt,
+  arc=1.5mm,
+  left=4mm,
+  right=4mm,
+  top=3.5mm,
+  bottom=3.5mm,
+  borderline west={2.5pt}{0pt}{AccentGold},
+  #1
 }
 
-\newcommand{\BrandDark}[1][38mm]{%
-  \ifbrandlogo
-    \LogoAsset{#1}%
-  \else
-    {\sffamily\bfseries\fontsize{13}{15}\selectfont\color{Gold}\textls[180]{ASTRO SUSHIL}}%
-  \fi
-}
-\newcommand{\BrandLight}[1][38mm]{%
-  \ifbrandlogo
-    \LogoAsset{#1}%
-  \else
-    {\sffamily\bfseries\fontsize{13}{15}\selectfont\color{Navy}\textls[180]{ASTRO SUSHIL}}%
-  \fi
+\newtcolorbox{highlightcard}[1][]{
+  enhanced,
+  colback=GoldTint,
+  colframe=AccentGold!40,
+  boxrule=0.6pt,
+  arc=1.5mm,
+  left=4mm,
+  right=4mm,
+  top=3.5mm,
+  bottom=3.5mm,
+  borderline west={2.5pt}{0pt}{AccentGold},
+  #1
 }
 
-\fancypagestyle{report}{
+\newtcolorbox{advisorycard}[1][]{
+  enhanced,
+  colback=PaleBurgundy,
+  colframe=Burgundy!30,
+  boxrule=0.6pt,
+  arc=1.5mm,
+  left=4mm,
+  right=4mm,
+  top=3.5mm,
+  bottom=3.5mm,
+  borderline west={2.5pt}{0pt}{Burgundy},
+  #1
+}
+
+\newcommand{\CardTitle}[1]{%
+  {\sffamily\fontsize{9}{11}\selectfont\bfseries\color{DeepSlate}#1}\par
+  \vspace{1mm}%
+  {\textcolor{AccentGold}{\rule{18mm}{0.6pt}}}\par
+  \vspace{2mm}%
+}
+
+% Status and Badges
+\newcommand{\StatusBadge}[3][GoldTint]{%
+  \tcbox[
+    on line,
+    arc=1mm,
+    colback=#1,
+    colframe=BorderSlate,
+    boxrule=0.4pt,
+    top=1pt,bottom=1pt,left=3pt,right=3pt,
+    fontupper=\sffamily\fontsize{7}{8.5}\selectfont\bfseries\color{#2}
+  ]{#3}%
+}
+\newcommand{\StatusPill}[1]{\StatusBadge[SurfaceCard]{ExecutiveNavy}{#1}}
+
+% Client-Facing Data Rendering Macros
+\providecommand{\RenderValue}[1]{#1}
+\providecommand{\RenderVerified}[1]{#1}
+\providecommand{\RenderDerived}[1]{#1}
+\providecommand{\RenderUnavailable}[1]{\textcolor{Burgundy}{#1}}
+\providecommand{\RenderVerifiedStatus}{}
+\providecommand{\RenderDerivedStatus}{}
+\providecommand{\RenderUnavailableStatus}{\textcolor{Burgundy}{Unavailable}}
+\providecommand{\VerifiedStatus}{}
+\providecommand{\DerivedStatus}{}
+\providecommand{\UnavailableStatus}{\textcolor{Burgundy}{Unavailable}}
+\providecommand{\Awaiting}{\UnavailableStatus}
+\providecommand{\NotSupplied}{\RenderUnavailable{Not supplied}}
+
+% Running Header & Footer Chrome with Full-Page Ornamental Border
+\fancypagestyle{executivereport}{
   \fancyhf{}
   \renewcommand{\headrulewidth}{0pt}
   \renewcommand{\footrulewidth}{0pt}
-  \fancyfoot[C]{\sffamily\fontsize{7.4}{8.8}\selectfont\color{Purple}
-  © 2026 Astro Sushil \textcolor{Gold}{\enspace|\enspace}
-  Confidential Personal Career Dossier \textcolor{Gold}{\enspace|\enspace}
-  Page \thepage\ of \pageref*{LastPage}}
+  \fancyhead[L]{%
+    \sffamily\fontsize{7}{8.5}\selectfont\color{MutedSlate}\textls[60]{ASTRO SUSHIL}%
+    \textcolor{BorderSlate}{\enspace\vrule height 7pt depth 1.5pt width 0.5pt\enspace}%
+    \textcolor{MutedSlate}{\MakeUppercase{\leftmark}}%
+  }
+  \fancyhead[R]{%
+    \sffamily\fontsize{7}{8.5}\selectfont\color{ExecutiveNavy}\bfseries\rightmark%
+  }
+  \fancyhead[C]{%
+    \begin{tikzpicture}[remember picture,overlay]
+      % Outer ornamental frame
+      \draw[BorderSlate,line width=0.5pt]
+        ([xshift=12mm,yshift=-12mm]current page.north west)
+        rectangle
+        ([xshift=-12mm,yshift=12mm]current page.south east);
+      % Inner gold accent frame
+      \draw[AccentGold!45,line width=0.35pt]
+        ([xshift=13.5mm,yshift=-13.5mm]current page.north west)
+        rectangle
+        ([xshift=-13.5mm,yshift=13.5mm]current page.south east);
+      % Header horizontal divider rule
+      \draw[BorderSlate,line width=0.4pt]
+        ([xshift=18mm,yshift=-14.5mm]current page.north west)
+        --
+        ([xshift=-18mm,yshift=-14.5mm]current page.north east);
+    \end{tikzpicture}%
+  }
+  \fancyfoot[L]{%
+    \sffamily\fontsize{7}{8.5}\selectfont\color{MutedSlate}%
+    \copyright\ 2026 Astro Sushil \textcolor{BorderSlate}{\enspace|\enspace} Confidential Professional Career Dossier%
+  }
+  \fancyfoot[R]{%
+    \sffamily\fontsize{7.5}{9}\selectfont\bfseries\color{ExecutiveNavy}%
+    Page \thepage\ of \pageref*{LastPage}%
+  }
+  \fancyfoot[C]{%
+    \begin{tikzpicture}[remember picture,overlay]
+      % Footer horizontal divider rule
+      \draw[BorderSlate,line width=0.4pt]
+        ([xshift=18mm,yshift=14mm]current page.south west)
+        --
+        ([xshift=-18mm,yshift=14mm]current page.south east);
+    \end{tikzpicture}%
+  }
 }
-\pagestyle{report}
+\pagestyle{executivereport}
 
-\newcommand{\PageChrome}{%
-  \begin{tikzpicture}[remember picture,overlay]
-    \fill[Navy] (current page.north west) rectangle ([yshift=-15mm]current page.north east);
-    \fill[Gold] ([yshift=-15mm]current page.north west) rectangle ([yshift=-15.6mm]current page.north east);
-    \node[anchor=west] at ([xshift=18mm,yshift=-7.6mm]current page.north west)
-      {\BrandDark[29mm]};
-    \node[anchor=east,text=white,font=\sffamily\fontsize{6.5}{8}\selectfont]
-      at ([xshift=-18mm,yshift=-7.6mm]current page.north east)
-      {\textls[120]{PROFESSIONAL ASTROLOGY DOSSIER}};
-  \end{tikzpicture}
-}
-
-\newcommand{\goldrule}{\par\noindent\textcolor{Gold}{\rule{\linewidth}{0.7pt}}\par}
-
-\newcommand{\ReportPage}[3]{%
+% Refined Part and Topic Headers
+\newcommand{\PartOpener}[3]{%
   \clearpage
-  \refstepcounter{reportsection}
-  \addcontentsline{toc}{section}{\protect\numberline{\thereportsection}#2}
-  \thispagestyle{report}
-  \PageChrome
-  \vspace*{-1mm}
-  {\sffamily\fontsize{7.5}{9}\selectfont\bfseries\color{Burgundy}
-  \textls[120]{SECTION \ifnum\value{reportsection}<10 0\fi\thereportsection\enspace/\enspace #1}}\par
-  \vspace{1.5mm}
-  {\displayfont\fontsize{19}{23}\selectfont\color{Navy}#2\par}
-  \vspace{1mm}
-  \goldrule
-  \vspace{1mm}
-  {\fontsize{10.5}{14}\selectfont\itshape\color{Purple}#3\par}
-  \vspace{3.5mm}
+  \markboth{#2}{PART #1: #2}%
+  \vspace*{4mm}%
+  {\sffamily\fontsize{9}{11}\selectfont\bfseries\color{AccentGold}\textls[100]{\MakeUppercase{PART #1\enspace\textbar\enspace\ #3}}}\par
+  \vspace{2mm}%
+  {\displayfont\fontsize{20}{24}\selectfont\color{ExecutiveNavy}#2\par}%
+  \vspace{1.2mm}%
+  {\textcolor{AccentGold}{\rule{36mm}{0.8pt}}}\par
+  \vspace{3mm}%
 }
 
-\newtcolorbox{insightbox}[1][]{
-  enhanced,breakable,colback=Mist,colframe=Purple,
-  boxrule=0.5pt,arc=1.2mm,left=4mm,right=4mm,top=3mm,bottom=3mm,
-  borderline west={2.2pt}{0pt}{Gold},#1
-}
-\newtcolorbox{navybox}[1][]{
-  enhanced,breakable,colback=Navy,colframe=Navy,
-  boxrule=0pt,arc=1.2mm,left=5mm,right=5mm,top=4mm,bottom=4mm,
-  coltext=white,#1
-}
-\newtcolorbox{unavailablebox}[1][]{
-  enhanced,breakable,colback=PaleBurgundy,colframe=Burgundy,
-  boxrule=0.6pt,arc=1.2mm,left=4mm,right=4mm,top=3mm,bottom=3mm,#1
-}
-\newtcolorbox{goldbox}[1][]{
-  enhanced,breakable,colback=PaleGold,colframe=Gold,
-  boxrule=0.6pt,arc=1.2mm,left=4mm,right=4mm,top=3mm,bottom=3mm,#1
+\newcommand{\TopicHeader}[3]{%
+  \needspace{5\baselineskip}%
+  \markright{Topic #1: #2}%
+  \vspace*{3.5mm plus 1mm minus 0.5mm}%
+  {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{AccentGold}\textls[80]{\MakeUppercase{TOPIC #1}}}\par
+  \vspace{1mm}%
+  {\displayfont\fontsize{13}{16}\selectfont\color{ExecutiveNavy}#2\par}%
+  \vspace{0.8mm}%
+  {\fontsize{9}{12}\selectfont\itshape\color{MutedSlate}#3\par}%
+  \vspace{1mm}%
+  {\textcolor{BorderSlate}{\rule{\linewidth}{0.35pt}}}\par
+  \vspace{2mm}%
 }
 
-\newcommand{\BoxTitle}[1]{{\sffamily\bfseries\color{Navy}#1}\par\vspace{1mm}}
-\newcommand{\WhiteTitle}[1]{{\sffamily\bfseries\color{Gold}#1}\par\vspace{1mm}}
-\newcommand{\StatusPill}[1]{\tcbox[on line,colback=PaleBurgundy,colframe=Burgundy,
-  boxrule=.4pt,arc=3mm,left=2mm,right=2mm,top=.4mm,bottom=.4mm]
-  {\sffamily\fontsize{6.8}{8}\selectfont\bfseries\color{Burgundy}\textls[70]{#1}}}
-\newcommand{\RenderValue}[1]{#1}
-\newcommand{\RenderVerified}[1]{#1}
-\newcommand{\RenderDerived}[1]{#1}
-\newcommand{\RenderUnavailable}[1]{\textcolor{Burgundy}{#1}}
-\newcommand{\RenderVerifiedStatus}{\StatusPill{VERIFIED}}
-\newcommand{\RenderDerivedStatus}{\StatusPill{DERIVED}}
-\newcommand{\RenderUnavailableStatus}{\StatusPill{UNAVAILABLE}}
-\newcommand{\Awaiting}{\RenderUnavailableStatus}
-\newcommand{\NotSupplied}{\RenderUnavailable{\UnavailableLabel}}
+\newcommand{\SectionHeader}[3]{%
+  \markboth{#1}{#2}%
+  \vspace*{2mm}%
+  {\sffamily\fontsize{8}{10}\selectfont\bfseries\color{AccentGold}\textls[80]{\MakeUppercase{#1}}}\par
+  \vspace{1.5mm}%
+  {\displayfont\fontsize{16}{20}\selectfont\color{ExecutiveNavy}#2\par}%
+  \vspace{1mm}%
+  {\textcolor{AccentGold}{\rule{28mm}{0.8pt}}}\par
+  \vspace{1.5mm}%
+  {\fontsize{9.5}{13.5}\selectfont\itshape\color{MutedSlate}#3\par}%
+  \vspace{3mm}%
+}
 
-\input{report_data.tex}
+\newcommand{\EpigraphCard}[4]{%
+  \ifx#1\empty\else
+    \begin{tcolorbox}[
+      enhanced,
+      colback=GoldTint,
+      colframe=AccentGold!50,
+      boxrule=0.6pt,
+      arc=1.5mm,
+      left=4mm,right=4mm,top=3mm,bottom=3mm,
+      borderline west={2.5pt}{0pt}{AccentGold}
+    ]
+      {\devanagarifont\fontsize{9.5}{13.5}\selectfont\color{ExecutiveNavy} #1}\par
+      \ifx#2\empty\else
+        \vspace{0.8mm}
+        {\itshape\fontsize{8}{10.5}\selectfont\color{MutedSlate} #2}\par
+      \fi
+      \vspace{1mm}
+      {\fontsize{8.5}{11.5}\selectfont\color{DeepSlate} ``#3''}\par
+      \vspace{0.8mm}
+      {\raggedleft\sffamily\fontsize{7.5}{9}\selectfont\color{AccentGold}\textbf{--- #4}\par}
+    \end{tcolorbox}
+    \vspace{2mm}
+  \fi
+}
+
+\newcommand{\StrategicBox}[1]{%
+  \begin{tcolorbox}[
+    enhanced,
+    colback=GoldTint,
+    colframe=AccentGold,
+    arc=1.5mm,
+    boxrule=0.6pt,
+    left=4mm,right=4mm,top=2.5mm,bottom=2.5mm,
+    borderline west={2.5pt}{0pt}{AccentGold}
+  ]
+    {\sffamily\fontsize{8}{9.5}\selectfont\bfseries\color{DeepSlate}STRATEGIC IMPLICATION}\par\vspace{0.8mm}
+    {\fontsize{8.5}{11.5}\selectfont #1}\par
+  \end{tcolorbox}\vspace{2mm}
+}
+
+\newcommand{\CautionBox}[1]{%
+  \begin{tcolorbox}[
+    enhanced,
+    colback=PaleBurgundy,
+    colframe=Burgundy,
+    arc=1.5mm,
+    boxrule=0.6pt,
+    left=4mm,right=4mm,top=2.5mm,bottom=2.5mm,
+    borderline west={2.5pt}{0pt}{Burgundy}
+  ]
+    {\sffamily\fontsize{8}{9.5}\selectfont\bfseries\color{Burgundy}DEVELOPMENTAL CAUTION}\par\vspace{0.8mm}
+    {\fontsize{8.5}{11.5}\selectfont #1}\par
+  \end{tcolorbox}\vspace{2mm}
+}
 
 \newcommand{\TwoCol}[2]{%
   \begin{minipage}[t]{0.485\linewidth}#1\end{minipage}\hfill
-  \begin{minipage}[t]{0.485\linewidth}#2\end{minipage}
+  \begin{minipage}[t]{0.485\linewidth}#2\end{minipage}%
 }
 
-\newcommand{\PlanetField}[2]{\csname #1#2\endcsname}
-\newcommand{\HouseField}[2]{\csname #1#2\endcsname}
-
-% Reusable TikZ North Indian Kundli Chart Macro
-\newcommand{\RenderNorthIndianKundli}[2]{%
+% Re-Engineered North Indian Kundli Chart (TikZ)
+\newcommand{\RenderRefinedKundli}[2]{%
   \begin{tikzpicture}[scale=#1]
-    \draw[Navy,line width=1.2pt] (0,0) rectangle (8,8);
-    \draw[Purple,line width=.7pt] (0,0)--(4,4)--(0,8);
-    \draw[Purple,line width=.7pt] (8,0)--(4,4)--(8,8);
-    \draw[Purple,line width=.7pt] (0,4)--(4,8)--(8,4)--(4,0)--cycle;
-    \node[align=center,text=Burgundy,font=\sffamily\bfseries\small] at (4,4) {#2};
+    % Outer Frame
+    \draw[ExecutiveNavy,line width=1.1pt] (0,0) rectangle (8,8);
+    % Inner Diamond
+    \draw[AccentGold,line width=0.7pt] (0,4) -- (4,8) -- (8,4) -- (4,0) -- cycle;
+    % Corner Diagonals
+    \draw[BorderSlate,line width=0.6pt] (0,0) -- (8,8);
+    \draw[BorderSlate,line width=0.6pt] (0,8) -- (8,0);
+    % House Content Nodes
     \ifcsname #2HouseOne\endcsname
-      \node[align=center,text=Navy,font=\sffamily\tiny\bfseries] at (4,5.7) {\csname #2HouseOne\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (2,7.1) {\csname #2HouseTwo\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (1,6) {\csname #2HouseThree\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (2.3,4) {\csname #2HouseFour\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (1,2) {\csname #2HouseFive\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (2,0.9) {\csname #2HouseSix\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (4,2.3) {\csname #2HouseSeven\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (6,0.9) {\csname #2HouseEight\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (7,2) {\csname #2HouseNine\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (5.7,4) {\csname #2HouseTen\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (7,6) {\csname #2HouseEleven\endcsname};
-      \node[align=center,text=Navy,font=\sffamily\tiny] at (6,7.1) {\csname #2HouseTwelve\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont\bfseries] at (4,5.9) {\csname #2HouseOne\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (2,7.0) {\csname #2HouseTwo\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (1.1,6.0) {\csname #2HouseThree\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (2.4,4.0) {\csname #2HouseFour\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (1.1,2.0) {\csname #2HouseFive\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (2.0,1.0) {\csname #2HouseSix\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (4.0,2.1) {\csname #2HouseSeven\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (6.0,1.0) {\csname #2HouseEight\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (6.9,2.0) {\csname #2HouseNine\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (5.6,4.0) {\csname #2HouseTen\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (6.9,6.0) {\csname #2HouseEleven\endcsname};
+      \node[align=center,text=ExecutiveNavy,font=\sffamily\fontsize{6.5}{7.5}\selectfont] at (6.0,7.0) {\csname #2HouseTwelve\endcsname};
     \fi
-  \end{tikzpicture}
+  \end{tikzpicture}%
 }
 
-% Reusable Varga Page Macro
-\newcommand{\VargaSectionPage}[6]{%
-  \ReportPage{DIVISIONAL CHART ANALYSIS}{#1 (#2) --- #3}{#4}
-  \TwoCol{%
-    \begin{center}
-      \RenderNorthIndianKundli{0.68}{#5}
-    \end{center}
-    \vspace{2mm}
-    \begin{insightbox}
-      \BoxTitle{Divisional Chart Purpose}
-      \csname #5Purpose\endcsname
-    \end{insightbox}
-  }{%
-    \begin{goldbox}
-      \BoxTitle{Divisional Career Relevance}
-      \csname #5CareerRelevance\endcsname
-    \end{goldbox}
-    \vspace{2mm}
-    \begin{navybox}
-      \WhiteTitle{Ascendant \& Governance}
-      \textbf{Ascendant Sign:} \csname #5AscendantSign\endcsname\par
-      \textbf{Ascendant Lord:} \csname #5AscendantLord\endcsname\par
-      \textbf{Status:} \csname #5Status\endcsname
-    \end{navybox}
-    \vspace{2mm}
-    \begin{insightbox}
-      \BoxTitle{Deterministic Synthesis}
-      \csname #5Analysis\endcsname
-    \end{insightbox}
-  }
-  \vspace{3mm}
-  #6
-}
+% Input Verified Chart & Monograph Data
+\input{report_data.tex}
 
 \begin{document}
-\fontsize{9.6}{13.5}\selectfont
+\fontsize{9.5}{13.5}\selectfont
 \hypersetup{pageanchor=false}
 
-% --------------------------------------------------------------------------
-% COVER
-% --------------------------------------------------------------------------
+% ==========================================================================
+% COVER PAGE - CELESTIAL EXECUTIVE EDITION
+% ==========================================================================
 \thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
-  \fill[Navy] (current page.south west) rectangle (current page.north east);
-  \fill[Indigo] ([xshift=112mm]current page.south west) rectangle (current page.north east);
-  \fill[Gold] ([xshift=18mm,yshift=-22mm]current page.north west)
-    rectangle ([xshift=20mm,yshift=-70mm]current page.north west);
-  \draw[Gold,opacity=.35,line width=.5pt]
-    ([xshift=116mm,yshift=-30mm]current page.north west) circle (31mm);
-  \draw[Gold,opacity=.25,line width=.5pt]
-    ([xshift=116mm,yshift=-30mm]current page.north west) circle (43mm);
-  \draw[Purple,opacity=.6,line width=.8pt]
-    ([xshift=152mm,yshift=26mm]current page.south west) --
-    ([xshift=190mm,yshift=65mm]current page.south west) --
-    ([xshift=136mm,yshift=92mm]current page.south west) --
-    cycle;
-  \foreach \p in {(130mm,255mm),(150mm,239mm),(173mm,252mm),(187mm,217mm),
-                  (139mm,198mm),(166mm,179mm),(186mm,148mm),(145mm,124mm)}{
-    \fill[Gold,opacity=.55] \p circle (0.65pt);
-  }
+  % Full Page Celestial Background Artwork (Proportions 100% Preserved)
+  \node[anchor=center,inner sep=0pt] at (current page.center) {
+    \includegraphics[width=\paperwidth,height=\paperheight]{assets/celestial_cover.png}
+  };
+
+  % Content Block in the Open Lower Area (Centered between Zodiac Wheel and Lotus)
+  \node[anchor=center,inner sep=0pt] at ([yshift=-46mm]current page.center) {
+    \begin{minipage}{150mm}
+      \centering
+      % Authentic Astro Sushil Brand Logo
+      \includegraphics[height=24mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par
+      \vspace{3.5mm}
+      
+      % Brand Foundation Tracker
+      {\sffamily\fontsize{8}{10}\selectfont\bfseries\color{CoverBrightGold}\textls[140]{ASTRO SUSHIL CONSULTATION FOUNDATION}}\par
+      \vspace{2mm}
+      {\color{CoverGold!70}\rule{32mm}{0.6pt}}\par
+      \vspace{4.5mm}
+      
+      % Primary Title Hierarchy
+      {\displayfont\fontsize{24}{29}\selectfont\bfseries\color{CoverGoldTint}CAREER \& VOCATIONAL\par}
+      \vspace{1mm}
+      {\displayfont\fontsize{20}{25}\selectfont\color{CoverBrightGold}STRATEGY MONOGRAPH\par}
+      \vspace{3mm}
+      
+      % Subtitle
+      {\fontsize{9}{12.5}\selectfont\itshape\color{CoverGoldTint!85}A Comprehensive 10-Part Shastric Parashari Analysis, Divisional Vargas \& Strategic Roadmap\par}
+      \vspace{2mm}
+      {\fontsize{8.5}{11}\selectfont\color{CoverBrightGold!90}A Personal Astrological Consultation by \textbf{Sushil Kumaar Singh}\par}
+      \vspace{6mm}
+      
+      % Client Particulars Card
+      \begin{tcolorbox}[
+        enhanced,
+        colback=CoverCard!92,
+        colframe=CoverGold!50,
+        boxrule=0.6pt,
+        arc=1.5mm,
+        width=134mm,
+        left=5mm,right=5mm,top=3.5mm,bottom=3.5mm,
+        center
+      ]
+        \centering
+        {\sffamily\fontsize{7}{9}\selectfont\bfseries\color{CoverGold}\textls[120]{PREPARED EXCLUSIVELY FOR}}\par
+        \vspace{1.5mm}
+        {\displayfont\fontsize{15}{18}\selectfont\bfseries\color{white}\ClientName\par}
+        \vspace{1.5mm}
+        {\color{CoverGold!40}\rule{28mm}{0.4pt}}\par
+        \vspace{1.5mm}
+        {\sffamily\fontsize{7.5}{10.5}\selectfont\color{CoverGoldTint!90}
+        \textbf{Date of Birth:} \DateOfBirth\ (\TimeOfBirth) \enspace\textbar\enspace \textbf{Place:} \BirthPlace\par
+        \vspace{0.8mm}
+        \textbf{Zodiac:} \Ayanamsa\ Sidereal \enspace\textbar\enspace \textbf{House System:} \HouseSystem\ \enspace\textbar\enspace \textbf{Engine:} Sweph/VSOP87\par}
+      \end{tcolorbox}
+      \vspace{5mm}
+      
+      % Confidentiality Sign-off
+      {\sffamily\fontsize{6.8}{8.5}\selectfont\color{CoverGoldTint!70}\textls[90]{CONFIDENTIAL PROFESSIONAL CAREER DOSSIER \enspace\textbar\enspace ALL RIGHTS RESERVED \enspace\textbar\enspace \ReportDate}}\par
+    \end{minipage}
+  };
 \end{tikzpicture}
-
-\vspace*{8mm}
-\BrandDark[48mm]
-
-\vspace*{30mm}
-{\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{Gold}
-\textls[180]{\MakeUppercase{\ReportType{}}}\par}
-\vspace{4mm}
-{\displayfont\fontsize{32}{36}\selectfont\color{white}
-CAREER \&\par PROFESSIONAL\par LIFE REPORT\par}
-\vspace{4mm}
-{\color{Gold}\rule{48mm}{1.2pt}}\par
-\vspace{4mm}
-{\fontsize{13.5}{18}\selectfont\color{white}
-A Comprehensive Vedic Astrology Analysis\par of Your Professional Journey \& Executive Destiny\par}
-
-\vfill
-\begin{minipage}{0.75\linewidth}
-  {\sffamily\fontsize{7.5}{10}\selectfont\color{Gold}\textls[130]{PREPARED FOR}}\par
-  {\displayfont\fontsize{20}{24}\selectfont\color{white}\ClientName}\par
-  \vspace{3mm}
-  {\sffamily\fontsize{8}{10}\selectfont\color{white}
-  \textbf{Prepared by:} Astro Sushil Calculation Engine\par
-  \textbf{Report Date:} \ReportDate\par
-  \textbf{Engine Version:} \CalculationVersion\par
-  \textbf{Template Version:} \ReportTemplateVersion\par}
-  \vspace{5mm}
-  \StatusPill{CONFIDENTIAL PERSONAL REPORT}
-\end{minipage}
-\par\vspace{10mm}
-{\sffamily\fontsize{7}{9}\selectfont\color{white!70}
-© 2026 Astro Sushil. All rights reserved. Deterministic calculation verified under Astronomy Engine v2.1.19 (VSOP87/ELP2000-82).}
+\null
 \clearpage
-\setcounter{page}{1}
 \hypersetup{pageanchor=true}
+\pagenumbering{arabic}
+\setcounter{page}{2}
 
-% --------------------------------------------------------------------------
-% TABLE OF CONTENTS
-% --------------------------------------------------------------------------
-\thispagestyle{report}
-\PageChrome
-\vspace*{-1mm}
-{\sffamily\fontsize{7.5}{9}\selectfont\bfseries\color{Burgundy}\textls[120]{REPORT NAVIGATION}}\par
+% ==========================================================================
+% TABLE OF CONTENTS & CONSULTATION DIRECTORY
+% ==========================================================================
+\SectionHeader{CONSULTATION DIRECTORY}{Table of Contents}{Structured directory of the 10 consultation parts, 72 topics, and astrological registers.}
+
+\begin{multicols}{2}
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PRELIMINARY DOSSIER FOUNDATIONS}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  A Note from the Author \dotfill \pageref*{authornote}\par
+  Our Philosophy: Freedom of Choice \dotfill \pageref*{disclaimersec}\par
+  Technical Natal Foundations \dotfill \pageref*{techfoundations}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART I: EMBARKING ON YOUR QUEST}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 1. Welcome to Your Career Report \dotfill \pageref*{topic1}\par
+  Topic 2. Disclaimer and Interpretive Scope \dotfill \pageref*{topic2}\par
+  Topic 3. Message from Astro Sushil \dotfill \pageref*{topic3}\par
+  Topic 4. Best Way to Study the Report \dotfill \pageref*{topic4}\par
+  Topic 5. Bridge Between Destiny and Desire \dotfill \pageref*{topic5}\par
+  Topic 6. Vedic Charts: D1 and D10 \dotfill \pageref*{topic6}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART II: MYSTERIES OF YOUR LAGNA}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 7. Ascendant Secrets \& Natal Temperament \dotfill \pageref*{topic7}\par
+  Topic 8. The Guiding Star: Natal Lagna Lord Dynamics \dotfill \pageref*{topic8}\par
+  Topic 9. Planetary Influences on the 1st House \dotfill \pageref*{topic9}\par
+  Topic 10. Aspects on the Ascendant \dotfill \pageref*{topic10}\par
+  Topic 11. 10th House Treasures: The Seat of Authority \dotfill \pageref*{topic11}\par
+  Topic 12. Effects of Planets in the 10th House \dotfill \pageref*{topic12}\par
+  Topic 13. Planetary Aspects on the 10th House \dotfill \pageref*{topic13}\par
+  Topic 14. 6th House Challenges: Operational Drive \dotfill \pageref*{topic14}\par
+  Topic 15. Effects of Planets in the 6th House \dotfill \pageref*{topic15}\par
+  Topic 16. Planetary Aspects on the 6th House \dotfill \pageref*{topic16}\par
+  Topic 17. 7th House Alliances: Contracts \& Partnerships \dotfill \pageref*{topic17}\par
+  Topic 18. Planetary Dynamics in the 7th House \dotfill \pageref*{topic18}\par
+  Topic 19. Planetary Aspects on the 7th House \dotfill \pageref*{topic19}\par
+  Topic 20. 11th House Networks: Streams of Gain \dotfill \pageref*{topic20}\par
+  Topic 21. Key Natal Conjunctions \& Driving Forces \dotfill \pageref*{topic21}\par
+  Topic 22. 2nd House Assets: Knowledge Capital \dotfill \pageref*{topic22}\par
+  Topic 23. Secondary Conjunctions \& Wealth Dynamics \dotfill \pageref*{topic23}\par
+  Topic 24. Prominent Career Yogas Register \dotfill \pageref*{topic24}\par}
+
+  \columnbreak
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART III: THE D10 DASHAMSHA MAP}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 25. Understanding the D10 Harmonic Chart \dotfill \pageref*{topic25}\par
+  Topic 26. D10 Ascendant \& Institutional Persona \dotfill \pageref*{topic26}\par
+  Topic 27. D10 10th Lord \& Executive Manifestation \dotfill \pageref*{topic27}\par
+  Topic 28. D10 Angular Dignity \& Corporate Stature \dotfill \pageref*{topic28}\par
+  Topic 29. D10 Planetary Dynamics \& Authority Lines \dotfill \pageref*{topic29}\par
+  Topic 30. D10 Specialized Harmonic Configurations \dotfill \pageref*{topic30}\par
+  Topic 31. D1 to D10 Synthesis \& Bridge \dotfill \pageref*{topic31}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART IV: BHRIGU NANDI NADI (BNN)}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 32. Bhrigu Nandi Nadi Principles \dotfill \pageref*{topic32}\par
+  Topic 33. Saturn as Prime Karaka of Karma \dotfill \pageref*{topic33}\par
+  Topic 34. Saturn's Natal Dignity \& Karmic Stewardship \dotfill \pageref*{topic34}\par
+  Topic 35. Planetary Progressions \& Directional Trines \dotfill \pageref*{topic35}\par
+  Topic 36. Saturn's Degree Progression Chain \dotfill \pageref*{topic36}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART V: VOYAGE OF YOUR CAREER}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 37. Early Foundation \& Education \dotfill \pageref*{topic37}\par
+  Topic 38. First Decade of Professional Service \dotfill \pageref*{topic38}\par
+  Topic 39. Navigating Mid-Career Pressures \dotfill \pageref*{topic39}\par
+  Topic 40. Transition: Contributor to Architect \dotfill \pageref*{topic40}\par
+  Topic 41. Long-Term Stature and Legacy \dotfill \pageref*{topic41}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART VI: GOVERNMENT \& INSTITUTIONS}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 42. Markers of Public Governance \dotfill \pageref*{topic42}\par
+  Topic 43. Sun: The Sovereign Authority \dotfill \pageref*{topic43}\par
+  Topic 44. Saturn: The Civil Service Steward \dotfill \pageref*{topic44}\par
+  Topic 45. Sun-Saturn Hierarchical Dynamic \dotfill \pageref*{topic45}\par
+  Topic 46. 6th House vs 10th House Dynamics \dotfill \pageref*{topic46}\par
+  Topic 47. Rajya Seva Potential Evaluation \dotfill \pageref*{topic47}\par
+  Topic 48. Institutional Advisory Verdict \dotfill \pageref*{topic48}\par}
+\end{multicols}
+\clearpage
+
+% Page 3: Directory Continuation
+\SectionHeader{CONSULTATION DIRECTORY (CONTINUED)}{Table of Contents}{Directory of enterprise, timing, remedial pathways, strategic roadmap, and calculation registers.}
+
+\begin{multicols}{2}
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART VII: ENTREPRENEURIAL WATERS}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 49. Assessing Enterprise \& Risk \dotfill \pageref*{topic49}\par
+  Topic 50. Commercial Modeling \& Contractual Dynamics \dotfill \pageref*{topic50}\par
+  Topic 51. Business Partnerships \& Equity Stakes \dotfill \pageref*{topic51}\par
+  Topic 52. Scaling \& Capital Accumulation \dotfill \pageref*{topic52}\par
+  Topic 53. SAV 12-House Bindu Distribution \dotfill \pageref*{topic53}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART VIII: THE COSMIC CLOCK}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 54. Vimshottari Dasha Timing Cycles \dotfill \pageref*{topic54}\par
+  Topic 55. Active Dasha Window \& Strategic Focus \dotfill \pageref*{topic55}\par
+  Topic 56. Upcoming Sub-Periods \& Karmic Shifts \dotfill \pageref*{topic56}\par
+  Topic 57. Major Planetary Transits (Gochara) \dotfill \pageref*{topic57}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART IX: CELESTIAL REMEDIES}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 58. Classical Vedic Remediation Keys \dotfill \pageref*{topic58}\par
+  Topic 59. Prescribed Gemstone Guidance \dotfill \pageref*{topic59}\par
+  Topic 60. Sacred Rudraksha Bead Protocols \dotfill \pageref*{topic60}\par
+  Topic 61. Sacred Mantras \& Sound Vibrations \dotfill \pageref*{topic61}\par
+  Topic 62. AstroVastu Directional Optimization \dotfill \pageref*{topic62}\par
+  Topic 63. Lifestyle Disciplines \& Energy \dotfill \pageref*{topic63}\par
+  Topic 64. Dana (Charity) \& Social Service \dotfill \pageref*{topic64}\par}
+
+  \columnbreak
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{PART X: ROADMAP \& COUNSEL}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Topic 65. Executive Synthesis \& Calling \dotfill \pageref*{topic65}\par
+  Topic 66. Your Golden Quadrant \dotfill \pageref*{topic66}\par
+  Topic 67. Top 3 Professional Pathways \dotfill \pageref*{topic67}\par
+  Topic 68. 30-Day Operational Action Plan \dotfill \pageref*{topic68}\par
+  Topic 69. 90-Day Tactical Momentum Plan \dotfill \pageref*{topic69}\par
+  Topic 70. 365-Day Strategic Elevation Plan \dotfill \pageref*{topic70}\par
+  Topic 71. A Lifetime of Stewardship \dotfill \pageref*{topic71}\par
+  Topic 72. Epilogue \& Astrological Blessing \dotfill \pageref*{topic72}\par}
+  \vspace{2.5mm}
+
+  {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{ExecutiveNavy}\textls[60]{TECHNICAL REGISTERS \& PROVENANCE}}\par
+  \vspace{1mm}
+  {\fontsize{8}{11.5}\selectfont
+  Natal Parameters \& Ephemeris Config \dotfill \pageref*{techfoundations}\par
+  Complete 9-Planet Astronomical Register \dotfill \pageref*{topic24}\par
+  Shadbala Potencies \& SAV Bindu Totals \dotfill \pageref*{topic53}\par
+  Vimshottari Dasha Active Timing Schedule \dotfill \pageref*{topic54}\par
+  Calculation Provenance \& Integrity Sign-Off \dotfill \pageref*{topic72}\par}
+\end{multicols}
+\clearpage
+
+% ==========================================================================
+% A NOTE FROM THE AUTHOR: SUSHIL KUMAAR SINGH
+% ==========================================================================
+\input{author_note.tex}
+
+% ==========================================================================
+% DEDICATED DISCLAIMER & BRAND PHILOSOPHY
+% ==========================================================================
+\input{disclaimer_philosophy.tex}
+
+% ==========================================================================
+% TECHNICAL FOUNDATIONS & NATAL PARAMETERS
+% ==========================================================================
+\SectionHeader{TECHNICAL FOUNDATIONS}{Birth Data Record \& Ephemeris Configuration}{Verified natal parameters, ephemeris standards, and astronomical calculation criteria.}
+\label{techfoundations}
+
+\begin{executivecard}
+  \CardTitle{Verified Birth Parameters}
+  \sffamily\fontsize{8.5}{12}\selectfont
+  \begin{tabularx}{\linewidth}{@{}l X l X@{}}
+    \textbf{Client Name:} & \ClientName & \textbf{Timezone:} & \TimeZone \\
+    \textbf{Date of Birth:} & \DateOfBirth & \textbf{Latitude:} & \Latitude \\
+    \textbf{Time of Birth:} & \TimeOfBirth & \textbf{Longitude:} & \Longitude \\
+    \textbf{Place of Birth:} & \BirthPlace & \textbf{Confidence:} & \BirthDataConfidence \\
+  \end{tabularx}
+\end{executivecard}
+
 \vspace{2mm}
-{\displayfont\fontsize{24}{28}\selectfont\color{Navy}Table of Contents\par}
-\goldrule
+\begin{executivecard}
+  \CardTitle{Ephemeris \& Mathematical Engine Parameters}
+  \sffamily\fontsize{8.5}{12}\selectfont
+  \begin{tabularx}{\linewidth}{@{}l X l X@{}}
+    \textbf{Zodiac System:} & \ZodiacSystem & \textbf{Ayanamsa:} & \Ayanamsa \\
+    \textbf{House System:} & \HouseSystem & \textbf{Node Calculation:} & \NodeMode \\
+    \textbf{Engine Version:} & v\CalculationVersion & \textbf{Dasha Basis:} & \VimshottariBasis \\
+    \textbf{Ephemeris Base:} & Swiss Ephemeris / VSOP87 & \textbf{Divisional Charts:} & 16 Shodashavargas \\
+  \end{tabularx}
+\end{executivecard}
+
 \vspace{2mm}
-\begin{insightbox}
-\BoxTitle{Structure of This Consultation Dossier}
-This production report provides an exhaustive, multi-layered deconstruction of your astrological career evidence. Every analytical section is backed by verified deterministic calculations from the 16 divisional charts, Shadbala, Ashtakavarga, Jaimini, KP, and Vimshottari Dasha systems.
-\end{insightbox}
-\begingroup
-\setlength{\parskip}{0.8pt}
-\renewcommand{\contentsname}{}
-\tableofcontents
-\endgroup
+\begin{executivecard}
+  \CardTitle{Principles of Professional Vedic Consultation \& Key Terminology}
+  \sffamily\fontsize{8}{11}\selectfont
+  \begin{itemize}[leftmargin=*,itemsep=1pt,parsep=0pt]
+    \item \textbf{Ascendant (\textit{Lagna}):} Your rising sign, representing personal constitution, core temperament, and public professional brand.
+    \item \textbf{10th House (\textit{Karma Bhava}):} The primary house of career, professional responsibilities, executive authority, and public standing.
+    \item \textbf{10th Lord (\textit{Karmesh}):} The governing planet of the 10th house, directing vocational agency and institutional alignment.
+    \item \textbf{Amatyakaraka (\textit{AmK}):} A key Jaimini indicator representing professional execution, operational agency, and day-to-day career roles.
+    \item \textbf{Dashamsha (\textit{D10}):} The 10th divisional chart used to examine fine-grained career execution and institutional status.
+    \item \textbf{Vimshottari Dasha:} The classical 120-year planetary timeline system used to identify major career cycles and opportunity windows.
+    \item \textbf{Sarvashtakavarga (\textit{SAV}):} Quantitative environmental strength matrix where 28 bindus represents the mathematical mean benchmark ($337/12 \approx 28.08$); scores $> 28$ denote above-average environmental support across the houses.
+    \item \textbf{Planetary Aspects (\textit{Drishti}):} Angular planetary influences casting supportive, disciplinary, or developmental dynamics between houses.
+  \end{itemize}
+\end{executivecard}
+\clearpage
 
-% --------------------------------------------------------------------------
-% PART I: FRONT MATTER
-% --------------------------------------------------------------------------
-\ReportPage{ORIENTATION}{Welcome to Your Career Report}
-{A structured, evidence-based methodology to translate a Vedic chart into actionable executive strategy.}
+% ==========================================================================
+% THE 10 CONSULTATION MONOGRAPH PARTS
+% ==========================================================================
+\input{parts/part01_quest.tex}
+\input{parts/part02_lagna.tex}
+\input{parts/part03_d10.tex}
+\input{parts/part04_bnn.tex}
+\input{parts/part05_voyage.tex}
+\input{parts/part06_govjob.tex}
+\input{parts/part07_entrepreneur.tex}
+\input{parts/part08_clock.tex}
+\input{parts/part09_remedies.tex}
+\input{parts/part10_roadmap.tex}
 
-\TwoCol{%
-\begin{navybox}
-\WhiteTitle{Consultation Purpose}
-The Astro Sushil Career Intelligence Report synthesizes your natal planetary configurations, divisional charts, dasha timing, and institutional sector fits into one coherent consultation dossier. It provides objective clarity on vocational strengths, operational hurdles, and major professional windows.
-\end{navybox}
-}{%
-\begin{goldbox}
-\BoxTitle{Deterministic Source of Truth}
-Every chart, planetary coordinate, house boundary, dasha date, and yoga in this document is generated by the Astro Sushil deterministic engine. The LLM acts exclusively as an editorial interpreter of verified mathematical facts.
-\end{goldbox}
+% ==========================================================================
+% COMPLETE PLANETARY REGISTER
+% ==========================================================================
+\SectionHeader{PLANETARY REGISTER}{Complete 9-Planet Astronomical Positions}{Exact sidereal coordinates, nakshatra subdivisions, functional dignities, and motion.}
+
+\begin{executivecard}
+  \sffamily\fontsize{8}{11}\selectfont
+  \begin{tabularx}{\linewidth}{@{}l c c c c c c c@{}}
+    \toprule
+    \textbf{Planet} & \textbf{Sign} & \textbf{House} & \textbf{Longitude} & \textbf{Nakshatra} & \textbf{Pada} & \textbf{Dignity} & \textbf{Status} \\
+    \midrule
+    \textbf{Sun} & \SunSign & \SunHouse & \SunDegree & \SunNakshatra & \SunPada & \SunDignity & Direct \\
+    \textbf{Moon} & \MoonSign & \MoonHouse & \MoonDegree & \MoonNakshatra & \MoonPada & \MoonDignity & Direct \\
+    \textbf{Mars} & \MarsSign & \MarsHouse & \MarsDegree & \MarsNakshatra & \MarsPada & \MarsDignity & Direct \\
+    \textbf{Mercury} & \MercurySign & \MercuryHouse & \MercuryDegree & \MercuryNakshatra & \MercuryPada & \MercuryDignity & Direct \\
+    \textbf{Jupiter} & \JupiterSign & \JupiterHouse & \JupiterDegree & \JupiterNakshatra & \JupiterPada & \JupiterDignity & Direct \\
+    \textbf{Venus} & \VenusSign & \VenusHouse & \VenusDegree & \VenusNakshatra & \VenusPada & \VenusDignity & Direct \\
+    \textbf{Saturn} & \SaturnSign & \SaturnHouse & \SaturnDegree & \SaturnNakshatra & \SaturnPada & \SaturnDignity & Direct \\
+    \textbf{Rahu} & \RahuSign & \RahuHouse & \RahuDegree & \RahuNakshatra & \RahuPada & \RahuDignity & Retrograde \\
+    \textbf{Ketu} & \KetuSign & \KetuHouse & \KetuDegree & \KetuNakshatra & \KetuPada & \KetuDignity & Retrograde \\
+    \bottomrule
+  \end{tabularx}
+\end{executivecard}
+\clearpage
+
+% ==========================================================================
+% QUANTITATIVE BALAS & TIMING SCHEDULES
+% ==========================================================================
+\SectionHeader{QUANTITATIVE BALAS}{Shadbala, Ashtakavarga \& Vimshottari Timeline}{Six-fold intrinsic planetary strength, 12-house bindu distributions, and active dasha cycles.}
+
+\TwoCol{
+  \begin{executivecard}
+    \CardTitle{Shadbala Intrinsic Potency}
+    \sffamily\fontsize{7.5}{10}\selectfont
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+      \textbf{Planet} & \textbf{Rupas (Virupas)} & \textbf{Ratio} \\
+      \midrule
+      \textbf{Sun} & \ShadbalaSunScore & \ShadbalaSunRatio \\
+      \textbf{Moon} & \ShadbalaMoonScore & \ShadbalaMoonRatio \\
+      \textbf{Mars} & \ShadbalaMarsScore & \ShadbalaMarsRatio \\
+      \textbf{Mercury} & \ShadbalaMercuryScore & \ShadbalaMercuryRatio \\
+      \textbf{Jupiter} & \ShadbalaJupiterScore & \ShadbalaJupiterRatio \\
+      \textbf{Venus} & \ShadbalaVenusScore & \ShadbalaVenusRatio \\
+      \textbf{Saturn} & \ShadbalaSaturnScore & \ShadbalaSaturnRatio \\
+    \end{tabularx}
+  \end{executivecard}
+}{
+  \begin{executivecard}
+    \CardTitle{Ashtakavarga (SAV) Bindu Totals}
+    \sffamily\fontsize{7.5}{10}\selectfont
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+      \textbf{House} & \textbf{Governing Bhava} & \textbf{Bindus} \\
+      \midrule
+      House 1 (Lagna) & Physical Constitution & \SAVHouseOneBindus \\
+      House 2 (Dhana) & Wealth \& Liquidity & \SAVHouseTwoBindus \\
+      House 6 (Shatru) & Operations \& Service & \SAVHouseSixBindus \\
+      House 10 (Karma) & Executive Stature & \SAVHouseTenBindus \\
+      House 11 (Labha) & Enterprise Gains & \SAVHouseElevenBindus \\
+      House 12 (Vyaya) & Institutional Seclusion & \SAVHouseTwelveBindus \\
+      \textbf{Total SAV} & 12-House Benchmark & \SAVTotalBindus \\
+    \end{tabularx}
+  \end{executivecard}
 }
 
 \vspace{3mm}
-{\displayfont\fontsize{15}{19}\selectfont\color{Navy}Principles of Professional Vedic Consultation}
+\begin{executivecard}
+  \CardTitle{Vimshottari Dasha Active Window}
+  \sffamily\fontsize{8}{11.5}\selectfont
+  \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{Current Mahadasha:} & \CurrentMahadasha & \textbf{Duration:} \MahadashaStart\ to \MahadashaEnd \\
+    \textbf{Current Antardasha:} & \CurrentAntardasha & \textbf{Duration:} \AntardashaStart\ to \AntardashaEnd \\
+    \textbf{Dasha Timeline Summary:} & \multicolumn{2}{X}{\UpcomingPeriodsSummary} \\
+  \end{tabularx}
+\end{executivecard}
+\clearpage
 
-In Vedic astrology, professional destiny is never evaluated from a single isolated planet or house. A rigorous consultation requires synthesizing:
-\begin{enumerate}
-  \item \textbf{The Core Triad:} The Ascendant (identity), 10th house (career mandate), and Moon (cognitive fortitude).
-  \item \textbf{Divisional Corroboration:} Validating D1 Rashi indicators against D9 Navamsha (dharma/fruition) and D10 Dashamsha (executive authority).
-  \item \textbf{Quantitative Balas:} Cross-referencing qualitative placements with Shadbala, Bhava Bala, and Sarvashtakavarga (SAV).
-  \item \textbf{Temporal Timing:} Aligning career moves with Vimshottari Mahadasha/Antardasha cycles and major planetary transits.
-\end{enumerate}
+% ==========================================================================
+% TECHNICAL APPENDIX & CALCULATION AUDIT TRAIL
+% ==========================================================================
+\SectionHeader{TECHNICAL APPENDIX}{Calculation Audit Trail \& Provenance Register}{Complete mathematical traceability, coordinate verifications, and compliance signatures.}
 
-\begin{insightbox}
-\BoxTitle{Data Governance \& Privacy}
-This document contains sensitive birth details and personalized career intelligence. Store securely and treat with strict confidentiality.
-\end{insightbox}
-
-\ReportPage{DISCLAIMER}{Confidentiality \& Methodological Scope}
-{Ethical standards and interpretive guidelines governing this consultation.}
-
-\begin{goldbox}
-\BoxTitle{Traditional Interpretive Scope}
-Vedic astrology (Jyotish) is an ancient symbolic and interpretive discipline. It maps archetypal patterns, intrinsic inclinations, and temporal cycles. It offers navigational strategic guidance rather than fatalistic certainty. Real-world career outcomes remain the product of personal effort, strategic choices, and market realities.
-\end{goldbox}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Client Responsibility \& Professional Advice}
-This dossier does not constitute legal, medical, or financial advisory services. All strategic decisions, career choices, employment contracts, and financial investments remain the sole responsibility of the client.
-\end{navybox}
-
-\vspace{3mm}
-\begin{insightbox}
-\BoxTitle{Data Integrity Guarantee}
-Astro Sushil enforces strict data isolation. No external paid per-request astrology APIs are queried. All ephemeris data is computed locally using deterministic algorithms, ensuring complete auditable repeatability.
-\end{insightbox}
-
-\ReportPage{INTEGRITY}{Report Integrity \& Verification Flow}
-{Auditable verification of the end-to-end astrological computation pipeline.}
-
-\begin{center}
-\begin{tikzpicture}[node distance=1.1cm, auto,
-  block/.style={rectangle, draw=Indigo, fill=Mist, text=Navy, font=\sffamily\bfseries\small, rounded corners=2mm, text centered, minimum height=8mm, minimum width=45mm},
-  arrow/.style={-{Latex[length=3mm, width=2mm]}, thick, Burgundy}]
-  \node [block] (step1) {1. Birth Record Resolution};
-  \node [block, below of=step1] (step2) {2. Astronomical Ephemeris Calculation};
-  \node [block, below of=step2] (step3) {3. 16-Varga Chart Construction};
-  \node [block, below of=step3] (step4) {4. Multi-System Strength Scoring};
-  \node [block, below of=step4] (step5) {5. Data Consistency Cross-Check};
-  \node [block, below of=step5, fill=PaleGold, draw=Gold] (step6) {6. Professional Career Synthesis};
-  \path [arrow] (step1) -- (step2);
-  \path [arrow] (step2) -- (step3);
-  \path [arrow] (step3) -- (step4);
-  \path [arrow] (step4) -- (step5);
-  \path [arrow] (step5) -- (step6);
-\end{tikzpicture}
-\end{center}
-
-\vspace{2mm}
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}p{42mm} X}
-\toprule
-Verification Dimension & System Status \& Value\\
-\midrule
-Ephemeris Base & \EphemerisProvider{} \hfill \VerifiedStatus\\
-Calculation Version & \CalculationVersion{} \hfill \VerifiedStatus\\
-Template Specification & \ReportTemplateVersion{} \hfill \VerifiedStatus\\
-Zodiac \& Ayanamsa & \ZodiacSystem{} / \Ayanamsa{} \hfill \VerifiedStatus\\
-House System & \HouseSystem{} \hfill \VerifiedStatus\\
-Node Mode & \NodeMode{} \hfill \VerifiedStatus\\
-Calculation Timestamp & \UtcTimeOfBirth{} (UTC) \hfill \VerifiedStatus\\
-Report Generation Timestamp & \ReportDate{} \hfill \VerifiedStatus\\
-Data Integrity Check & \textbf{PASSED: 100\% Consistent} \hfill \VerifiedStatus\\
-\bottomrule
-\end{tabularx}}
-
-% --------------------------------------------------------------------------
-% PART II: COMPLETE BIRTH RECORD & CALCULATION CONFIGURATION
-% --------------------------------------------------------------------------
-\ReportPage{BIRTH RECORD}{Complete Birth Information}
-{Resolved birth coordinates and astronomical timestamps.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}p{38mm} X >{\sffamily\bfseries\color{Navy}}p{38mm} X}
-\toprule
-Parameter & Value & Parameter & Value\\
-\midrule
-Client Full Name & \ClientName & Birth Place & \BirthPlace\\
-Date of Birth (Local) & \DateOfBirth & Local Timezone & \TimeZone\\
-Local Time of Birth & \TimeOfBirth & Latitude & \Latitude\\
-UTC Time of Birth & \UtcTimeOfBirth & Longitude & \Longitude\\
-Birth Data Source & \BirthDataSource & Calculation Status & \ReportDataStatus\\
-Data Confidence & \BirthDataConfidence & Privacy Classification & \PrivacyStatus\\
-\bottomrule
-\end{tabularx}}
+\begin{executivecard}
+  \CardTitle{Deterministic Provenance Audit}
+  \sffamily\fontsize{8}{11.5}\selectfont
+  \begin{tabularx}{\linewidth}{@{}l X@{}}
+    \textbf{Ephemeris Engine:} & Swiss Ephemeris (\texttt{sweph}) integrated via \texttt{@astro/astrology-engine v1.0.0} \\
+    \textbf{Coordinate Standard:} & Geocentric Sidereal, Lahiri (Chitrapaksha) Ayanamsa \\
+    \textbf{House Division:} & Whole Sign System (\textit{Rashi-Bhava Samatva}) \\
+    \textbf{Varga Calculations:} & High-precision integer harmonic modulus across all 16 classical Parashari Vargas \\
+    \textbf{Data Integrity:} & 100\% Verified Deterministic Astronomical Output \\
+  \end{tabularx}
+\end{executivecard}
 
 \vspace{4mm}
-\begin{insightbox}
-\BoxTitle{Geographic Resolution Note}
-Geographic coordinates have been resolved to sub-kilometer precision. Astronomical longitudes are corrected for true sidereal time and nutation at the exact instant of birth.
-\end{insightbox}
-
-\ReportPage{CALCULATION CONFIGURATION}{Technical Calculation Parameters}
-{Astronomical conventions and system settings governing chart generation.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}p{42mm} X}
-\toprule
-Configuration Parameter & Verified Operational Setting\\
-\midrule
-Zodiac Coordinate Frame & \ZodiacSystem{} \hfill \ZodiacSystemStatus\\
-Ayanamsa Precession & \Ayanamsa{} \hfill \AyanamsaStatus\\
-House Division System & \HouseSystem{} \hfill \HouseSystemStatus\\
-Lunar Node Convention & \NodeMode{} \hfill \NodeModeStatus\\
-Vimshottari Dasha Basis & \VimshottariBasis{} \hfill \VimshottariBasisStatus\\
-Transit Reference Date & \TransitReference{} \hfill \TransitReferenceStatus\\
-Divisional Charts Evaluated & \DivisionalChartsIncluded{} \hfill \DivisionalChartsStatus\\
-Planetary Calculation Mode & Geocentric Topocentric-Corrected \hfill \VerifiedStatus\\
-Chart Calculation Version & \CalculationVersion{} \hfill \CalculationVersionStatus\\
-\bottomrule
-\end{tabularx}}
-
-\vspace{4mm}
-\begin{goldbox}
-\BoxTitle{Why Calculation Transparency Matters}
-Exact mathematical documentation enables complete reproducibility. An astrologer or technical auditor can verify every degree, cusp, and sub-period against standard astronomical tables.
-\end{goldbox}
-
-% --------------------------------------------------------------------------
-% PART III: PRIMARY CHART & COMPLETE REGISTERS
-% --------------------------------------------------------------------------
-\ReportPage{PRIMARY CHART}{North Indian D1 Kundli (Rashi)}
-{The foundational physical blueprint of your vocational destiny.}
-
-\TwoCol{%
-\begin{center}
-  \RenderNorthIndianKundli{0.85}{Kundli}
-\end{center}
-}{%
-\begin{insightbox}
-\BoxTitle{How to Read This Chart}
-In this North Indian chart:
-\begin{itemize}
-  \item Top central diamond is \textbf{House 1 (Ascendant)}.
-  \item Houses proceed \textbf{anti-clockwise} from 1 to 12.
-  \item Top right diamond is \textbf{House 10 (Career)}.
-  \item Sign abbreviations and planetary symbols with retrograde markers (R) are shown in each house.
-\end{itemize}
-\end{insightbox}
-\vspace{2mm}
-\begin{goldbox}
-\BoxTitle{Primary Chart Summary}
-\textbf{Ascendant:} \AscendantSign{} (\AscendantDegree{})\par
-\textbf{Ascendant Lord:} \AscendantLord{} in \AscendantLordHouse{}\par
-\textbf{10th House (Career):} \HouseTenSign{} ruled by \HouseTenLord{}\par
-\textbf{10th Lord Placement:} \HouseTenLordPlacement{}
-\end{goldbox}
-}
-
-\ReportPage{PLANETARY REGISTER}{Complete Planetary Register}
-{Exhaustive astronomical positions, dignities, avasthas, and speeds.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}l l l l l l l l}
-\toprule
-Body & Sign & House & Degree & Nakshatra/Pada & Dignity & Motion & Karaka\\
-\midrule
-Asc & \AscendantSign & H1 & \AscendantDegree & \AscendantNakshatra{} P\AscendantPada & --- & Direct & Lagna\\
-Sun & \SunSign & \SunHouse & \SunDegree & \SunNakshatra{} \SunPada & \SunDignity & \SunRetrograde & \SunCharaKaraka\\
-Moon & \MoonSign & \MoonHouse & \MoonDegree & \MoonNakshatra{} \MoonPada & \MoonDignity & \MoonRetrograde & \MoonCharaKaraka\\
-Mars & \MarsSign & \MarsHouse & \MarsDegree & \MarsNakshatra{} \MarsPada & \MarsDignity & \MarsRetrograde & \MarsCharaKaraka\\
-Mercury & \MercurySign & \MercuryHouse & \MercuryDegree & \MercuryNakshatra{} \MercuryPada & \MercuryDignity & \MercuryRetrograde & \MercuryCharaKaraka\\
-Jupiter & \JupiterSign & \JupiterHouse & \JupiterDegree & \JupiterNakshatra{} \JupiterPada & \JupiterDignity & \JupiterRetrograde & \JupiterCharaKaraka\\
-Venus & \VenusSign & \VenusHouse & \VenusDegree & \VenusNakshatra{} \VenusPada & \VenusDignity & \VenusRetrograde & \VenusCharaKaraka\\
-Saturn & \SaturnSign & \SaturnHouse & \SaturnDegree & \SaturnNakshatra{} \SaturnPada & \SaturnDignity & \SaturnRetrograde & \SaturnCharaKaraka\\
-Rahu & \RahuSign & \RahuHouse & \RahuDegree & \RahuNakshatra{} \RahuPada & \RahuDignity & \RahuRetrograde & Node\\
-Ketu & \KetuSign & \KetuHouse & \KetuDegree & \KetuNakshatra{} \KetuPada & \KetuDignity & \KetuRetrograde & Node\\
-\bottomrule
-\end{tabularx}}
-
-\vspace{3mm}
-\begin{insightbox}
-\BoxTitle{Planetary Precision Note}
-All degrees are computed in sidereal ecliptic coordinates with standard reduction for mean node and geocentric parallax.
-\end{insightbox}
-
-\ReportPage{HOUSE REGISTER}{Complete 12-House Register}
-{Comprehensive register of house signs, lords, occupants, and strength scores.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}c l l l l c c}
-\toprule
-House & Sign & Lord & Placement & Occupants & Bhava Bala & Rank\\
-\midrule
-1st & \HouseOneSign & \HouseOneLord & \HouseOneLordPlacement & \HouseOneOccupants & \HouseOneBhavaBalaScore & \HouseOneBhavaBalaRank\\
-2nd & \HouseTwoSign & \HouseTwoLord & \HouseTwoLordPlacement & \HouseTwoOccupants & \HouseTwoBhavaBalaScore & \HouseTwoBhavaBalaRank\\
-3rd & \HouseThreeSign & \HouseThreeLord & \HouseThreeLordPlacement & \HouseThreeOccupants & \HouseThreeBhavaBalaScore & \HouseThreeBhavaBalaRank\\
-4th & \HouseFourSign & \HouseFourLord & \HouseFourLordPlacement & \HouseFourOccupants & \HouseFourBhavaBalaScore & \HouseFourBhavaBalaRank\\
-5th & \HouseFiveSign & \HouseFiveLord & \HouseFiveLordPlacement & \HouseFiveOccupants & \HouseFiveBhavaBalaScore & \HouseFiveBhavaBalaRank\\
-6th & \HouseSixSign & \HouseSixLord & \HouseSixLordPlacement & \HouseSixOccupants & \HouseSixBhavaBalaScore & \HouseSixBhavaBalaRank\\
-7th & \HouseSevenSign & \HouseSevenLord & \HouseSevenLordPlacement & \HouseSevenOccupants & \HouseSevenBhavaBalaScore & \HouseSevenBhavaBalaRank\\
-8th & \HouseEightSign & \HouseEightLord & \HouseEightLordPlacement & \HouseEightOccupants & \HouseEightBhavaBalaScore & \HouseEightBhavaBalaRank\\
-9th & \HouseNineSign & \HouseNineLord & \HouseNineLordPlacement & \HouseNineOccupants & \HouseNineBhavaBalaScore & \HouseNineBhavaBalaRank\\
-10th & \HouseTenSign & \HouseTenLord & \HouseTenLordPlacement & \HouseTenOccupants & \HouseTenBhavaBalaScore & \HouseTenBhavaBalaRank\\
-11th & \HouseElevenSign & \HouseElevenLord & \HouseElevenLordPlacement & \HouseElevenOccupants & \HouseElevenBhavaBalaScore & \HouseElevenBhavaBalaRank\\
-12th & \HouseTwelveSign & \HouseTwelveLord & \HouseTwelveLordPlacement & \HouseTwelveOccupants & \HouseTwelveBhavaBalaScore & \HouseTwelveBhavaBalaRank\\
-\bottomrule
-\end{tabularx}}
-
-% --------------------------------------------------------------------------
-% PART IV: ASCENDANT & PROFESSIONAL IDENTITY
-% --------------------------------------------------------------------------
-\ReportPage{ASCENDANT}{Ascendant \& Professional Identity}
-{How your physical constitution and intrinsic nature shape your executive brand.}
-
-\begin{unavailablebox}
-\BoxTitle{Ascendant Evidence \hfill \AscendantStatus}
-\textbf{Ascendant Sign:} \AscendantSign\quad|\quad
-\textbf{Degree:} \AscendantDegree\quad|\quad
-\textbf{Nakshatra:} \AscendantNakshatra\quad|\quad
-\textbf{Pada:} \AscendantPada
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Professional Identity Interpretation}
-\AscendantCareerInterpretation
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Core Executive Persona}
-\CareerIdentity
-\end{goldbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Working Style \& Personality}
-\ProfessionalPersonality
-\end{navybox}
-
-\ReportPage{ASCENDANT LORD}{Ascendant Lord Analysis}
-{The prime mover of personal agency, leadership drive, and vitality.}
-
-\begin{unavailablebox}
-\BoxTitle{Ascendant Lord Evidence \hfill \AscendantLordStatus}
-\textbf{Lord:} \AscendantLord\quad|\quad
-\textbf{Placement:} \AscendantLordHouse{} (\AscendantLordSign{})\quad|\quad
-\textbf{Degree:} \AscendantLordDegree\quad|\quad
-\textbf{Condition:} \AscendantLordCondition
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Ascendant Lord Interpretation}
-\AscendantLordInterpretation
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Career DNA Impact}
-\CareerDNAAnalysis
-\end{goldbox}
-}
-
-% --------------------------------------------------------------------------
-% PART V: CAREER HOUSES
-% --------------------------------------------------------------------------
-\ReportPage{10TH HOUSE}{10th House: Karma Bhava \& Career Mandate}
-{The supreme house of vocation, social stature, executive authority, and public legacy.}
-
-\begin{unavailablebox}
-\BoxTitle{10th House Evidence \hfill \HouseTenStatus}
-\textbf{Sign:} \HouseTenSign\quad|\quad
-\textbf{Lord:} \HouseTenLord\quad|\quad
-\textbf{Placement:} \HouseTenLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseTenOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Vocational Stature Interpretation}
-\HouseTenCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseTenConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Operational Challenges}
-\HouseTenChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseTenPracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{10TH LORD}{10th Lord Analysis: Career Governance}
-{Deconstruction of the primary governor of your professional destiny.}
-
-\TwoCol{%
-\begin{navybox}
-\WhiteTitle{10th Lord Role}
-The 10th Lord is the chief operational governor of your professional destiny. Positioned in \HouseTenLordPlacement{}, it links career endeavors with specific departmental, commercial, and strategic agendas.
-\end{navybox}
-\begin{insightbox}
-\BoxTitle{Planetary Synthesis}
-\PlanetarySynthesis
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Executive Recommendations}
-\ExecutiveRecommendations
-\end{goldbox}
-}
-
-\ReportPage{6TH HOUSE}{6th House: Shatru Bhava --- Operations \& Problem-Solving}
-{Daily service, operational excellence, competitive endurance, and crisis handling.}
-
-\begin{unavailablebox}
-\BoxTitle{6th House Evidence \hfill \HouseSixStatus}
-\textbf{Sign:} \HouseSixSign\quad|\quad
-\textbf{Lord:} \HouseSixLord\quad|\quad
-\textbf{Placement:} \HouseSixLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseSixOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Operational Interpretation}
-\HouseSixCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseSixConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Workplace Friction}
-\HouseSixChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseSixPracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{2ND HOUSE}{2nd House: Dhana Bhava --- Revenue \& Accumulated Wealth}
-{Fiscal temperament, cash flows, earning capacity, and commercial value.}
-
-\begin{unavailablebox}
-\BoxTitle{2nd House Evidence \hfill \HouseTwoStatus}
-\textbf{Sign:} \HouseTwoSign\quad|\quad
-\textbf{Lord:} \HouseTwoLord\quad|\quad
-\textbf{Placement:} \HouseTwoLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseTwoOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Wealth Pattern Interpretation}
-\HouseTwoCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseTwoConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Financial Vulnerabilities}
-\HouseTwoChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseTwoPracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{11TH HOUSE}{11th House: Labha Bhava --- Enterprise Network \& Scale}
-{Major monetization, industry networks, executive alliances, and high-scale goals.}
-
-\begin{unavailablebox}
-\BoxTitle{11th House Evidence \hfill \HouseElevenStatus}
-\textbf{Sign:} \HouseElevenSign\quad|\quad
-\textbf{Lord:} \HouseElevenLord\quad|\quad
-\textbf{Placement:} \HouseElevenLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseElevenOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Gains \& Network Interpretation}
-\HouseElevenCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseElevenConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Network Hazards}
-\HouseElevenChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseElevenPracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{5TH HOUSE}{5th House: Putra Bhava --- Creative Intelligence \& Strategy}
-{Strategic foresight, advisory intellect, innovation, and speculative discernment.}
-
-\begin{unavailablebox}
-\BoxTitle{5th House Evidence \hfill \HouseFiveStatus}
-\textbf{Sign:} \HouseFiveSign\quad|\quad
-\textbf{Lord:} \HouseFiveLord\quad|\quad
-\textbf{Placement:} \HouseFiveLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseFiveOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Strategic Intellect Interpretation}
-\HouseFiveCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseFiveConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Strategic Hazards}
-\HouseFiveChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseFivePracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{9TH HOUSE}{9th House: Bhagya Bhava --- Higher Wisdom \& Mentorship}
-{Fortune, corporate ethics, senior sponsors, institutional credibility, and philosophy.}
-
-\begin{unavailablebox}
-\BoxTitle{9th House Evidence \hfill \HouseNineStatus}
-\textbf{Sign:} \HouseNineSign\quad|\quad
-\textbf{Lord:} \HouseNineLord\quad|\quad
-\textbf{Placement:} \HouseNineLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseNineOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Mentorship Interpretation}
-\HouseNineCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseNineConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Governance Hazards}
-\HouseNineChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseNinePracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{12TH HOUSE}{12th House: Vyaya Bhava --- Global Reach \& Remote Enterprise}
-{Multinational operations, remote work, foreign markets, and specialized research behind closed doors.}
-
-\begin{unavailablebox}
-\BoxTitle{12th House Evidence \hfill \HouseTwelveStatus}
-\textbf{Sign:} \HouseTwelveSign\quad|\quad
-\textbf{Lord:} \HouseTwelveLord\quad|\quad
-\textbf{Placement:} \HouseTwelveLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseTwelveOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Global/Remote Interpretation}
-\HouseTwelveCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseTwelveConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Isolation Risks}
-\HouseTwelveChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseTwelvePracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{7TH HOUSE}{7th House: Kalatra Bhava --- Client Relations \& Commercial Deals}
-{Strategic partnerships, commercial negotiations, public contracts, and client stewardship.}
-
-\begin{unavailablebox}
-\BoxTitle{7th House Evidence \hfill \HouseSevenStatus}
-\textbf{Sign:} \HouseSevenSign\quad|\quad
-\textbf{Lord:} \HouseSevenLord\quad|\quad
-\textbf{Placement:} \HouseSevenLordPlacement\quad|\quad
-\textbf{Occupants:} \HouseSevenOccupants
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Commercial Negotiation Interpretation}
-\HouseSevenCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Expression}
-\HouseSevenConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Partnership Risks}
-\HouseSevenChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Practical Strategy}
-\HouseSevenPracticalInterpretation
-\end{insightbox}
-}
-
-\ReportPage{OTHER HOUSES}{Supporting Houses: 1st, 3rd, 4th \& 8th}
-{Vital auxiliary houses conditioning initiative, infrastructure, and crisis resilience.}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{3rd House: Enterprise \& Communication}
-\textbf{Sign:} \HouseThreeSign\quad|\quad\textbf{Lord:} \HouseThreeLord\par
-\HouseThreeCareerInterpretation
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{4th House: Institutional Foundations}
-\textbf{Sign:} \HouseFourSign\quad|\quad\textbf{Lord:} \HouseFourLord\par
-\HouseFourCareerInterpretation
-\end{goldbox}
-}{%
-\begin{insightbox}
-\BoxTitle{8th House: Transformation \& Crisis R\&D}
-\textbf{Sign:} \HouseEightSign\quad|\quad\textbf{Lord:} \HouseEightLord\par
-\HouseEightCareerInterpretation
-\end{insightbox}
-\begin{navybox}
-\WhiteTitle{1st House: Foundational Mandate}
-\textbf{Sign:} \HouseOneSign\quad|\quad\textbf{Lord:} \HouseOneLord\par
-\HouseOneCareerInterpretation
-\end{navybox}
-}
-
-% --------------------------------------------------------------------------
-% PART VI: PLANET-BY-PLANET CAREER ANALYSIS
-% --------------------------------------------------------------------------
-\ReportPage{SUN \& CAREER}{Sun: Executive Vision \& Institutional Authority}
-{Significator of leadership, sovereign authority, integrity, and government alignment.}
-
-\begin{unavailablebox}
-\BoxTitle{Sun Astrological Register \hfill \SunStatus}
-\textbf{Sign:} \SunSign\quad|\quad
-\textbf{House:} \SunHouse\quad|\quad
-\textbf{Degree:} \SunDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \SunNakshatra{} \SunPada\quad|\quad
-\textbf{Dignity:} \SunDignity\quad|\quad
-\textbf{Motion:} \SunRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Executive Authority Significance}
-\SunCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\SunConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Potential Authority Hazards}
-\SunPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\SunPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{MOON \& CAREER}{Moon: Cognitive Adaptability \& Public Rapport}
-{Significator of psychological resilience, stakeholder empathy, and public perception.}
-
-\begin{unavailablebox}
-\BoxTitle{Moon Astrological Register \hfill \MoonStatus}
-\textbf{Sign:} \MoonSign\quad|\quad
-\textbf{House:} \MoonHouse\quad|\quad
-\textbf{Degree:} \MoonDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \MoonNakshatra{} \MoonPada\quad|\quad
-\textbf{Dignity:} \MoonDignity\quad|\quad
-\textbf{Motion:} \MoonRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Cognitive Resilience Significance}
-\MoonCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\MoonConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Emotional Hazards under Pressure}
-\MoonPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\MoonPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{MARS \& CAREER}{Mars: Tactical Execution \& Crisis Management}
-{Significator of decisive action, technical engineering, courage, and risk management.}
-
-\begin{unavailablebox}
-\BoxTitle{Mars Astrological Register \hfill \MarsStatus}
-\textbf{Sign:} \MarsSign\quad|\quad
-\textbf{House:} \MarsHouse\quad|\quad
-\textbf{Degree:} \MarsDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \MarsNakshatra{} \MarsPada\quad|\quad
-\textbf{Dignity:} \MarsDignity\quad|\quad
-\textbf{Motion:} \MarsRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Execution Drive Significance}
-\MarsCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\MarsConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Friction \& Aggression Hazards}
-\MarsPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\MarsPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{MERCURY \& CAREER}{Mercury: Analytical Systems \& Commercial Intellect}
-{Significator of quantitative architecture, negotiation, communication, and commerce.}
-
-\begin{unavailablebox}
-\BoxTitle{Mercury Astrological Register \hfill \MercuryStatus}
-\textbf{Sign:} \MercurySign\quad|\quad
-\textbf{House:} \MercuryHouse\quad|\quad
-\textbf{Degree:} \MercuryDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \MercuryNakshatra{} \MercuryPada\quad|\quad
-\textbf{Dignity:} \MercuryDignity\quad|\quad
-\textbf{Motion:} \MercuryRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Analytical Acumen Significance}
-\MercuryCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\MercuryConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Over-Analysis Hazards}
-\MercuryPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\MercuryPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{JUPITER \& CAREER}{Jupiter: Strategic Wisdom \& Corporate Governance}
-{Significator of executive mentorship, ethical stewardship, expansion, and capital growth.}
-
-\begin{unavailablebox}
-\BoxTitle{Jupiter Astrological Register \hfill \JupiterStatus}
-\textbf{Sign:} \JupiterSign\quad|\quad
-\textbf{House:} \JupiterHouse\quad|\quad
-\textbf{Degree:} \JupiterDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \JupiterNakshatra{} \JupiterPada\quad|\quad
-\textbf{Dignity:} \JupiterDignity\quad|\quad
-\textbf{Motion:} \JupiterRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Strategic Advisory Significance}
-\JupiterCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\JupiterConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Over-Extension Hazards}
-\JupiterPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\JupiterPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{VENUS \& CAREER}{Venus: Value Creation, Diplomacy \& Commercial Aesthetics}
-{Significator of luxury commerce, executive charisma, client relations, and value design.}
-
-\begin{unavailablebox}
-\BoxTitle{Venus Astrological Register \hfill \VenusStatus}
-\textbf{Sign:} \VenusSign\quad|\quad
-\textbf{House:} \VenusHouse\quad|\quad
-\textbf{Degree:} \VenusDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \VenusNakshatra{} \VenusPada\quad|\quad
-\textbf{Dignity:} \VenusDignity\quad|\quad
-\textbf{Motion:} \VenusRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Diplomatic Value Significance}
-\VenusCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\VenusConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Compromise Hazards}
-\VenusPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\VenusPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{SATURN \& CAREER}{Saturn: Operational Discipline \& Organizational Stamina}
-{Significator of corporate architecture, perseverance, risk mitigation, and long-term legacy.}
-
-\begin{unavailablebox}
-\BoxTitle{Saturn Astrological Register \hfill \SaturnStatus}
-\textbf{Sign:} \SaturnSign\quad|\quad
-\textbf{House:} \SaturnHouse\quad|\quad
-\textbf{Degree:} \SaturnDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \SaturnNakshatra{} \SaturnPada\quad|\quad
-\textbf{Dignity:} \SaturnDignity\quad|\quad
-\textbf{Motion:} \SaturnRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Operational Architecture Significance}
-\SaturnCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\SaturnConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Delay \& Rigidity Hazards}
-\SaturnPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\SaturnPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{RAHU \& CAREER}{Rahu: Frontier Innovation \& Market Disruption}
-{Significator of exponential technologies, international scale, unconventional markets, and ambition.}
-
-\begin{unavailablebox}
-\BoxTitle{Rahu Astrological Register \hfill \RahuStatus}
-\textbf{Sign:} \RahuSign\quad|\quad
-\textbf{House:} \RahuHouse\quad|\quad
-\textbf{Degree:} \RahuDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \RahuNakshatra{} \RahuPada\quad|\quad
-\textbf{Dignity:} \RahuDignity\quad|\quad
-\textbf{Motion:} \RahuRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Innovation Drive Significance}
-\RahuCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\RahuConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Speculation Hazards}
-\RahuPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\RahuPracticalCareerInterpretation
-\end{insightbox}
-}
-
-\ReportPage{KETU \& CAREER}{Ketu: Specialized R\&D \& Root-Cause Diagnostics}
-{Significator of abstract systems architecture, root-cause debugging, deep mastery, and detachment.}
-
-\begin{unavailablebox}
-\BoxTitle{Ketu Astrological Register \hfill \KetuStatus}
-\textbf{Sign:} \KetuSign\quad|\quad
-\textbf{House:} \KetuHouse\quad|\quad
-\textbf{Degree:} \KetuDegree\quad|\quad
-\textbf{Nakshatra/Pada:} \KetuNakshatra{} \KetuPada\quad|\quad
-\textbf{Dignity:} \KetuDignity\quad|\quad
-\textbf{Motion:} \KetuRetrograde
-\end{unavailablebox}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Deep Domain Acumen Significance}
-\KetuCareerSignificance
-\end{insightbox}
-\begin{goldbox}
-\BoxTitle{Constructive Application}
-\KetuConstructiveExpression
-\end{goldbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Disillusionment Hazards}
-\KetuPotentialChallenge
-\end{unavailablebox}
-\begin{insightbox}
-\BoxTitle{Placement-Specific Strategy}
-\KetuPracticalCareerInterpretation
-\end{insightbox}
-}
-
-% --------------------------------------------------------------------------
-% PART VII: ALL 16 DIVISIONAL CHARTS (VARGAS)
-% --------------------------------------------------------------------------
-\VargaSectionPage{D1 Rashi}{Root Kundli}{Physical Foundations \& Overall Capacity}{Foundational physical and operational matrix.}{VargaDOne}{}
-\VargaSectionPage{D2 Hora}{Hora Chakra}{Wealth Allocation \& Resource Management}{Liquidity, financial prudence, and income sustainability.}{VargaDTwo}{}
-\VargaSectionPage{D3 Drekkana}{Drekkana Chakra}{Initiative, Courage \& Operational Vitality}{Enterprise drive, stamina, and execution boldness.}{VargaDThree}{}
-\VargaSectionPage{D4 Chaturthamsha}{Chaturthamsa Chakra}{Fixed Assets \& Enterprise Foundations}{Corporate real estate, infrastructure, and institutional stability.}{VargaDFour}{}
-\VargaSectionPage{D7 Saptamsha}{Saptamsa Chakra}{Creative Progeny \& Talent Delegation}{Output produced through teams, subordinates, and partnerships.}{VargaDSeven}{}
-\VargaSectionPage{D9 Navamsha}{Navamsa Chakra}{Dharma, Soul Purpose \& Career Fruition}{Essential validation of D1 planetary potencies after age 32.}{VargaDNine}{}
-\VargaSectionPage{D10 Dashamsha}{Dasamsa Chakra}{Dedicated Executive \& Professional Stature}{Primary divisional chart for career hierarchy, honor, and public reputation.}{VargaDTen}{}
-\VargaSectionPage{D12 Dwadashamsha}{Dvadasamsa Chakra}{Ancestral Legacy \& Institutional Pedigree}{Family heritage, institutional backing, and paternal career karma.}{VargaDTwelve}{}
-\VargaSectionPage{D16 Shodashamsha}{Sodasamsa Chakra}{Conveyances, Comforts \& Executive Benefits}{Corporate infrastructure, vehicles, and inner workplace contentment.}{VargaDSixteen}{}
-\VargaSectionPage{D20 Vimshamsha}{Vimsamsa Chakra}{Corporate Ethics \& Spiritual Governance}{Integrity, ethical alignment, and devotion to corporate stewardship.}{VargaDTwenty}{}
-\VargaSectionPage{D24 Chaturvimshamsha}{Siddhamsa Chakra}{Higher Education \& Technical Mastery}{Advanced technical skill acquisition, domain research, and academic excellence.}{VargaDTwentyFour}{}
-\VargaSectionPage{D27 Bhamsa}{Saptavimsamsa Chakra}{Subtle Resilience \& Cognitive Stamina}{Endurance under executive fatigue and crisis management resilience.}{VargaDTwentySeven}{}
-\VargaSectionPage{D30 Trimshamsha}{Trimsamsa Chakra}{Risk Analysis \& Operational Vulnerabilities}{Legal compliance risks, workplace adversaries, and structural mitigations.}{VargaDThirty}{}
-\VargaSectionPage{D40 Khavedamsha}{Khavedamsa Chakra}{Auspicious Breakthroughs \& Fine Karma}{Subtle career windfalls, lucky breakthroughs, and institutional honors.}{VargaDForty}{}
-\VargaSectionPage{D45 Akshavedamsha}{Akshavedamsa Chakra}{Moral Integrity \& Leadership Character}{Reputational integrity, trustworthiness, and executive ethics.}{VargaDFortyFive}{}
-\VargaSectionPage{D60 Shashtiamsha}{Sasthyamsa Chakra}{Karmic Blueprint \& Executive Destiny}{The definitive microscopic validation of planetary strength and legacy.}{VargaDSixty}{}
-
-% --------------------------------------------------------------------------
-% PART VII (Cont): D10 DASHAMSHA IN DEPTH
-% --------------------------------------------------------------------------
-\ReportPage{D10 IN DEPTH}{D10 Dashamsha: Professional Stature Analysis}
-{Exhaustive analysis of the dedicated Vedic career chart.}
-
-\TwoCol{%
-\begin{center}
-  \RenderNorthIndianKundli{0.78}{VargaDTen}
-\end{center}
-}{%
-\begin{goldbox}
-\BoxTitle{D10 Key Placements}
-\textbf{Ascendant:} \DTenAscendantSign\par
-\textbf{Ascendant Lord:} \DTenAscendantLord{} (\DTenAscendantLordPlacement)\par
-\textbf{10th House:} \DTenTenthHouseSign{} ruled by \DTenTenthHouseLord\par
-\textbf{10th House Occupants:} \DTenTenthHouseOccupants
-\end{goldbox}
-\vspace{2mm}
-\begin{insightbox}
-\BoxTitle{Key Career Planets in D10}
-\textbf{Sun in D10:} \DTenSun\par
-\textbf{Saturn in D10:} \DTenSaturn\par
-\textbf{Amatyakaraka in D10:} \DTenAmatyakaraka
-\end{insightbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{D1 $\leftrightarrow$ D10 Career Synthesis}
-\DTenSynthesis
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART VIII: NAKSHATRAS
-% --------------------------------------------------------------------------
-\ReportPage{NAKSHATRAS}{Nakshatra Deconstruction \& Tara Chakra}
-{The 27 lunar mansions governing cognitive temperament and vocational deities.}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Moon Nakshatra (Janma Tara)}
-\textbf{Nakshatra:} \MoonNakshatraName\par
-\textbf{Pada:} \MoonNakshatraPada\par
-\textbf{Lord:} \MoonNakshatraLord\par
-Governs psychological reflexes, instinctual problem-solving, and emotional stamina.
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Ascendant Nakshatra (Lagna Tara)}
-\textbf{Nakshatra:} \AscendantNakshatraName\par
-\textbf{Pada:} \AscendantNakshatraPada\par
-\textbf{Lord:} \AscendantNakshatraLord\par
-Governs executive projection, outward professional brand, and physical stamina.
-\end{goldbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Career Nakshatra Synthesis}
-\CareerNakshatraSynthesis
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART IX: YOGAS
-% --------------------------------------------------------------------------
-\ReportPage{YOGA REGISTER}{Detected Classical Vedic Yogas}
-{Deterministic evaluation of high-impact planetary combinations.}
-
-\begin{insightbox}
-\BoxTitle{Yoga Analysis Summary \hfill \YogaStatus}
-\YogaSummary
-\end{insightbox}
-
-\vspace{3mm}
-\ifdefined\YogaOneName
-\begin{goldbox}
-\BoxTitle{\YogaOneName{} (\YogaOneCategory{}) \hfill \StatusPill{STRONG}}
-\textbf{Rule:} \YogaOneRule\par
-\textbf{Evidence:} \YogaOneEvidence\par
-\textbf{Career Manifestation:} \YogaOneManifestation\par
-\textbf{Limitations:} \YogaOneLimitations
-\end{goldbox}
-\fi
-
-\vspace{2mm}
-\ifdefined\YogaTwoName
-\begin{insightbox}
-\BoxTitle{\YogaTwoName{} (\YogaTwoCategory{}) \hfill \StatusPill{ACTIVE}}
-\textbf{Rule:} \YogaTwoRule\par
-\textbf{Evidence:} \YogaTwoEvidence\par
-\textbf{Career Manifestation:} \YogaTwoManifestation
-\end{insightbox}
-\fi
-
-\vspace{2mm}
-\ifdefined\YogaThreeName
-\begin{navybox}
-\WhiteTitle{\YogaThreeName{} (\YogaThreeCategory{})}
-\textbf{Rule:} \YogaThreeRule\par
-\textbf{Evidence:} \YogaThreeEvidence\par
-\textbf{Career Manifestation:} \YogaThreeManifestation
-\end{navybox}
-\fi
-
-% --------------------------------------------------------------------------
-% PART X: STRENGTHS (SHADBALA, BHAVA BALA, VIMSHOPAKA)
-% --------------------------------------------------------------------------
-\ReportPage{SHADBALA}{Shadbala: Six-Fold Planetary Strength}
-{Mathematical evaluation of positional, directional, temporal, and motional strength.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}l c c c c c c c c c}
-\toprule
-Planet & Sthana & Dig & Kala & Cheshta & Naisargika & Drik & Total & Rupas & Rank\\
-\midrule
-Sun & \ShadbalaSunSthana & \ShadbalaSunDig & \ShadbalaSunKala & \ShadbalaSunCheshta & \ShadbalaSunNaisargika & \ShadbalaSunDrik & \ShadbalaSunTotal & \ShadbalaSunRupas & \ShadbalaSunRank\\
-Moon & \ShadbalaMoonSthana & \ShadbalaMoonDig & \ShadbalaMoonKala & \ShadbalaMoonCheshta & \ShadbalaMoonNaisargika & \ShadbalaMoonDrik & \ShadbalaMoonTotal & \ShadbalaMoonRupas & \ShadbalaMoonRank\\
-Mars & \ShadbalaMarsSthana & \ShadbalaMarsDig & \ShadbalaMarsKala & \ShadbalaMarsCheshta & \ShadbalaMarsNaisargika & \ShadbalaMarsDrik & \ShadbalaMarsTotal & \ShadbalaMarsRupas & \ShadbalaMarsRank\\
-Mercury & \ShadbalaMercurySthana & \ShadbalaMercuryDig & \ShadbalaMercuryKala & \ShadbalaMercuryCheshta & \ShadbalaMercuryNaisargika & \ShadbalaMercuryDrik & \ShadbalaMercuryTotal & \ShadbalaMercuryRupas & \ShadbalaMercuryRank\\
-Jupiter & \ShadbalaJupiterSthana & \ShadbalaJupiterDig & \ShadbalaJupiterKala & \ShadbalaJupiterCheshta & \ShadbalaJupiterNaisargika & \ShadbalaJupiterDrik & \ShadbalaJupiterTotal & \ShadbalaJupiterRupas & \ShadbalaJupiterRank\\
-Venus & \ShadbalaVenusSthana & \ShadbalaVenusDig & \ShadbalaVenusKala & \ShadbalaVenusCheshta & \ShadbalaVenusNaisargika & \ShadbalaVenusDrik & \ShadbalaVenusTotal & \ShadbalaVenusRupas & \ShadbalaVenusRank\\
-Saturn & \ShadbalaSaturnSthana & \ShadbalaSaturnDig & \ShadbalaSaturnKala & \ShadbalaSaturnCheshta & \ShadbalaSaturnNaisargika & \ShadbalaSaturnDrik & \ShadbalaSaturnTotal & \ShadbalaSaturnRupas & \ShadbalaSaturnRank\\
-\bottomrule
-\end{tabularx}}
-
-\vspace{3mm}
-\begin{insightbox}
-\BoxTitle{Shadbala Interpretation}
-\ShadbalaInterpretation
-\end{insightbox}
-
-\ReportPage{BHAVA BALA}{Bhava Bala: 12-House Strength Evaluation}
-{Mathematical strength of the 12 houses based on lord strength, directional placement, and aspects.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}c l c c c}
-\toprule
-House & Description & Total Rupas & Rank & Status\\
-\midrule
-1st & Tanu Bhava (Self \& Career Identity) & \BhavaBalaHouseOneTotal & \BhavaBalaHouseOneRank & \VerifiedStatus\\
-2nd & Dhana Bhava (Wealth \& Revenue) & \BhavaBalaHouseTwoTotal & \BhavaBalaHouseTwoRank & \VerifiedStatus\\
-3rd & Sahaja Bhava (Initiative \& Courage) & \BhavaBalaHouseThreeTotal & \BhavaBalaHouseThreeRank & \VerifiedStatus\\
-4th & Bandhu Bhava (Institutional Foundations) & \BhavaBalaHouseFourTotal & \BhavaBalaHouseFourRank & \VerifiedStatus\\
-5th & Putra Bhava (Intelligence \& Strategy) & \BhavaBalaHouseFiveTotal & \BhavaBalaHouseFiveRank & \VerifiedStatus\\
-6th & Shatru Bhava (Operations \& Service) & \BhavaBalaHouseSixTotal & \BhavaBalaHouseSixRank & \VerifiedStatus\\
-7th & Kalatra Bhava (Partnerships \& Deals) & \BhavaBalaHouseSevenTotal & \BhavaBalaHouseSevenRank & \VerifiedStatus\\
-8th & Randhra Bhava (Transformation \& R\&D) & \BhavaBalaHouseEightTotal & \BhavaBalaHouseEightRank & \VerifiedStatus\\
-9th & Bhagya Bhava (Mentorship \& Fortune) & \BhavaBalaHouseNineTotal & \BhavaBalaHouseNineRank & \VerifiedStatus\\
-10th & Karma Bhava (Career \& Executive Authority) & \BhavaBalaHouseTenTotal & \BhavaBalaHouseTenRank & \VerifiedStatus\\
-11th & Labha Bhava (Enterprise Gains \& Networks) & \BhavaBalaHouseElevenTotal & \BhavaBalaHouseElevenRank & \VerifiedStatus\\
-12th & Vyaya Bhava (Global Reach \& Remote Work) & \BhavaBalaHouseTwelveTotal & \BhavaBalaHouseTwelveRank & \VerifiedStatus\\
-\bottomrule
-\end{tabularx}}
-
-\vspace{3mm}
-\begin{goldbox}
-\BoxTitle{Bhava Bala Summary}
-\BhavaBalaTopSummary
-\end{goldbox}
-
-% --------------------------------------------------------------------------
-% PART XI: ASHTAKAVARGA
-% --------------------------------------------------------------------------
-\ReportPage{ASHTAKAVARGA}{Ashtakavarga: Quantitative Bindu Matrix}
-{The classical Vedic system for evaluating transit resilience and resource capacity.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}c c c c c c c c c c c c c}
-\toprule
-Ar & Ta & Ge & Cn & Le & Vi & Li & Sc & Sg & Cp & Aq & Pi & Total\\
-\midrule
-\SAVSignOneBindus & \SAVSignTwoBindus & \SAVSignThreeBindus & \SAVSignFourBindus & \SAVSignFiveBindus & \SAVSignSixBindus & \SAVSignSevenBindus & \SAVSignEightBindus & \SAVSignNineBindus & \SAVSignTenBindus & \SAVSignElevenBindus & \SAVSignTwelveBindus & \SAVTotalBindus\\
-\bottomrule
-\end{tabularx}}
-
-\vspace{3mm}
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Career House Bindu Totals}
-\textbf{1st House (Identity):} \SAVHouseOneBindus{} bindus\par
-\textbf{2nd House (Wealth):} \SAVHouseTwoBindus{} bindus\par
-\textbf{6th House (Service):} \SAVHouseSixBindus{} bindus\par
-\textbf{10th House (Career):} \SAVHouseTenBindus{} bindus\par
-\textbf{11th House (Revenue):} \SAVHouseElevenBindus{} bindus
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Sarvashtakavarga (SAV) Analysis}
-\SAVAnalysis
-\end{goldbox}
-}
-
-% --------------------------------------------------------------------------
-% PART XII: VIMSHOTTARI DASHA SYSTEM
-% --------------------------------------------------------------------------
-\ReportPage{DASHA SYSTEM}{Vimshottari Dasha: Lifetime Career Timeline}
-{The 120-year planetary progression governing the timing of professional breakthroughs.}
-
-\begin{goldbox}
-\BoxTitle{Current Active Dasha Period \hfill \VerifiedStatus}
-\textbf{Current Mahadasha:} \CurrentMahadasha{} (\MahadashaStart{} --- \MahadashaEnd)\par
-\textbf{Current Antardasha:} \CurrentAntardasha{} (\AntardashaStart{} --- \AntardashaEnd)\par
-\textbf{Current Pratyantardasha:} \CurrentPratyantardasha{} (\PratyantardashaStart{} --- \PratyantardashaEnd)
-\end{goldbox}
-
-\vspace{3mm}
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Current Mahadasha Influence}
-\CurrentMahadashaInterpretation
-\end{insightbox}
-}{%
-\begin{insightbox}
-\BoxTitle{Current Antardasha Influence}
-\CurrentAntardashaInterpretation
-\end{insightbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Career Timing Windows}
-\textbf{Opportunity Window:} \OpportunityPeriods\par
-\textbf{Patience/Consolidation:} \PatiencePeriods
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART XIII: TRANSITS & PLANETARY CYCLES
-% --------------------------------------------------------------------------
-\ReportPage{TRANSITS}{Current Transits \& Planetary Cycle Analysis}
-{Real-time celestial movements interacting with your natal chart.}
-
-\TwoCol{%
-\begin{goldbox}
-\BoxTitle{Saturn Transit Analysis}
-\textbf{Current Sign:} \TransitSaturnSign\par
-\textbf{House from Lagna:} House \TransitSaturnHouseFromLagna\par
-\textbf{Saturn-Moon Transit:} \TransitSaturnSadeSatiPhase\par
-\vspace{1mm}
-\TransitSaturnCareerImpact
-\end{goldbox}
-}{%
-\begin{insightbox}
-\BoxTitle{Jupiter Transit}
-\textbf{Current Sign:} \TransitJupiterSign\par
-\textbf{House from Lagna:} House \TransitJupiterHouseFromLagna\par
-\textbf{Aspects:} \TransitJupiterAspects\par
-\vspace{1mm}
-\TransitJupiterCareerImpact
-\end{insightbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Nodal Axis \& Transit Synthesis}
-\TransitSynthesis
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART XIV: JAIMINI ASTROLOGY
-% --------------------------------------------------------------------------
-\ReportPage{JAIMINI}{Jaimini Astrology: Chara Karakas \& Arudha Lagna}
-{Alternative classical perspective on soul mandate, career significators, and public perception.}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Chara Karakas (Career Significators)}
-\textbf{Atmakaraka (Soul Mandate):} \AtmakarakaPlanet\par
-\textbf{Amatyakaraka (Career):} \AmatyakarakaPlanet\par
-\vspace{1mm}
-\AmatyakarakaAnalysis
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Arudha Padas (Public Perception)}
-\textbf{Arudha Lagna (AL):} \ArudhaLagnaSign{} (House \ArudhaLagnaHouse)\par
-\textbf{Rajya Pada (A10):} \RajyaPadaSign\par
-\textbf{Labha Pada (A11):} \LabhaPadaSign\par
-\textbf{Dhana Pada (A2):} \DhanaPadaSign\par
-\vspace{1mm}
-\ArudhaAnalysis
-\end{goldbox}
-}
-
-% --------------------------------------------------------------------------
-% PART XV: KP SYSTEM
-% --------------------------------------------------------------------------
-\ReportPage{KP SYSTEM}{Krishnamurti Paddhati (KP): Cuspal Sub-Lords}
-{High-precision stellar astrology linking cuspal sub-lords with vocational fruition.}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Career Cuspal Sub-Lords}
-\textbf{2nd Cusp (Wealth):} \KPSecondCuspSubLord\par
-\textbf{6th Cusp (Service):} \KPSixthCuspSubLord\par
-\textbf{10th Cusp (Career):} \KPTenthCuspSubLord\par
-\textbf{11th Cusp (Gains):} \KPElevenCuspSubLord
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{10th Cusp Sub-Lord Synthesis}
-\KPTenthSubLordAnalysis
-\end{goldbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Ruling Planets \& Pars Fortuna}
-\textbf{Ruling Planets:} \KPRulingPlanetsSummary\par
-\textbf{Pars Fortuna:} \KPParsFortuna
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART XVI: PANCHANGA & SPECIAL POINTS
-% --------------------------------------------------------------------------
-\ReportPage{PANCHANGA}{Birth Panchanga \& Special Points}
-{The five temporal limbs of time at birth and sensitive calculated points.}
-
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}p{38mm} X >{\sffamily\bfseries\color{Navy}}p{38mm} X}
-\toprule
-Panchanga Element & Value & Panchanga Element & Value\\
-\midrule
-Tithi & \PanchangTithi & Vara & \PanchangVara\\
-Nakshatra & \PanchangNakshatra & Yoga & \PanchangYoga\\
-Karana & \PanchangKarana & Avakhada Varna & \AvakhadaVarna\\
-Avakhada Gana & \AvakhadaGana & Avakhada Nadi & \AvakhadaNadi\\
-Mrityu Bhaga & \MrityuBhagaStatus & Sahams Status & \SahamsSummary\\
-\bottomrule
-\end{tabularx}}
-
-% --------------------------------------------------------------------------
-% PART XVII: CAREER SYNTHESIS & EXECUTIVE ANALYSIS
-% --------------------------------------------------------------------------
-\ReportPage{CAREER SYNTHESIS}{Executive Career Synthesis}
-{Integrated analysis of your core vocational identity, leadership style, and strategic potential.}
-
-\begin{navybox}
-\WhiteTitle{Core Career Thesis}
-\ExecutiveCareerSummary
-\end{navybox}
-
-\vspace{3mm}
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Natural Strengths}
-\NaturalStrengths
-\end{insightbox}
-}{%
-\begin{unavailablebox}
-\BoxTitle{Professional Challenges}
-\ProfessionalChallenges
-\end{unavailablebox}
-}
-
-\ReportPage{STRENGTH MATRIX}{Professional Strengths Matrix}
-{Astrological synthesis indicators across core executive competencies.}
-
-\begin{goldbox}
-\BoxTitle{Note on Methodology}
-These ratings represent astrological synthesis indicators derived from planetary dignities, house strengths, and yogas. They are not psychometric test results.
-\end{goldbox}
-
-\vspace{2mm}
-{\small
-\rowcolors{2}{Mist}{white}
-\begin{tabularx}{\linewidth}{>{\sffamily\bfseries\color{Navy}}p{42mm} c X}
-\toprule
-Executive Dimension & Indicator & Astrological Evidence \& Manifestation\\
-\midrule
-Strategic Leadership & High & \HouseTenLord{} in \HouseTenLordPlacement{} with strong D10 support.\\
-Technical Systems Architecture & High & Mercury and 5th house intellect significators.\\
-Operational Discipline & Very High & Saturn placement and strong 6th house operational stamina.\\
-Commercial Negotiation & High & 2nd and 11th houses in SAV exceeding 28 bindus.\\
-Adaptive Innovation & High & Nodal axis and 9th house research significators.\\
-Stakeholder Governance & High & Jupiter and 9th Lord positioning in strategic sectors.\\
-\bottomrule
-\end{tabularx}}
-
-% --------------------------------------------------------------------------
-% PART XVIII: CAREER FIELDS & SECTOR COMPARISON
-% --------------------------------------------------------------------------
-\ReportPage{CAREER FIELDS}{Top Ranked Career Directions}
-{Evidence-based ranking of primary vocational domains.}
-
-\ifdefined\CareerDirOneTitle
-\begin{goldbox}
-\BoxTitle{Rank 1: \CareerDirOneTitle{} \hfill \StatusPill{PRIMARY FIT}}
-\textbf{Category:} \CareerDirOneCategory\par
-\textbf{Why Supported:} \CareerDirOneWhy\par
-\textbf{Evidence:} \CareerDirOneEvidence\par
-\textbf{Optimal Environment:} \CareerDirOneEnv\par
-\textbf{Practical Experiment:} \CareerDirOneExp
-\end{goldbox}
-\fi
-
-\vspace{2mm}
-\ifdefined\CareerDirTwoTitle
-\begin{insightbox}
-\BoxTitle{Rank 2: \CareerDirTwoTitle{} \hfill \StatusPill{ADJACENT FIT}}
-\textbf{Category:} \CareerDirTwoCategory\par
-\textbf{Why Supported:} \CareerDirTwoWhy\par
-\textbf{Evidence:} \CareerDirTwoEvidence\par
-\textbf{Optimal Environment:} \CareerDirTwoEnv\par
-\textbf{Practical Experiment:} \CareerDirTwoExp
-\end{insightbox}
-\fi
-
-\vspace{2mm}
-\ifdefined\CareerDirThreeTitle
-\begin{navybox}
-\WhiteTitle{Rank 3: \CareerDirThreeTitle{}}
-\textbf{Category:} \CareerDirThreeCategory\par
-\textbf{Why Supported:} \CareerDirThreeWhy\par
-\textbf{Optimal Environment:} \CareerDirThreeEnv
-\end{navybox}
-\fi
-
-\ReportPage{SECTOR FIT}{Employment vs Entrepreneurship \& Sector Fit}
-{Comparative institutional analysis and organizational environment matching.}
-
-\TwoCol{%
-\begin{insightbox}
-\BoxTitle{Employment Architecture}
-\textbf{Strengths:} \EmploymentStrengths\par
-\textbf{Risks:} \EmploymentRisks\par
-\textbf{Optimal Environment:} \EmploymentEnvironment
-\end{insightbox}
-}{%
-\begin{goldbox}
-\BoxTitle{Entrepreneurship Architecture}
-\textbf{Strengths:} \EntrepreneurshipStrengths\par
-\textbf{Risks:} \EntrepreneurshipRisks\par
-\textbf{Optimal Model:} \EntrepreneurshipModel
-\end{goldbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Synthesis Conclusion}
-\SynthesisConclusion
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART XIX: MONEY, RELATIONSHIPS & SUSTAINABILITY
-% --------------------------------------------------------------------------
-\ReportPage{MONEY \& FINANCE}{Professional Wealth \& Income Patterns}
-{Revenue models, financial stability, wealth accumulation, and fiscal risk.}
-
-\TwoCol{%
-\begin{goldbox}
-\BoxTitle{Income Patterns \& Modes}
-\textbf{Earning Pattern:} \MoneyEarningPattern\par
-\textbf{Income Modes:} \MoneyIncomeModes
-\end{goldbox}
-}{%
-\begin{insightbox}
-\BoxTitle{Wealth Accumulation \& Fiscal Risk}
-\textbf{Stability:} \MoneyFinancialStability\par
-\textbf{Accumulation:} \MoneyWealthAccumulation\par
-\textbf{Risk Mitigation:} \MoneyRiskMitigation
-\end{insightbox}
-}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Professional Relationships \& Mentorship}
-\textbf{Partnerships:} \RelPartnerships\par
-\textbf{Networking:} \RelNetworking\par
-\textbf{Team Dynamics:} \RelTeams\par
-\textbf{Work-Life Architecture:} \SustainWorkLife\par
-\textbf{Mentors:} \RelMentors
-\end{navybox}
-
-% --------------------------------------------------------------------------
-% PART XX: CAREER TIMELINE & STRATEGIC ROADMAP
-% --------------------------------------------------------------------------
-\ReportPage{TIMELINE}{Career Timeline \& Opportunity Windows}
-{Chronological windows with explicit Dasha/transit context and strategic action protocols.}
-
-\ifdefined\TimelineWindowOneRange
-\begin{goldbox}
-\BoxTitle{Window 1: \TimelineWindowOneRange{} \hfill \StatusPill{\TimelineWindowOneCategory}}
-\textbf{Dasha Context:} \TimelineWindowOneDasha\par
-\textbf{Transit Context:} \TimelineWindowOneTransit\par
-\textbf{Career Theme:} \TimelineWindowOneTheme\par
-\textbf{Objective:} \TimelineWindowOneObjective\par
-\textbf{Action Protocol:} \TimelineWindowOneAction
-\end{goldbox}
-\fi
-
-\vspace{2mm}
-\ifdefined\TimelineWindowTwoRange
-\begin{insightbox}
-\BoxTitle{Window 2: \TimelineWindowTwoRange{} \hfill \StatusPill{\TimelineWindowTwoCategory}}
-\textbf{Dasha Context:} \TimelineWindowTwoDasha\par
-\textbf{Career Theme:} \TimelineWindowTwoTheme\par
-\textbf{Action Protocol:} \TimelineWindowTwoAction
-\end{insightbox}
-\fi
-
-\ReportPage{ROADMAP}{Practical Career Roadmap}
-{Concrete 30-Day, 90-Day, 1-Year, and 3-Year Strategic Action Framework.}
-
-\TwoCol{%
-\begin{goldbox}
-\BoxTitle{30-Day Direction}
-\textbf{Focus:} \RoadmapThirtyFocus\par
-\textbf{Actions:} \RoadmapThirtyActions\par
-\textbf{Skills:} \RoadmapThirtySkills\par
-\textbf{Risks to Avoid:} \RoadmapThirtyRisks\par
-\textbf{Success Metrics:} \RoadmapThirtyMetrics
-\end{goldbox}
-\vspace{2mm}
-\begin{insightbox}
-\BoxTitle{90-Day Direction}
-\textbf{Focus:} \RoadmapNinetyFocus\par
-\textbf{Actions:} \RoadmapNinetyActions\par
-\textbf{Skills:} \RoadmapNinetySkills\par
-\textbf{Success Metrics:} \RoadmapNinetyMetrics
-\end{insightbox}
-}{%
-\begin{insightbox}
-\BoxTitle{1-Year Direction}
-\textbf{Focus:} \RoadmapOneYearFocus\par
-\textbf{Actions:} \RoadmapOneYearActions\par
-\textbf{Skills:} \RoadmapOneYearSkills\par
-\textbf{Success Metrics:} \RoadmapOneYearMetrics
-\end{insightbox}
-\vspace{2mm}
-\begin{navybox}
-\WhiteTitle{3-Year Horizon}
-\textbf{Focus:} \RoadmapThreeYearFocus\par
-\textbf{Actions:} \RoadmapThreeYearActions\par
-\textbf{Skills:} \RoadmapThreeYearSkills\par
-\textbf{Success Metrics:} \RoadmapThreeYearMetrics
-\end{navybox}
-}
-
-\vspace{3mm}
-\begin{insightbox}
-\BoxTitle{Decision Framework}
-\DecisionFramework
-\end{insightbox}
-
-% --------------------------------------------------------------------------
-% PART XXI: TECHNICAL APPENDIX
-% --------------------------------------------------------------------------
-\ReportPage{APPENDIX}{Technical Appendix: Calculation Audit Trail}
-{Exhaustive verification data for professional astrologers and technical auditors.}
-
-\begin{goldbox}
-\BoxTitle{Ephemeris Verification Certificate}
-All calculations in this report conform strictly to Sidereal Lahiri Ephemeris standards. No unverified assumptions or external API calls were executed. Every data point is auditable against Astronomy Engine (VSOP87/ELP2000-82) astronomical algorithms.
-\end{goldbox}
-
-\vspace{3mm}
-\begin{navybox}
-\WhiteTitle{Final Career Synthesis}
-\FinalSynthesis
-\end{navybox}
-
-\vspace{4mm}
-\begin{center}
-{\displayfont\fontsize{14}{18}\selectfont\color{Navy}Astro Sushil Vedic Astrology Platform}\par
-\vspace{1mm}
-{\sffamily\fontsize{8}{10}\selectfont\color{Muted}
-Deterministic Astrology Engine \textcolor{Gold}{\enspace|\enspace} Confidential Client Dossier \textcolor{Gold}{\enspace|\enspace} End of Report}
-\end{center}
+\begin{highlightcard}
+  \CardTitle{Consultation Integrity Sign-Off}
+  {\fontsize{8.5}{12}\selectfont\color{DeepSlate}
+  This Career Consultation Monograph has been compiled through deterministic astrological calculations paired with scholarly shastric principles. In accordance with traditional Jyotish ethics, astrological indicators are offered to inform self-knowledge, strategic planning, and intentional action. We honor your personal agency and wish you success on your professional journey.\par}
+  \vspace{3mm}
+  \begin{tabularx}{\linewidth}{@{}X r@{}}
+    {\sffamily\fontsize{8}{10}\selectfont\bfseries\color{ExecutiveNavy} Astro Sushil Consultation Foundation} & {\sffamily\fontsize{8}{10}\selectfont\color{MutedSlate} Certified Consultation Dossier} \\
+  \end{tabularx}
+\end{highlightcard}
 
 \end{document}

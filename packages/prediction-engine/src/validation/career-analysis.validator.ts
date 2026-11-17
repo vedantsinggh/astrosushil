@@ -1,4 +1,10 @@
-import { CareerAnalysis, CareerAnalysisInput } from '../types/evidence.types';
+import {
+  CareerAnalysis,
+  CareerAnalysisInput,
+  AspectEvidenceRecord,
+  PlanetaryEvidenceItem,
+  HouseEvidenceItem,
+} from '../types/evidence.types';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -15,6 +21,14 @@ export class CareerAnalysisValidator {
 
     if (!rawAnalysis || typeof rawAnalysis !== 'object') {
       return { isValid: false, errors: ['Analysis payload is not a valid object'] };
+    }
+
+    // Validate aspect evidence in input if supplied
+    if (input && (input.planetaryEvidence || input.houseEvidence)) {
+      const aspectVal = this.validateAspectEvidence(input);
+      if (!aspectVal.isValid) {
+        errors.push(...aspectVal.errors);
+      }
     }
 
     // Unwrap root if nested
@@ -371,15 +385,200 @@ export class CareerAnalysisValidator {
     ids.add('international-evidence');
     ids.add('networking-evidence');
 
-    for (const p of input.planetaryEvidence) {
+    for (const p of input.planetaryEvidence || []) {
       ids.add(`planet-${p.planet.toLowerCase()}`);
     }
 
-    for (const h of input.houseEvidence) {
+    for (const h of input.houseEvidence || []) {
       ids.add(`house-${h.houseNumber}`);
     }
 
     return ids;
+  }
+
+  /**
+   * Validates planetary and house aspect evidence against Parashari rules and data integrity constraints.
+   */
+  public validateAspectEvidence(evidence: {
+    planetaryEvidence?: PlanetaryEvidenceItem[];
+    houseEvidence?: HouseEvidenceItem[];
+  }): ValidationResult {
+    const errors: string[] = [];
+    const validCanonicalPlanets = new Set([
+      'SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN', 'RAHU', 'KETU',
+    ]);
+    const allowedOrdinalsByPlanet: Record<string, number[]> = {
+      SUN: [7],
+      MOON: [7],
+      MARS: [4, 7, 8],
+      MERCURY: [7],
+      JUPITER: [5, 7, 9],
+      VENUS: [7],
+      SATURN: [3, 7, 10],
+      RAHU: [],
+      KETU: [],
+    };
+
+    const planetaryAspectRecords: AspectEvidenceRecord[] = [];
+
+    // 1. Validate planetary evidence aspects
+    if (evidence.planetaryEvidence && Array.isArray(evidence.planetaryEvidence)) {
+      for (const p of evidence.planetaryEvidence) {
+        const pUpper = (p.planet || '').toUpperCase();
+        if (!validCanonicalPlanets.has(pUpper)) {
+          errors.push(`Invalid source planet in planetaryEvidence: "${p.planet}"`);
+          continue;
+        }
+
+        // Check Rahu / Ketu have no Parashari aspects
+        if (
+          (pUpper === 'RAHU' || pUpper === 'KETU') &&
+          ((p.aspects && p.aspects.length > 0) || (p.aspectRecords && p.aspectRecords.length > 0))
+        ) {
+          errors.push(`Rahu and Ketu must not cast aspects under standard Parashari tradition (planet: ${p.planet})`);
+        }
+
+        if (p.aspectRecords && Array.isArray(p.aspectRecords)) {
+          const seenOrdinals = new Set<number>();
+          const seenTargets = new Set<number>();
+
+          for (const rec of p.aspectRecords) {
+            // Provenance & Tradition
+            if (!rec.tradition || typeof rec.tradition !== 'string' || rec.tradition.trim().length === 0) {
+              errors.push(`Missing tradition provenance for aspect from planet ${p.planet}`);
+            }
+            if (!rec.calculationReference || typeof rec.calculationReference !== 'string' || rec.calculationReference.trim().length === 0) {
+              errors.push(`Missing calculation reference for aspect from planet ${p.planet}`);
+            }
+
+            // Source consistency
+            if (rec.sourcePlanet.toUpperCase() !== pUpper) {
+              errors.push(`Contradictory source planet in aspect record: expected "${p.planet}", got "${rec.sourcePlanet}"`);
+            }
+            if (rec.sourceHouse !== p.house) {
+              errors.push(`Contradictory source house in aspect record for ${p.planet}: expected ${p.house}, got ${rec.sourceHouse}`);
+            }
+
+            // Valid house indices
+            if (typeof rec.sourceHouse !== 'number' || rec.sourceHouse < 1 || rec.sourceHouse > 12) {
+              errors.push(`Invalid source house index in aspect record for ${p.planet}: ${rec.sourceHouse}`);
+            }
+            if (typeof rec.targetHouse !== 'number' || rec.targetHouse < 1 || rec.targetHouse > 12) {
+              errors.push(`Invalid target house index in aspect record for ${p.planet}: ${rec.targetHouse}`);
+            }
+
+            // Aspect ordinal & allowed relationship
+            const allowedOrdinals = allowedOrdinalsByPlanet[pUpper] || [];
+            if (!allowedOrdinals.includes(rec.aspectOrdinal)) {
+              errors.push(`Unsupported aspect ordinal ${rec.aspectOrdinal} for planet ${p.planet} (allowed: [${allowedOrdinals.join(', ')}])`);
+            }
+
+            // Target house mathematical verification: ((source - 1 + (ordinal - 1)) % 12) + 1
+            const expectedTarget = ((rec.sourceHouse - 1 + (rec.aspectOrdinal - 1)) % 12) + 1;
+            if (rec.targetHouse !== expectedTarget) {
+              errors.push(
+                `Incorrect aspect offset for ${p.planet} (${rec.aspectType}): expected target House ${expectedTarget}, got House ${rec.targetHouse}`
+              );
+            }
+
+            // Duplicate checks within planet
+            if (seenOrdinals.has(rec.aspectOrdinal)) {
+              errors.push(`Duplicate aspect ordinal ${rec.aspectOrdinal} recorded for planet ${p.planet}`);
+            }
+            seenOrdinals.add(rec.aspectOrdinal);
+
+            if (seenTargets.has(rec.targetHouse)) {
+              errors.push(`Duplicate target house ${rec.targetHouse} recorded for planet ${p.planet}`);
+            }
+            seenTargets.add(rec.targetHouse);
+
+            planetaryAspectRecords.push(rec);
+          }
+        }
+      }
+    }
+
+    // 2. Validate house evidence aspects
+    if (evidence.houseEvidence && Array.isArray(evidence.houseEvidence)) {
+      for (const h of evidence.houseEvidence) {
+        if (typeof h.houseNumber !== 'number' || h.houseNumber < 1 || h.houseNumber > 12) {
+          errors.push(`Invalid house number in houseEvidence: ${h.houseNumber}`);
+          continue;
+        }
+
+        if (h.aspectRecords && Array.isArray(h.aspectRecords)) {
+          const seenPlanetsInHouse = new Set<string>();
+
+          for (const rec of h.aspectRecords) {
+            // Target consistency
+            if (rec.targetHouse !== h.houseNumber) {
+              errors.push(
+                `Contradictory target house in aspect record for House ${h.houseNumber}: record has targetHouse ${rec.targetHouse}`
+              );
+            }
+
+            // Avoid counting occupation as an aspect
+            if (rec.sourceHouse === h.houseNumber) {
+              errors.push(
+                `Invalid aspect: planet ${rec.sourcePlanet} occupying House ${h.houseNumber} cannot aspect its own occupied house`
+              );
+            }
+
+            // Duplicate check within house
+            const key = `${rec.sourcePlanet.toUpperCase()}:${rec.aspectOrdinal}`;
+            if (seenPlanetsInHouse.has(key)) {
+              errors.push(`Duplicate aspect from ${rec.sourcePlanet} (${rec.aspectType}) recorded on House ${h.houseNumber}`);
+            }
+            seenPlanetsInHouse.add(key);
+          }
+        }
+      }
+    }
+
+    // 3. Cross-Consistency: verify 1-to-1 agreement between planetary aspects cast and house aspects received
+    if (evidence.planetaryEvidence && evidence.houseEvidence) {
+      const houseAspectRecords: AspectEvidenceRecord[] = [];
+      for (const h of evidence.houseEvidence) {
+        if (h.aspectRecords) {
+          houseAspectRecords.push(...h.aspectRecords);
+        }
+      }
+
+      // Check every planetary aspect cast is present in corresponding house aspect records
+      for (const pRec of planetaryAspectRecords) {
+        const found = houseAspectRecords.some(
+          (hRec) =>
+            hRec.sourcePlanet.toUpperCase() === pRec.sourcePlanet.toUpperCase() &&
+            hRec.aspectOrdinal === pRec.aspectOrdinal &&
+            hRec.targetHouse === pRec.targetHouse
+        );
+        if (!found) {
+          errors.push(
+            `Aspect consistency mismatch: ${pRec.sourcePlanet} aspects House ${pRec.targetHouse} (${pRec.aspectType}), but House ${pRec.targetHouse} does not record this aspect`
+          );
+        }
+      }
+
+      // Check every house aspect received is present in corresponding planet aspect records
+      for (const hRec of houseAspectRecords) {
+        const found = planetaryAspectRecords.some(
+          (pRec) =>
+            pRec.sourcePlanet.toUpperCase() === hRec.sourcePlanet.toUpperCase() &&
+            pRec.aspectOrdinal === hRec.aspectOrdinal &&
+            pRec.targetHouse === hRec.targetHouse
+        );
+        if (!found) {
+          errors.push(
+            `Aspect consistency mismatch: House ${hRec.targetHouse} records aspect from ${hRec.sourcePlanet} (${hRec.aspectType}), but ${hRec.sourcePlanet} does not cast this aspect`
+          );
+        }
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
   }
 }
 

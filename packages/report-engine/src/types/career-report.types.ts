@@ -1,3 +1,5 @@
+import { ChapterContentOutput } from '@astro/prediction-engine';
+
 export type DataStatus = 'VERIFIED' | 'DERIVED' | 'UNAVAILABLE';
 
 export interface ClientReportHeader {
@@ -499,7 +501,11 @@ export interface StrengthMatrixDimension {
 
 export interface SectorComparisonItem {
   sectorName: string;
-  fitLevel: 'EXCELLENT' | 'HIGH' | 'MODERATE' | 'LOW';
+  fitLevel:
+    | 'Strong relative heuristic fit'
+    | 'Moderate relative heuristic fit'
+    | 'Limited relative heuristic fit'
+    | 'Insufficient evidence';
   astrologicalBasis: string;
   opportunities: string;
   hazards: string;
@@ -691,4 +697,6 @@ export interface CareerReportData {
   panchanga: PanchangaReportModel;
   specialPoints: SpecialPointsReportModel;
   careerAnalysis: CareerAnalysisModel;
+  authorMessage?: string;
+  chapters?: Record<string, ChapterContentOutput>;
 }
