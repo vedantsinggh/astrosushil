@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify validation error
-    expect(find.text('Full Name is required'), findsOneWidget);
+    expect(find.text('Please enter your full name'), findsOneWidget);
   });
 }
 

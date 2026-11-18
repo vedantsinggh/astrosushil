@@ -86,6 +86,23 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
   beforeAll(async () => {
     [worker1, worker2] = await Promise.all([spawnWorkerProcess(), spawnWorkerProcess()]);
 
+    const existingUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: 'task1d-test-user' },
+          { email: 'task1d.user@astrosushil.com' },
+          { phoneNumber: '+919444444444' },
+        ],
+      },
+      select: { id: true },
+    });
+    const existingUserIds = existingUsers.map(({ id }) => id);
+    await prisma.report.deleteMany({ where: { userId: { in: existingUserIds } } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { userId: { in: existingUserIds } } } });
+    await prisma.orderItem.deleteMany({ where: { order: { userId: { in: existingUserIds } } } });
+    await prisma.order.deleteMany({ where: { userId: { in: existingUserIds } } });
+    await prisma.birthProfile.deleteMany({ where: { userId: { in: existingUserIds } } });
+
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -126,6 +143,7 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
     while (await redisQueueService.dequeueJob()) {}
 
     await prisma.report.deleteMany({ where: { userId: testUser.id } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { userId: testUser.id } } });
     await prisma.orderItem.deleteMany({ where: { order: { userId: testUser.id } } });
     await prisma.order.deleteMany({ where: { userId: testUser.id } });
   });
@@ -137,6 +155,7 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
     } catch (_) {}
 
     await prisma.report.deleteMany({ where: { userId: testUser.id } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { userId: testUser.id } } });
     await prisma.orderItem.deleteMany({ where: { order: { userId: testUser.id } } });
     await prisma.order.deleteMany({ where: { userId: testUser.id } });
     await prisma.birthProfile.deleteMany({ where: { userId: testUser.id } });

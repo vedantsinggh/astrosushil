@@ -87,8 +87,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'YOUR COSMIC BLUEPRINT (D1 & CHANDRA)',
       description:
           'Comprehensive astrological document detailing your Janma & Chandra Kundli, 9 Grahas, Vimshottari Dasha, planetary placements, and Gemstone recommendations.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹299',
+      pricePaise: 29900,
       icon: Icons.auto_awesome_rounded,
       accentColor: AppColors.accentGold,
       profile: profile,
@@ -114,8 +114,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: '3-6 MONTH TRANSIT WINDOWS & PLANETARY CYCLES',
       description:
           'Detailed transit forecast from Janma Rashi, Saturn planetary cycle analysis, planetary dignities, and key caution dates.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹199',
+      pricePaise: 19900,
       icon: Icons.brightness_6_rounded,
       accentColor: AppColors.secondary,
       profile: profile,
@@ -140,8 +140,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'SHODASHVARGAS (D1, D9, D10, D7, D12) & SHADBALA',
       description:
           'Multi-divisional analysis, 6-fold planetary Shadbala, 12 Bhava Bala rank analysis, and classical remedial measures.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹699',
+      pricePaise: 69900,
       icon: Icons.military_tech_rounded,
       accentColor: Colors.purple,
       profile: profile,
@@ -167,8 +167,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'ASHTAKOOTA 36-GUNA MILAN & MANGLIK',
       description:
           'Comprehensive 36-point Guna Milan, comparative Manglik analysis, and synastry synthesis for prospective couples.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.favorite_rounded,
       accentColor: AppColors.supportingAccent,
       profile: profile,
@@ -193,8 +193,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: '10TH HOUSE & VOCATIONAL DNA',
       description:
           'A deeper look at your professional strengths, career patterns and opportunities.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.work_outline_rounded,
       accentColor: Colors.teal,
       profile: profile,
@@ -220,8 +220,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'COSMIC WISDOM, 56-PT BAV & GURU TRANSITS',
       description:
           'Comprehensive Vedic guide to Lord Brihaspati analyzing natal placement, 5th/7th/9th aspects, Mula Nakshatra, 56-point Bhinnashtakavarga, and 2026 Gemini & Cancer transits.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: 'Pricing Pending',
+      pricePaise: 0,
       icon: Icons.auto_awesome_rounded,
       accentColor: const Color(0xFFD97706),
       profile: profile,
@@ -251,8 +251,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'KARMIC AXIS, 180° OPPOSITION & SHADOW NODES',
       description:
           'Comprehensive Vedic guide to the lunar nodes analyzing 180° karmic axis, Rohini/Jyeshtha nakshatras, 2025–2026 Aquarius/Leo and 2026–2028 Capricorn/Cancer transits.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: 'Pricing Pending',
+      pricePaise: 0,
       icon: Icons.all_inclusive_rounded,
       accentColor: const Color(0xFF4C1D95),
       profile: profile,
@@ -283,8 +283,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'TAJIKA MUNTHA, VARSHESH & 12-MONTH PREDICTIVE ROADMAP',
       description:
           'Comprehensive classical Tajika annual solar return horoscope analyzing Muntha progression, Varshesh (Year Lord) selection, Tajika Yogas, Harsha Bala, Mudda Dasha, and 12-month predictive roadmap.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: 'Pricing Pending',
+      pricePaise: 0,
       icon: Icons.calendar_month_rounded,
       accentColor: const Color(0xFF1D2059),
       profile: profile,
@@ -316,8 +316,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'ANNUAL CHANDRA LAGNA & 2026 TRANSIT DOSSIER',
       description:
           'Comprehensive annual Chandra Lagna Moon-sign forecast, quarterly trajectories, 12-month matrix, and Vedic remedial guidance.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.stars_rounded,
       accentColor: Colors.deepPurple,
       profile: profile,
@@ -342,8 +342,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'WEALTH AXIS, DHANA YOGAS & 3-YEAR CASHFLOW',
       description:
           'In-depth 2nd/11th house financial analysis, Indu Lagna prosperity, Dhana Yogas, 3-year cashflow matrix, and remedial wealth harmonization.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.account_balance_wallet_outlined,
       accentColor: Colors.green,
       profile: profile,
@@ -369,8 +369,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'ROMANCE, DARAKARAKA SPOUSE & MARRIAGE TIMING',
       description:
           'Comprehensive romantic alignment analysis, 7th house synastry, Jaimini Darakaraka spouse profile, and 10 chronological marriage timing windows.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.favorite_outline_rounded,
       accentColor: Colors.pinkAccent,
       profile: profile,
@@ -396,8 +396,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'CHALDEAN NUMEROLOGY, LO-SHU GRID & 17-PART VEDIC BLUEPRINT',
       description:
           'Detailed 27-page numerology and astrology synthesis covering Mulank, Bhagyank, Kua 8, Lo-Shu grid, personal months, and consecrated remedies.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.diamond_outlined,
       accentColor: const Color(0xFFB45309),
       profile: profile,
@@ -423,8 +423,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: 'LORD SHANI, KARMIC LESSONS & SADE SATI TIMELINE',
       description:
           'Exhaustive analysis of Lord Shani\'s natal placement, karmic duties, retrogression, 3-phase Sade Sati timeline, and classical Saturday remedies.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: '₹499',
+      pricePaise: 49900,
       icon: Icons.hourglass_empty_rounded,
       accentColor: const Color(0xFF374151),
       profile: profile,
@@ -450,8 +450,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
       tagline: '25-CHAPTER VEDIC NUMEROLOGY & ASTROLOGICAL DOSSIER',
       description:
           'Exhaustive 35-page life blueprint synthesizing Chaldean Numerology, Lo-Shu Grid, Success/Connection/Maturity Numbers, 4 Life Pinnacles, Lal Kitab Aries-fixed chart, and consecrated astrological remedies.',
-      priceText: '₹500',
-      pricePaise: 50000,
+      priceText: 'Pricing Pending',
+      pricePaise: 0,
       icon: Icons.diamond_rounded,
       accentColor: const Color(0xFFB45309),
       profile: profile,
@@ -521,7 +521,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     flex: 1,
                     child: Center(
                       child: Text(
-                        'Mini\n₹500',
+                        'Mini\n₹199',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondaryDark),
                       ),
@@ -531,7 +531,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     flex: 1,
                     child: Center(
                       child: Text(
-                        'Basic\n₹500',
+                        'Basic\n₹299',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondaryDark),
                       ),
@@ -541,7 +541,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     flex: 1,
                     child: Center(
                       child: Text(
-                        'Career\n₹500',
+                        'Career\n₹499',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondaryDark),
                       ),
@@ -551,7 +551,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     flex: 1,
                     child: Center(
                       child: Text(
-                        'Pro\n₹500',
+                        'Pro\n₹699',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondaryDark),
                       ),
@@ -1092,7 +1092,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
           ),
           const SizedBox(height: 12),
 
-          // KUNDLI REPORT CARD (₹500)
+          // KUNDLI REPORT CARD (₹299)
           _ReportCard(
             title: 'Birth Chart & Kundli Report',
             tagline: 'YOUR COSMIC BLUEPRINT (D1 & CHANDRA)',
@@ -1101,7 +1101,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.auto_awesome_rounded,
             accentColor: AppColors.premiumAccent,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹299',
             primaryActionText: 'Generate Kundli Report',
             onViewTap: () => _onKundliReportAction(
               context: context,
@@ -1112,7 +1112,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // PLANETARY SUMMARY REPORT CARD (₹500)
+          // PLANETARY SUMMARY REPORT CARD (₹199)
           _ReportCard(
             title: 'Mini Horoscope & Transit Forecast',
             tagline: '3-6 MONTH TRANSIT WINDOWS & PLANETARY CYCLES',
@@ -1121,7 +1121,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.brightness_6_rounded,
             accentColor: AppColors.secondary,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹199',
             primaryActionText: 'Generate Mini Horoscope',
             onViewTap: () => _onPlanetaryReportAction(
               context: context,
@@ -1132,7 +1132,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // PRO HOROSCOPE REPORT CARD (₹500)
+          // PRO HOROSCOPE REPORT CARD (₹699)
           _ReportCard(
             title: 'Pro Horoscope & Divisional Charts',
             tagline: 'SHODASHVARGAS (D1, D9, D10, D7, D12) & SHADBALA',
@@ -1141,7 +1141,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.military_tech_rounded,
             accentColor: Colors.purple,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹699',
             primaryActionText: 'Generate Pro Horoscope',
             onViewTap: () => _onProHoroscopeAction(
               context: context,
@@ -1152,7 +1152,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // MATCHMAKING REPORT CARD (₹500)
+          // MATCHMAKING REPORT CARD (₹499)
           _ReportCard(
             title: 'Marriage & Relationship Report',
             tagline: 'ASHTAKOOTA 36-GUNA MILAN & MANGLIK',
@@ -1161,7 +1161,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.favorite_rounded,
             accentColor: AppColors.supportingAccent,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹499',
             primaryActionText: 'Generate Matchmaking Report',
             onViewTap: () => _onMatchmakingReportAction(
               context: context,
@@ -1173,7 +1173,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // PERSONALISED HOROSCOPE 2026 (₹500)
+          // PERSONALISED HOROSCOPE 2026 (₹499)
           _ReportCard(
             title: 'Personalised Horoscope 2026',
             tagline: 'ANNUAL CHANDRA LAGNA & 2026 TRANSIT DOSSIER',
@@ -1182,7 +1182,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.stars_rounded,
             accentColor: Colors.deepPurple,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹499',
             primaryActionText: 'Generate Horoscope 2026',
             onViewTap: () => _onHoroscopeReportAction(
               context: context,
@@ -1193,7 +1193,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // FINANCE & WEALTH REPORT (₹500)
+          // FINANCE & WEALTH REPORT (₹499)
           _ReportCard(
             title: 'Personalised Finance & Wealth Dossier',
             tagline: 'WEALTH AXIS, DHANA YOGAS & 3-YEAR CASHFLOW',
@@ -1202,7 +1202,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.account_balance_wallet_outlined,
             accentColor: Colors.green,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹499',
             primaryActionText: 'Generate Finance Dossier',
             onViewTap: () => _onFinanceReportAction(
               context: context,
@@ -1213,7 +1213,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // LOVE & RELATIONSHIP REPORT (₹500)
+          // LOVE & RELATIONSHIP REPORT (₹499)
           _ReportCard(
             title: 'Personalised Love & Relationship Report',
             tagline: 'ROMANCE, DARAKARAKA SPOUSE & MARRIAGE TIMING',
@@ -1222,7 +1222,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.favorite_outline_rounded,
             accentColor: Colors.pinkAccent,
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹499',
             primaryActionText: 'Generate Love Report',
             onViewTap: () => _onLoveReportAction(
               context: context,
@@ -1233,7 +1233,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // FORTUNE REPORT (₹500)
+          // FORTUNE REPORT (₹499)
           _ReportCard(
             title: 'Personalised Fortune Report',
             tagline: 'CHALDEAN NUMEROLOGY, LO-SHU GRID & 17-PART VEDIC BLUEPRINT',
@@ -1242,7 +1242,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.diamond_outlined,
             accentColor: const Color(0xFFB45309),
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹499',
             primaryActionText: 'Generate Fortune Report',
             onViewTap: () => _onFortuneReportAction(
               context: context,
@@ -1253,7 +1253,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // SATURN IN YOUR BIRTH CHART (₹500)
+          // SATURN IN YOUR BIRTH CHART (₹499)
           _ReportCard(
             title: 'Saturn in Your Birth Chart Report',
             tagline: 'LORD SHANI, KARMIC LESSONS & SADE SATI TIMELINE',
@@ -1262,7 +1262,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             icon: Icons.hourglass_empty_rounded,
             accentColor: const Color(0xFF374151),
             isAvailable: true,
-            badgeText: '₹500',
+            badgeText: '₹499',
             primaryActionText: 'Generate Saturn Report',
             onViewTap: () => _onSaturnReportAction(
               context: context,
@@ -1273,7 +1273,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // JUPITER TRANSIT REPORT CARD (₹500)
+          // JUPITER TRANSIT REPORT CARD (PRICING PENDING)
           _ReportCard(
             title: 'Jupiter Transit Report',
             tagline: 'COSMIC WISDOM, 56-PT BAV & GURU TRANSITS',
@@ -1281,8 +1281,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 'Comprehensive Vedic guide to Lord Brihaspati analyzing natal placement, 5th/7th/9th aspects, Mula Nakshatra, 56-point Bhinnashtakavarga, and 2025–2029 Gemini, Cancer, and Leo transits.',
             icon: Icons.auto_awesome_rounded,
             accentColor: const Color(0xFFD97706),
-            isAvailable: true,
-            badgeText: '₹500',
+            isAvailable: false,
+            badgeText: 'PRICING PENDING',
             primaryActionText: 'Generate Jupiter Report',
             onViewTap: () => _onJupiterTransitReportAction(
               context: context,
@@ -1293,7 +1293,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // RAHU-KETU TRANSIT REPORT CARD (₹500)
+          // RAHU-KETU TRANSIT REPORT CARD (PRICING PENDING)
           _ReportCard(
             title: 'Rahu-Ketu Transit Report',
             tagline: 'KARMIC AXIS, 180° OPPOSITION & SHADOW NODES',
@@ -1301,8 +1301,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 'Comprehensive Vedic guide to the lunar nodes analyzing 180° karmic axis, Rohini/Jyeshtha nakshatras, 2025–2026 Aquarius/Leo, 2026–2028 Capricorn/Cancer, and 2028–2029 Sagittarius/Gemini transits.',
             icon: Icons.all_inclusive_rounded,
             accentColor: const Color(0xFF4C1D95),
-            isAvailable: true,
-            badgeText: '₹500',
+            isAvailable: false,
+            badgeText: 'PRICING PENDING',
             primaryActionText: 'Generate Rahu-Ketu Report',
             onViewTap: () => _onRahuKetuTransitReportAction(
               context: context,
@@ -1313,7 +1313,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // VARSHPHAL (ANNUAL SOLAR RETURN) REPORT CARD (₹500)
+          // VARSHPHAL (ANNUAL SOLAR RETURN) REPORT CARD (PRICING PENDING)
           _ReportCard(
             title: 'Varshphal (Annual Solar Return) Report',
             tagline: 'TAJIKA MUNTHA, VARSHESH & 12-MONTH PREDICTIVE ROADMAP',
@@ -1321,8 +1321,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 'Comprehensive classical Tajika annual solar return horoscope analyzing Muntha progression, Varshesh (Year Lord) selection, Tajika Yogas, Harsha Bala, Mudda Dasha, and 12-month predictive roadmap.',
             icon: Icons.calendar_month_rounded,
             accentColor: const Color(0xFF1D2059),
-            isAvailable: true,
-            badgeText: '₹500',
+            isAvailable: false,
+            badgeText: 'PRICING PENDING',
             primaryActionText: 'Generate Varshphal Report',
             onViewTap: () => _onVarshphalReportAction(
               context: context,
@@ -1333,7 +1333,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
 
           const SizedBox(height: 14),
 
-          // PERSONALISED FORTUNE REPORT PLUS CARD (₹500)
+          // PERSONALISED FORTUNE REPORT PLUS CARD (PRICING PENDING)
           _ReportCard(
             title: 'Personalised Fortune Report Plus (Comprehensive Edition)',
             tagline: '25-CHAPTER VEDIC NUMEROLOGY & ASTROLOGICAL DOSSIER',
@@ -1341,8 +1341,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                 'Exhaustive 35-page life blueprint synthesizing Chaldean Numerology, Lo-Shu Grid, Success/Connection/Maturity Numbers, 4 Life Pinnacles, Lal Kitab Aries-fixed chart, and consecrated astrological remedies.',
             icon: Icons.diamond_rounded,
             accentColor: const Color(0xFFB45309),
-            isAvailable: true,
-            badgeText: '₹500',
+            isAvailable: false,
+            badgeText: 'PRICING PENDING',
             primaryActionText: 'Generate Fortune Plus Report',
             onViewTap: () => _onFortunePlusReportAction(
               context: context,

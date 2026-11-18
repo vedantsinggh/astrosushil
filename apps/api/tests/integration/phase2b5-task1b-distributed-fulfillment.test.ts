@@ -28,7 +28,23 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
     await appInstanceA.ready();
     await appInstanceB.ready();
 
-    // Clean up test data
+    // Clean up dependent rows before deleting fixed test users.
+    const existingUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: { in: ['task1b-user-a', 'task1b-user-b'] } },
+          { phoneNumber: { in: ['+919111111111', '+919222222222'] } },
+          { email: { in: ['task1b.user.a@astrosushil.com', 'task1b.user.b@astrosushil.com'] } },
+        ],
+      },
+      select: { id: true },
+    });
+    const existingUserIds = existingUsers.map(({ id }) => id);
+    await prisma.report.deleteMany({ where: { userId: { in: existingUserIds } } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { userId: { in: existingUserIds } } } });
+    await prisma.orderItem.deleteMany({ where: { order: { userId: { in: existingUserIds } } } });
+    await prisma.order.deleteMany({ where: { userId: { in: existingUserIds } } });
+    await prisma.birthProfile.deleteMany({ where: { userId: { in: existingUserIds } } });
     await prisma.user.deleteMany({
       where: {
         OR: [
@@ -95,6 +111,7 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
 
   beforeEach(async () => {
     await prisma.report.deleteMany({ where: { userId: { in: [testUserA.id, testUserB.id] } } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { userId: { in: [testUserA.id, testUserB.id] } } } });
     await prisma.orderItem.deleteMany({ where: { order: { userId: { in: [testUserA.id, testUserB.id] } } } });
     await prisma.order.deleteMany({ where: { userId: { in: [testUserA.id, testUserB.id] } } });
   });
@@ -104,6 +121,7 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
     nativeRedisClient.setMockDisabled(false);
 
     await prisma.report.deleteMany({ where: { userId: { in: ['task1b-user-a', 'task1b-user-b'] } } });
+    await prisma.fulfillmentUnit.deleteMany({ where: { order: { userId: { in: ['task1b-user-a', 'task1b-user-b'] } } } });
     await prisma.orderItem.deleteMany({ where: { order: { userId: { in: ['task1b-user-a', 'task1b-user-b'] } } } });
     await prisma.order.deleteMany({ where: { userId: { in: ['task1b-user-a', 'task1b-user-b'] } } });
     await prisma.birthProfile.deleteMany({ where: { userId: { in: ['task1b-user-a', 'task1b-user-b'] } } });

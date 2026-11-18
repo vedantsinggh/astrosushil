@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/test_artifact_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:astro_mobile/core/localization/locale_provider.dart';
@@ -271,7 +272,7 @@ class TestCustomLocaleNotifier extends LocaleNotifier {
 }
 
 void main() {
-  final outDir = Directory('/home/pilot/Projects/astrosushil/docs/audits/screenshots/phase_7');
+  final outDir = createTestArtifactDirectory('mobile-phase-7-capture');
   if (!outDir.existsSync()) {
     outDir.createSync(recursive: true);
   }

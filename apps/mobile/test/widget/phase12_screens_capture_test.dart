@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/test_artifact_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -70,7 +71,7 @@ import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
 import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
 
 void main() {
-  final outDir = Directory('/home/pilot/Projects/astrosushil/docs/audits/screenshots/phase_12');
+  final outDir = createTestArtifactDirectory('mobile-phase-12-capture');
   if (!outDir.existsSync()) {
     outDir.createSync(recursive: true);
   }
