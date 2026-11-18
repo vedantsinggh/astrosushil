@@ -6,12 +6,14 @@ node_modules/
 # Testing & Coverage
 coverage/
 *.lcov
+/test-results/
 
 # Production & Build outputs
 dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
 # Environment & Secret files
 .env
@@ -40,5 +42,10 @@ pnpm-debug.log*
 .docker/
 tmp/
 docs/audits/screenshots
-*.pdf
+# Known generated report artifacts
+/test-horoscope-2026.pdf
+/canonical_fortune_plus_report.pdf
+/canonical_varshphal_report.pdf
+/untimed_varshphal_report.pdf
+scratch/output/
 docs/audits/referencerepots/

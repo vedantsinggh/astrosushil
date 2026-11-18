@@ -165,7 +165,21 @@ class UserReportItemModel {
   }
 
   String get displayPrice {
-    return '₹500';
+    switch (reportType.toUpperCase()) {
+      case 'KUNDLI':
+        return '₹299';
+      case 'PLANETARY_SUMMARY':
+        return '₹199';
+      case 'CAREER_PROSITY':
+        return '₹699';
+      case 'JUPITER_TRANSIT':
+      case 'RAHU_KETU_TRANSIT':
+      case 'VARSHPHAL':
+      case 'FORTUNE_PLUS':
+        return 'Pricing Pending';
+      default:
+        return '₹499';
+    }
   }
 
   IconData get icon {

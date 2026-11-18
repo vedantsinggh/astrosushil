@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/test_artifact_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:astro_mobile/l10n/app_localizations.dart';
@@ -90,7 +91,7 @@ void main() {
     completedAt: null,
   );
 
-  final outDir = Directory('/home/pilot/Projects/astrosushil/docs/audits/screenshots/phase_5');
+  final outDir = createTestArtifactDirectory('mobile-phase-5-capture');
   if (!outDir.existsSync()) {
     outDir.createSync(recursive: true);
   }

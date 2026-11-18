@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/test_artifact_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
@@ -19,7 +20,7 @@ import 'package:astro_mobile/features/auth/screens/register_success_screen.dart'
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
 void main() {
-  final outDir = Directory('/home/pilot/Projects/astrosushil/docs/audits/screenshots/phase_11');
+  final outDir = createTestArtifactDirectory('mobile-phase-11-capture');
   if (!outDir.existsSync()) {
     outDir.createSync(recursive: true);
   }

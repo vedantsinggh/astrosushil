@@ -141,31 +141,34 @@ export function normalizeBirthProfile(input: BirthProfileInput): NormalizedBirth
     };
   } catch (err) {
     if (err instanceof BirthTimeNonexistentError) {
-      throw new ValidationError(err.message, [
+      const nonexistentError = err as BirthTimeNonexistentError;
+      throw new ValidationError(nonexistentError.message, [
         {
           field: 'timeOfBirth',
-          message: err.message,
+          message: nonexistentError.message,
           code: 'NONEXISTENT_LOCAL_TIME',
-          localIsoString: err.localIsoString,
-          timezone: err.timezone,
+          localIsoString: nonexistentError.localIsoString,
+          timezone: nonexistentError.timezone,
         },
       ]);
     }
     if (err instanceof BirthTimeAmbiguousError) {
-      throw new ValidationError(err.message, [
+      const ambiguousError = err as BirthTimeAmbiguousError;
+      throw new ValidationError(ambiguousError.message, [
         {
           field: 'timeOfBirth',
-          message: err.message,
+          message: ambiguousError.message,
           code: 'AMBIGUOUS_LOCAL_TIME',
-          localIsoString: err.localIsoString,
-          timezone: err.timezone,
-          candidates: err.candidates,
+          localIsoString: ambiguousError.localIsoString,
+          timezone: ambiguousError.timezone,
+          candidates: ambiguousError.candidates,
         },
       ]);
     }
     if (err instanceof BirthDetailsValidationError) {
-      throw new ValidationError(err.message, [
-        { field: 'timezone', message: err.message, code: 'INVALID_TIMEZONE' },
+      const validationError = err as BirthDetailsValidationError;
+      throw new ValidationError(validationError.message, [
+        { field: 'timezone', message: validationError.message, code: 'INVALID_TIMEZONE' },
       ]);
     }
     throw err;

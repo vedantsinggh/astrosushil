@@ -58,7 +58,7 @@ services:
   report-worker:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: infrastructure/docker/Dockerfile.worker
     container_name: astro_report_worker
     restart: always
     environment:

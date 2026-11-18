@@ -28,6 +28,8 @@ describe('Phase 3 Commerce and Fulfillment Integration Tests', () => {
     app = buildApp();
     await app.ready();
 
+    await coursesService.seedVerifiedCourses();
+
     // Setup test users
     await prisma.user.upsert({
       where: { id: testUserId },

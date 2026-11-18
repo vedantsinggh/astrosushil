@@ -333,7 +333,7 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                           child: Text(
                             isEditing
                                 ? 'Notice: Any existing PDF reports generated with earlier coordinates will remain archived in your report library.'
-                                : 'Why do we need this? Vedic Astrology (Jyotish) and Gupta Nadi calculations use exact solar alignment and horizon tilt at the precise minute of your birth.',
+                                : 'Why do we need this? Vedic Astrology (Jyotish) and Gupta Nadi calculations use exact solar alignment and horizon tilt at the precise minute of your birth. If exact birth time is approximate, use 12:00 PM (Noon) or check hospital birth records.',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.lightTextPrimary,
@@ -666,13 +666,26 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                         const SizedBox(height: 18),
 
                         // BIRTHPLACE LOCATION AUTOCOMPLETE
-                        const Text(
-                          'Place of Birth (City/Town)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
+                        const Wrap(
+                          spacing: 4,
+                          children: [
+                            Text(
+                              'Place of Birth',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Text(
+                              '(City/Town)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 6),
                         LocationAutocompleteField(
@@ -701,12 +714,18 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
                                   color: AppColors.secondary,
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
-                                  _showAdvancedCoordinates ? 'Hide verified coordinates' : 'View verified coordinates & timezone',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.secondary,
+                                Flexible(
+                                  child: Text(
+                                    _showAdvancedCoordinates
+                                        ? 'Hide verified coordinates'
+                                        : 'View verified coordinates & timezone',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.secondary,
+                                    ),
                                   ),
                                 ),
                               ],

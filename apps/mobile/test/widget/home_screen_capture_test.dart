@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/test_artifact_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astro_mobile/home/screens/home_screen.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
@@ -102,10 +103,7 @@ void main() {
               final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
               if (byteData != null) {
                 final bytes = byteData.buffer.asUint8List();
-                final outDir = Directory('/home/pilot/Projects/astrosushil/docs/audits/screenshots/phase_2');
-                if (!outDir.existsSync()) {
-                  outDir.createSync(recursive: true);
-                }
+                final outDir = createTestArtifactDirectory('mobile-home-capture');
                 final file = File(
                   '${outDir.path}/home_${width.toInt()}w_${locale.languageCode}_$profileTag.png',
                 );

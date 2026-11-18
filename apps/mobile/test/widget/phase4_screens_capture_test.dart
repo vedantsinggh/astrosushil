@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../helpers/test_artifact_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astro_mobile/features/astrology/models/astro_chart_model.dart';
 import 'package:astro_mobile/features/astrology/models/strength_model.dart';
@@ -176,7 +177,7 @@ void main() {
     );
   }
 
-  final outDir = Directory('/home/pilot/Projects/astrosushil/docs/audits/screenshots/phase_4');
+  final outDir = createTestArtifactDirectory('mobile-phase-4-capture');
   if (!outDir.existsSync()) {
     outDir.createSync(recursive: true);
   }
