@@ -8,7 +8,7 @@
  * silent fallback to canned text.
  */
 import { randomUUID } from 'crypto';
-import type { IAiProvider, InterpretationResult } from '@astro/prediction-engine';
+import type { AiGenerationOptions, IAiProvider, InterpretationResult } from '@astro/prediction-engine';
 import {
   EvidenceItem,
   GeneratedBatchPayloadSchema,
@@ -58,6 +58,24 @@ export interface NarratorConfig {
    * DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS.
    */
   interpretationMaxOutputTokens?: number;
+  /**
+   * Model reasoning effort (Gemini 3+). Thinking tokens are billed as output and were
+   * ~60% of output-side tokens in the 2026-11-20 career run; narration restates
+   * verified evidence, so heavy reasoning buys little. Undefined = model default.
+   * Not part of the topic cache key: cached payloads are re-validated on every read.
+   */
+  thinkingLevel?: ThinkingLevel;
+}
+
+type ThinkingLevel = NonNullable<AiGenerationOptions['thinkingLevel']>;
+const THINKING_LEVELS: readonly ThinkingLevel[] = ['minimal', 'low', 'medium', 'high'];
+
+/** REPORT_LLM_THINKING_LEVEL: minimal|low|medium|high, or "default" to let the model decide. */
+export function resolveThinkingLevel(raw: string | undefined): ThinkingLevel | undefined {
+  const v = (raw ?? 'low').trim().toLowerCase();
+  if (v === 'default' || v === '') return undefined;
+  if ((THINKING_LEVELS as readonly string[]).includes(v)) return v as ThinkingLevel;
+  throw new Error(`REPORT_LLM_THINKING_LEVEL must be one of ${THINKING_LEVELS.join(', ')} or "default" (got "${raw}")`);
 }
 
 export const DEFAULT_INTERPRETATION_TEMPERATURE = 0.2;
@@ -72,6 +90,7 @@ export const DEFAULT_NARRATOR_CONFIG: NarratorConfig = {
   maxTransportRetries: 6,
   backoffBaseMs: 5000,
   fallbackModels: (process.env.REPORT_LLM_FALLBACK_MODELS ?? '').split(',').map((m) => m.trim()).filter(Boolean),
+  thinkingLevel: resolveThinkingLevel(process.env.REPORT_LLM_THINKING_LEVEL),
 };
 
 export interface TopicOutcome {
@@ -246,6 +265,7 @@ export class LlmNarrator {
             responseFormat: 'json',
             timeoutMs: this.config.timeoutMs,
             anonymizeClient: false, // prompts never contain the client's identity
+            ...(this.config.thinkingLevel ? { thinkingLevel: this.config.thinkingLevel } : {}),
           });
           return { result, model };
         } catch (err) {

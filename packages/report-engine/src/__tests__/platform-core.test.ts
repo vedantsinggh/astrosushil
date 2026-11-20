@@ -7,7 +7,7 @@ import { EvidenceRegistry } from '../platform/evidence/evidence-registry';
 import { validateGeneratedTopic, extractNatalAssertions } from '../platform/validation/claim-validator';
 import { validateEditorial } from '../platform/validation/editorial-validator';
 import { topicCacheKey, InMemoryTopicCacheStore } from '../platform/llm/topic-cache';
-import { LlmNarrator, DEFAULT_NARRATOR_CONFIG } from '../platform/llm/narrator';
+import { LlmNarrator, DEFAULT_NARRATOR_CONFIG, resolveThinkingLevel } from '../platform/llm/narrator';
 import { OfflineTestProvider } from '../platform/llm/offline-test-provider';
 import { ReportRegistry } from '../platform/registry';
 import { ReportTopicSchema, GeneratedTopicPayload } from '../platform/contracts';
@@ -290,6 +290,26 @@ describe('narrator', () => {
     expect(o.status).toBe('failed');
     expect(o.payload).toBeUndefined();
     expect(o.error).toMatch(/503/);
+  });
+
+  it('forwards the configured thinking level to the provider and omits it when unset', async () => {
+    const seen: unknown[] = [];
+    const inner = new OfflineTestProvider();
+    const spy = Object.assign(Object.create(inner), {
+      providerId: 'offline-test',
+      generate: async (prompt: string, o: any) => { seen.push(o.thinkingLevel); return inner.generate(prompt, o); },
+    });
+    const ctx = { definition: def, registry: regA, subjectRef: snapA.subjectRef, topics: [loveTopic], sectionTitle: 'Venus', priorSummaries: [] };
+    await new LlmNarrator(spy, new InMemoryTopicCacheStore(), { ...DEFAULT_NARRATOR_CONFIG, model: 'offline-test', thinkingLevel: 'low' }).generateBatch(ctx);
+    await new LlmNarrator(spy, new InMemoryTopicCacheStore(), { ...DEFAULT_NARRATOR_CONFIG, model: 'offline-test', thinkingLevel: undefined }).generateBatch(ctx);
+    expect(seen).toEqual(['low', undefined]);
+  });
+
+  it('resolves REPORT_LLM_THINKING_LEVEL (default low, "default" = model default, rejects typos)', () => {
+    expect(resolveThinkingLevel(undefined)).toBe('low');
+    expect(resolveThinkingLevel(' High ')).toBe('high');
+    expect(resolveThinkingLevel('default')).toBeUndefined();
+    expect(() => resolveThinkingLevel('lo')).toThrow(/REPORT_LLM_THINKING_LEVEL/);
   });
 
   it('skips a topic whose required evidence is missing instead of inventing it', async () => {

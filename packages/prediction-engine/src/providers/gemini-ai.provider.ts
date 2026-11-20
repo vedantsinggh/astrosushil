@@ -23,6 +23,12 @@ export interface GeminiConfig {
   anonymizeClientData?: boolean;
 }
 
+/** True for Gemini 3 and later, which accept `thinkingConfig.thinkingLevel`. */
+export function supportsThinkingLevel(model: string): boolean {
+  const major = /^(?:models\/)?gemini-(\d+)/i.exec(model)?.[1];
+  return major !== undefined && Number(major) >= 3;
+}
+
 export class GeminiAiProvider implements IAiProvider {
   public readonly providerId = 'gemini';
   private readonly apiKey: string;
@@ -105,6 +111,12 @@ export class GeminiAiProvider implements IAiProvider {
         maxOutputTokens: options?.maxTokens ?? 8192,
       },
     };
+
+    // thinkingLevel is a Gemini 3+ parameter; older models reject it with HTTP 400,
+    // so it is only sent to models that support it (others keep their default).
+    if (options?.thinkingLevel && supportsThinkingLevel(model)) {
+      requestBody.generationConfig.thinkingConfig = { thinkingLevel: options.thinkingLevel };
+    }
 
     if (options?.systemPrompt) {
       requestBody.systemInstruction = {

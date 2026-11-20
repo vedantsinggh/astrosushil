@@ -97,6 +97,7 @@ Environment variables:
 |---|---|
 | `REPORT_LLM_MODEL` | `gemini-3.8-flash` |
 | `REPORT_LLM_FALLBACK_MODELS` | Comma-separated list, used on overload |
+| `REPORT_LLM_THINKING_LEVEL` | `low`; `minimal`/`low`/`medium`/`high`, or `default` for the model's own setting. Sent to Gemini 3+ only; thinking tokens are billed as output |
 | `REPORT_LLM_PRICE_INPUT_PER_MTOK` | `0.5`, cost-estimate assumption |
 | `REPORT_LLM_PRICE_OUTPUT_PER_MTOK` | `3.0`, cost-estimate assumption |
 | `REPORT_LLM_CACHE_DIR` | Location of the dev topic cache |
