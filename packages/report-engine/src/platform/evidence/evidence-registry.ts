@@ -8,6 +8,7 @@
  */
 import { EvidenceItem, EvidenceValue } from '../contracts';
 import { ChartSnapshot, sha256, stableStringify } from '../snapshot/chart-snapshot';
+import type { InterpretationIndex } from '../interpretation/register';
 import { computeNumerology } from './numerology';
 
 export const PLANETS = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu'] as const;
@@ -40,6 +41,19 @@ function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+/**
+ * Plain statement of a satisfied yoga condition: the engine's observed relation when it already
+ * states the fact (e.g. "Yogakaraka: MARS owns both kendra 10 and trikona 5", "Lord of H7 (SATURN)
+ * and Lord of H5 (MARS) conjunct in Gemini"), otherwise the rule text in the indicative followed by
+ * the observed value. Never the bare rule template ("must be …").
+ */
+export function yogaConditionText(c: { description: string; observed: string | number | boolean }): string {
+  const observed = String(c.observed);
+  if (typeof c.observed === 'string' && (observed === c.description || observed.slice(0, 12) === c.description.slice(0, 12))) return observed;
+  const indicative = c.description.replace(/\bmust be\b/g, 'is').replace(/\bmust have\b/g, 'has').replace(/\bmust\b/g, '').replace(/\s{2,}/g, ' ');
+  return `${indicative}: ${observed}`;
+}
+
 /** Adds one evidence item; used by report-module evidence contributors. */
 export type AddEvidence = (id: string, kind: string, label: string, value: EvidenceValue, source: string) => void;
 
@@ -67,6 +81,19 @@ export class EvidenceRegistry {
 
   get size(): number {
     return this.items.size;
+  }
+
+  private interpretationIndex?: InterpretationIndex;
+
+  /** Results of the interpretation pipeline, when the module declares a pack (see interpretation/register.ts). */
+  get interpretation(): InterpretationIndex | undefined {
+    return this.interpretationIndex;
+  }
+
+  /** Called once by the interpretation contributor after its `interp.*` items are added. */
+  attachInterpretation(index: InterpretationIndex): void {
+    if (this.interpretationIndex) throw new Error('INTERPRETATION_ALREADY_ATTACHED: one interpretation set per registry');
+    this.interpretationIndex = index;
   }
 
   has(id: string): boolean {
@@ -250,7 +277,7 @@ export class EvidenceRegistry {
     // --- Yogas -----------------------------------------------------------
     for (const y of yogas) {
       if (!y.isDetected) continue;
-      const satisfied = y.evidence.conditions.filter((c) => c.satisfied).map((c) => c.description);
+      const satisfied = y.evidence.conditions.filter((c) => c.satisfied).map(yogaConditionText);
       add(`yoga.${slug(y.id.replace(/^YOGA_/, ''))}`, 'yoga',
         `${y.canonicalName} is present (${satisfied.slice(0, 3).join('; ') || y.convention})`,
         y.canonicalName, 'yoga.evaluateYogas');

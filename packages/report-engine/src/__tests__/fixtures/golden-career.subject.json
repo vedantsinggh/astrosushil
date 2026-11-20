@@ -1,0 +1,15 @@
+{
+  "label": "Golden Career A",
+  "consent": "Owner approved committing this birth data as a test fixture (user decision 2026-11-20). The source PDF is NOT committed.",
+  "subject": {
+    "name": "Apeksha Singh",
+    "gender": "female",
+    "dateOfBirth": "2004-06-08",
+    "timeOfBirth": "08:30",
+    "placeName": "Akbarpur (Ambedkar Nagar), Uttar Pradesh, India",
+    "latitude": 26.4295,
+    "longitude": 82.5343,
+    "timezone": "Asia/Kolkata"
+  },
+  "asOf": "2026-11-20T00:00:00.000Z"
+}

@@ -4,8 +4,13 @@ import { PlanetSymbol, MANDATORY_VEDIC_PLANETS } from '../planets/planet.types';
 import { RASHIS } from '../zodiac/rashi';
 import { calculatePlanetaryDignity } from '../planets/planetary-dignity';
 import { calculateCombustion } from '../planets/combustion';
+import { getAspectedSigns } from '../planets/planetary-aspects';
+import { getFunctionalNature } from '../planets/functional-nature';
+import { VargaCalculator } from '../varga/varga-calculator';
 import {
   YogaChartContext,
+  YogaPlanetFactors,
+  YogaHouseCategory,
   YogaPlanetEvidence,
   YogaHouseEvidence,
   HouseClassification,
@@ -17,7 +22,11 @@ export class YogaContextBuilder {
   /**
    * Builds complete, cached, strongly-typed YogaChartContext from an AstroChart.
    */
-  public static buildContext(chart: AstroChart, varga: VargaType = 'D1'): YogaChartContext {
+  public static buildContext(
+    chart: AstroChart,
+    varga: VargaType = 'D1',
+    extras: YogaContextExtras = {}
+  ): YogaChartContext {
     // 1. Resolve Ascendant
     const ascRashi = chart.ascendant?.rashiIndex || 1;
     const ascLong = chart.ascendant?.longitude || 0.0;
@@ -138,23 +147,38 @@ export class YogaContextBuilder {
       conjunctionsMap.set(sym, conjuncts);
     }
 
-    // 6. Mutual Aspects (Graha Drishti)
+    // 6. Graha Drishti between the seven grahas (whole-sign; BPHS ch. 26): every graha aspects
+    //    the 7th; Mars also the 4th/8th, Jupiter the 5th/9th, Saturn the 3rd/10th.
+    //    Mutual = each aspects the other's sign. The 7th-7th case keeps its original label.
     const mutualAspects: Array<{ planetA: PlanetSymbol; planetB: PlanetSymbol; aspectType: string }> = [];
+    const grahaAspects: Array<{ from: PlanetSymbol; to: PlanetSymbol; aspectType: string }> = [];
     const planetsList = MANDATORY_VEDIC_PLANETS.filter((p) => p !== PlanetSymbol.RAHU && p !== PlanetSymbol.KETU);
+
+    const aspectTypeOf = (from: PlanetSymbol, to: PlanetSymbol): string | undefined => {
+      const src = planetsRecord[from]!.rashiIndex;
+      const dst = planetsRecord[to]!.rashiIndex;
+      return getAspectedSigns(from, src).find((a) => a.rashiIndex === dst)?.aspectType;
+    };
+
+    for (const from of planetsList) {
+      for (const to of planetsList) {
+        if (from === to) continue;
+        const t = aspectTypeOf(from, to);
+        if (t) grahaAspects.push({ from, to, aspectType: t });
+      }
+    }
 
     for (let i = 0; i < planetsList.length; i++) {
       for (let j = i + 1; j < planetsList.length; j++) {
         const pA = planetsList[i];
         const pB = planetsList[j];
-        const hA = planetsRecord[pA]!.house;
-        const hB = planetsRecord[pB]!.house;
-
-        // 7th mutual aspect (6 houses apart)
-        const distAtoB = ((hB - hA + 12) % 12);
-        const distBtoA = ((hA - hB + 12) % 12);
-
-        if (distAtoB === 6 && distBtoA === 6) {
+        const aToB = aspectTypeOf(pA, pB);
+        const bToA = aspectTypeOf(pB, pA);
+        if (!aToB || !bToA) continue;
+        if (aToB === 'OPPOSITION_7TH' && bToA === 'OPPOSITION_7TH') {
           mutualAspects.push({ planetA: pA, planetB: pB, aspectType: '7TH_MUTUAL_OPPOSITION' });
+        } else {
+          mutualAspects.push({ planetA: pA, planetB: pB, aspectType: `${pA}:${aToB}|${pB}:${bToA}` });
         }
       }
     }
@@ -262,8 +286,94 @@ export class YogaContextBuilder {
       sunPlanet: planetsRecord[PlanetSymbol.SUN]!,
       conjunctions: conjunctionsMap,
       mutualAspects,
+      grahaAspects,
       signExchanges,
       distribution,
+      planetFactors: buildPlanetFactors(chart, varga, planetsRecord, housesRecord, ascRashi, sunLong, extras),
     };
   }
+}
+
+/** Optional inputs for planet factors. */
+export interface YogaContextExtras {
+  /** Shadbala ratio (total / BPHS ch. 27 requirement) and rupas per planet. */
+  shadbala?: Partial<Record<PlanetSymbol, { ratio: number; totalRupas?: number; requiredRupas?: number }>>;
+}
+
+const FACTOR_VARGA_CALCULATOR = new VargaCalculator();
+
+export function houseCategoriesOf(c: HouseClassification): YogaHouseCategory[] {
+  const out: YogaHouseCategory[] = [];
+  if (c.isKendra) out.push('KENDRA');
+  if (c.isTrikona) out.push('TRIKONA');
+  if (c.isDusthana) out.push('DUSTHANA');
+  if (c.isUpachaya) out.push('UPACHAYA');
+  if (c.isPanaphara) out.push('PANAPHARA');
+  if (c.isApoklima) out.push('APOKLIMA');
+  if (c.isMaraka) out.push('MARAKA');
+  return out;
+}
+
+function buildPlanetFactors(
+  chart: AstroChart,
+  varga: VargaType,
+  planets: Partial<Record<PlanetSymbol, YogaPlanetEvidence & { speedLongitude: number }>>,
+  houses: Record<number, YogaHouseEvidence & { classification: HouseClassification }>,
+  ascRashi: number,
+  sunLong: number,
+  extras: YogaContextExtras
+): Partial<Record<PlanetSymbol, YogaPlanetFactors>> {
+  const out: Partial<Record<PlanetSymbol, YogaPlanetFactors>> = {};
+  const isD1 = varga === 'D1';
+
+  // D9 placements (only meaningful when the chart's longitudes are D1 longitudes).
+  const d9Signs: Partial<Record<PlanetSymbol, { rashiIndex: number }>> = {};
+  const d9Degrees: Partial<Record<PlanetSymbol, number>> = {};
+  if (isD1) {
+    for (const sym of MANDATORY_VEDIC_PLANETS) {
+      const p = chart.planets[sym];
+      if (!p || typeof p.longitude !== 'number') continue;
+      d9Signs[sym] = { rashiIndex: FACTOR_VARGA_CALCULATOR.calculateLongitudeVarga(p.longitude, 'D9') };
+      d9Degrees[sym] = FACTOR_VARGA_CALCULATOR.calculateDegreeInVarga(p.longitude, 'D9');
+    }
+  }
+
+  for (const sym of MANDATORY_VEDIC_PLANETS) {
+    const p = planets[sym];
+    if (!p) continue;
+    const comb = calculateCombustion(sym, p.longitude, sunLong, p.isRetrograde);
+    const noCombustion = sym === PlanetSymbol.SUN || sym === PlanetSymbol.RAHU || sym === PlanetSymbol.KETU;
+    const f: YogaPlanetFactors = {
+      planet: sym,
+      rashiIndex: p.rashiIndex,
+      house: p.house,
+      houseCategories: houseCategoriesOf(houses[p.house].classification),
+      dignity: p.dignity,
+      isRetrograde: p.isRetrograde,
+      combustion: noCombustion
+        ? { isCombust: false }
+        : {
+            isCombust: comb.isCombust,
+            distanceFromSun: Number(comb.angularSeparation.toFixed(4)),
+            orbDegrees: comb.threshold,
+          },
+      lordships: [],
+    };
+    for (let h = 1; h <= 12; h++) if (houses[h].lord === sym) f.lordships.push(h);
+    if (isD1) {
+      f.functionalNature = getFunctionalNature(ascRashi, sym).nature;
+      const d9 = d9Signs[sym];
+      if (d9) {
+        f.d9 = {
+          rashiIndex: d9.rashiIndex,
+          dignity: calculatePlanetaryDignity(sym, d9.rashiIndex, d9Degrees[sym] ?? 0, d9Signs),
+          vargottama: d9.rashiIndex === p.rashiIndex,
+        };
+      }
+    }
+    const sb = extras.shadbala?.[sym];
+    if (sb) f.shadbala = { ...sb };
+    out[sym] = f;
+  }
+  return out;
 }

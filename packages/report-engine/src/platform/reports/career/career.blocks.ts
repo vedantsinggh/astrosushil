@@ -5,7 +5,8 @@
  */
 import { BlockContext, BlockRenderer, evidenceValue, kvTable } from '../../render/blocks';
 import { ordinal, planetName, SIGNS } from '../../evidence/evidence-registry';
-import { formatDate, tex } from '../../render/latex';
+import { tex } from '../../render/latex';
+import { formatBusinessDate } from '../../snapshot/chart-snapshot';
 import { CAREER_HOUSES, careerExt, durationText, SAV_BENCHMARK } from './calc/career-calc';
 
 const KARAKA_NAMES: Record<string, string> = {
@@ -99,11 +100,18 @@ export const careerYogaTable: BlockRenderer = (ctx) => {
       method: 'Only yogas detected by the engine\'s rule set are listed; none are inferred.',
     };
   }
-  const rows = c.yogas.map((y) => [`\\textbf{${tex(y.name)}}`, tex(y.category.toLowerCase().replace(/_/g, ' ')), tex(y.conditions.slice(0, 3).join('; ') || '—')]);
+  // Every detected yoga is listed (career-relevant families first) so that any yoga the narrative
+  // names has a row here (audit F17). Conditions are the engine's observed relations (audit F7).
+  const all = c.allYogas ?? c.yogas;
+  const rows = all.map((y) => [
+    `\\textbf{${tex(y.name)}}`,
+    tex(y.category.toLowerCase().replace(/_/g, ' ') + (y.relevant ? '' : ' (context)')),
+    tex(y.conditions.slice(0, 3).join('; ') || '—'),
+  ]);
   return {
-    tex: table('>{\\raggedright\\arraybackslash}p{0.27\\linewidth}>{\\raggedright\\arraybackslash}p{0.14\\linewidth}>{\\raggedright\\arraybackslash}X', ['Yoga', 'Family', 'Conditions met in your chart'], rows),
-    evidenceIds: ['career.yogas.relevant', ...c.yogas.map((y) => y.evidenceId).filter((id) => ctx.registry.has(id))],
-    method: 'Yogas detected by the engine\'s classical rule set (BPHS, Phaladeepika conventions), filtered to the families classically tied to status, work and earnings. No yoga is added by hand.',
+    tex: table('>{\\raggedright\\arraybackslash}p{0.27\\linewidth}>{\\raggedright\\arraybackslash}p{0.14\\linewidth}>{\\raggedright\\arraybackslash}X', ['Yoga', 'Family', 'How it is formed in your chart'], rows),
+    evidenceIds: ['career.yogas.relevant', ...all.map((y) => y.evidenceId).filter((id) => ctx.registry.has(id))],
+    method: 'Yogas detected by the engine\'s classical rule set (BPHS, Phaladeepika conventions). Families classically tied to status, work and earnings come first; other detected yogas are marked "context". No yoga is added by hand, and a listed yoga indicates a potential, not a result.',
   };
 };
 
@@ -146,18 +154,25 @@ export const careerKarakaTable: BlockRenderer = (ctx) => {
 export const careerD10Table: BlockRenderer = (ctx) => {
   const c = careerExt(ctx.ext);
   const ids: string[] = ['asc.d10.sign'];
+  const dig = (p: string) => c.d10.planets[p as keyof typeof c.d10.planets].dignity;
+  const short = (d: string) => (d === 'exalted' || d === 'debilitated' || d === 'own sign' ? d : '');
   const rows = c.d10.houses.map((h) => {
     ids.push(`career.d10.house.${h.house}.sign`, `career.d10.house.${h.house}.lord`, `career.d10.house.${h.house}.lord-house`, `career.d10.house.${h.house}.occupants`);
+    for (const p of [h.lord, ...h.occupants]) {
+      const id = `planet.${p.toLowerCase()}.d10.dignity`;
+      if (ctx.registry.has(id) && !ids.includes(id)) ids.push(id);
+    }
     const key = [1, 6, 7, 10, 11].includes(h.house);
     const b = (s: string) => (key ? `\\textbf{${s}}` : s);
-    return [b(ordinal(h.house)), tex(h.sign), tex(h.lord), tex(`house ${h.lordHouse} (${h.lordSign})`), tex(h.occupants.join(', ') || '—')];
+    const occ = h.occupants.map((o) => (short(dig(o)) ? `${o} (${short(dig(o))})` : o));
+    return [b(ordinal(h.house)), tex(h.sign), tex(h.lord), tex(`house ${h.lordHouse} (${h.lordSign})`), tex(short(dig(h.lord)) || '—'), tex(occ.join(', ') || '—')];
   });
   return {
     tex: intro('Every house of the Dashamsha (D10), the divisional chart of profession. Bold rows are the houses this report reads most closely for work.') +
-      table('>{\\raggedright\\arraybackslash}p{0.09\\linewidth}>{\\raggedright\\arraybackslash}p{0.16\\linewidth}>{\\raggedright\\arraybackslash}p{0.13\\linewidth}>{\\raggedright\\arraybackslash}p{0.26\\linewidth}X',
-        ['D10 house', 'Sign', 'Lord', 'Lord sits in', 'Occupants'], rows),
+      table('>{\\raggedright\\arraybackslash}p{0.09\\linewidth}>{\\raggedright\\arraybackslash}p{0.14\\linewidth}>{\\raggedright\\arraybackslash}p{0.11\\linewidth}>{\\raggedright\\arraybackslash}p{0.2\\linewidth}>{\\raggedright\\arraybackslash}p{0.14\\linewidth}X',
+        ['D10 house', 'Sign', 'Lord', 'Lord sits in', 'Lord\'s D10 dignity', 'Occupants'], rows),
     evidenceIds: ids,
-    method: 'D10 computed by the divisional-chart engine (Parashari Dashamsha); houses counted in whole signs from the D10 ascendant.',
+    method: 'D10 computed by the divisional-chart engine (Parashari Dashamsha); houses counted in whole signs from the D10 ascendant. D10 dignity is sign dignity only (exalted, debilitated or own sign; a dash means none of these) and is a different scale from the birth-chart compound dignity.',
   };
 };
 
@@ -262,11 +277,11 @@ export const careerTransitTable: BlockRenderer = (ctx) => {
     const k = t.planet.toLowerCase();
     ids.push(`career.transit.${k}.current`);
     const p = t.current;
-    rows.push([`\\textbf{${t.planet}}`, `\\textbf{Now}`, tex(p.sign), tex(`${formatDate(p.startIso)} -- ${formatDate(p.endIso)}`), tex(durationText(p.startIso, p.endIso)), `${ordinal(p.fromAsc)} / ${ordinal(p.fromMoon)}`]);
+    rows.push([`\\textbf{${t.planet}}`, `\\textbf{Now}`, tex(p.sign), tex(`${formatBusinessDate(p.startIso)} -- ${formatBusinessDate(p.endIso)}`), tex(durationText(p.startIso, p.endIso)), `${ordinal(p.fromAsc)} / ${ordinal(p.fromMoon)}`]);
     t.upcoming.forEach((u, i) => {
       ids.push(`career.transit.${k}.next.${String(i + 1).padStart(2, '0')}`);
       const re = u.retrogradeEntry && k !== 'rahu' && k !== 'ketu' ? ' (R)' : '';
-      rows.push(['', 'Next', tex(u.sign + re), tex(`${formatDate(u.startIso)} -- ${formatDate(u.endIso)}`), tex(durationText(u.startIso, u.endIso)), `${ordinal(u.fromAsc)} / ${ordinal(u.fromMoon)}`]);
+      rows.push(['', 'Next', tex(u.sign + re), tex(`${formatBusinessDate(u.startIso)} -- ${formatBusinessDate(u.endIso)}`), tex(durationText(u.startIso, u.endIso)), `${ordinal(u.fromAsc)} / ${ordinal(u.fromMoon)}`]);
     });
   }
   return {
@@ -286,7 +301,7 @@ export const careerDashaTimeline: BlockRenderer = (ctx) => {
     ids.push(`career.dasha.md.${String(i + 1).padStart(2, '0')}.links`, `dasha.md.${String(i + 1).padStart(2, '0')}`);
     const b = (s: string) => (d.active ? `\\textbf{${s}}` : s);
     const ages = `${Math.max(0, Number(d.startIso.slice(0, 4)) - birthYear)}–${Number(d.endIso.slice(0, 4)) - birthYear}`;
-    return [b(tex(d.lord + (d.active ? ' (now)' : ''))), b(tex(`${formatDate(d.startIso)} -- ${formatDate(d.endIso)}`)), tex(ages),
+    return [b(tex(d.lord + (d.active ? ' (now)' : ''))), b(tex(`${formatBusinessDate(d.startIso)} -- ${formatBusinessDate(d.endIso)}`)), tex(ages),
       tex(d.rules.map(ordinal).join(', ') || '—'), tex(`${ordinal(d.house)} / ${d.d10House}`), tex(d.careerLinks.join('; ') || '—')];
   });
   return {
@@ -306,7 +321,7 @@ export const careerAntardashaTable: BlockRenderer = (ctx) => {
     ids.push(`career.dasha.ad.${String(i + 1).padStart(2, '0')}`);
     const b = (s: string) => (a.active ? `\\textbf{${s}}` : s);
     const links = careerExtLinks(ctx, a.lord);
-    return [b(tex(`${md}–${a.lord}${a.active ? ' (now)' : ''}`)), b(tex(`${formatDate(a.startIso)} -- ${formatDate(a.endIso)}`)), tex(links)];
+    return [b(tex(`${md}–${a.lord}${a.active ? ' (now)' : ''}`)), b(tex(`${formatBusinessDate(a.startIso)} -- ${formatBusinessDate(a.endIso)}`)), tex(links)];
   });
   return {
     tex: table('>{\\raggedright\\arraybackslash}p{0.24\\linewidth}>{\\raggedright\\arraybackslash}p{0.3\\linewidth}X', ['Antardasha', 'Period', 'Sub-lord\'s career links'], rows),

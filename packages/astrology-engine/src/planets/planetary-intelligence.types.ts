@@ -69,6 +69,8 @@ export interface CharaKarakaAssignment {
   code: CharaKarakaCode;
   degreeInRashi: number;
   rank: number; // 1 to 7
+  /** Present (true) only when a degree tie was resolved by the fixed priority order. */
+  tieResolvedByPriority?: boolean;
 }
 
 export interface PlanetaryWarDetail {

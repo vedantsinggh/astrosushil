@@ -56,6 +56,24 @@ export const TopicKindSchema = z.enum([
 ]);
 export type TopicKind = z.infer<typeof TopicKindSchema>;
 
+/** Inclusive age window in completed years at the report date. */
+export const AgeWindowSchema = z
+  .object({ minAge: z.number().int().min(0).optional(), maxAge: z.number().int().min(0).optional() })
+  .refine((w) => w.minAge !== undefined || w.maxAge !== undefined, 'an age window needs minAge or maxAge');
+export type AgeWindow = z.infer<typeof AgeWindowSchema>;
+
+export const TopicVariantSchema = z.object({
+  /** Stable name recorded in prompts and tests, e.g. 'early-career'. */
+  id: z.string().regex(/^[a-z0-9-]+$/),
+  when: AgeWindowSchema,
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  objective: z.string().optional(),
+  /** Appended to the (possibly replaced) objective. */
+  objectiveAppend: z.string().optional(),
+});
+export type TopicVariant = z.infer<typeof TopicVariantSchema>;
+
 export const ReportTopicSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   title: z.string(),
@@ -85,6 +103,18 @@ export const ReportTopicSchema = z.object({
   referencePages: z.string().optional(),
   /** True for topics we add beyond the reference. */
   bonus: z.boolean().default(false),
+  /**
+   * Interpretation opt-in: `interp.*` ID patterns (e.g. `interp.career.house-10.*`) whose
+   * deterministic conclusions the topic must narrate. Empty = legacy behaviour (unchanged
+   * evidence scope, prompt and cache key). Patterns without a trailing `*` are required citations.
+   */
+  interpretations: z.array(z.string()).default([]),
+  /**
+   * Life-stage variants (product defaults, not astrology): the first variant whose age window
+   * contains the native's completed age at the report date replaces the topic's title,
+   * subtitle and/or objective, or appends to the objective. Topics without variants are unchanged.
+   */
+  variants: z.array(TopicVariantSchema).default([]),
 });
 export type ReportTopic = z.infer<typeof ReportTopicSchema>;
 export type ReportTopicInput = z.input<typeof ReportTopicSchema>;
@@ -222,6 +252,12 @@ export const TopicManifestEntrySchema = z.object({
   latencyMs: z.number().optional(),
   attempts: z.number().optional(),
   error: z.string().optional(),
+  /** Life-stage variant applied to the topic, when one matched. */
+  variant: z.string().optional(),
+  /** Interpretation traceability per verified claim (opted-in topics only). */
+  trace: z
+    .array(z.object({ statement: z.string(), evidenceIds: z.array(z.string()), interpretationIds: z.array(z.string()), ruleIds: z.array(z.string()) }))
+    .optional(),
 });
 export type TopicManifestEntry = z.infer<typeof TopicManifestEntrySchema>;
 
@@ -241,6 +277,8 @@ export const ReportManifestSchema = z.object({
     conventionsProvisional: z.boolean(),
     evidenceCount: z.number(),
   }),
+  /** Present when the module declares an interpretation pack. */
+  interpretation: z.object({ schemaVersion: z.string(), rulesetVersion: z.string(), resultCount: z.number() }).optional(),
   topics: z.array(TopicManifestEntrySchema),
   usage: z.object({
     liveCalls: z.number(),

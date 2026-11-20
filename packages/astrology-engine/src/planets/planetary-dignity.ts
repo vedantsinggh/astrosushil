@@ -37,17 +37,47 @@ export function isDebilitated(planet: PlanetSymbol, rashiIndex: number): boolean
 }
 
 /**
+ * Moon moolatrikona convention (provisional – pending client review).
+ *
+ * BPHS ch. 3 (Santhanam numbering): the Moon's deep exaltation is 3° Taurus and the Moon's
+ * moolatrikona lies in Taurus after the exaltation zone. Translations differ on the upper bound:
+ * - `TAURUS_4_TO_20` (default): moolatrikona from just after 3° up to 20° Taurus; 0°–3° and
+ *   20°–30° Taurus remain the exaltation sign (EXALTED). This is the reading adopted for the
+ *   interpretation engine (2026-11 engine fixes).
+ * - `TAURUS_REST_OF_SIGN`: moolatrikona over 3°–30° Taurus ("the rest of Taurus" reading used by
+ *   several BPHS translations).
+ * Either way the first 3° are exaltation (the deep-exaltation degree).
+ */
+export type MoonMoolatrikonaConvention = 'TAURUS_4_TO_20' | 'TAURUS_REST_OF_SIGN';
+export const DEFAULT_MOON_MOOLATRIKONA_CONVENTION: MoonMoolatrikonaConvention = 'TAURUS_4_TO_20';
+
+export interface DignityOptions {
+  moonMoolatrikona?: MoonMoolatrikonaConvention;
+}
+
+function moonMoolatrikonaUpperBound(convention: MoonMoolatrikonaConvention): number {
+  return convention === 'TAURUS_REST_OF_SIGN' ? 30 : 20;
+}
+
+/**
  * Classical Moolatrikona zones according to BPHS Ch. 3.
  */
-export function isMoolatrikona(planet: PlanetSymbol, rashiIndex: number, degreeInRashi: number): boolean {
+export function isMoolatrikona(
+  planet: PlanetSymbol,
+  rashiIndex: number,
+  degreeInRashi: number,
+  options: DignityOptions = {}
+): boolean {
   const deg = degreeInRashi;
   switch (planet) {
     case PlanetSymbol.SUN:
       // Leo 0° to 20°
       return rashiIndex === 5 && deg >= 0 && deg <= 20;
-    case PlanetSymbol.MOON:
-      // Taurus 3° to 30° (0-3° is exaltation)
-      return rashiIndex === 2 && deg > 3 && deg <= 30;
+    case PlanetSymbol.MOON: {
+      // Taurus after the 3° exaltation zone (see MoonMoolatrikonaConvention).
+      const upper = moonMoolatrikonaUpperBound(options.moonMoolatrikona ?? DEFAULT_MOON_MOOLATRIKONA_CONVENTION);
+      return rashiIndex === 2 && deg > 3 && deg <= upper;
+    }
     case PlanetSymbol.MARS:
       // Aries 0° to 12°
       return rashiIndex === 1 && deg >= 0 && deg <= 12;
@@ -126,7 +156,8 @@ export function calculatePlanetaryDignity(
   planet: PlanetSymbol,
   rashiIndex: number,
   degreeInRashi: number,
-  planetPositions?: Partial<Record<PlanetSymbol, { rashiIndex: number }>>
+  planetPositions?: Partial<Record<PlanetSymbol, { rashiIndex: number }>>,
+  options: DignityOptions = {}
 ): ExtendedPlanetaryDignity {
   // 1. Exaltation
   if (isExalted(planet, rashiIndex)) {
@@ -135,6 +166,12 @@ export function calculatePlanetaryDignity(
       if (degreeInRashi <= 15) return 'EXALTED';
       if (degreeInRashi <= 20) return 'MOOLATRIKONA';
       return 'OWN_SIGN';
+    }
+    // Moon in Taurus: 0-3° exaltation, then moolatrikona per the configured convention
+    // (BPHS ch. 3; see MoonMoolatrikonaConvention). Outside the moolatrikona span Taurus stays
+    // the Moon's exaltation sign.
+    if (planet === PlanetSymbol.MOON && rashiIndex === 2 && isMoolatrikona(planet, rashiIndex, degreeInRashi, options)) {
+      return 'MOOLATRIKONA';
     }
     return 'EXALTED';
   }
@@ -145,7 +182,7 @@ export function calculatePlanetaryDignity(
   }
 
   // 3. Moolatrikona
-  if (isMoolatrikona(planet, rashiIndex, degreeInRashi)) {
+  if (isMoolatrikona(planet, rashiIndex, degreeInRashi, options)) {
     return 'MOOLATRIKONA';
   }
 

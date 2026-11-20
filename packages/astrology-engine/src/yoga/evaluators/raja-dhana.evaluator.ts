@@ -1,79 +1,98 @@
 import { PlanetSymbol } from '../../planets/planet.types';
-import { YogaChartContext, YogaResult, YogaCondition, YogaRelationshipEvidence } from '../yoga.types';
-import { YogaPredicates } from '../yoga-predicates';
+import {
+  YogaChartContext,
+  YogaResult,
+  YogaCondition,
+  YogaRelationshipEvidence,
+  YogaCancellationFlag,
+} from '../yoga.types';
+import { buildAssessment, lordRelation } from '../yoga-assessment';
+
+const RAJA_SOURCE =
+  'Classical Parashari: BPHS ch. 39 Raja yogas (Santhanam numbering; verify verses) — kendra and trikona lords related by conjunction, mutual aspect or sign exchange';
+const YOGAKARAKA_SOURCE =
+  'Classical Parashari: BPHS ch. 34 (Yogakaraka, Santhanam numbering) and Laghu Parashari ch. 2 — one planet owning a kendra and a trikona';
+const DHANA_SOURCE =
+  'Classical Parashari: BPHS ch. 41 Dhana yogas (Santhanam numbering; verify verses) — associations among the lords of 1, 2, 5, 9, 11';
+
+const ORD = (n: number): string => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+const houseLabel = (h: number): string => (h === 1 ? 'Lagna Lord' : `${ORD(h)} Lord`);
+
+/** Kendra (1, 4, 7, 10) × trikona (5, 9) lord pairs; 10 + 9 is Dharma-Karmadhipati. */
+const KENDRA_TRIKONA_PAIRS: Array<{ hA: number; hB: number }> = [
+  { hA: 1, hB: 5 },
+  { hA: 1, hB: 9 },
+  { hA: 4, hB: 5 },
+  { hA: 4, hB: 9 },
+  { hA: 7, hB: 5 },
+  { hA: 7, hB: 9 },
+  { hA: 10, hB: 5 },
+];
+
+const DHANA_PAIRS: Array<{ hA: number; hB: number; label: string }> = [
+  { hA: 2, hB: 11, label: '2nd Lord (Dhana) + 11th Lord (Labha)' },
+  { hA: 1, hB: 2, label: 'Lagna Lord + 2nd Lord' },
+  { hA: 1, hB: 11, label: 'Lagna Lord + 11th Lord' },
+  { hA: 5, hB: 9, label: '5th Lord (Lakshmi Sthana) + 9th Lord (Bhagya)' },
+  { hA: 2, hB: 5, label: '2nd Lord + 5th Lord' },
+  { hA: 2, hB: 9, label: '2nd Lord + 9th Lord' },
+  { hA: 5, hB: 11, label: '5th Lord + 11th Lord (Labha)' },
+  { hA: 9, hB: 11, label: '9th Lord (Bhagya) + 11th Lord (Labha)' },
+];
+
+/**
+ * Qualifier facts for lord-association yogas (no verdicts). BPHS ch. 34 (verify): a kendra or
+ * trikona lord that also owns the 8th or 11th does not give the full result. Reported only as a
+ * fact, provisional – pending client review.
+ */
+function lordQualifiers(ctx: YogaChartContext, planets: PlanetSymbol[]): YogaCancellationFlag[] {
+  return planets.map((p) => {
+    const owns = (ctx.lordHouses[p] || []).filter((h) => h === 8 || h === 11);
+    return {
+      id: `LORD_ALSO_OWNS_8TH_OR_11TH_${p}`,
+      description: `${p} also owns the 8th or 11th house`,
+      satisfied: owns.length > 0,
+      observed: `${p} owns houses ${(ctx.lordHouses[p] || []).join(', ') || 'none'}`,
+      source: 'BPHS ch. 34 (Santhanam numbering; verify verse)',
+      provisional: true,
+    };
+  });
+}
 
 export function evaluateRajaAndDhanaYogas(ctx: YogaChartContext): YogaResult[] {
   const results: YogaResult[] = [];
 
   const lord1 = ctx.houseLords[1];
-  const lord2 = ctx.houseLords[2];
-  const lord4 = ctx.houseLords[4];
-  const lord5 = ctx.houseLords[5];
-  const lord7 = ctx.houseLords[7];
   const lord9 = ctx.houseLords[9];
   const lord10 = ctx.houseLords[10];
-  const lord11 = ctx.houseLords[11];
-
-  // Helper to check association between two house lords
-  function checkLordAssociation(
-    pA: PlanetSymbol,
-    pB: PlanetSymbol,
-    houseA: number,
-    houseB: number
-  ): { isAssociated: boolean; type?: 'CONJUNCTION' | 'MUTUAL_ASPECT'; description?: string } {
-    if (pA === pB) {
-      // Single planet ruling both Kendra & Trikona is a Raja Yoga Karaka (e.g. Saturn for Taurus/Libra Lagna, Mars for Cancer/Leo Lagna)
-      return {
-        isAssociated: true,
-        type: 'CONJUNCTION',
-        description: `${pA} is Yoga Karaka owning both House ${houseA} and House ${houseB}`,
-      };
-    }
-
-    const isConjunct = ctx.planets[pA].rashiIndex === ctx.planets[pB].rashiIndex;
-    if (isConjunct) {
-      return {
-        isAssociated: true,
-        type: 'CONJUNCTION',
-        description: `Lord of H${houseA} (${pA}) and Lord of H${houseB} (${pB}) conjunct in ${ctx.planets[pA].rashiName}`,
-      };
-    }
-
-    const isMutualAspect = YogaPredicates.areInMutualAspect(pA, pB, ctx);
-    if (isMutualAspect) {
-      return {
-        isAssociated: true,
-        type: 'MUTUAL_ASPECT',
-        description: `Lord of H${houseA} (${pA}) and Lord of H${houseB} (${pB}) in mutual aspect`,
-      };
-    }
-
-    return { isAssociated: false };
-  }
 
   // 1. DHARMA-KARMADHIPATI RAJA YOGA (9th + 10th lords)
   {
-    const assoc = checkLordAssociation(lord9, lord10, 9, 10);
+    const rel = lordRelation(ctx, lord9, lord10, 9, 10);
     const p9 = ctx.planets[lord9];
     const p10 = ctx.planets[lord10];
 
     const conditions: YogaCondition[] = [
       {
         id: 'DHARMA_KARMA_ASSOCIATION',
-        description: `9th lord (${lord9}) and 10th lord (${lord10}) must associate via conjunction or mutual aspect`,
-        satisfied: assoc.isAssociated,
-        expected: 'Conjunction or Mutual Aspect',
-        observed: assoc.description || 'No association',
+        description: `9th lord (${lord9}) and 10th lord (${lord10}) must be related by conjunction, mutual aspect or sign exchange, or be the same planet`,
+        satisfied: rel.isAssociated,
+        expected: 'Conjunction, Mutual Aspect, Sign Exchange or single-planet ownership',
+        observed: rel.description,
       },
     ];
 
-    const relationships: YogaRelationshipEvidence[] = assoc.isAssociated
+    const relationships: YogaRelationshipEvidence[] = rel.primary && (rel.isAssociated || rel.primary === 'ONE_WAY_ASPECT')
       ? [
           {
-            relationshipType: assoc.type || 'CONJUNCTION',
+            relationshipType: rel.primary,
             planets: lord9 === lord10 ? [lord9] : [lord9, lord10],
             houses: [p9.house, p10.house],
-            description: assoc.description || '',
+            description: rel.description,
           },
         ]
       : [];
@@ -83,117 +102,140 @@ export function evaluateRajaAndDhanaYogas(ctx: YogaChartContext): YogaResult[] {
       canonicalName: 'Dharma-Karmadhipati Yoga',
       sanskritName: 'Dharma Karmadhipati Raja Yoga',
       category: 'RAJA',
-      isDetected: assoc.isAssociated,
+      isDetected: rel.isAssociated,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 34 & 35)',
+      convention: RAJA_SOURCE,
       evidence: {
         conditions,
         involvedPlanets: lord9 === lord10 ? [p9] : [p9, p10],
         involvedHouses: [ctx.houses[9], ctx.houses[10]],
         relationships,
       },
+      assessment: buildAssessment(ctx, {
+        formed: rel.isAssociated,
+        keyPlanets: lord9 === lord10 ? [lord9] : [lord9, lord10],
+        relations: rel.primary ? (rel.isAssociated ? rel.relations : ['ONE_WAY_ASPECT']) : [],
+        oneWayAspects: rel.oneWayAspects,
+        cancellations: lordQualifiers(ctx, lord9 === lord10 ? [lord9] : [lord9, lord10]),
+        source: RAJA_SOURCE,
+      }),
     });
   }
 
-  // 2. KENDRA-TRIKONA RAJA YOGA (1st + 5th / 1st + 9th / 4th + 5th / 4th + 9th / 7th + 9th / 10th + 5th)
+  // 2. KENDRA-TRIKONA RAJA YOGAS: every kendra lord (1, 4, 7, 10) with every trikona lord (5, 9).
+  //    The 10th + 9th pair is reported as Dharma-Karmadhipati above. A single planet owning both
+  //    houses is reported as a Yogakaraka (relation OWNERSHIP), never as an association.
   {
-    const pairs: Array<{ hA: number; hB: number; label: string }> = [
-      { hA: 1, hB: 5, label: 'Lagna Lord + 5th Lord' },
-      { hA: 1, hB: 9, label: 'Lagna Lord + 9th Lord' },
-      { hA: 4, hB: 5, label: '4th Lord + 5th Lord' },
-      { hA: 4, hB: 9, label: '4th Lord + 9th Lord' },
-      { hA: 7, hB: 9, label: '7th Lord + 9th Lord' },
-      { hA: 10, hB: 5, label: '10th Lord + 5th Lord' },
-    ];
-
-    for (const pair of pairs) {
+    for (const pair of KENDRA_TRIKONA_PAIRS) {
       const pA = ctx.houseLords[pair.hA];
       const pB = ctx.houseLords[pair.hB];
-      const assoc = checkLordAssociation(pA, pB, pair.hA, pair.hB);
+      const rel = lordRelation(ctx, pA, pB, pair.hA, pair.hB);
+      if (!rel.isAssociated && rel.primary !== 'ONE_WAY_ASPECT') continue;
 
-      if (assoc.isAssociated) {
-        results.push({
-          id: `YOGA_RAJA_H${pair.hA}_H${pair.hB}`,
-          canonicalName: `Raja Yoga (${pair.label})`,
-          sanskritName: `Kendra-Trikona Raja Yoga (H${pair.hA}-H${pair.hB})`,
-          category: 'RAJA',
-          isDetected: true,
-          varga: ctx.varga,
-          convention: 'Classical Parashari (BPHS Ch. 34)',
-          evidence: {
-            conditions: [
-              {
-                id: 'KENDRA_TRIKONA_ASSOCIATION',
-                description: `Lord of H${pair.hA} (${pA}) and Lord of H${pair.hB} (${pB}) associate via conjunction/aspect`,
-                satisfied: true,
-                expected: 'Conjunction or Mutual Aspect',
-                observed: assoc.description || '',
-              },
-            ],
-            involvedPlanets: pA === pB ? [ctx.planets[pA]] : [ctx.planets[pA], ctx.planets[pB]],
-            involvedHouses: [ctx.houses[pair.hA], ctx.houses[pair.hB]],
-            relationships: [
-              {
-                relationshipType: assoc.type || 'CONJUNCTION',
-                planets: pA === pB ? [pA] : [pA, pB],
-                houses: [ctx.planets[pA].house, ctx.planets[pB].house],
-                description: assoc.description || '',
-              },
-            ],
-          },
-        });
-      }
+      const isOwnership = rel.primary === 'OWNERSHIP';
+      const label = `${houseLabel(pair.hA)} + ${houseLabel(pair.hB)}`;
+      const keyPlanets = pA === pB ? [pA] : [pA, pB];
+
+      results.push({
+        id: `YOGA_RAJA_H${pair.hA}_H${pair.hB}`,
+        canonicalName: isOwnership ? `Raja Yoga (Yogakaraka ${pA}: ${label})` : `Raja Yoga (${label})`,
+        sanskritName: isOwnership
+          ? `Yogakaraka Raja Yoga (H${pair.hA}-H${pair.hB})`
+          : `Kendra-Trikona Raja Yoga (H${pair.hA}-H${pair.hB})`,
+        category: 'RAJA',
+        isDetected: rel.isAssociated,
+        varga: ctx.varga,
+        convention: isOwnership ? YOGAKARAKA_SOURCE : RAJA_SOURCE,
+        evidence: {
+          conditions: [
+            isOwnership
+              ? {
+                  id: 'KENDRA_TRIKONA_OWNERSHIP',
+                  description: rel.description,
+                  satisfied: true,
+                  expected: 'One planet owning a kendra and a trikona',
+                  observed: rel.description,
+                }
+              : {
+                  id: 'KENDRA_TRIKONA_ASSOCIATION',
+                  description: `Lord of H${pair.hA} (${pA}) and Lord of H${pair.hB} (${pB}) related by conjunction, mutual aspect or sign exchange`,
+                  satisfied: rel.isAssociated,
+                  expected: 'Conjunction, Mutual Aspect or Sign Exchange',
+                  observed: rel.description,
+                },
+          ],
+          involvedPlanets: pA === pB ? [ctx.planets[pA]] : [ctx.planets[pA], ctx.planets[pB]],
+          involvedHouses: [ctx.houses[pair.hA], ctx.houses[pair.hB]],
+          relationships: [
+            {
+              relationshipType: rel.primary ?? 'CONJUNCTION',
+              planets: keyPlanets,
+              houses: [ctx.planets[pA].house, ctx.planets[pB].house],
+              description: rel.description,
+            },
+          ],
+        },
+        assessment: buildAssessment(ctx, {
+          formed: rel.isAssociated,
+          keyPlanets,
+          relations: rel.isAssociated ? rel.relations : ['ONE_WAY_ASPECT'],
+          oneWayAspects: rel.oneWayAspects,
+          cancellations: lordQualifiers(ctx, keyPlanets),
+          source: isOwnership ? YOGAKARAKA_SOURCE : RAJA_SOURCE,
+        }),
+      });
     }
   }
 
-  // 3. DHANA YOGAS (Wealth Combinations: 1+2, 2+11, 5+9, 1+11, 2+5, 2+9)
+  // 3. DHANA YOGAS: associations among the lords of 1, 2, 5, 9 and 11 (pairs below).
+  //    Single-planet ownership of two dhana houses is NOT reported (no cited source; removed in
+  //    the 2026-11 engine fixes, audit 04 §0.5).
   {
-    const dhanaPairs: Array<{ hA: number; hB: number; label: string }> = [
-      { hA: 2, hB: 11, label: '2nd Lord (Dhana) + 11th Lord (Labha)' },
-      { hA: 1, hB: 2, label: 'Lagna Lord + 2nd Lord' },
-      { hA: 1, hB: 11, label: 'Lagna Lord + 11th Lord' },
-      { hA: 5, hB: 9, label: '5th Lord (Lakshmi Sthana) + 9th Lord (Bhagya)' },
-      { hA: 2, hB: 5, label: '2nd Lord + 5th Lord' },
-      { hA: 2, hB: 9, label: '2nd Lord + 9th Lord' },
-    ];
-
-    for (const pair of dhanaPairs) {
+    for (const pair of DHANA_PAIRS) {
       const pA = ctx.houseLords[pair.hA];
       const pB = ctx.houseLords[pair.hB];
-      const assoc = checkLordAssociation(pA, pB, pair.hA, pair.hB);
+      if (pA === pB) continue;
+      const rel = lordRelation(ctx, pA, pB, pair.hA, pair.hB);
+      if (!rel.isAssociated && rel.primary !== 'ONE_WAY_ASPECT') continue;
 
-      if (assoc.isAssociated) {
-        results.push({
-          id: `YOGA_DHANA_H${pair.hA}_H${pair.hB}`,
-          canonicalName: `Dhana Yoga (${pair.label})`,
-          sanskritName: `Dhana Yoga (H${pair.hA}-H${pair.hB})`,
-          category: 'DHANA',
-          isDetected: true,
-          varga: ctx.varga,
-          convention: 'Classical Parashari (BPHS Ch. 43)',
-          evidence: {
-            conditions: [
-              {
-                id: 'DHANA_HOUSES_ASSOCIATION',
-                description: `Lord of H${pair.hA} (${pA}) and Lord of H${pair.hB} (${pB}) associate for wealth generation`,
-                satisfied: true,
-                expected: 'Conjunction or Mutual Aspect',
-                observed: assoc.description || '',
-              },
-            ],
-            involvedPlanets: pA === pB ? [ctx.planets[pA]] : [ctx.planets[pA], ctx.planets[pB]],
-            involvedHouses: [ctx.houses[pair.hA], ctx.houses[pair.hB]],
-            relationships: [
-              {
-                relationshipType: assoc.type || 'CONJUNCTION',
-                planets: pA === pB ? [pA] : [pA, pB],
-                houses: [ctx.planets[pA].house, ctx.planets[pB].house],
-                description: assoc.description || '',
-              },
-            ],
-          },
-        });
-      }
+      results.push({
+        id: `YOGA_DHANA_H${pair.hA}_H${pair.hB}`,
+        canonicalName: `Dhana Yoga (${pair.label})`,
+        sanskritName: `Dhana Yoga (H${pair.hA}-H${pair.hB})`,
+        category: 'DHANA',
+        isDetected: rel.isAssociated,
+        varga: ctx.varga,
+        convention: DHANA_SOURCE,
+        evidence: {
+          conditions: [
+            {
+              id: 'DHANA_HOUSES_ASSOCIATION',
+              description: `Lord of H${pair.hA} (${pA}) and Lord of H${pair.hB} (${pB}) related by conjunction, mutual aspect or sign exchange`,
+              satisfied: rel.isAssociated,
+              expected: 'Conjunction, Mutual Aspect or Sign Exchange',
+              observed: rel.description,
+            },
+          ],
+          involvedPlanets: [ctx.planets[pA], ctx.planets[pB]],
+          involvedHouses: [ctx.houses[pair.hA], ctx.houses[pair.hB]],
+          relationships: [
+            {
+              relationshipType: rel.primary ?? 'CONJUNCTION',
+              planets: [pA, pB],
+              houses: [ctx.planets[pA].house, ctx.planets[pB].house],
+              description: rel.description,
+            },
+          ],
+        },
+        assessment: buildAssessment(ctx, {
+          formed: rel.isAssociated,
+          keyPlanets: [pA, pB],
+          relations: rel.isAssociated ? rel.relations : ['ONE_WAY_ASPECT'],
+          oneWayAspects: rel.oneWayAspects,
+          cancellations: lordQualifiers(ctx, [pA, pB]),
+          source: DHANA_SOURCE,
+        }),
+      });
     }
   }
 
@@ -289,7 +331,7 @@ export function evaluateRajaAndDhanaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'AUSPICIOUS',
       isDetected,
       varga: ctx.varga,
-      convention: 'Classical Parashari & Phaladeepika',
+      convention: 'Phaladeepika ch. 6 (verify verse); Raman, Three Hundred Important Combinations',
       evidence: {
         conditions,
         involvedPlanets: [jup, ven, merc],

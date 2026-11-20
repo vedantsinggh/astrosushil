@@ -13,6 +13,8 @@ import { calculateCheshtaBala } from './cheshta-bala';
 import { calculateNaisargikaBala } from './naisargika-bala';
 import { calculateDrikBala } from './drik-bala';
 import { VargaCalculator } from '../varga/varga-calculator';
+import { resolveKalaTimeContext } from './kala-time-context';
+import { calculateCombustion } from '../planets/combustion';
 
 /**
  * Classical Minimum Required Strengths (in Shashtiamsas) according to BPHS Ch. 27:
@@ -50,6 +52,8 @@ export class ShadbalaCalculator {
    */
   public calculateShadbala(chart: AstroChart): ShadbalaReport {
     const rawResults: { planet: ShadbalaPlanet; data: Omit<PlanetShadbala, 'rank'> }[] = [];
+    const kalaCtx = resolveKalaTimeContext(chart);
+    const sunPos = chart.planets[PlanetSymbol.SUN];
 
     for (const planet of SHADBALA_PLANETS) {
       const pos = chart.planets[planet];
@@ -57,7 +61,7 @@ export class ShadbalaCalculator {
 
       const sthanaBala = calculateSthanaBala(planet, chart, this.vargaCalculator);
       const digBala = calculateDigBala(planet, pos.longitude, chart);
-      const kalaBala = calculateKalaBala(planet, chart);
+      const kalaBala = calculateKalaBala(planet, chart, kalaCtx);
       const cheshtaBala = calculateCheshtaBala(planet, chart);
       const naisargikaBala = calculateNaisargikaBala(planet);
       const drikBala = calculateDrikBala(planet, chart);
@@ -79,6 +83,13 @@ export class ShadbalaCalculator {
       const ratio = Number((totalShashtiamsas / minReq).toFixed(4));
       const isStrong = ratio >= 1.0;
 
+      // Combustion is exposed separately and never added to Shadbala (BPHS ch. 27 has no such term).
+      let combustion: PlanetShadbala['combustion'];
+      if (planet !== PlanetSymbol.SUN && sunPos) {
+        const c = calculateCombustion(planet, pos.longitude, sunPos.longitude, pos.isRetrograde === true);
+        combustion = { isCombust: c.isCombust, distanceFromSun: c.angularSeparation, orbDegrees: c.threshold };
+      }
+
       rawResults.push({
         planet,
         data: {
@@ -95,6 +106,7 @@ export class ShadbalaCalculator {
           minimumRequirementRupas: minReqRupas,
           ratio,
           isStrong,
+          ...(combustion ? { combustion } : {}),
         },
       });
     }
@@ -118,6 +130,21 @@ export class ShadbalaCalculator {
     return {
       planets: planetsMap,
       summary,
+      kalaContext: {
+        source: kalaCtx.source,
+        isDayBirth: kalaCtx.isDayBirth,
+        vedicWeekday: kalaCtx.vedicWeekday,
+        sunriseIso: kalaCtx.sunriseIso,
+        sunsetIso: kalaCtx.sunsetIso,
+        unnataHours: kalaCtx.unnataHours,
+        tribhagaPart: kalaCtx.tribhagaPart,
+        horaLord: kalaCtx.horaLord,
+        abdaLord: kalaCtx.abdaLord,
+        masaLord: kalaCtx.masaLord,
+        ahargana: kalaCtx.ahargana,
+        ayanamsaDegrees: kalaCtx.ayanamsaDegrees,
+        conventionNotes: kalaCtx.conventionNotes,
+      },
     };
   }
 }

@@ -161,3 +161,25 @@ This document records the key architectural and design decisions made for the **
 - **Interfaces**: `AstrologyConfig.ayanamsa` gains `FAGAN_BRADLEY`; `AstrologyConfig.nodeCalculation` is now honoured; a missing ayanamsa means `LAHIRI`. Charts carry `metadata.ayanamsa`, `metadata.nodeType` and `midheaven`. API: optional body fields `ayanamsa` / `nodeType` on `/api/v1/astrology/*` (zod-validated, standard error envelope). Desktop sidecar: optional `params.options` `{ayanamsa, nodeType, kpCuspSystem}` (`apps/desktop/docs/sidecar-protocol.md`).
 - **Verification** (tests in `packages/astrology-engine/tests/unit/*.reference.test.ts`): IAE 2027 true-ayanamsa table within 0.5", IAE J2000 and 1900 values, Raman's book examples within 3"; mean node vs IERS 2010 within 0.001°; true node vs JPL Horizons osculating node within 0.005°; Placidus vs Heindel's 1919 Tables of Houses; Sripati vs Raman's worked Standard Horoscope to 1".
 - **Consequences**: stored reports keep `calculationVersion` 1.0.0 and are not reused; new ones are 2.0.0. Report-engine snapshot ids include the engine version, so cached snapshots are recomputed. Rare sign / nakshatra / pada outcomes change near boundaries (about 0.3% of charts change a planet's sign); Vimshottari dates move by up to ~7 days; KP cusps, KP house significators and the Bhava Chalit change for essentially every chart.
+
+---
+
+## ADR-018: Deterministic interpretation engine for reports
+
+- **Status**: Accepted (user decisions, 2026-11-20). The rules and precedence rules it contains are **provisional – pending client review** unless they are marked approved.
+- **Context**: the career report audit (79-page golden PDF) found that the LLM was drawing astrological conclusions on its own. Examples: "first earnings" dated to ages 79–105; Saturn "transiting the 12th" when that is its natal house; contradictory employment-vs-business verdicts; seniority framing for a 22-year-old; and heavy repetition. This broke AGENTS.md §1.4 (`Calculations -> Deterministic Prediction Output -> LLM formatting`).
+- **Decision**:
+  - Add a deterministic interpretation layer in `packages/prediction-engine/src/interpretation/`:
+    - stages S1–S6: chart validation, planet condition, house lordship, yoga assessment, divisional synthesis, activation;
+    - a conflict policy (S7): set logic, with no numeric weights, and "mixed" as the default; only CRP-001…003 resolve conflicts;
+    - rule packs (S8): career first.
+  - Report-engine registers each result as `interp.*` evidence. Opted-in topics must cite those results for every judgement, and they are validated by V1–V6 plus checks for transits, dates, life stage, absence-as-advantage and near-duplicates.
+  - Rules without a source are `pending-client`: they are tested but never rendered.
+  - The Career report opts in, and its `specVersion` is 1.0.0 → **1.1.0**.
+  - Every other report, and the cache keys of every non-opted topic, are unchanged (enforced by tests).
+  - There are no API, Prisma or mobile changes.
+- **Details**: methodology, statuses, conflict policy, client questions and product thresholds are in [`report-system/decisions/interpretation.md`](report-system/decisions/interpretation.md). The architecture, file map, testing (golden fixture, `UPDATE_GOLDEN=1`), known limitations and extension points are in [`report-system/interpretation-engine.md`](report-system/interpretation-engine.md).
+- **Consequences**:
+  - Career topics are regenerated once (new spec version).
+  - Any rule or policy change changes `rulesetVersion`, and with it the cache keys of opted-in topics. It shows as a reviewed diff of the golden InterpretationSet fixture.
+  - The Shadbala, Kala Bala, Arudha, shodhana and yoga engine fixes change some engine outputs. The desktop strength fixture was re-recorded.

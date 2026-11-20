@@ -10,7 +10,7 @@
     "start:worker": "node dist/worker.js",
     "test": "vitest run --fileParallelism=false --reporter=junit --outputFile=../../test-results/api.xml",
     "test:report": "vitest run --root=../.. --config=vitest.config.ts --fileParallelism=false packages/report-engine/src/__tests__ --reporter=junit --outputFile=test-results/report.xml",
-    "test:prediction": "vitest run --root=../.. --config=vitest.config.ts --fileParallelism=false packages/prediction-engine/src/__tests__ --reporter=junit --outputFile=test-results/prediction.xml",
+    "test:prediction": "vitest run --root=../.. --config=vitest.config.ts --fileParallelism=false packages/prediction-engine/src/__tests__ packages/prediction-engine/src/interpretation/__tests__ --reporter=junit --outputFile=test-results/prediction.xml",
     "test:watch": "vitest",
     "test:openrouter": "tsx src/scripts/test-openrouter.ts",
     "db:generate": "prisma generate",

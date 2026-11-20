@@ -8,7 +8,7 @@
  * silent fallback to canned text.
  */
 import { randomUUID } from 'crypto';
-import type { IAiProvider } from '@astro/prediction-engine';
+import type { IAiProvider, InterpretationResult } from '@astro/prediction-engine';
 import {
   EvidenceItem,
   GeneratedBatchPayloadSchema,
@@ -20,9 +20,16 @@ import {
 } from '../contracts';
 import { EvidenceRegistry } from '../evidence/evidence-registry';
 import { validateGeneratedTopic } from '../validation/claim-validator';
-import { validateEditorial } from '../validation/editorial-validator';
-import { CachedTopicEntry, TopicCacheStore, topicCacheKey } from './topic-cache';
-import { buildBatchPrompt, PROMPT_VERSION, SYSTEM_PROMPT } from './prompts';
+import { findNearDuplicatesAgainst, validateEditorial } from '../validation/editorial-validator';
+import {
+  interpretationView,
+  isInterpretationTopic,
+  topicInterpretationItems,
+  topicInterpretationPatterns,
+  validateInterpretationTopic,
+} from '../validation/interpretation-validator';
+import { CachedTopicEntry, TopicCacheKeyParts, TopicCacheStore, topicCacheKey } from './topic-cache';
+import { buildBatchPrompt, INTERPRETATION_PROMPT_VERSION, PROMPT_VERSION, SYSTEM_PROMPT } from './prompts';
 
 export interface NarratorConfig {
   model: string;
@@ -37,7 +44,24 @@ export interface NarratorConfig {
   backoffBaseMs: number;
   /** Models tried, in order, when the primary model is overloaded. */
   fallbackModels: string[];
+  /**
+   * Temperature for topics that opted in to interpretation results (they restate
+   * deterministic conclusions, so less sampling variety is wanted). Legacy topics
+   * always use `temperature`. Defaults to DEFAULT_INTERPRETATION_TEMPERATURE.
+   */
+  interpretationTemperature?: number;
+  /**
+   * Output-token cap for opted-in topics. Their prompts are longer (INTERPRETATIONS block,
+   * glossary) and the model's thinking tokens count against the cap: the first real golden
+   * career run (2026-11-20) lost 7 opted-in topics to JSON truncated mid-string with the
+   * legacy 16000 cap. Legacy topics always use `maxOutputTokens`. Defaults to
+   * DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS.
+   */
+  interpretationMaxOutputTokens?: number;
 }
+
+export const DEFAULT_INTERPRETATION_TEMPERATURE = 0.2;
+export const DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS = 32000;
 
 export const DEFAULT_NARRATOR_CONFIG: NarratorConfig = {
   model: process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
@@ -80,6 +104,17 @@ export interface BatchContext {
    * skipped for missing evidence, or generated and validated. Progress reporting only.
    */
   onTopicSettled?: (topicId: string) => void;
+  /**
+   * Interpretation results of this report (the set registered in the registry).
+   * Optional: when given, opted-in topics also receive the supporting and
+   * contradicting facts of each result and may cite its chartRefs.
+   */
+  interpretationResults?: readonly InterpretationResult[];
+  /**
+   * Payloads of topics already accepted earlier in the report. Optional: when
+   * given, opted-in topics are checked for near-duplicate sentences against them (error).
+   */
+  priorPayloads?: GeneratedTopicPayload[];
 }
 
 export function classifyError(err: unknown): { transient: boolean; contentRetryable: boolean; message: string } {
@@ -106,12 +141,36 @@ export class LlmNarrator {
     return this.provider.providerId;
   }
 
-  allowedEvidence(topic: ReportTopic): string[] {
-    return [...topic.requiredEvidence, ...topic.optionalEvidence];
+  /**
+   * Evidence patterns a topic may cite. Legacy topics: required ∪ optional (unchanged).
+   * Opted-in topics add their interpretation patterns and, when the results are
+   * known, the chartRefs of the matched results (proposal §5).
+   */
+  allowedEvidence(topic: ReportTopic, ctx?: Pick<BatchContext, 'registry' | 'interpretationResults'>): string[] {
+    const base = [...topic.requiredEvidence, ...topic.optionalEvidence];
+    if (!isInterpretationTopic(topic)) return base;
+    const patterns = topicInterpretationPatterns(topic);
+    const chartRefs = ctx
+      ? (ctx.interpretationResults ?? [])
+          .filter((r) => ctx.registry.has(r.id) && patterns.some((p) => EvidenceRegistry.matches(r.id, [p])))
+          .flatMap((r) => r.chartRefs)
+      : [];
+    return [...new Set([...base, ...patterns, ...chartRefs])];
   }
 
-  private keyFor(ctx: BatchContext, topic: ReportTopic, evidence: EvidenceItem[]): string {
-    return topicCacheKey({
+  private temperatureFor(topic: ReportTopic): number {
+    return isInterpretationTopic(topic) ? this.config.interpretationTemperature ?? DEFAULT_INTERPRETATION_TEMPERATURE : this.config.temperature;
+  }
+
+  private maxOutputTokensFor(topic: ReportTopic): number {
+    return isInterpretationTopic(topic)
+      ? this.config.interpretationMaxOutputTokens ?? DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS
+      : this.config.maxOutputTokens;
+  }
+
+  /** Cache key parts. Legacy topics get exactly the historical fields (no interpretation keys). */
+  private keyParts(ctx: BatchContext, topic: ReportTopic, evidence: EvidenceItem[]): TopicCacheKeyParts {
+    const parts: TopicCacheKeyParts = {
       snapshotId: ctx.registry.snapshotId,
       subjectRef: ctx.subjectRef,
       definitionId: ctx.definition.id,
@@ -120,18 +179,52 @@ export class LlmNarrator {
       promptVersion: PROMPT_VERSION,
       evidenceFingerprint: ctx.registry.fingerprint(evidence),
       model: this.config.model,
-      generationConfig: { temperature: this.config.temperature, maxOutputTokens: this.config.maxOutputTokens },
-    });
+      generationConfig: { temperature: this.temperatureFor(topic), maxOutputTokens: this.maxOutputTokensFor(topic) },
+    };
+    if (isInterpretationTopic(topic)) {
+      parts.interpretationFingerprint = ctx.registry.fingerprint(topicInterpretationItems(topic, ctx.registry));
+      parts.interpretationPromptVersion = INTERPRETATION_PROMPT_VERSION;
+    }
+    return parts;
   }
 
-  private check(ctx: BatchContext, topic: ReportTopic, payload: GeneratedTopicPayload) {
+  private keyFor(ctx: BatchContext, topic: ReportTopic, evidence: EvidenceItem[]): string {
+    return topicCacheKey(this.keyParts(ctx, topic, evidence));
+  }
+
+  private check(ctx: BatchContext, topic: ReportTopic, payload: GeneratedTopicPayload, earlier: GeneratedTopicPayload[] = []) {
+    const allowedEvidence = this.allowedEvidence(topic, ctx);
+    const optedIn = isInterpretationTopic(topic);
     const validation = validateGeneratedTopic(topic, payload, ctx.registry, {
       expectedSnapshotId: ctx.registry.snapshotId,
-      allowedEvidence: this.allowedEvidence(topic),
+      allowedEvidence,
     });
-    const editorialIssues = validateEditorial(payload);
+    const extra = validateInterpretationTopic(topic, payload, ctx.registry, validation, {
+      allowedEvidence, results: ctx.interpretationResults,
+    });
+    if (optedIn) {
+      // Near-duplicate sentences of earlier topics are errors for opted-in topics (warnings for legacy, report-level).
+      for (const d of findNearDuplicatesAgainst(payload, [...(ctx.priorPayloads ?? []), ...earlier])) {
+        extra.push({
+          severity: 'error', code: 'NEAR_DUPLICATE_ACROSS_TOPICS',
+          message: `Repeats topic ${d.otherTopicId} (similarity ${d.similarity}): "${d.sentence.slice(0, 120)}"`,
+        });
+      }
+    }
+    if (extra.length) {
+      validation.issues.push(...extra);
+      validation.passed = !validation.issues.some((i) => i.severity === 'error');
+    }
+    const editorialIssues = validateEditorial(payload, { interpretationTopic: optedIn });
     const ok = validation.passed && !editorialIssues.some((i) => i.severity === 'error');
     return { validation, editorialIssues, ok };
+  }
+
+  /** Interpretation views for the prompt (opted-in topics only; undefined keeps the legacy prompt). */
+  private interpretationsFor(ctx: BatchContext, topic: ReportTopic) {
+    if (!isInterpretationTopic(topic)) return undefined;
+    const byId = new Map((ctx.interpretationResults ?? []).map((r) => [r.id, r] as const));
+    return topicInterpretationItems(topic, ctx.registry).map((item) => interpretationView(item, byId.get(item.id)));
   }
 
   /**
@@ -139,7 +232,7 @@ export class LlmNarrator {
    * optional fallback models. Every failure surfaces to the caller once retries
    * are exhausted — nothing is substituted.
    */
-  private async callWithRetries(prompt: string) {
+  private async callWithRetries(prompt: string, temperature: number, maxTokens: number = this.config.maxOutputTokens) {
     const models = [this.config.model, ...this.config.fallbackModels];
     let lastError: unknown;
     for (const model of models) {
@@ -148,8 +241,8 @@ export class LlmNarrator {
           const result = await this.provider.generate(prompt, {
             model,
             systemPrompt: SYSTEM_PROMPT,
-            temperature: this.config.temperature,
-            maxTokens: this.config.maxOutputTokens,
+            temperature,
+            maxTokens,
             responseFormat: 'json',
             timeoutMs: this.config.timeoutMs,
             anonymizeClient: false, // prompts never contain the client's identity
@@ -172,7 +265,7 @@ export class LlmNarrator {
   /** Remove cached narrative for the given topics so the next run regenerates them. */
   async invalidate(ctx: BatchContext, topicIds: string[]): Promise<void> {
     for (const topic of ctx.topics.filter((t) => topicIds.includes(t.id))) {
-      await this.cache.delete(this.keyFor(ctx, topic, ctx.registry.resolve(this.allowedEvidence(topic))));
+      await this.cache.delete(this.keyFor(ctx, topic, ctx.registry.resolve(this.allowedEvidence(topic, ctx))));
     }
   }
 
@@ -184,7 +277,7 @@ export class LlmNarrator {
     for (const topic of ctx.topics) {
       const required = topic.requiredEvidence.map((p) => ({ p, items: ctx.registry.resolve([p]) }));
       const missing = required.filter((r) => r.items.length === 0).map((r) => r.p);
-      const evidence = ctx.registry.resolve(this.allowedEvidence(topic));
+      const evidence = ctx.registry.resolve(this.allowedEvidence(topic, ctx));
       if (missing.length) {
         outcomes.set(topic.id, {
           topic, status: 'skipped-missing-evidence', editorialIssues: [], attempts: 0,
@@ -196,7 +289,11 @@ export class LlmNarrator {
       const key = this.keyFor(ctx, topic, evidence);
       const cached = await this.cache.get(key);
       if (cached) {
-        const { validation, editorialIssues, ok } = this.check(ctx, topic, cached.payload);
+        const earlierCached = ctx.topics
+          .slice(0, ctx.topics.indexOf(topic))
+          .map((t) => outcomes.get(t.id)?.payload)
+          .filter((p): p is GeneratedTopicPayload => p !== undefined);
+        const { validation, editorialIssues, ok } = this.check(ctx, topic, cached.payload, earlierCached);
         if (ok) {
           outcomes.set(topic.id, {
             topic, payload: cached.payload, validation, editorialIssues, status: 'cached', cacheKey: key,
@@ -210,12 +307,39 @@ export class LlmNarrator {
       pending.push({ topic, evidence, key });
     }
 
+    // Legacy topics run exactly as before; opted-in topics run as their own group
+    // (their own prompt blocks and temperature). Without opted-in topics there is one group.
+    const legacy = pending.filter((p) => !isInterpretationTopic(p.topic));
+    const interp = pending.filter((p) => isInterpretationTopic(p.topic));
+    if (legacy.length) await this.runGroup(ctx, legacy, outcomes, this.config.temperature, this.config.maxOutputTokens);
+    if (interp.length) {
+      await this.runGroup(
+        ctx, interp, outcomes,
+        this.config.interpretationTemperature ?? DEFAULT_INTERPRETATION_TEMPERATURE,
+        this.config.interpretationMaxOutputTokens ?? DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS
+      );
+    }
+
+    return ctx.topics.map((t) => outcomes.get(t.id)!);
+  }
+
+  /** Content attempts for one group of pending topics (shared prompt, one temperature). */
+  private async runGroup(
+    ctx: BatchContext,
+    pending: Array<{ topic: ReportTopic; evidence: EvidenceItem[]; key: string }>,
+    outcomes: Map<string, TopicOutcome>,
+    temperature: number,
+    maxTokens: number
+  ): Promise<void> {
     let feedback: string[] = [];
     for (let attempt = 1; attempt <= this.config.maxAttempts && pending.length > 0; attempt++) {
       const prompt = buildBatchPrompt({
         definition: ctx.definition,
         sectionTitle: ctx.sectionTitle,
-        topics: pending.map((p) => ({ topic: p.topic, evidence: p.evidence })),
+        topics: pending.map((p) => {
+          const interpretations = this.interpretationsFor(ctx, p.topic);
+          return interpretations ? { topic: p.topic, evidence: p.evidence, interpretations } : { topic: p.topic, evidence: p.evidence };
+        }),
         priorSummaries: ctx.priorSummaries,
         feedback,
       });
@@ -226,7 +350,7 @@ export class LlmNarrator {
       let callError: string | undefined;
       let usedModel = this.config.model;
       try {
-        const call = await this.callWithRetries(prompt);
+        const call = await this.callWithRetries(prompt, temperature, maxTokens);
         const res = call.result;
         usedModel = call.model;
         tokens = { input: res.tokens.promptTokens, output: res.tokens.completionTokens, thinking: res.tokens.thinkingTokens ?? 0 };
@@ -265,7 +389,12 @@ export class LlmNarrator {
           stillPending.push(p);
           continue;
         }
-        const { validation, editorialIssues, ok } = this.check(ctx, p.topic, payload);
+        const earlier = ctx.topics
+          .slice(0, ctx.topics.indexOf(p.topic))
+          .map((t) => outcomes.get(t.id))
+          .filter((o): o is TopicOutcome => o !== undefined && (o.status === 'generated' || o.status === 'cached') && o.payload !== undefined)
+          .map((o) => o.payload!);
+        const { validation, editorialIssues, ok } = this.check(ctx, p.topic, payload, earlier);
         const outcome: TopicOutcome = {
           topic: p.topic, payload, validation, editorialIssues, status: ok ? 'generated' : 'failed',
           cacheKey: p.key, sourceGenerationId: generationId, evidenceIds: p.evidence.map((e) => e.id),
@@ -276,12 +405,7 @@ export class LlmNarrator {
         if (ok) {
           const entry: CachedTopicEntry = {
             key: p.key,
-            parts: {
-              snapshotId: ctx.registry.snapshotId, subjectRef: ctx.subjectRef, definitionId: ctx.definition.id,
-              specVersion: ctx.definition.specVersion, topicId: p.topic.id, promptVersion: PROMPT_VERSION,
-              evidenceFingerprint: ctx.registry.fingerprint(p.evidence), model: this.config.model,
-              generationConfig: { temperature: this.config.temperature, maxOutputTokens: this.config.maxOutputTokens },
-            },
+            parts: this.keyParts(ctx, p.topic, p.evidence),
             payload, generationId, provider: this.provider.providerId, model: usedModel,
             createdAtIso: new Date().toISOString(), tokens: perTopicTokens, latencyMs,
           };
@@ -299,7 +423,5 @@ export class LlmNarrator {
       }
       pending.splice(0, pending.length, ...stillPending);
     }
-
-    return ctx.topics.map((t) => outcomes.get(t.id)!);
   }
 }

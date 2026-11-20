@@ -9,49 +9,85 @@
  * topics Astro Sushil adds beyond the reference.
  */
 import { ReportDefinitionInput, ReportTopicInput } from '../../contracts';
-import { ordinal } from '../../evidence/evidence-registry';
 
 type Depth = NonNullable<ReportTopicInput['depth']>;
 const D_STD: Depth = { minParagraphs: 3, maxParagraphs: 4, bullets: 4 };
 const D_SHORT: Depth = { minParagraphs: 2, maxParagraphs: 3, bullets: 3 };
 const D_LONG: Depth = { minParagraphs: 3, maxParagraphs: 5, bullets: 5 };
 
-/** Sign, lord, lord placement — the "who rules this house and where is it" topic. */
-function houseLordTopic(h: number, id: string, title: string, subtitle: string, objective: string, referencePages: string): ReportTopicInput {
+/*
+ * 2026-11 interpretation-engine changes (docs/report-system/decisions/interpretation.md):
+ *  - Redundancy (audit F11/F20): each career house is ONE topic covering its sign, lord, occupants
+ *    and aspects; the separate "Planets in" and "Influences on" topics are retired. Also retired:
+ *    advancement-d1 (restated the four house-lord placements; the career-lords-table keeps the
+ *    facts) and government-houses (restated the 6th/10th; folded into sun-saturn-government).
+ *  - Opt-in: topics with `interpretations` narrate the deterministic interp.career.* conclusions.
+ *  - Life-stage variants (product defaults, NOT astrology): EARLY_CAREER_MAX_AGE and
+ *    RETIREMENT_REFRAME_MAX_AGE below.
+ *  - first-earnings receives only the Mahadashas in the earning-years window (EARNINGS_WINDOW in
+ *    calc/career-calc.ts) with the native's age.
+ */
+
+/** Product default: seniority framing (board-level, executive, mentoring juniors) is withheld up to this age (shared with the validator). */
+import { EARLY_CAREER_MAX_AGE } from '../../life-stage';
+export { EARLY_CAREER_MAX_AGE };
+/** Product default: the retirement topic is reframed as long-term stability up to this age. */
+export const RETIREMENT_REFRAME_MAX_AGE = 39;
+
+const EARLY_CAREER_NOTE = 'The reader is early in their working life (see the life-stage evidence): frame authority, leadership and recognition as abilities that develop over time; do not refer to board-level, executive or senior positions, mentoring juniors, retirement or a past track record.';
+const EARLY_CAREER_VARIANT = { id: 'early-career', when: { maxAge: EARLY_CAREER_MAX_AGE }, objectiveAppend: EARLY_CAREER_NOTE };
+const LIFE_STAGE_EVIDENCE = ['native.age', 'native.life-stage'];
+
+/** Adds the life-stage evidence and the early-career variant to a topic. */
+function lifeStageAware(t: ReportTopicInput): ReportTopicInput {
   return {
-    id, title, subtitle, kind: 'narrative', objective, referencePages, depth: D_STD,
+    ...t,
+    optionalEvidence: [...(t.optionalEvidence ?? []), ...LIFE_STAGE_EVIDENCE],
+    variants: [...(t.variants ?? []), EARLY_CAREER_VARIANT],
+  };
+}
+
+const HOUSE_NOTE = 'Cover, in this order: the sign, the lord\'s house, sign and dignity (and its dispositor where listed), the planets placed in the house, and the planets aspecting it (name each aspect). If the house is unoccupied or unaspected, say so in one sentence and read the house through its sign and lord; never present an empty or unaspected house as protected, free from friction or an advantage. When the Sarvashtakavarga score is cited, use the SAV definition in the evidence (natal bindu totals per sign); never describe bindus as support from transiting planets.';
+
+/** One topic per career house: sign, lord placement, occupants and aspects (merged; audit F11/F20). */
+function houseTopic(h: number, id: string, title: string, subtitle: string, objective: string, referencePages: string): ReportTopicInput {
+  return {
+    id, title, subtitle, kind: 'narrative', objective: `${objective} ${HOUSE_NOTE}`, referencePages, depth: D_STD,
     requiredEvidence: [`house.${h}.d1.sign`, `house.${h}.d1.lord`, `house.${h}.d1.lord-house`],
-    optionalEvidence: [`sav.house.${h}`, `career.sav.house.${h}.benchmark`, 'planet.*.d1.lordship', 'planet.*.d1.sign', 'planet.*.d1.dignity'],
+    optionalEvidence: [`sav.house.${h}`, `career.sav.house.${h}.benchmark`, 'planet.*.d1.lordship', 'planet.*.d1.sign', 'planet.*.d1.dignity',
+      `house.${h}.d1.occupants`, `career.house.${h}.aspected-by`, 'planet.*.d1.house', 'planet.*.d1.retrograde', 'planet.*.d1.combust',
+      'planet.*.d1.dispositor', 'fact.definition.sav'],
+    interpretations: [`interp.career.house-${h}.*`],
   };
 }
 
-function occupantsTopic(h: number, id: string, title: string, objective: string, referencePages: string, dependsOn: string[]): ReportTopicInput {
-  return {
-    id, title, subtitle: `Planets placed in your ${ordinal(h)} house`, kind: 'narrative', objective, referencePages, dependsOn,
-    depth: D_SHORT,
-    requiredEvidence: [`house.${h}.d1.occupants`],
-    optionalEvidence: [`house.${h}.d1.sign`, 'planet.*.d1.house', 'planet.*.d1.sign', 'planet.*.d1.dignity', 'planet.*.d1.lordship', 'planet.*.d1.retrograde', 'planet.*.d1.combust'],
-  };
+/**
+ * The D1 facts `planet.<p>.d1.*` resolved to before the interpretation facts were added. Legacy
+ * (non-opted) topics list them explicitly so their evidence and cache keys stay byte-identical now
+ * that `planet.<p>.d1.aspects-cast|combust-distance|avastha|paksha` also exist.
+ */
+function legacyD1(p: string): string[] {
+  const suffixes = ['sign', 'house', 'degree', 'nakshatra', 'dignity', 'retrograde', 'combust', 'lordship', 'aspected-by', 'conjunctions'];
+  return suffixes.filter((x) => !(x === 'combust' && p === 'sun')).map((x) => `planet.${p}.d1.${x}`);
 }
 
-function aspectsTopic(h: number, id: string, title: string, objective: string, referencePages: string, dependsOn: string[]): ReportTopicInput {
-  return {
-    id, title, subtitle: 'Graha drishti: the planets that cast their gaze on this house', kind: 'narrative', objective, referencePages, dependsOn,
-    depth: D_SHORT,
-    requiredEvidence: [`career.house.${h}.aspected-by`],
-    optionalEvidence: [`house.${h}.d1.sign`, 'planet.*.d1.house', 'planet.*.d1.lordship', 'planet.*.d1.dignity'],
-  };
+/** Same idea for `house.<n>.d1.*` (now also matching `house.<n>.d1.aspected-by`). */
+function legacyHouse(n: number): string[] {
+  return ['sign', 'lord', 'lord-house', 'occupants'].map((x) => `house.${n}.d1.${x}`);
 }
 
-const EMPTY_HOUSE_NOTE = 'If the house is unoccupied, explain calmly that an empty house is normal and is then read through its sign and lord, and keep the topic short and useful.';
-const NO_ASPECT_NOTE = 'If no planet aspects the house, say so plainly and explain that the house then works through its sign, lord and occupants.';
+const D10_DIGNITY = ['planet.*.d10.dignity'];
+const D10_NOTE = 'Whenever a planet\'s D10 placement is discussed, state its D10 dignity from the evidence (exalted, debilitated, own sign); D10 dignity is sign dignity only and must not be equated with the birth-chart dignity. Do not describe a planet as "neither exalted nor debilitated".';
 
 export const CAREER_DEFINITION: ReportDefinitionInput = {
   id: 'career',
   reportType: 'CAREER',
   // CAREER_PROSITY (catalogue 'report-career-pro') is fulfilled by this same genuine career report.
   additionalReportTypes: ['CAREER_PROSITY'],
-  specVersion: '1.0.0',
+  // 1.1.0: interpretation-engine opt-in (interp.* results, merged/retired topics, new evidence and
+  // validators). Bumped once after the last migration wave (proposal §6) so every career topic gets a
+  // fresh cache key; the other report definitions stay at 1.0.0.
+  specVersion: '1.1.0',
   title: 'Career Report',
   subtitle: 'Your work, your calling and your timing, read through the birth chart and the Dashamsha',
   description: 'A deep reading of your professional life: the Lagna and the career houses (1st, 2nd, 6th, 7th, 10th, 11th) with their lords, occupants and aspects; the Dashamsha (D10) career chart; Atmakaraka and Amatyakaraka; career yogas detected in your chart; Saturn as the karma karaka in the Bhrigu Nandi Nadi tradition; the Ashtakavarga comparison of employment and enterprise; your dasha timeline; the current and coming transits of Saturn, Jupiter, Rahu and Ketu; and practical, ethical remedies with nothing to buy.',
@@ -96,14 +132,13 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'career-houses-table', title: 'Your Career Houses at a Glance', kind: 'data', block: 'career-houses', objective: 'Sign, lord, occupants, aspects and SAV of houses 1, 2, 6, 7, 10 and 11.', referencePages: '13-37' },
         {
           id: 'lagna-career', title: 'The Guiding Star of Your Career', subtitle: 'Your Ascendant sign and the placement of its lord', kind: 'narrative',
-          objective: 'Interpret the Ascendant sign and the house and sign of the Ascendant lord for work style: drive, how the reader approaches responsibility, what kind of environment energises them and where their professional energy naturally flows.',
-          requiredEvidence: ['asc.d1.sign', 'asc.d1.lord', 'house.1.d1.lord-house'], optionalEvidence: ['asc.d1.nakshatra', 'house.1.d1.*', 'planet.*.d1.dignity'],
-          depth: D_LONG, referencePages: '13',
+          objective: `Interpret the Ascendant sign and the house and sign of the Ascendant lord for work style: drive, how the reader approaches responsibility, what kind of environment energises them and where their professional energy naturally flows; then the planets in the 1st house (professional persona) and the planets aspecting it. ${HOUSE_NOTE}`,
+          requiredEvidence: ['asc.d1.sign', 'asc.d1.lord', 'house.1.d1.lord-house'],
+          optionalEvidence: ['asc.d1.nakshatra', 'house.1.d1.*', 'planet.*.d1.dignity', 'career.house.1.aspected-by', 'planet.*.d1.house', 'planet.*.d1.sign', 'planet.*.d1.lordship',
+            'planet.*.d1.retrograde', 'planet.*.d1.combust', 'sav.house.1', 'career.sav.house.1.benchmark', 'planet.*.d1.dispositor', 'fact.asc.vargottama', 'fact.definition.sav'],
+          interpretations: ['interp.career.house-1.*'],
+          depth: D_LONG, referencePages: '13-16',
         },
-        occupantsTopic(1, 'first-house-planets', 'Planets in Your 1st House',
-          `Interpret each planet in the 1st house for professional persona, confidence and the first impression the reader makes at work. ${EMPTY_HOUSE_NOTE}`, '14', ['lagna-career']),
-        aspectsTopic(1, 'first-house-aspects', 'Influences on Your Ascendant',
-          `Interpret each planet aspecting the 1st house (name the aspect) and what it adds to the reader's professional presence. ${NO_ASPECT_NOTE}`, '16', ['lagna-career']),
       ],
     },
     // ---------------------------------------------------------------------
@@ -113,18 +148,10 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
       kicker: 'Section 2',
       intro: 'The 10th house is your field of action and public standing; the 6th is daily work, service, competition and employment.',
       topics: [
-        houseLordTopic(10, 'tenth-house', 'The 10th House: Your Field of Action', 'Sign of the 10th house and the placement of its lord',
-          'Explain the 10th house as the house of profession and status, then interpret its sign and the house and sign of the 10th lord for the kind of work, recognition and responsibility that suits the reader, and how career connects to the area of life where the 10th lord sits.', '17'),
-        occupantsTopic(10, 'tenth-house-planets', 'Planets in Your 10th House',
-          `Interpret each planet in the 10th house for profession, visibility and authority. ${EMPTY_HOUSE_NOTE}`, '18', ['tenth-house']),
-        aspectsTopic(10, 'tenth-house-aspects', 'Influences on Your 10th House',
-          `Interpret each planet aspecting the 10th house (name the aspect: e.g. Saturn's 3rd aspect) and its effect on career direction. ${NO_ASPECT_NOTE}`, '19', ['tenth-house']),
-        houseLordTopic(6, 'sixth-house', 'The 6th House: Service and Competition', 'Sign of the 6th house and the placement of its lord',
-          'Explain the 6th house as daily work, employment, service, competition and problem-solving, then interpret its sign and the 6th lord\'s house and sign for how the reader handles workload, colleagues, competition and routine.', '20-21'),
-        occupantsTopic(6, 'sixth-house-planets', 'Planets in Your 6th House',
-          `Interpret each planet in the 6th house for work habits, service orientation and competitive strength. ${EMPTY_HOUSE_NOTE}`, '22-23', ['sixth-house']),
-        aspectsTopic(6, 'sixth-house-aspects', 'Influences on Your 6th House',
-          `Interpret each planet aspecting the 6th house and its effect on employment and workplace challenges. ${NO_ASPECT_NOTE}`, '24', ['sixth-house']),
+        lifeStageAware(houseTopic(10, 'tenth-house', 'The 10th House: Your Field of Action', 'Sign, lord, planets and aspects of the 10th house',
+          'Explain the 10th house as the house of profession and status, then interpret its sign and the house and sign of the 10th lord for the kind of work, recognition and responsibility that suits the reader, and how career connects to the area of life where the 10th lord sits. Planets in the 10th: profession, visibility and authority; aspects on the 10th: career direction (e.g. Saturn\'s 3rd aspect).', '17-19')),
+        houseTopic(6, 'sixth-house', 'The 6th House: Service and Competition', 'Sign, lord, planets and aspects of the 6th house',
+          'Explain the 6th house as daily work, employment, service, competition and problem-solving, then interpret its sign and the 6th lord\'s house and sign for how the reader handles workload, colleagues, competition and routine, and what its occupants and aspects add to work habits and workplace challenges.', '20-24'),
       ],
     },
     // ---------------------------------------------------------------------
@@ -134,18 +161,10 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
       kicker: 'Section 3',
       intro: 'The 7th house governs partners, clients and trade; the 11th governs income, networks and the fulfilment of goals.',
       topics: [
-        houseLordTopic(7, 'seventh-house', 'The 7th House: Business and Partnership', 'Sign of the 7th house and the placement of its lord',
-          'Interpret the 7th house sign and the 7th lord\'s placement for business partnerships, client relationships, trade and public dealings (not marriage).', '25-27'),
-        occupantsTopic(7, 'seventh-house-planets', 'Planets in Your 7th House',
-          `Interpret each planet in the 7th house for business dealings, negotiation and partnership style at work. ${EMPTY_HOUSE_NOTE}`, '28', ['seventh-house']),
-        aspectsTopic(7, 'seventh-house-aspects', 'Influences on Your 7th House',
-          `Interpret each planet aspecting the 7th house for partnership and trade. ${NO_ASPECT_NOTE}`, '29', ['seventh-house']),
-        houseLordTopic(11, 'eleventh-house', 'The 11th House: Income and Networks', 'Sign of the 11th house and the placement of its lord',
-          'Interpret the 11th house sign and the 11th lord\'s placement for income through work, networks, seniors, ambitions and the pathways through which gains arrive.', '30'),
-        occupantsTopic(11, 'eleventh-house-planets', 'Planets in Your 11th House',
-          `Interpret each planet in the 11th house for gains, networks and the fulfilment of professional goals. ${EMPTY_HOUSE_NOTE}`, '31', ['eleventh-house']),
-        aspectsTopic(11, 'eleventh-house-aspects', 'Influences on Your 11th House',
-          `Interpret each planet aspecting the 11th house for income and networks. ${NO_ASPECT_NOTE}`, '32', ['eleventh-house']),
+        houseTopic(7, 'seventh-house', 'The 7th House: Business and Partnership', 'Sign, lord, planets and aspects of the 7th house',
+          'Interpret the 7th house sign and the 7th lord\'s placement for business partnerships, client relationships, trade and public dealings (not marriage), and what its occupants and aspects add to negotiation and partnership style at work.', '25-29'),
+        houseTopic(11, 'eleventh-house', 'The 11th House: Income and Networks', 'Sign, lord, planets and aspects of the 11th house',
+          'Interpret the 11th house sign and the 11th lord\'s placement for income through work, networks, seniors, ambitions and the pathways through which gains arrive, and what its occupants and aspects add to gains and the fulfilment of professional goals.', '30-32'),
       ],
     },
     // ---------------------------------------------------------------------
@@ -155,12 +174,8 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
       kicker: 'Section 4',
       intro: 'The 2nd house holds what you accumulate from work: savings, skills of speech and the resources that sustain a career.',
       topics: [
-        houseLordTopic(2, 'second-house-lord', 'Unlocking Your Resources', 'Sign of the 2nd house and the placement of its lord',
-          'Interpret the 2nd house sign and the 2nd lord\'s placement for earning style, savings habits, voice and the skills that turn work into lasting resources.', '34-35'),
-        occupantsTopic(2, 'second-house-planets', 'Planets in Your 2nd House',
-          `Interpret each planet in the 2nd house for earnings, speech and accumulated resources. ${EMPTY_HOUSE_NOTE}`, '36', ['second-house-lord']),
-        aspectsTopic(2, 'second-house-aspects', 'Influences on Your 2nd House',
-          `Interpret each planet aspecting the 2nd house for wealth built through work. ${NO_ASPECT_NOTE}`, '37', ['second-house-lord']),
+        houseTopic(2, 'second-house-lord', 'Unlocking Your Resources', 'Sign, lord, planets and aspects of the 2nd house',
+          'Interpret the 2nd house sign and the 2nd lord\'s placement for earning style, savings habits, voice and the skills that turn work into lasting resources, and what its occupants and aspects add to earnings and wealth built through work.', '34-37'),
       ],
     },
     // ---------------------------------------------------------------------
@@ -173,8 +188,9 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'career-yoga-table', title: 'Career Yogas in Your Chart', kind: 'data', block: 'career-yogas', objective: 'Engine-detected yogas relevant to career.', referencePages: '39-42' },
         {
           id: 'career-yogas', title: 'What Your Yogas Mean for Work', subtitle: 'Planetary combinations detected in your chart', kind: 'narrative',
-          objective: 'For each career-relevant yoga listed in the evidence, explain in plain language what the combination is and how it can show up in professional life, with constructive realism (yogas show potential that effort activates). Mention only the yogas in the evidence. If none are listed, explain that career strength is then read from houses, lords and periods.',
-          requiredEvidence: ['career.yogas.relevant'], optionalEvidence: ['yoga.*'],
+          objective: 'For each career-relevant yoga listed in the evidence, explain in plain language what the combination is, how it is formed in this chart (the relation or ownership stated in the evidence, e.g. a Yogakaraka owning a kendra and a trikona, not a planet "with itself") and how it can show up in professional life. A yoga indicates a potential that effort and the dashas of its planets activate: state the qualifying conditions given (placement house, dignity, combustion) and never say a yoga ensures, grants or endows a result. Mention only the yogas in the evidence; every yoga named must be one listed in the yoga table. If none are listed, explain that career strength is then read from houses, lords and periods.',
+          requiredEvidence: ['career.yogas.relevant'], optionalEvidence: ['yoga.*', 'planet.*.d1.house', 'planet.*.d1.dignity', 'planet.*.d1.combust', 'planet.*.d1.retrograde'],
+          interpretations: ['interp.career.yoga.*'],
           depth: D_LONG, referencePages: '39-42',
         },
         {
@@ -187,13 +203,13 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         {
           id: 'sun-career', title: 'The Sun\'s Path', subtitle: 'Authority, recognition and leadership', kind: 'narrative',
           objective: 'Interpret the Sun (significator of authority and recognition) by sign, house and dignity, and by its position counted from the Moon and from the 10th house, for leadership, relations with superiors and public recognition.',
-          requiredEvidence: ['planet.sun.d1.sign', 'planet.sun.d1.house'], optionalEvidence: ['planet.sun.d1.*', 'career.sun.*'],
+          requiredEvidence: ['planet.sun.d1.sign', 'planet.sun.d1.house'], optionalEvidence: [...legacyD1('sun'), 'career.sun.*'],
           depth: D_STD, referencePages: '45',
         },
         {
           id: 'saturn-career', title: 'Saturn\'s March', subtitle: 'Discipline, endurance and long-term building', kind: 'narrative',
           objective: 'Interpret Saturn (significator of work, service and perseverance) by sign, house, dignity and its position counted from the Moon and from the 10th house, for work ethic, patience, responsibility and how success builds over time.',
-          requiredEvidence: ['planet.saturn.d1.sign', 'planet.saturn.d1.house'], optionalEvidence: ['planet.saturn.d1.*', 'career.saturn.*'],
+          requiredEvidence: ['planet.saturn.d1.sign', 'planet.saturn.d1.house'], optionalEvidence: [...legacyD1('saturn'), 'career.saturn.*'],
           depth: D_STD, referencePages: '46',
         },
         { id: 'karaka-table', title: 'Your Jaimini Chara Karakas', kind: 'data', block: 'career-karakas', objective: 'Seven chara karakas by degree.', referencePages: '47, 131', bonus: false },
@@ -221,38 +237,44 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'd10-houses-table', title: 'Your Dashamsha House by House', kind: 'data', block: 'career-d10-houses', objective: 'D10 signs, lords, placements and occupants.', referencePages: '49-58' },
         {
           id: 'd10-lagna', title: 'The Persona You Bring to Work', subtitle: 'Your D10 ascendant', kind: 'narrative',
-          objective: 'Explain the D10 chart, then interpret the D10 ascendant sign, its element and modality, its lord\'s D10 placement and any D10 1st-house occupants, for the reader\'s professional persona and approach.',
-          requiredEvidence: ['asc.d10.sign', 'career.d10.house.1.lord', 'career.d10.house.1.lord-house'], optionalEvidence: ['career.d10.house.1.*', 'career.d10.asc.quality'],
+          objective: `Explain the D10 chart, then interpret the D10 ascendant sign, its element and modality, its lord\'s D10 placement and dignity and any D10 1st-house occupants, for the reader\'s professional persona and approach. ${D10_NOTE}`,
+          requiredEvidence: ['asc.d10.sign', 'career.d10.house.1.lord', 'career.d10.house.1.lord-house'], optionalEvidence: ['career.d10.house.1.*', 'career.d10.asc.quality', ...D10_DIGNITY],
+          interpretations: ['interp.career.d10.*'],
           depth: D_STD, referencePages: '50-51',
         },
         {
           id: 'd10-tenth-lord', title: 'The Cornerstone of Success', subtitle: 'The D10 10th house and its lord', kind: 'narrative',
-          objective: 'Interpret the D10 10th house sign, its lord\'s D10 placement and dignity, and any D10 10th-house occupants, for achievement, authority and the kind of work that brings standing.',
-          requiredEvidence: ['career.d10.house.10.sign', 'career.d10.house.10.lord', 'career.d10.house.10.lord-house'], optionalEvidence: ['career.d10.house.10.occupants', 'career.d10.*.dignity'],
+          objective: `Interpret the D10 10th house sign, its lord\'s D10 placement and dignity, and any D10 10th-house occupants, for achievement, authority and the kind of work that brings standing. ${D10_NOTE}`,
+          requiredEvidence: ['career.d10.house.10.sign', 'career.d10.house.10.lord', 'career.d10.house.10.lord-house'], optionalEvidence: ['career.d10.house.10.occupants', ...D10_DIGNITY, ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.d10.*'], variants: [EARLY_CAREER_VARIANT],
           depth: D_STD, dependsOn: ['d10-lagna'], referencePages: '52-54',
         },
         {
           id: 'd10-sixth-lord', title: 'Triumph over Workplace Challenges', subtitle: 'The D10 6th house and its lord', kind: 'narrative',
-          objective: 'Interpret the D10 6th house sign, its lord\'s D10 placement and any occupants, for routine, service, competition and handling pressure at work.',
-          requiredEvidence: ['career.d10.house.6.sign', 'career.d10.house.6.lord', 'career.d10.house.6.lord-house'], optionalEvidence: ['career.d10.house.6.occupants', 'career.d10.*.dignity'],
+          objective: `Interpret the D10 6th house sign, its lord\'s D10 placement and dignity and any occupants, for routine, service, competition and handling pressure at work. ${D10_NOTE}`,
+          requiredEvidence: ['career.d10.house.6.sign', 'career.d10.house.6.lord', 'career.d10.house.6.lord-house'], optionalEvidence: ['career.d10.house.6.occupants', ...D10_DIGNITY],
+          interpretations: ['interp.career.d10.*'],
           depth: D_SHORT, dependsOn: ['d10-lagna'], referencePages: '55-56',
         },
         {
           id: 'd10-seventh-lord', title: 'Collaborations that Thrive', subtitle: 'The D10 7th house and its lord', kind: 'narrative',
-          objective: 'Interpret the D10 7th house sign, its lord\'s D10 placement and any occupants, for professional partnerships, clients and dealings with the public.',
-          requiredEvidence: ['career.d10.house.7.sign', 'career.d10.house.7.lord', 'career.d10.house.7.lord-house'], optionalEvidence: ['career.d10.house.7.occupants', 'career.d10.*.dignity'],
+          objective: `Interpret the D10 7th house sign, its lord\'s D10 placement and dignity and any occupants, for professional partnerships, clients and dealings with the public. ${D10_NOTE}`,
+          requiredEvidence: ['career.d10.house.7.sign', 'career.d10.house.7.lord', 'career.d10.house.7.lord-house'], optionalEvidence: ['career.d10.house.7.occupants', ...D10_DIGNITY],
+          interpretations: ['interp.career.d10.*'],
           depth: D_SHORT, dependsOn: ['d10-lagna'], referencePages: '57-58',
         },
         {
           id: 'd10-sun', title: 'The Sun in Your Dashamsha', subtitle: 'Authority and recognition in the career chart', kind: 'narrative',
-          objective: 'Interpret the Sun\'s D10 sign, D10 house and dignity: how it shapes authority, leadership, relations with superiors and recognition; include its strengths, its growth areas and suitable fields. Mention Rahu\'s D10 house only as an additional factor if provided.',
-          requiredEvidence: ['planet.sun.d10.sign', 'planet.sun.d10.house'], optionalEvidence: ['career.d10.sun.dignity', 'planet.rahu.d10.house', 'planet.rahu.d10.sign'],
+          objective: `Interpret the Sun\'s D10 sign, D10 house and dignity: how it shapes authority, leadership, relations with superiors and recognition; include its strengths, its growth areas and suitable fields. Mention Rahu\'s D10 house only as an additional factor if provided. If the birth-chart dignity of the Sun differs, say that the two charts describe different layers. ${D10_NOTE}`,
+          requiredEvidence: ['planet.sun.d10.sign', 'planet.sun.d10.house'], optionalEvidence: ['planet.sun.d10.dignity', 'planet.sun.d1.dignity', 'planet.rahu.d10.house', 'planet.rahu.d10.sign', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.d10.*'], variants: [EARLY_CAREER_VARIANT],
           depth: D_STD, referencePages: '59-60',
         },
         {
           id: 'd10-saturn', title: 'Saturn in Your Dashamsha', subtitle: 'Work ethic and endurance in the career chart', kind: 'narrative',
-          objective: 'Interpret Saturn\'s D10 sign, D10 house and dignity: how it shapes discipline, service, long projects and the pace of advancement; include strengths, growth areas and suitable fields, and how the D10 Sun and Saturn work together.',
-          requiredEvidence: ['planet.saturn.d10.sign', 'planet.saturn.d10.house'], optionalEvidence: ['career.d10.saturn.dignity', 'planet.sun.d10.house'],
+          objective: `Interpret Saturn\'s D10 sign, D10 house and dignity: how it shapes discipline, service, long projects and the pace of advancement; include strengths, growth areas and suitable fields, and how the D10 Sun and Saturn work together. ${D10_NOTE}`,
+          requiredEvidence: ['planet.saturn.d10.sign', 'planet.saturn.d10.house'], optionalEvidence: ['planet.saturn.d10.dignity', 'planet.sun.d10.house', 'planet.sun.d10.dignity'],
+          interpretations: ['interp.career.d10.*'],
           depth: D_STD, dependsOn: ['d10-sun'], referencePages: '61-62',
         },
       ],
@@ -289,33 +311,31 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         {
           id: 'early-education', title: 'Setting Sail: Learning and Beginnings', subtitle: 'The 4th house of education and the 5th of intellect', kind: 'narrative',
           objective: 'Interpret the 4th house (formal learning) and the 5th house (intellect, creativity) by sign and lord placement for how the reader learns and which studies or skills support their working life.',
-          requiredEvidence: ['house.4.d1.sign', 'house.5.d1.sign', 'house.5.d1.lord-house'], optionalEvidence: ['house.4.d1.*', 'house.5.d1.*'],
+          requiredEvidence: ['house.4.d1.sign', 'house.5.d1.sign', 'house.5.d1.lord-house'], optionalEvidence: [...legacyHouse(4), ...legacyHouse(5)],
           depth: D_STD, referencePages: '68-69',
         },
         {
           id: 'first-earnings', title: 'Climbing the Mast: First Earnings', subtitle: 'The 2nd and 11th lords and their periods', kind: 'narrative',
-          objective: 'Interpret the 2nd lord (accumulation) and 11th lord (income) by placement, and name the Mahadasha periods of those lords listed in the evidence as seasons when earnings tend to be emphasised (never promised).',
-          requiredEvidence: ['house.2.d1.lord', 'house.11.d1.lord', 'house.11.d1.lord-house'], optionalEvidence: ['house.2.d1.lord-house', 'dasha.md.*'],
+          objective: 'Interpret the 2nd lord (accumulation) and 11th lord (income) by placement. Then, only from the Mahadashas listed in the earning-years window evidence and the Antardashas of the current Mahadasha, name the periods ruled by the 2nd or 11th lord as seasons when earnings tend to be emphasised (never promised), with the reader\'s age at their start. If none of those lords\' periods falls in the window, say so plainly. Never name a period outside the window evidence.',
+          requiredEvidence: ['house.2.d1.lord', 'house.11.d1.lord', 'house.11.d1.lord-house'],
+          optionalEvidence: ['house.2.d1.lord-house', 'career.window.earnings.md.*', 'career.dasha.ad.*', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.house-2.*', 'interp.career.house-11.*', 'interp.career.period.earnings-window*', 'interp.career.financial-growth'], variants: [EARLY_CAREER_VARIANT],
           depth: D_STD, referencePages: '70-71',
         },
         {
           id: 'jupiter-guidance', title: 'Jupiter\'s Guidance', subtitle: 'The kind of work that brings growth', kind: 'narrative',
-          objective: 'Interpret Jupiter (wisdom, growth, mentors) by sign, house and dignity for the kind of work and roles that bring the reader growth, guidance and expansion.',
-          requiredEvidence: ['planet.jupiter.d1.sign', 'planet.jupiter.d1.house'], optionalEvidence: ['planet.jupiter.d1.*', 'planet.jupiter.d10.*'],
+          objective: `Interpret Jupiter (wisdom, growth, mentors) by sign, house and dignity for the kind of work and roles that bring the reader growth, guidance and expansion, then its D10 placement with its D10 dignity. ${D10_NOTE}`,
+          requiredEvidence: ['planet.jupiter.d1.sign', 'planet.jupiter.d1.house'], optionalEvidence: ['planet.jupiter.d1.*', 'planet.jupiter.d10.*', 'planet.jupiter.d10.dignity', 'planet.jupiter.d1.dispositor', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.d10.*'], variants: [EARLY_CAREER_VARIANT],
           depth: D_SHORT, referencePages: '72',
         },
         { id: 'career-lords-table', title: 'The Lords of Advancement', kind: 'data', block: 'career-lords', objective: 'Lords of 1, 6, 10, 11 in D1 and D10.', referencePages: '72-73' },
         {
-          id: 'advancement-d1', title: 'Career Advancement in the Birth Chart', subtitle: 'Lords of the 1st, 6th, 10th and 11th', kind: 'narrative',
-          objective: 'Interpret the placements of the D1 lords of the 1st, 6th, 10th and 11th houses together as the engine of professional advancement: where effort, service, status and gains are directed.',
-          requiredEvidence: ['house.1.d1.lord-house', 'house.6.d1.lord-house', 'house.10.d1.lord-house', 'house.11.d1.lord-house'], optionalEvidence: ['house.1.d1.lord', 'house.6.d1.lord', 'house.10.d1.lord', 'house.11.d1.lord'],
-          depth: D_STD, referencePages: '72',
-        },
-        {
           id: 'advancement-d10', title: 'Career Advancement in the Dashamsha', subtitle: 'D10 lords of the 1st, 6th, 10th and 11th', kind: 'narrative',
-          objective: 'Interpret the D10 placements of the lords of D10 houses 1, 6, 10 and 11 as the professional-chart view of advancement, comparing it briefly with the birth-chart picture.',
-          requiredEvidence: ['career.d10.house.1.lord-house', 'career.d10.house.6.lord-house', 'career.d10.house.10.lord-house', 'career.d10.house.11.lord-house'], optionalEvidence: ['career.d10.house.*.lord'],
-          depth: D_STD, dependsOn: ['advancement-d1'], referencePages: '73',
+          objective: `Interpret the D10 placements and D10 dignity of the lords of D10 houses 1, 6, 10 and 11 as the professional-chart view of advancement. The birth-chart lords are covered in the house sections and the table above: refer to them in one sentence at most. ${D10_NOTE}`,
+          requiredEvidence: ['career.d10.house.1.lord-house', 'career.d10.house.6.lord-house', 'career.d10.house.10.lord-house', 'career.d10.house.11.lord-house'], optionalEvidence: ['career.d10.house.*.lord', ...D10_DIGNITY],
+          interpretations: ['interp.career.d10.*'],
+          depth: D_STD, referencePages: '72-73',
         },
       ],
     },
@@ -329,25 +349,33 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         {
           id: 'stormy-seas-d1', title: 'Stormy Seas: Pressure and Breaks', subtitle: 'The 5th (8th from the 10th) and 9th (12th from the 10th) in the birth chart', kind: 'narrative',
           objective: 'Using bhavat bhavam (the 5th house is the 8th from the 10th; the 9th is the 12th from the 10th), interpret the 5th and 9th lords\' placements for how the reader meets career pressure, breaks, changes of direction and relations with bosses and mentors, with constructive guidance.',
-          requiredEvidence: ['house.5.d1.lord-house', 'house.9.d1.lord-house'], optionalEvidence: ['house.5.d1.*', 'house.9.d1.*', 'career.house.5.aspected-by', 'career.house.9.aspected-by'],
+          requiredEvidence: ['house.5.d1.lord-house', 'house.9.d1.lord-house'], optionalEvidence: [...legacyHouse(5), ...legacyHouse(9), 'career.house.5.aspected-by', 'career.house.9.aspected-by'],
           depth: D_STD, referencePages: '75-78',
         },
         {
           id: 'stormy-seas-d10', title: 'Stormy Seas in the Career Chart', subtitle: 'D10 houses 5 and 9', kind: 'narrative',
-          objective: 'Interpret the D10 5th and 9th lords\' D10 placements and occupants as the career-chart view of pressure points and their resolution.',
-          requiredEvidence: ['career.d10.house.5.lord-house', 'career.d10.house.9.lord-house'], optionalEvidence: ['career.d10.house.5.*', 'career.d10.house.9.*'],
+          objective: `Interpret the D10 5th and 9th lords\' D10 placements, dignity and occupants as the career-chart view of pressure points and their resolution. ${D10_NOTE}`,
+          requiredEvidence: ['career.d10.house.5.lord-house', 'career.d10.house.9.lord-house'], optionalEvidence: ['career.d10.house.5.*', 'career.d10.house.9.*', ...D10_DIGNITY],
+          interpretations: ['interp.career.d10.*'],
           depth: D_SHORT, dependsOn: ['stormy-seas-d1'], referencePages: '79-81',
         },
         {
           id: 'changing-course', title: 'Changing Course', subtitle: 'The 8th house of transformation in D1 and D10', kind: 'narrative',
-          objective: 'Interpret the 8th house sign, the 8th lord\'s placement in D1 and in D10, and any occupants, for job switches, moves between employment and enterprise, research-type work and reinvention.',
-          requiredEvidence: ['house.8.d1.sign', 'house.8.d1.lord-house', 'career.d10.house.8.lord-house'], optionalEvidence: ['house.8.d1.occupants', 'career.d10.house.8.*'],
+          objective: `Interpret the 8th house sign, the 8th lord\'s placement in D1 and in D10 (with its D10 dignity), and any occupants, for job switches, moves between employment and enterprise, research-type work and reinvention. ${D10_NOTE}`,
+          requiredEvidence: ['house.8.d1.sign', 'house.8.d1.lord-house', 'career.d10.house.8.lord-house'], optionalEvidence: ['house.8.d1.occupants', 'career.d10.house.8.*', ...D10_DIGNITY],
+          interpretations: ['interp.career.d10.*'],
           depth: D_STD, referencePages: '83-84',
         },
         {
           id: 'retirement', title: 'Anchoring Down: Lasting Stability', subtitle: 'The 12th house (the 3rd from the 10th) in D1 and D10', kind: 'narrative',
           objective: 'Interpret the 12th house (withdrawal, completion; also the 3rd from the 10th) and its lord in D1 and D10, plus the 4th house of rest, for how the reader may build long-term stability, wind down or transition later in working life.',
-          requiredEvidence: ['house.12.d1.sign', 'house.12.d1.lord-house', 'career.d10.house.12.lord-house'], optionalEvidence: ['house.12.d1.occupants', 'house.4.d1.lord-house', 'career.d10.house.12.*'],
+          requiredEvidence: ['house.12.d1.sign', 'house.12.d1.lord-house', 'career.d10.house.12.lord-house'], optionalEvidence: ['house.12.d1.occupants', 'house.4.d1.lord-house', 'career.d10.house.12.*', ...LIFE_STAGE_EVIDENCE],
+          // Life-stage gating (product default): no retirement content before RETIREMENT_REFRAME_MAX_AGE + 1.
+          variants: [{
+            id: 'long-term-stability', when: { maxAge: RETIREMENT_REFRAME_MAX_AGE },
+            title: 'Anchoring Down: Building Lasting Stability',
+            objective: 'Interpret the 12th house (rest, withdrawal and completion; also the 3rd from the 10th) and its lord in D1 and D10, plus the 4th house of rest, for how the reader can build long-term stability, sustainable work habits and room for rest and renewal. The reader is early or mid-way in their working life (see the life-stage evidence): do not discuss retirement, winding down or late-career transitions.',
+          }],
           depth: D_SHORT, referencePages: '85-87',
         },
       ],
@@ -362,20 +390,17 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'government-table', title: 'Your Public-Service Indicators', kind: 'data', block: 'career-government', objective: 'Sun, Saturn, 6th and 10th facts.', referencePages: '89-97' },
         {
           id: 'sun-saturn-government', title: 'The Sun and Saturn: Authority and Service', subtitle: 'The pairing behind government careers', kind: 'narrative',
-          objective: 'Explain the Sun as karaka of government and authority and Saturn as karaka of service and administration, then interpret the reader\'s Sun–Saturn link (or its absence) and the Sun\'s relation to the 10th house for public-sector, administrative or institutional roles.',
-          requiredEvidence: ['career.gov.sun-saturn', 'career.gov.sun-tenth'], optionalEvidence: ['planet.sun.d1.sign', 'planet.sun.d1.house', 'planet.saturn.d1.sign', 'planet.saturn.d1.house'],
-          depth: D_STD, referencePages: '89-91',
-        },
-        {
-          id: 'government-houses', title: 'Service and Office', subtitle: 'The 6th and 10th houses for public roles', kind: 'narrative',
-          objective: 'Interpret the 6th and 10th house signs and lords together for suitability for structured, institutional, public-facing or government work.',
-          requiredEvidence: ['house.6.d1.sign', 'house.10.d1.sign'], optionalEvidence: ['house.6.d1.lord-house', 'house.10.d1.lord-house'],
-          depth: D_SHORT, dependsOn: ['sun-saturn-government'], referencePages: '92-93',
+          objective: 'Explain the Sun as karaka of government and authority and Saturn as karaka of service and administration, then interpret the reader\'s Sun–Saturn link and the Sun\'s relation to the 10th house, together with the 6th (service) and 10th (office) house lords, for public-sector, administrative or institutional roles. The absence of a link is "no specific indicator", never a negative verdict; present suitability as one profile across all the listed factors, not as government versus enterprise.',
+          requiredEvidence: ['career.gov.sun-saturn', 'career.gov.sun-tenth'],
+          optionalEvidence: ['planet.sun.d1.sign', 'planet.sun.d1.house', 'planet.saturn.d1.sign', 'planet.saturn.d1.house', 'house.6.d1.sign', 'house.10.d1.sign', 'house.6.d1.lord-house', 'house.10.d1.lord-house', 'career.house.10.aspected-by', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.service-orientation'], variants: [EARLY_CAREER_VARIANT],
+          depth: D_STD, referencePages: '89-93',
         },
         {
           id: 'rajya-seva-yogas', title: 'Combinations for Public Service', subtitle: 'Yogas linked to authority in your chart', kind: 'narrative',
-          objective: 'Discuss only the detected yogas in the evidence that classical texts link with authority and public service (such as Budha-Aditya, Gajakesari, Vesi, Vosi, Ubhayachari, Raja or Amala yogas). If none of these are present, say so and explain that public roles are then read from the Sun, Saturn and the 10th house.',
-          requiredEvidence: ['career.yogas.relevant'], optionalEvidence: ['yoga.*', 'career.gov.sun-tenth'],
+          objective: 'Discuss only the detected Raja yogas in the evidence and how they relate to authority and public roles, stating the conditions under which each formed; refer back to the yoga section instead of re-explaining yogas covered there. Do not present solar or lunar yogas (Budha-Aditya, Gajakesari, Vesi, Vosi, Ubhayachari) as indicators of public office, and make no claims about royal favour. If no Raja yoga is present, say so and explain that public roles are then read from the Sun, Saturn and the 10th house.',
+          requiredEvidence: ['career.yogas.relevant'], optionalEvidence: ['yoga.*', 'career.gov.sun-tenth', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.yoga.*', 'interp.career.service-orientation'], variants: [EARLY_CAREER_VARIANT],
           depth: D_SHORT, dependsOn: ['career-yogas'], referencePages: '94-97',
         },
       ],
@@ -403,8 +428,9 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'job-vs-business-table', title: 'Employment or Enterprise? The Ashtakavarga View', kind: 'data', block: 'career-job-vs-business', objective: 'SAV comparison of 6th/7th and 10th/11th.', referencePages: '101' },
         {
           id: 'job-vs-business', title: 'Reading the Balance', subtitle: 'What the bindus suggest about your path', kind: 'narrative',
-          objective: 'Interpret the two Sarvashtakavarga comparisons (6th vs 7th, 10th vs 11th) and the benchmark positions as tendencies between employment and enterprise and between effort and reward, and describe a balanced approach (e.g. employment with side ventures) where the numbers are close. Never present the comparison as a verdict.',
-          requiredEvidence: ['career.sav.service-vs-partnership', 'career.sav.effort-vs-gain'], optionalEvidence: ['career.sav.house.*.benchmark'],
+          objective: 'Interpret the two Sarvashtakavarga comparisons (6th vs 7th, 10th vs 11th) and the benchmark positions as one practitioner tendency between employment and enterprise and between effort and reward, and describe a balanced approach (e.g. employment with side ventures) where the numbers are close. Never present the comparison as a verdict or as deciding the path. Define SAV only as in the evidence (natal bindu totals per sign); never as support from transiting planets.',
+          requiredEvidence: ['career.sav.service-vs-partnership', 'career.sav.effort-vs-gain'], optionalEvidence: ['career.sav.house.*.benchmark', 'fact.definition.sav'],
+          interpretations: ['interp.career.service-orientation', 'interp.career.enterprise'],
           depth: D_SHORT, referencePages: '101',
         },
       ],
@@ -419,14 +445,17 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'transit-table', title: 'Current and Coming Transits', kind: 'data', block: 'career-transits', objective: 'Current and next sign periods of Saturn, Jupiter, Rahu and Ketu.', referencePages: '102-108' },
         {
           id: 'transit-saturn', title: 'Saturn\'s Transit: the Season of Effort', subtitle: 'Now and next', kind: 'narrative',
-          objective: 'Interpret Saturn\'s current transit sign (with its dates and the house from the Ascendant and the Moon), then its next period, for career pacing, responsibility, consolidation and patience.',
-          requiredEvidence: ['career.transit.saturn.current'], optionalEvidence: ['career.transit.saturn.next.*', 'house.*.d1.sign'],
+          objective: 'Interpret Saturn\'s current transit sign (with its dates and the house from the Ascendant and the Moon), then its next period, for career pacing, responsibility, consolidation and patience. Name the Saturn-from-Moon phase from the evidence in neutral terms (a phase of consolidation and adjustment, never misfortune), and keep transit positions distinct from natal placements. If the SAV score of the transit sign is cited, use the SAV definition in the evidence.',
+          requiredEvidence: ['career.transit.saturn.current'],
+          optionalEvidence: ['career.transit.saturn.next.*', 'house.*.d1.sign', 'fact.transit.saturn.now', 'fact.transit.saturn.from-moon', 'sav.house.*', 'fact.definition.sav'],
+          interpretations: ['interp.career.transit.saturn*'],
           depth: D_STD, referencePages: '102-103, 106',
         },
         {
           id: 'transit-jupiter', title: 'Jupiter\'s Transit: the Season of Growth', subtitle: 'Now and next', kind: 'narrative',
-          objective: 'Interpret Jupiter\'s current transit sign (with dates and the house from the Ascendant and the Moon), then its next period, for learning, opportunity, mentors and expansion at work.',
-          requiredEvidence: ['career.transit.jupiter.current'], optionalEvidence: ['career.transit.jupiter.next.*'],
+          objective: 'Interpret Jupiter\'s current transit sign (with dates and the house from the Ascendant and the Moon), then its next period, for learning, opportunity, mentors and expansion at work. Keep transit positions distinct from natal placements. If the SAV score of the transit sign is cited, use the SAV definition in the evidence.',
+          requiredEvidence: ['career.transit.jupiter.current'], optionalEvidence: ['career.transit.jupiter.next.*', 'fact.transit.jupiter.now', 'sav.house.*', 'fact.definition.sav'],
+          interpretations: ['interp.career.transit.jupiter*'],
           depth: D_STD, referencePages: '105, 108',
         },
         {
@@ -448,14 +477,19 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         { id: 'antardasha-table', title: 'Sub-periods of Your Current Mahadasha', kind: 'data', block: 'career-antardashas', objective: 'Antardashas of the running Mahadasha.', referencePages: '109', bonus: true },
         {
           id: 'current-dasha', title: 'Your Current Chapter', subtitle: 'The running Mahadasha and Antardasha', kind: 'narrative',
-          objective: 'Interpret the current Mahadasha and Antardasha lords for career: the houses they rule, where they sit in the birth chart and in the D10, their listed career links, and practical focus for this chapter.',
-          requiredEvidence: ['dasha.current.md', 'dasha.current.ad'], optionalEvidence: ['planet.*.d1.lordship', 'planet.*.d1.house', 'planet.*.d10.house', 'career.dasha.md.*.links', 'career.dasha.ad.*'],
+          objective: `Interpret the current Mahadasha and Antardasha lords for career: the houses they rule, where they sit in the birth chart and in the D10 (with D10 dignity), their listed career links, their mutual position, and practical focus for this chapter. Then set the period against the current slow transits and the Saturn-from-Moon phase in the evidence (neutral wording). Transit positions are where the planets move now and must never be confused with natal placements: say "Saturn transits Pisces, the 9th from the Ascendant", never that a transiting planet is in its natal house. ${D10_NOTE}`,
+          requiredEvidence: ['dasha.current.md', 'dasha.current.ad'],
+          optionalEvidence: ['planet.*.d1.lordship', 'planet.*.d1.house', 'planet.*.d10.house', 'career.dasha.md.*.links', 'career.dasha.ad.*',
+            'fact.dasha.current.md-ad', 'planet.*.d10.dignity', 'fact.transit.*.now', 'fact.transit.saturn.from-moon', 'career.transit.*.current', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.period.*', 'interp.career.transit.*'], variants: [EARLY_CAREER_VARIANT],
           depth: D_LONG, referencePages: '109',
         },
         {
           id: 'next-dasha', title: 'The Next Chapter', subtitle: 'The coming Mahadasha', kind: 'narrative', bonus: true,
           objective: 'Interpret the next Mahadasha lord for career (its houses, placements and listed career links) as a preview of the coming chapter, with how to prepare during the current one.',
-          requiredEvidence: ['career.dasha.next.md'], optionalEvidence: ['planet.*.d1.lordship', 'planet.*.d1.house', 'planet.*.d10.house', 'career.dasha.md.*.links'],
+          requiredEvidence: ['career.dasha.next.md'],
+          optionalEvidence: ['planet.*.d1.lordship', 'planet.*.d1.house', 'planet.*.d10.house', 'career.dasha.md.*.links', 'planet.*.d10.dignity', 'dasha.md.*.age', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.period.*'], variants: [EARLY_CAREER_VARIANT],
           depth: D_SHORT, dependsOn: ['current-dasha'],
         },
       ],
@@ -477,7 +511,9 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         {
           id: 'd1-d10-synthesis', title: 'Birth Chart and Career Chart in Dialogue', subtitle: 'Where the D1 and the D10 agree', kind: 'narrative', bonus: true,
           objective: 'Compare the D1 10th house sign and 10th lord placement with the D10 ascendant and the D10 10th lord placement: where they reinforce each other and where they add a different emphasis, and what that means for career choices.',
-          requiredEvidence: ['house.10.d1.sign', 'house.10.d1.lord-house', 'asc.d10.sign', 'career.d10.house.10.lord-house'], optionalEvidence: ['house.10.d1.lord', 'career.d10.house.10.lord', 'career.d10.house.10.sign'],
+          requiredEvidence: ['house.10.d1.sign', 'house.10.d1.lord-house', 'asc.d10.sign', 'career.d10.house.10.lord-house'],
+          optionalEvidence: ['house.10.d1.lord', 'career.d10.house.10.lord', 'career.d10.house.10.sign', ...D10_DIGNITY, 'planet.*.vargottama'],
+          interpretations: ['interp.career.d1-d10.*', 'interp.career.d10.*'],
           depth: D_STD, dependsOn: ['vocational-signature'],
         },
       ],
@@ -519,13 +555,16 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
         {
           id: 'fields-of-opportunity', title: 'Fields of Opportunity', subtitle: 'Recommendations from the Lagna lord and the trine lords', kind: 'narrative',
           objective: 'Give three recommendations of fields and roles, each grounded in one factor: the Ascendant lord, the 5th lord (intellect and talent) and the 9th lord (fortune and higher purpose), by their signs and houses. Present them as examples to explore.',
-          requiredEvidence: ['asc.d1.lord', 'house.5.d1.lord', 'house.9.d1.lord'], optionalEvidence: ['house.1.d1.lord-house', 'house.5.d1.lord-house', 'house.9.d1.lord-house'],
+          requiredEvidence: ['asc.d1.lord', 'house.5.d1.lord', 'house.9.d1.lord'], optionalEvidence: ['house.1.d1.lord-house', 'house.5.d1.lord-house', 'house.9.d1.lord-house', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.fields.*'], variants: [EARLY_CAREER_VARIANT],
           depth: { minParagraphs: 3, maxParagraphs: 4, bullets: 6 }, referencePages: '132-133',
         },
         {
           id: 'roadmap-summary', title: 'Your Path Forward', subtitle: 'A practical synthesis', kind: 'narrative', bonus: true,
           objective: 'Synthesise the report into a practical roadmap: the reader\'s core professional strengths (10th lord, Amatyakaraka), the present season (current Mahadasha and Saturn\'s transit) and three to five concrete next steps. Do not introduce new chart facts beyond the evidence.',
-          requiredEvidence: ['house.10.d1.lord', 'karaka.amk', 'dasha.current.md'], optionalEvidence: ['career.transit.saturn.current', 'asc.d10.sign', 'house.10.d1.lord-house'],
+          requiredEvidence: ['house.10.d1.lord', 'karaka.amk', 'dasha.current.md'],
+          optionalEvidence: ['career.transit.saturn.current', 'asc.d10.sign', 'house.10.d1.lord-house', 'fact.transit.saturn.now', 'fact.transit.saturn.from-moon', ...LIFE_STAGE_EVIDENCE],
+          interpretations: ['interp.career.period.*', 'interp.career.transit.*'], variants: [EARLY_CAREER_VARIANT],
           depth: { minParagraphs: 3, maxParagraphs: 4, bullets: 5 }, dependsOn: ['fields-of-opportunity'], referencePages: '137',
         },
       ],

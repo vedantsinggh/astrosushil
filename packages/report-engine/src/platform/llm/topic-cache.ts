@@ -20,6 +20,13 @@ export interface TopicCacheKeyParts {
   evidenceFingerprint: string;
   model: string;
   generationConfig: Record<string, unknown>;
+  /**
+   * Set ONLY for topics that opted in to interpretation results. Left undefined
+   * otherwise: `stableStringify` drops undefined keys, so the keys of legacy
+   * topics stay byte-identical.
+   */
+  interpretationFingerprint?: string;
+  interpretationPromptVersion?: string;
 }
 
 export function topicCacheKey(parts: TopicCacheKeyParts): string {

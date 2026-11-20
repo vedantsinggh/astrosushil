@@ -182,6 +182,246 @@ function checkAssertion(a: NatalAssertion, registry: EvidenceRegistry, allowed: 
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Transit assertions (proposal §5 V3; audit F2). Applies to every topic.
+//
+// "Saturn transits (through) your 12th house" used to be skipped because the
+// sentence contains "transit". It is now checked against the transit evidence
+// in the registry: the sign the planet occupies in a computed transit period,
+// with the house counted from the Ascendant (or the Moon, when the sentence
+// says so) derived from that sign.
+// ---------------------------------------------------------------------------
+
+export interface TransitAssertion {
+  planet: string;
+  house?: number;
+  sign?: string;
+  /** House counted from the natal Moon instead of the Ascendant. */
+  fromMoon: boolean;
+  /**
+   * 'current': present tense with no other time marker (checked against the period in progress);
+   * 'dated': the sentence names years (checked against the periods overlapping them);
+   * 'undated': future or descriptive without a date (not checkable: the computed periods cover a limited horizon).
+   */
+  tense: 'current' | 'dated' | 'undated';
+  /** Year span named in the sentence ('dated' only). */
+  years?: [number, number];
+  text: string;
+}
+
+const HOUSE_TOKEN = '(\\d{1,2}(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)';
+const TRANSIT_TARGET = `(?:\\s+(?:through|into|across|over|in|of|thru))?\\s+(?:(?:your|the)\\s+(?:natal\\s+)?${HOUSE_TOKEN}(?:\\s+house)?|(${SIGN_RE})\\b)`;
+/** Finite verb forms: "Saturn transits", "Saturn is transiting", "Saturn moves through". */
+const TRANSIT_VERB_RE = new RegExp(
+  `\\b(${PLANET_RE})\\b\\s+(?:is\\s+|are\\s+|will\\s+|currently\\s+|now\\s+)?(?:currently\\s+|now\\s+|be\\s+)?(transits?|transiting|transit|moves?|moving|passes|passing|enters?|entering|travels?|travelling|traveling)(?:\\s+(?:through|into|across|over|thru))?` +
+    `\\s+(?:(?:your|the)\\s+(?:natal\\s+)?${HOUSE_TOKEN}(?:\\s+house)?|(${SIGN_RE})\\b)`,
+  'gi'
+);
+/** Participle / noun forms: "transiting Saturn in Pisces", "Saturn's transit through your 10th house". */
+const TRANSIT_NOUN_RE = new RegExp(
+  `(?:\\btransiting\\s+(${PLANET_RE})\\b(?:\\s+(?:occupies|occupying|is in|sits in))?|\\b(${PLANET_RE})(?:'s)?\\s+transit)${TRANSIT_TARGET}`,
+  'gi'
+);
+const PAST_TENSE = /\b(?:transited|was transiting|were transiting|moved through|passed through|previous(?:ly)?|last time|earlier transit|in the past)\b/i;
+const HYPOTHETICAL = /\b(?:if|whenever|each time|every time|generally|traditionally|in general|typically|usually|classically)\b/i;
+const MONTHS = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+/** Anything that ties the statement to a time other than "now". */
+const NON_CURRENT_MARKER = new RegExp(
+  `\\b(?:will|shall|next|upcoming|following|later|future|after|before|until|till|between|when|once|(?:19|20|21)\\d{2}|${MONTHS})\\b`,
+  'i'
+);
+const FROM_MOON = /\bfrom\s+(?:the\s+|your\s+)?(?:natal\s+)?(?:moon|chandra)\b/i;
+
+/** Extract transit assertions sentence by sentence (English only; partner and past/hypothetical sentences are skipped). */
+export function extractTransitAssertions(text: string): TransitAssertion[] {
+  const out: TransitAssertion[] = [];
+  for (const s of text.split(/(?<=[.!?।])\s+/)) {
+    if (PARTNER_CONTEXT.test(s) || PAST_TENSE.test(s) || HYPOTHETICAL.test(s)) continue;
+    const anyTime = NON_CURRENT_MARKER.test(s);
+    const yearList = [...s.matchAll(/\b((?:19|20|21)\d{2})\b/g)].map((y) => Number(y[1]));
+    const years: [number, number] | undefined = yearList.length ? [Math.min(...yearList), Math.max(...yearList)] : undefined;
+    const push = (planet: string, houseTok: string | undefined, sign: string | undefined, present: boolean, end: number) => {
+      const house = houseTok ? parseHouseNumber(houseTok) : undefined;
+      if (!house && !sign) return;
+      const fromMoon = house !== undefined && FROM_MOON.test(s.slice(end, end + 40));
+      const tense: TransitAssertion['tense'] = years ? 'dated' : present && !anyTime ? 'current' : 'undated';
+      out.push({ planet: normalisePlanet(planet), house, sign, fromMoon, tense, years: tense === 'dated' ? years : undefined, text: s });
+    };
+    let m: RegExpExecArray | null;
+    TRANSIT_VERB_RE.lastIndex = 0;
+    while ((m = TRANSIT_VERB_RE.exec(s))) {
+      const verb = m[2].toLowerCase();
+      // "enters" is a dated event and the descriptive participle is handled below.
+      const finite = !/^(?:enter|transiting|moving|passing|entering|travelling|traveling)/.test(verb) || /\b(?:is|are)\s+\w+ing\b/i.test(m[0]);
+      push(m[1], m[3], m[4], finite, TRANSIT_VERB_RE.lastIndex);
+    }
+    TRANSIT_NOUN_RE.lastIndex = 0;
+    // "Saturn's transit through X" reads as present; "transiting Saturn in X" is descriptive (any period).
+    while ((m = TRANSIT_NOUN_RE.exec(s))) push(m[1] ?? m[2], m[3], m[4], m[2] !== undefined, TRANSIT_NOUN_RE.lastIndex);
+  }
+  const seen = new Set<string>();
+  return out.filter((a) => {
+    const k = `${a.planet}|${a.house}|${a.sign}|${a.fromMoon}|${a.text}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+interface TransitWindow {
+  sign: string;
+  current: boolean;
+  /** YYYY-MM-DD bounds when the evidence carries them. */
+  startIso?: string;
+  endIso?: string;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const TRANSIT_EXCLUDED_SUFFIX = /\.(?:aspects|aspects-moon|aspected-natal|conjunct|bav|sav|retro|dates|status|house-asc|house-moon)$/;
+
+/** Every transit sign period of a planet found in the registry (core, career, annual and transit-report evidence). */
+export function transitWindows(registry: EvidenceRegistry, planet: string): TransitWindow[] {
+  const p = planet.toLowerCase();
+  // Integration guard: duck-typed evidence stores (e.g. apps/api RashiEvidenceStore, which the Rashi
+  // Bhavishya narrator passes in place of a registry) have no natal snapshot. Without an as-of day only
+  // `.current` IDs and in-progress stays count as current.
+  const asOfDay = (registry as Partial<Pick<EvidenceRegistry, 'snapshot'>>).snapshot?.asOfIso?.slice(0, 10);
+  const signOf = (v: unknown): string | undefined => {
+    const first = Array.isArray(v) ? v[0] : v;
+    return typeof first === 'string' && (SIGNS as readonly string[]).includes(first) ? first : undefined;
+  };
+  const out: TransitWindow[] = [];
+  for (const item of registry.all()) {
+    if (item.id.startsWith('partner.') || TRANSIT_EXCLUDED_SUFFIX.test(item.id)) continue;
+    const period = new RegExp(`(?:^|\\.)transit\\.${p}\\.(?:\\d{2}|current|next\\.\\d{2})$`).test(item.id);
+    const stay = new RegExp(`^${p}\\.transit\\.[a-z]\\.sign$`).test(item.id);
+    if (!period && !stay) continue;
+    const sign = signOf(item.value);
+    if (!sign) continue;
+    let current = item.id.endsWith('.current');
+    let startIso: string | undefined;
+    let endIso: string | undefined;
+    if (stay) {
+      const status = registry.get(item.id.replace(/\.sign$/, '.status'));
+      current = status?.value === 'in progress';
+    } else if (Array.isArray(item.value) && ISO_DAY.test(String(item.value[1])) && ISO_DAY.test(String(item.value[2]))) {
+      startIso = String(item.value[1]);
+      endIso = String(item.value[2]);
+      current = current || (asOfDay !== undefined && startIso <= asOfDay && asOfDay < endIso);
+    }
+    out.push({ sign, current, startIso, endIso });
+  }
+  return out;
+}
+
+function houseFromSign(fromSign: string, sign: string): number {
+  const a = (SIGNS as readonly string[]).indexOf(fromSign);
+  const b = (SIGNS as readonly string[]).indexOf(sign);
+  return ((b - a + 12) % 12) + 1;
+}
+
+/** Check a transit assertion against the registry. Returns an error message or null (also null when the planet has no transit data). */
+export function checkTransitAssertion(a: TransitAssertion, registry: EvidenceRegistry): string | null {
+  const all = transitWindows(registry, a.planet);
+  let windows: TransitWindow[];
+  let scope: string;
+  if (a.tense === 'current') {
+    windows = all.filter((w) => w.current);
+    scope = 'currently transits';
+  } else if (a.tense === 'dated' && a.years) {
+    const [y0, y1] = a.years;
+    const dated = all.filter((w) => w.startIso && w.endIso);
+    const first = Math.min(...dated.map((w) => Number(w.startIso!.slice(0, 4))));
+    const last = Math.max(...dated.map((w) => Number(w.endIso!.slice(0, 4))));
+    // Only years fully inside the computed horizon can be confirmed or refuted.
+    if (!dated.length || y0 < first || y1 > last) return null;
+    windows = all.filter((w) => w.startIso && w.endIso && Number(w.startIso.slice(0, 4)) <= y1 && Number(w.endIso.slice(0, 4)) >= y0);
+    scope = `transits in ${y0 === y1 ? y0 : `${y0}-${y1}`}`;
+  } else {
+    windows = []; // undated future/descriptive: beyond what the computed periods can confirm
+    scope = '';
+  }
+  // Nothing to compare with (no transit data, or the dates lie outside the computed horizon): not checkable here.
+  if (windows.length === 0) return null;
+  const refSign = String(registry.get(a.fromMoon ? 'planet.moon.d1.sign' : 'asc.d1.sign')?.value ?? '');
+  if (a.sign !== undefined && !windows.some((w) => w.sign.toLowerCase() === a.sign!.toLowerCase())) {
+    return `States ${a.planet} transiting ${a.sign}; ${a.planet} ${scope} ${[...new Set(windows.map((w) => w.sign))].join(', ')}`;
+  }
+  if (a.house !== undefined && refSign) {
+    const houses = [...new Set(windows.map((w) => houseFromSign(refSign, w.sign)))];
+    if (!houses.includes(a.house)) {
+      const ref = a.fromMoon ? 'from the Moon' : 'from the Ascendant';
+      return `States ${a.planet} transiting the ${ordinal(a.house)} house ${ref}; ${a.planet} ${scope} the ${houses.map(ordinal).join(', ')} ${ref}`;
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Interpretation grounding: a claim citing an interp.* result is grounded when
+// its statement restates the result's conclusion (most of the conclusion's
+// content words, or the conclusion code's words).
+// ---------------------------------------------------------------------------
+
+const GROUNDING_STOP = new Set(['the', 'a', 'an', 'of', 'in', 'to', 'and', 'or', 'is', 'are', 'your', 'its', 'by', 'for', 'with', 'from', 'on', 'as', 'at', 'this', 'that']);
+function contentWords(text: string): string[] {
+  return text.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !GROUNDING_STOP.has(w));
+}
+
+/**
+ * Yoga results carry two vocabularies: the provisional yoga class in the conclusion code
+ * (`YOGA_FORMED_STRONG|MODERATE|WEAK|CANCELLED`) and the set-logic strength class in the label
+ * (`[mixed; …]`). A restatement may use either ("evaluated as mixed with a moderate
+ * classification"), but it must name the yoga and must not state a different yoga class.
+ */
+const YOGA_CODE_RE = /^YOGA_FORMED_(STRONG|MODERATE|WEAK|CANCELLED)$/;
+const YOGA_CLASS_WORDS: Readonly<Record<string, RegExp>> = {
+  STRONG: /\bstrong\b/i,
+  MODERATE: /\bmoderate\b/i,
+  WEAK: /\bweak\b/i,
+  CANCELLED: /\b(?:cancell?ed|cancell?ation)\b/i,
+};
+const STRENGTH_CLASS_WORDS: Readonly<Record<string, RegExp>> = {
+  supported: /\bsupported\b/i,
+  challenged: /\bchallenged\b/i,
+  mixed: /\bmixed\b/i,
+  neutral: /\bneutral\b/i,
+};
+
+/**
+ * `true`: the statement names the yoga and states its class in either vocabulary; `false`: it
+ * states a different yoga class (never grounded); `undefined`: not a yoga result, or
+ * no class stated (the generic conclusion-word rule decides).
+ */
+export function yogaGrounded(label: string, value: unknown, statement: string): boolean | undefined {
+  const m = YOGA_CODE_RE.exec(String(value));
+  if (!m) return undefined;
+  const yogaClass = m[1];
+  const conclusion = label.split(' [')[0];
+  const head = conclusion.split(/ \(| is formed\b/)[0];
+  const s = new Set(contentWords(statement));
+  const nameWords = contentWords(head);
+  const namesYoga = nameWords.length > 0 && nameWords.every((w) => s.has(w));
+  const strengthClass = /\[([a-z-]+)[;\]]/.exec(label)?.[1];
+  const statesYogaClass = YOGA_CLASS_WORDS[yogaClass].test(statement);
+  const statesStrength = strengthClass !== undefined && STRENGTH_CLASS_WORDS[strengthClass]?.test(statement) === true;
+  const otherYogaClass = Object.entries(YOGA_CLASS_WORDS).some(([k, re]) => k !== yogaClass && re.test(statement));
+  // Strength-class words are not checked for conflicts: "supported by", "neutral sign" are ordinary fact wording.
+  if (otherYogaClass) return false;
+  return namesYoga && (statesYogaClass || statesStrength) ? true : undefined;
+}
+
+export function interpretationGrounded(label: string, value: unknown, statement: string): boolean {
+  const yoga = yogaGrounded(label, value, statement);
+  if (yoga !== undefined) return yoga;
+  const s = new Set(contentWords(statement));
+  const conclusion = label.split(' [')[0];
+  const words = [...new Set(contentWords(conclusion))];
+  if (words.length && words.filter((w) => s.has(w)).length / words.length >= 0.5) return true;
+  const codeWords = contentWords(String(value).replace(/_/g, ' '));
+  return codeWords.length > 0 && codeWords.every((w) => s.has(w));
+}
+
 function valueAppears(value: unknown, statement: string): boolean {
   const s = statement.toLowerCase();
   const check = (v: unknown): boolean => {
@@ -192,6 +432,12 @@ function valueAppears(value: unknown, statement: string): boolean {
   };
   if (Array.isArray(value)) return value.length === 0 ? /\b(no|none|unoccupied|alone|empty)\b/.test(s) : value.some(check);
   return check(value);
+}
+
+/** True when every required fact of the topic is an empty list (e.g. an unoccupied house, no aspects). */
+export function isFactualAbsenceTopic(topic: ReportTopic, registry: EvidenceRegistry): boolean {
+  const items = registry.resolve(topic.requiredEvidence);
+  return items.length > 0 && items.every((i) => Array.isArray(i.value) && i.value.length === 0);
 }
 
 export interface ValidateTopicOptions {
@@ -230,13 +476,19 @@ export function validateGeneratedTopic(
       .map((a) => checkAssertion(a, registry, opts.allowedEvidence))
       .filter((x): x is string => x !== null);
     reasons.push(...contradictions.map((c) => `CONTRADICTS_CHART:${c}`));
+    const transitErrors = extractTransitAssertions(claim.statement)
+      .map((a) => checkTransitAssertion(a, registry))
+      .filter((x): x is string => x !== null);
+    reasons.push(...transitErrors.map((c) => `CONTRADICTS_TRANSIT:${c}`));
 
     let status: ClaimValidation['status'];
     if (reasons.length > 0) {
       status = 'rejected';
     } else {
       const items = claim.evidenceIds.map((id) => registry.get(id)!);
-      const grounded = items.some((i) => valueAppears(i.value, claim.statement));
+      const grounded = items.some((i) =>
+        i.kind === 'interpretation' ? interpretationGrounded(i.label, i.value, claim.statement) : valueAppears(i.value, claim.statement)
+      );
       status = grounded ? 'verified' : 'unverifiable';
       if (!grounded) reasons.push('STATEMENT_DOES_NOT_STATE_CITED_VALUE');
     }
@@ -249,6 +501,10 @@ export function validateGeneratedTopic(
   for (const a of extractNatalAssertions(fullText)) {
     const err = checkAssertion(a, registry, opts.allowedEvidence);
     if (err) issues.push({ severity: 'error', code: 'NARRATIVE_CONTRADICTS_CHART', message: `${err} — "${a.text.slice(0, 160)}"` });
+  }
+  for (const a of extractTransitAssertions(fullText)) {
+    const err = checkTransitAssertion(a, registry);
+    if (err) issues.push({ severity: 'error', code: 'NARRATIVE_CONTRADICTS_TRANSIT', message: `${err} — "${a.text.slice(0, 160)}"` });
   }
 
   const rejected = claims.filter((c) => c.status === 'rejected');
@@ -270,7 +526,15 @@ export function validateGeneratedTopic(
   // Depth requirements.
   if (topic.depth) {
     const n = payload.paragraphs.length;
-    if (n < topic.depth.minParagraphs) issues.push({ severity: 'error', code: 'TOO_SHORT', message: `${n} paragraphs < ${topic.depth.minParagraphs}` });
+    if (n < topic.depth.minParagraphs) {
+      // A topic whose required facts are all absences (no occupants, no aspects) has
+      // little to say; forcing length invites padding and positive spin (audit F11).
+      const absence = isFactualAbsenceTopic(topic, registry);
+      issues.push({
+        severity: absence ? 'warning' : 'error', code: 'TOO_SHORT',
+        message: `${n} paragraphs < ${topic.depth.minParagraphs}${absence ? ' (factual-absence topic: one short paragraph is acceptable)' : ''}`,
+      });
+    }
     if (n > topic.depth.maxParagraphs) issues.push({ severity: 'warning', code: 'TOO_LONG', message: `${n} paragraphs > ${topic.depth.maxParagraphs}` });
   }
 

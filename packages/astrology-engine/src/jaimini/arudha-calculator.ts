@@ -1,26 +1,51 @@
 import { PlanetSymbol } from '../planets/planet.types';
 import { RASHIS } from '../zodiac/rashi';
 import { ArudhaPadaPlacement } from './jaimini.types';
+import { selectSignLordFromPositions } from '../dasha/jaimini-sign-dasha-utils';
+
+/**
+ * How the lord of Scorpio / Aquarius is chosen for Arudha computation.
+ * - `STRONGER_CO_LORD` (default): Jaimini co-lords (Scorpio = Mars + Ketu, Aquarius = Saturn +
+ *   Rahu), the stronger chosen by {@link selectSignLordFromPositions} (K.N. Rao stronger-lord
+ *   rules, JSD-004). Provisional – pending client review (user decision 2026-11-20 #3).
+ * - `SINGLE_RULER`: the Parashari single ruler (Mars, Saturn), the pre-2026-11 behaviour.
+ */
+export type ArudhaCoLordMode = 'STRONGER_CO_LORD' | 'SINGLE_RULER';
+
+export interface ArudhaOptions {
+  coLordMode?: ArudhaCoLordMode;
+  /** Degree advancement per planet (degree in sign; 30 − degree for nodes), for the last tie-breaker. */
+  planetAdvancement?: Partial<Record<PlanetSymbol, number>>;
+}
+
+function signFrom(start: number, count: number): number {
+  // `count` is inclusive (1 = the start sign itself).
+  return ((start - 1 + (count - 1)) % 12 + 12) % 12 + 1;
+}
 
 export class ArudhaCalculator {
   /**
-   * Calculates all 12 Arudha Padas (A1/AL to A12/UL) according to canonical Jaimini Sutras / BPHS.
+   * Calculates all 12 Arudha Padas (A1/AL to A12/UL).
    *
-   * Formula:
-   * 1. House H sign = S1
-   * 2. Lord of S1 = L, residing in sign S2
-   * 3. Steps count = (S2 - S1 + 12) % 12 + 1
-   * 4. Candidate Arudha Pada Sign = (S2 + steps - 1) % 12 (or (S1 + 2*(steps-1)) % 12 + 1)
-   * 5. Classical Exception Rules (BPHS Ch. 29):
-   *    - If Candidate Sign == House Sign (steps == 1 or steps == 7):
-   *      - When lord is in 1st from house (steps == 1), Candidate = 1st -> Shift to 10th house from H.
-   *      - When lord is in 7th from house (steps == 7), Candidate = 1st -> Shift to 10th from candidate = 10th from H (or 4th from H).
+   * Rule (BPHS ch. 29 "Arudha Padas", Santhanam numbering; provisional – pending client review):
+   * 1. House sign S1; its lord L sits in S2, `steps` signs from S1 (inclusive count).
+   * 2. Raw pada = the sign `steps` signs from S2 (inclusive).
+   * 3. The Arudha cannot fall in the house itself or in the 7th from it. When the raw pada is
+   *    the 1st or the 7th from the house, the Arudha shifts 10 signs: it is the 10th from the raw
+   *    pada. (Raw in the 1st → the 10th from the house; raw in the 7th → the 4th from the house.)
+   * 4. Scorpio and Aquarius use the stronger co-lord (see {@link ArudhaCoLordMode}).
+   *
+   * `exceptionApplied` is `TEN_SIGN_SHIFT` whenever step 3 fires; `exceptionDetail` says whether
+   * the raw pada was in the 1st or the 7th from the house. `FOURTH_HOUSE_SHIFT` is no longer
+   * emitted (kept in the type for backward compatibility).
    */
   public static calculateAllArudhas(
     ascendantRashiIndex: number,
-    planetSigns: Partial<Record<PlanetSymbol, number>>
+    planetSigns: Partial<Record<PlanetSymbol, number>>,
+    options: ArudhaOptions = {}
   ): ArudhaPadaPlacement[] {
     const padas: ArudhaPadaPlacement[] = [];
+    const coLordMode: ArudhaCoLordMode = options.coLordMode ?? 'STRONGER_CO_LORD';
 
     const ARUDHA_NAMES: Record<number, { code: string; name: string }> = {
       1: { code: 'AL', name: 'Arudha Lagna (A1 / Pada Lagna)' },
@@ -40,27 +65,32 @@ export class ArudhaCalculator {
     for (let h = 1; h <= 12; h++) {
       const houseRashiIndex = ((ascendantRashiIndex - 1 + (h - 1)) % 12) + 1;
       const houseRashiDef = RASHIS[houseRashiIndex - 1];
-      const lordSymbol = houseRashiDef.ruler as PlanetSymbol;
+
+      let lordSymbol = houseRashiDef.ruler as PlanetSymbol;
+      let lordSelectionReason: string | undefined;
+      if (coLordMode === 'STRONGER_CO_LORD' && (houseRashiIndex === 8 || houseRashiIndex === 11)) {
+        const sel = selectSignLordFromPositions(houseRashiIndex, planetSigns, options.planetAdvancement);
+        if (planetSigns[sel.lord] !== undefined) {
+          lordSymbol = sel.lord;
+          lordSelectionReason = sel.reason;
+        }
+      }
       const lordSign = planetSigns[lordSymbol] ?? houseRashiIndex;
 
       // Distance from house sign to lord sign in signs (1 to 12)
       const steps = ((lordSign - houseRashiIndex + 12) % 12) + 1;
 
-      // Raw target sign
-      let targetSign = ((lordSign - 1 + (steps - 1)) % 12) + 1;
-      let exceptionApplied: 'TEN_SIGN_SHIFT' | 'FOURTH_HOUSE_SHIFT' | 'NONE' = 'NONE';
+      // Raw pada: as many signs from the lord as the lord is from the house
+      const rawSign = signFrom(lordSign, steps);
+      const rawFromHouse = ((rawSign - houseRashiIndex + 12) % 12) + 1;
 
-      // If Arudha falls in the house itself (when lord is in the house itself, steps = 1)
-      if (targetSign === houseRashiIndex) {
-        if (steps === 1) {
-          // Shift 10 signs forward from the house
-          targetSign = ((houseRashiIndex - 1 + 9) % 12) + 1;
-          exceptionApplied = 'TEN_SIGN_SHIFT';
-        } else if (steps === 7) {
-          // If lord is in 7th, 7 + 7 = 14 = 2 signs = falls in 1st again -> shift to 4th house or 10th
-          targetSign = ((houseRashiIndex - 1 + 3) % 12) + 1;
-          exceptionApplied = 'FOURTH_HOUSE_SHIFT';
-        }
+      let targetSign = rawSign;
+      let exceptionApplied: 'TEN_SIGN_SHIFT' | 'FOURTH_HOUSE_SHIFT' | 'NONE' = 'NONE';
+      let exceptionDetail: ArudhaPadaPlacement['exceptionDetail'];
+      if (rawFromHouse === 1 || rawFromHouse === 7) {
+        targetSign = signFrom(rawSign, 10);
+        exceptionApplied = 'TEN_SIGN_SHIFT';
+        exceptionDetail = rawFromHouse === 1 ? 'PADA_IN_1ST_FROM_HOUSE' : 'PADA_IN_7TH_FROM_HOUSE';
       }
 
       const targetRashiDef = RASHIS[targetSign - 1];
@@ -68,10 +98,10 @@ export class ArudhaCalculator {
 
       // Find planets occupying this Arudha sign
       const occupants = Object.entries(planetSigns)
-        .filter(([_, sIdx]) => sIdx === targetSign)
+        .filter(([, sIdx]) => sIdx === targetSign)
         .map(([sym]) => sym as PlanetSymbol);
 
-      padas.push({
+      const placement: ArudhaPadaPlacement = {
         houseNumber: h,
         code: meta.code,
         name: meta.name,
@@ -82,7 +112,11 @@ export class ArudhaCalculator {
         stepsCount: steps,
         exceptionApplied,
         occupants,
-      });
+        rawPadaSignIndex: rawSign,
+      };
+      if (exceptionDetail) placement.exceptionDetail = exceptionDetail;
+      if (lordSelectionReason) placement.lordSelectionReason = lordSelectionReason;
+      padas.push(placement);
     }
 
     return padas;

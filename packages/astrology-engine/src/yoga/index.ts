@@ -1,6 +1,7 @@
 export * from './yoga.types';
 export * from './yoga-context';
 export * from './yoga-predicates';
+export * from './yoga-assessment';
 export * from './yoga-registry';
 export * from './yoga-calculator';
 export * from './evaluators/mahapurusha.evaluator';

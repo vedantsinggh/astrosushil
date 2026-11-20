@@ -1,5 +1,10 @@
 import { PlanetSymbol } from '../../planets/planet.types';
 import { YogaChartContext, YogaResult, YogaCondition } from '../yoga.types';
+import { buildAssessment, occupantVariant } from '../yoga-assessment';
+
+const BUDHA_ADITYA_SOURCE =
+  'Raman, Three Hundred Important Combinations (Budha-Aditya: Sun and Mercury together); not a BPHS ch. 38 yoga';
+const SOLAR_SOURCE = 'Classical Parashari (BPHS ch. 38, Santhanam numbering)';
 
 const ELIGIBLE_SOLAR_PLANETS = [
   PlanetSymbol.MARS,
@@ -31,12 +36,16 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
       },
     ];
 
+    const mercuryFactors = ctx.planetFactors?.[PlanetSymbol.MERCURY];
+    const separation = mercuryFactors?.combustion.distanceFromSun;
+    const orb = mercuryFactors?.combustion.orbDegrees;
+    const sepText = typeof separation === 'number' && typeof orb === 'number' ? ` (${separation.toFixed(2)}° from the Sun; orb ${orb}°)` : '';
     const strengthFactors: string[] = [];
     if (isConjunct) {
       if (mercury.isCombust) {
-        strengthFactors.push('Mercury is combust by the Sun (within combustion orb).');
+        strengthFactors.push(`Mercury is combust by the Sun${sepText}.`);
       } else {
-        strengthFactors.push('Mercury is outside deep combustion degree.');
+        strengthFactors.push(`Mercury is not combust${sepText}.`);
       }
     }
 
@@ -47,7 +56,7 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'SURYA',
       isDetected: isConjunct,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 38)',
+      convention: BUDHA_ADITYA_SOURCE,
       evidence: {
         conditions,
         involvedPlanets: [sun, mercury],
@@ -64,6 +73,21 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
           : [],
         strengthFactors,
       },
+      assessment: buildAssessment(ctx, {
+        formed: isConjunct,
+        keyPlanets: [PlanetSymbol.SUN, PlanetSymbol.MERCURY],
+        cancellations: [
+          {
+            id: 'MERCURY_COMBUST',
+            description: 'Mercury within its combustion orb of the Sun (whether this weakens or cancels the yoga is a pending client convention)',
+            satisfied: mercury.isCombust,
+            observed: typeof separation === 'number' ? `${separation.toFixed(4)}° from the Sun` : 'n/a',
+            source: 'Surya Siddhanta combustion orbs (provisional); effect on Budha-Aditya pending client review',
+            provisional: true,
+          },
+        ],
+        source: BUDHA_ADITYA_SOURCE,
+      }),
     });
   }
 
@@ -94,7 +118,7 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'SURYA',
       isDetected: isVesi,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 38)',
+      convention: SOLAR_SOURCE,
       evidence: {
         conditions: [
           {
@@ -116,6 +140,13 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
         involvedHouses: [ctx.houses[sun.house]],
         relationships: [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: isVesi,
+        keyPlanets: [PlanetSymbol.SUN, ...planetsIn2nd],
+        variant: occupantVariant(planetsIn2nd),
+        notes: ['variant: benefic (shubha) vs malefic (papa) by the occupants: Jupiter, Venus, Mercury benefic; Mars, Saturn malefic (BPHS ch. 38; Saravali solar yogas, verify)'],
+        source: SOLAR_SOURCE,
+      }),
     });
 
     // Vosi
@@ -126,7 +157,7 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'SURYA',
       isDetected: isVosi,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 38)',
+      convention: SOLAR_SOURCE,
       evidence: {
         conditions: [
           {
@@ -148,6 +179,13 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
         involvedHouses: [ctx.houses[sun.house]],
         relationships: [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: isVosi,
+        keyPlanets: [PlanetSymbol.SUN, ...planetsIn12th],
+        variant: occupantVariant(planetsIn12th),
+        notes: ['variant: benefic (shubha) vs malefic (papa) by the occupants: Jupiter, Venus, Mercury benefic; Mars, Saturn malefic (BPHS ch. 38; Saravali solar yogas, verify)'],
+        source: SOLAR_SOURCE,
+      }),
     });
 
     // Ubhayachari
@@ -158,7 +196,7 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'SURYA',
       isDetected: isUbhayachari,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 38)',
+      convention: SOLAR_SOURCE,
       evidence: {
         conditions: [
           {
@@ -173,6 +211,13 @@ export function evaluateSuryaYogas(ctx: YogaChartContext): YogaResult[] {
         involvedHouses: [ctx.houses[sun.house]],
         relationships: [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: isUbhayachari,
+        keyPlanets: [PlanetSymbol.SUN, ...[...planetsIn2nd, ...planetsIn12th]],
+        variant: occupantVariant([...planetsIn2nd, ...planetsIn12th]),
+        notes: ['variant: benefic (shubha) vs malefic (papa) by the occupants: Jupiter, Venus, Mercury benefic; Mars, Saturn malefic (BPHS ch. 38; Saravali solar yogas, verify)'],
+        source: SOLAR_SOURCE,
+      }),
     });
   }
 
