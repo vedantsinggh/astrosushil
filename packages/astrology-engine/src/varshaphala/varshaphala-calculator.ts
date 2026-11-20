@@ -1,4 +1,5 @@
 import { AstroChart, ASTROLOGY_ENGINE_VERSION } from '../chart/astro-chart.types';
+import { resolveAyanamsaSystem } from '../ayanamsa/ayanamsa';
 import { ChartCalculator } from '../chart/chart-calculator';
 import { BirthDetails, LocalDateInput, LocalTimeInput } from '../input/birth-details';
 import { AstrologyConfig, DEFAULT_ASTROLOGY_CONFIG } from '../configuration/astrology-config';
@@ -104,12 +105,15 @@ export class VarshaphalaCalculator {
 
     // 2. Solve for exact Solar Return timestamp (Astronomical Sidereal Solar Return)
     const ephemerisProvider = (this.chartCalculator as any).ephemerisProvider;
+    // The return is solved with the natal chart's ayanamsa (ADR-017), default true Lahiri.
+    const solarReturnAyanamsa = resolveAyanamsaSystem(config.zodiacType === 'SIDEREAL' ? config.ayanamsa : undefined);
     const solarReturn = await SolarReturnSolver.solveForBirthDetails(
       natalSunLongitude,
       natalBirthDetails,
       options.targetYear,
       options.annualLocation,
-      ephemerisProvider
+      ephemerisProvider,
+      solarReturnAyanamsa
     );
     solarReturn.provenance = provenance;
 
@@ -119,7 +123,8 @@ export class VarshaphalaCalculator {
       natalBirthDetails,
       options.targetYear + 1,
       options.annualLocation,
-      ephemerisProvider
+      ephemerisProvider,
+      solarReturnAyanamsa
     );
     nextSolarReturn.provenance = provenance;
 

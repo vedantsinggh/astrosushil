@@ -1,0 +1,373 @@
+{
+ "startIso": "2026-03-02T18:30:00.000Z",
+ "endIso": "2026-05-31T18:30:00.000Z",
+ "timezone": "Asia/Kolkata",
+ "kinds": [
+  "GANDMOOL",
+  "PANCHAKA"
+ ],
+ "provisional": true,
+ "source": "Gandmool (Ganda-moola) nakshatras Ashwini, Ashlesha, Magha, Jyeshtha, Mula, Revati — the six nakshatras at the water/fire sign junctions (Mina–Mesha, Karka–Simha, Vrischika–Dhanu); BPHS (R. Santhanam tr.), chapters on Gandanta / Abhukta-mula birth; Muhurta Chintamani, Nakshatra Prakarana; as listed in published panchangs (Ganda Mool). Panchaka (Dhanishta-panchaka / Vasu-panchaka): Moon from the second half of Dhanishta through Shatabhisha, Purva Bhadrapada, Uttara Bhadrapada and Revati, i.e. Moon in Kumbha and Mina (sidereal 300°–360°); Muhurta Chintamani, Nakshatra Prakarana, and published panchangs (Panchak).",
+ "conventionNotes": [
+  "All four padas of the six nakshatras are flagged (published panchang \"Gand Mool\" convention).",
+  "Stricter variant: only the gandanta junction padas (Ashlesha 4, Magha 1, Jyeshtha 4, Mula 1, Revati 4, Ashwini 1); reported as gandantaJunctionPada for an instant.",
+  "Contiguous Gandmool nakshatras (Revati→Ashwini, Ashlesha→Magha, Jyeshtha→Mula) are merged into one window.",
+  "Starts at Dhanishta pada 3 = Kumbha 0° (sidereal 300°), ends when the Moon leaves Revati (360° / Mesha 0°).",
+  "Variant: some sources start Panchaka at the beginning of Dhanishta (293°20′); not used.",
+  "Weekday-based Panchaka type names (Roga/Raja/Agni/Chora/Mrityu) are not included: no classical verse located; popular sources disagree on Wednesday/Thursday."
+ ],
+ "page": 0,
+ "pageSize": 500,
+ "pageCount": 1,
+ "totalRows": 14,
+ "rows": [
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-03-01T03:03:26.982Z",
+   "endIso": "2026-03-03T02:00:38.232Z",
+   "durationHours": 46.953125,
+   "nakshatras": [
+    {
+     "index": 9,
+     "name": "Ashlesha",
+     "startIso": "2026-03-01T03:03:26.982Z",
+     "endIso": "2026-03-02T02:20:37.939Z"
+    },
+    {
+     "index": 10,
+     "name": "Magha",
+     "startIso": "2026-03-02T02:20:37.939Z",
+     "endIso": "2026-03-03T02:00:38.232Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-03-10T13:34:04.775Z",
+   "endIso": "2026-03-12T19:12:35.420Z",
+   "durationHours": 53.641845833333335,
+   "nakshatras": [
+    {
+     "index": 18,
+     "name": "Jyeshtha",
+     "startIso": "2026-03-10T13:34:04.775Z",
+     "endIso": "2026-03-11T16:29:11.221Z"
+    },
+    {
+     "index": 19,
+     "name": "Mula",
+     "startIso": "2026-03-11T16:29:11.221Z",
+     "endIso": "2026-03-12T19:12:35.420Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "PANCHAKA",
+   "startIso": "2026-03-16T12:43:22.002Z",
+   "endIso": "2026-03-20T20:56:58.506Z",
+   "durationHours": 104.22680666666666,
+   "nakshatras": [
+    {
+     "index": 23,
+     "name": "Dhanishta",
+     "startIso": "2026-03-16T12:43:22.002Z",
+     "endIso": "2026-03-17T00:51:20.127Z"
+    },
+    {
+     "index": 24,
+     "name": "Shatabhisha",
+     "startIso": "2026-03-17T00:51:20.127Z",
+     "endIso": "2026-03-18T00:38:13.506Z"
+    },
+    {
+     "index": 25,
+     "name": "Purva Bhadrapada",
+     "startIso": "2026-03-18T00:38:13.506Z",
+     "endIso": "2026-03-18T23:50:20.361Z"
+    },
+    {
+     "index": 26,
+     "name": "Uttara Bhadrapada",
+     "startIso": "2026-03-18T23:50:20.361Z",
+     "endIso": "2026-03-19T22:34:05.654Z"
+    },
+    {
+     "index": 27,
+     "name": "Revati",
+     "startIso": "2026-03-19T22:34:05.654Z",
+     "endIso": "2026-03-20T20:56:58.506Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-03-19T22:34:05.654Z",
+   "endIso": "2026-03-21T19:06:57.041Z",
+   "durationHours": 44.5476075,
+   "nakshatras": [
+    {
+     "index": 27,
+     "name": "Revati",
+     "startIso": "2026-03-19T22:34:05.654Z",
+     "endIso": "2026-03-20T20:56:58.506Z"
+    },
+    {
+     "index": 1,
+     "name": "Ashwini",
+     "startIso": "2026-03-20T20:56:58.506Z",
+     "endIso": "2026-03-21T19:06:57.041Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-03-28T09:19:19.717Z",
+   "endIso": "2026-03-30T09:17:03.486Z",
+   "durationHours": 47.962158055555555,
+   "nakshatras": [
+    {
+     "index": 9,
+     "name": "Ashlesha",
+     "startIso": "2026-03-28T09:19:19.717Z",
+     "endIso": "2026-03-29T09:07:03.193Z"
+    },
+    {
+     "index": 10,
+     "name": "Magha",
+     "startIso": "2026-03-29T09:07:03.193Z",
+     "endIso": "2026-03-30T09:17:03.486Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-04-06T21:25:41.162Z",
+   "endIso": "2026-04-09T03:17:26.338Z",
+   "durationHours": 53.86254888888889,
+   "nakshatras": [
+    {
+     "index": 18,
+     "name": "Jyeshtha",
+     "startIso": "2026-04-06T21:25:41.162Z",
+     "endIso": "2026-04-08T00:22:51.533Z"
+    },
+    {
+     "index": 19,
+     "name": "Mula",
+     "startIso": "2026-04-08T00:22:51.533Z",
+     "endIso": "2026-04-09T03:17:26.338Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "PANCHAKA",
+   "startIso": "2026-04-12T22:13:45.732Z",
+   "endIso": "2026-04-17T06:31:31.846Z",
+   "durationHours": 104.29614277777777,
+   "nakshatras": [
+    {
+     "index": 23,
+     "name": "Dhanishta",
+     "startIso": "2026-04-12T22:13:45.732Z",
+     "endIso": "2026-04-13T10:32:42.158Z"
+    },
+    {
+     "index": 24,
+     "name": "Shatabhisha",
+     "startIso": "2026-04-13T10:32:42.158Z",
+     "endIso": "2026-04-14T10:35:05.420Z"
+    },
+    {
+     "index": 25,
+     "name": "Purva Bhadrapada",
+     "startIso": "2026-04-14T10:35:05.420Z",
+     "endIso": "2026-04-15T09:51:50.889Z"
+    },
+    {
+     "index": 26,
+     "name": "Uttara Bhadrapada",
+     "startIso": "2026-04-15T09:51:50.889Z",
+     "endIso": "2026-04-16T08:28:03.545Z"
+    },
+    {
+     "index": 27,
+     "name": "Revati",
+     "startIso": "2026-04-16T08:28:03.545Z",
+     "endIso": "2026-04-17T06:31:31.846Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-04-16T08:28:03.545Z",
+   "endIso": "2026-04-18T04:11:47.080Z",
+   "durationHours": 43.72875972222222,
+   "nakshatras": [
+    {
+     "index": 27,
+     "name": "Revati",
+     "startIso": "2026-04-16T08:28:03.545Z",
+     "endIso": "2026-04-17T06:31:31.846Z"
+    },
+    {
+     "index": 1,
+     "name": "Ashwini",
+     "startIso": "2026-04-17T06:31:31.846Z",
+     "endIso": "2026-04-18T04:11:47.080Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-04-24T14:43:32.549Z",
+   "endIso": "2026-04-26T14:56:17.197Z",
+   "durationHours": 48.212402222222224,
+   "nakshatras": [
+    {
+     "index": 9,
+     "name": "Ashlesha",
+     "startIso": "2026-04-24T14:43:32.549Z",
+     "endIso": "2026-04-25T14:33:55.986Z"
+    },
+    {
+     "index": 10,
+     "name": "Magha",
+     "startIso": "2026-04-25T14:33:55.986Z",
+     "endIso": "2026-04-26T14:56:17.197Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-05-04T04:26:51.475Z",
+   "endIso": "2026-05-06T10:22:40.986Z",
+   "durationHours": 53.930419722222226,
+   "nakshatras": [
+    {
+     "index": 18,
+     "name": "Jyeshtha",
+     "startIso": "2026-05-04T04:26:51.475Z",
+     "endIso": "2026-05-05T07:23:39.873Z"
+    },
+    {
+     "index": 19,
+     "name": "Mula",
+     "startIso": "2026-05-05T07:23:39.873Z",
+     "endIso": "2026-05-06T10:22:40.986Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "PANCHAKA",
+   "startIso": "2026-05-10T06:41:57.627Z",
+   "endIso": "2026-05-14T17:03:07.646Z",
+   "durationHours": 106.35278305555556,
+   "nakshatras": [
+    {
+     "index": 23,
+     "name": "Dhanishta",
+     "startIso": "2026-05-10T06:41:57.627Z",
+     "endIso": "2026-05-10T19:19:08.291Z"
+    },
+    {
+     "index": 24,
+     "name": "Shatabhisha",
+     "startIso": "2026-05-10T19:19:08.291Z",
+     "endIso": "2026-05-11T19:57:45.967Z"
+    },
+    {
+     "index": 25,
+     "name": "Purva Bhadrapada",
+     "startIso": "2026-05-11T19:57:45.967Z",
+     "endIso": "2026-05-12T19:46:34.482Z"
+    },
+    {
+     "index": 26,
+     "name": "Uttara Bhadrapada",
+     "startIso": "2026-05-12T19:46:34.482Z",
+     "endIso": "2026-05-13T18:46:41.514Z"
+    },
+    {
+     "index": 27,
+     "name": "Revati",
+     "startIso": "2026-05-13T18:46:41.514Z",
+     "endIso": "2026-05-14T17:03:07.646Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-05-13T18:46:41.514Z",
+   "endIso": "2026-05-15T14:44:00.674Z",
+   "durationHours": 43.95532222222222,
+   "nakshatras": [
+    {
+     "index": 27,
+     "name": "Revati",
+     "startIso": "2026-05-13T18:46:41.514Z",
+     "endIso": "2026-05-14T17:03:07.646Z"
+    },
+    {
+     "index": 1,
+     "name": "Ashwini",
+     "startIso": "2026-05-14T17:03:07.646Z",
+     "endIso": "2026-05-15T14:44:00.674Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-05-21T21:18:35.771Z",
+   "endIso": "2026-05-23T20:38:21.416Z",
+   "durationHours": 47.329345833333335,
+   "nakshatras": [
+    {
+     "index": 9,
+     "name": "Ashlesha",
+     "startIso": "2026-05-21T21:18:35.771Z",
+     "endIso": "2026-05-22T20:37:13.740Z"
+    },
+    {
+     "index": 10,
+     "name": "Magha",
+     "startIso": "2026-05-22T20:37:13.740Z",
+     "endIso": "2026-05-23T20:38:21.416Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  },
+  {
+   "kind": "GANDMOOL",
+   "startIso": "2026-05-31T10:40:52.588Z",
+   "endIso": "2026-06-02T16:35:21.240Z",
+   "durationHours": 53.90795888888889,
+   "nakshatras": [
+    {
+     "index": 18,
+     "name": "Jyeshtha",
+     "startIso": "2026-05-31T10:40:52.588Z",
+     "endIso": "2026-06-01T13:37:35.713Z"
+    },
+    {
+     "index": 19,
+     "name": "Mula",
+     "startIso": "2026-06-01T13:37:35.713Z",
+     "endIso": "2026-06-02T16:35:21.240Z"
+    }
+   ],
+   "utcOffsetMinutes": 330
+  }
+ ]
+}

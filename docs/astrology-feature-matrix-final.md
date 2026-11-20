@@ -66,3 +66,16 @@ The **Astro Sushil Astrology Engine** is a 100% deterministic, rule-based comput
 2. **Varga Division Coordinates**: Derived strictly from canonical normalized chart planetary longitudes.
 3. **House Lordships**: Unified `rashi.ts` lordship lookup across Natal, Varga, Yogas, Prashna, and KP systems.
 4. **Serialization Hardening**: Global test suite ensures `0` empty-object `{}` fallbacks, `0` `NaN` values, and strict schema compliance.
+
+---
+
+## Desktop-phase engine additions (2026-11-20, additive only)
+
+| Feature | Status | Engine file | Test suite | Convention / source |
+|---|---|---|---|---|
+| Kala Hora, Choghadiya, Rahu/Yamaganda/Gulika Kaala, Abhijit Muhurta | `IMPLEMENTED` | `muhurta/day-divisions.calculator.ts` | `day-divisions.test.ts` | Sunrise-to-sunrise day; Chaldean hora order; standard weekday tables |
+| Solar & lunar eclipse search | `IMPLEMENTED` | `eclipses/eclipse-calculator.ts` | `eclipse-calculator.test.ts` | astronomy-engine shadow geometry; NASA GSFC catalogue reference dates |
+| Sudarshana Chakra | `IMPLEMENTED` | `chart/sudarshana-chakra.ts` | `sudarshana-ishta-kashta.test.ts` | BPHS: Lagna / Chandra / Surya rings, whole sign |
+| Ishta / Kashta Phala | `IMPLEMENTED` | `strength/ishta-kashta.ts` | `sudarshana-ishta-kashta.test.ts` | BPHS: √(U·C), √((60−U)(60−C)) from engine Shadbala |
+
+These are consumed by the desktop app (`apps/desktop`, ADR-014); open methodology questions are in `apps/desktop/docs/feature-parity.md`.

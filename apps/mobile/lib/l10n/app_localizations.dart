@@ -2923,6 +2923,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get Started'**
   String get getStartedButton;
+
+  /// No description provided for @homeSectionAstrology.
+  ///
+  /// In en, this message translates to:
+  /// **'Astrology'**
+  String get homeSectionAstrology;
+
+  /// No description provided for @homeSectionServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Services'**
+  String get homeSectionServices;
+
+  /// No description provided for @homeTileKundli.
+  ///
+  /// In en, this message translates to:
+  /// **'Kundli'**
+  String get homeTileKundli;
+
+  /// No description provided for @homeTileHoroscope.
+  ///
+  /// In en, this message translates to:
+  /// **'Horoscope'**
+  String get homeTileHoroscope;
+
+  /// No description provided for @homeTilePanchang.
+  ///
+  /// In en, this message translates to:
+  /// **'Panchang'**
+  String get homeTilePanchang;
+
+  /// No description provided for @homeTileMatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Matching'**
+  String get homeTileMatching;
+
+  /// No description provided for @homeTilePlanets.
+  ///
+  /// In en, this message translates to:
+  /// **'Planets'**
+  String get homeTilePlanets;
+
+  /// No description provided for @homeTileDasha.
+  ///
+  /// In en, this message translates to:
+  /// **'Dasha'**
+  String get homeTileDasha;
+
+  /// No description provided for @homeTileAskJyoti.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Jyoti'**
+  String get homeTileAskJyoti;
+
+  /// No description provided for @homeTileExplainChart.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain Chart'**
+  String get homeTileExplainChart;
+
+  /// No description provided for @homeTileCourses.
+  ///
+  /// In en, this message translates to:
+  /// **'Courses'**
+  String get homeTileCourses;
+
+  /// No description provided for @homeTileGuptaNadi.
+  ///
+  /// In en, this message translates to:
+  /// **'Gupta Nadi'**
+  String get homeTileGuptaNadi;
+
+  /// No description provided for @homeTileShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop'**
+  String get homeTileShop;
+
+  /// No description provided for @homeTodayHoroscope.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Horoscope'**
+  String get homeTodayHoroscope;
+
+  /// No description provided for @homeRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get homeRead;
+
+  /// No description provided for @homeHoroscopeNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s horoscope is not ready yet.'**
+  String get homeHoroscopeNotReady;
+
+  /// No description provided for @homeHoroscopeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load today\'s horoscope.'**
+  String get homeHoroscopeError;
+
+  /// No description provided for @homeLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get homeLoading;
+
+  /// No description provided for @homeAddDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your birth details'**
+  String get homeAddDetailsTitle;
+
+  /// No description provided for @homeAddDetailsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'See your Kundli and daily horoscope'**
+  String get homeAddDetailsSubtitle;
+
+  /// No description provided for @homeChangeProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get homeChangeProfile;
+
+  /// No description provided for @homeProfileSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth profile: {name}. Tap to change.'**
+  String homeProfileSemantics(String name);
+
+  /// Label next to the back chevron in the shared nav bar
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get commonBack;
+
+  /// No description provided for @commonNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get commonNext;
+
+  /// No description provided for @commonChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get commonChange;
+
+  /// Progress label for multi-step flows
+  ///
+  /// In en, this message translates to:
+  /// **'Step {current} of {total}'**
+  String commonStepOf(int current, int total);
+
+  /// No description provided for @commonTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get commonTryAgain;
+
+  /// No description provided for @commonLearnMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get commonLearnMore;
+
+  /// No description provided for @commonShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get commonShowLess;
+
+  /// No description provided for @commonDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get commonDone;
+
+  /// No description provided for @commonCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get commonCancel;
+
+  /// No description provided for @commonClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
+
+  /// No description provided for @commonLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get commonLoading;
+
+  /// No description provided for @commonMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get commonMore;
+
+  /// No description provided for @comm2StepCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart'**
+  String get comm2StepCart;
+
+  /// No description provided for @comm2StepAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get comm2StepAddress;
+
+  /// No description provided for @comm2StepPay.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get comm2StepPay;
+
+  /// No description provided for @comm2BookingPickTimeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time to continue'**
+  String get comm2BookingPickTimeHint;
+
+  /// Reports tab segment: purchased reports
+  ///
+  /// In en, this message translates to:
+  /// **'My reports'**
+  String get core2ReportsTabMine;
+
+  /// Reports tab segment: report catalogue
+  ///
+  /// In en, this message translates to:
+  /// **'Get a report'**
+  String get core2ReportsTabGet;
+
+  /// Accessibility label for the Reports tab segmented control
+  ///
+  /// In en, this message translates to:
+  /// **'Report sections'**
+  String get core2ReportsTabsLabel;
+
+  /// Consult tab segment: services to book; also the empty-bookings button
+  ///
+  /// In en, this message translates to:
+  /// **'Book a session'**
+  String get core2ConsultTabBook;
+
+  /// Consult tab segment: the user's consultation bookings
+  ///
+  /// In en, this message translates to:
+  /// **'My bookings'**
+  String get core2ConsultTabBookings;
+
+  /// Accessibility label for the Consult tab segmented control
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation sections'**
+  String get core2ConsultTabsLabel;
+
+  /// Consult > My bookings empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'No bookings yet'**
+  String get core2ConsultBookingsEmptyTitle;
+
+  /// Consult > My bookings empty state text
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions you book with Sushil Sir are shown here.'**
+  String get core2ConsultBookingsEmptyBody;
 }
 
 class _AppLocalizationsDelegate

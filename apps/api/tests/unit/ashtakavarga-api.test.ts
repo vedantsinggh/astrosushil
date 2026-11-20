@@ -28,8 +28,9 @@ describe('Ashtakavarga API & Service Unit Tests (Phase 2D)', () => {
       birthDetails: sampleBirthDetails,
     });
 
-    expect(result.birthDetails).toBeDefined();
-    expect(result.ashtakavarga).toBeDefined();
+    // The service returns the engine AshtakavargaResult directly ({ bav, sav, shodhana, pinda });
+    // the route wraps it in `{ data }`, which the mobile AshtakavargaResultModel parses.
+    expect(Object.keys(result).sort()).toEqual(['bav', 'pinda', 'sav', 'shodhana']);
 
     const expectedPlanets = ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN'];
     const expectedTotals: Record<string, number> = {
@@ -43,9 +44,9 @@ describe('Ashtakavarga API & Service Unit Tests (Phase 2D)', () => {
     };
 
     // BAV checks
-    expect(Object.keys(result.ashtakavarga.bav)).toHaveLength(7);
+    expect(Object.keys(result.bav)).toHaveLength(7);
     for (const p of expectedPlanets) {
-      const bavTable = (result.ashtakavarga.bav as any)[p];
+      const bavTable = (result.bav as any)[p];
       expect(bavTable).toBeDefined();
       expect(bavTable.planet).toBe(p);
       expect(bavTable.totalPoints).toBe(expectedTotals[p]);
@@ -64,16 +65,16 @@ describe('Ashtakavarga API & Service Unit Tests (Phase 2D)', () => {
     }
 
     // SAV checks
-    expect(result.ashtakavarga.sav).toBeDefined();
-    expect(result.ashtakavarga.sav.grandTotal).toBe(337);
-    expect(result.ashtakavarga.sav.signList).toHaveLength(12);
-    const savSum = result.ashtakavarga.sav.signList.reduce((acc: number, val: number) => acc + val, 0);
+    expect(result.sav).toBeDefined();
+    expect(result.sav.grandTotal).toBe(337);
+    expect(result.sav.signList).toHaveLength(12);
+    const savSum = result.sav.signList.reduce((acc: number, val: number) => acc + val, 0);
     expect(savSum).toBe(337);
 
     // Shodhana checks
-    expect(Object.keys(result.ashtakavarga.shodhana)).toHaveLength(7);
+    expect(Object.keys(result.shodhana)).toHaveLength(7);
     for (const p of expectedPlanets) {
-      const sh = (result.ashtakavarga.shodhana as any)[p];
+      const sh = (result.shodhana as any)[p];
       expect(sh).toBeDefined();
       expect(sh.trikonaReduced).toHaveLength(12);
       expect(sh.ekadhipatyaReduced).toHaveLength(12);
@@ -82,9 +83,9 @@ describe('Ashtakavarga API & Service Unit Tests (Phase 2D)', () => {
     }
 
     // Shodhya Pinda checks
-    expect(Object.keys(result.ashtakavarga.pinda)).toHaveLength(7);
+    expect(Object.keys(result.pinda)).toHaveLength(7);
     for (const p of expectedPlanets) {
-      const pinda = (result.ashtakavarga.pinda as any)[p];
+      const pinda = (result.pinda as any)[p];
       expect(pinda).toBeDefined();
       expect(pinda.rashiPinda).toBeGreaterThan(0);
       expect(pinda.grahaPinda).toBeGreaterThan(0);
@@ -103,8 +104,8 @@ describe('Ashtakavarga API & Service Unit Tests (Phase 2D)', () => {
     expect(jsonString).not.toContain('undefined');
 
     const parsed = JSON.parse(jsonString);
-    expect(parsed.ashtakavarga.sav.grandTotal).toBe(337);
-    expect(parsed.ashtakavarga.sav.signList).toHaveLength(12);
+    expect(parsed.sav.grandTotal).toBe(337);
+    expect(parsed.sav.signList).toHaveLength(12);
   });
 
   it('4. deterministic repeatability: two independent runs yield strictly identical outputs', async () => {

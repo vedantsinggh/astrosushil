@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../models/career_report_models.dart';
 import '../providers/career_report_provider.dart';
+import '../widgets/report_ui.dart';
 import 'career_report_overview_screen.dart';
 
 class CareerReportGenerationScreen extends ConsumerStatefulWidget {
@@ -20,12 +19,10 @@ class CareerReportGenerationScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CareerReportGenerationScreen> createState() =>
-      _CareerReportGenerationScreenState();
+  ConsumerState<CareerReportGenerationScreen> createState() => _CareerReportGenerationScreenState();
 }
 
-class _CareerReportGenerationScreenState
-    extends ConsumerState<CareerReportGenerationScreen> {
+class _CareerReportGenerationScreenState extends ConsumerState<CareerReportGenerationScreen> {
   bool _hasNavigated = false;
 
   @override
@@ -33,9 +30,7 @@ class _CareerReportGenerationScreenState
     super.initState();
     // Start status polling
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(careerReportNotifierProvider.notifier)
-          .startPolling(widget.reportId);
+      ref.read(careerReportNotifierProvider.notifier).startPolling(widget.reportId);
     });
   }
 
@@ -64,237 +59,131 @@ class _CareerReportGenerationScreenState
 
     final status = reportState.status;
     final progress = status?.progress ?? 0;
-    final stageTitle = status?.humanFriendlyTitle ?? 'Preparing your report...';
-    final stageDesc = status?.humanFriendlyDescription ??
-        'Reading your professional patterns and birth chart details...';
+    final stage = status?.stage ?? 'QUEUED';
+    final stageDesc = status?.humanFriendlyTitle ?? 'Preparing your report...';
+    final progressDetail = status?.progressDetail;
     final isFailed = status?.isFailed ?? false;
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: const AstroAppBar(
-        title: 'Preparing Career Report',
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Center(
-              child: isFailed
-                  ? _buildFailedView(context, status)
-                  : _buildProcessingView(
-                      context, progress, stageTitle, stageDesc, reportState.isOffline),
+    return AstroPage(
+      title: 'Career Report',
+      slivers: [
+        if (isFailed)
+          SliverFillRemaining(hasScrollBody: false, child: _buildFailedView(context, status))
+        else
+          AstroSliverContent(
+            sliver: SliverToBoxAdapter(
+              child: _buildProcessingView(context, stage, progress, stageDesc, reportState.isOffline, progressDetail),
             ),
           ),
-        ),
-      ),
+      ],
     );
   }
 
   Widget _buildProcessingView(
     BuildContext context,
+    String stage,
     int progress,
-    String stageTitle,
     String stageDesc,
-    bool isOffline,
-  ) {
+    bool isOffline, [
+    String? progressDetail,
+  ]) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Cosmic Loader Visual
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.lightSurface,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                blurRadius: 24,
-                spreadRadius: 4,
+        AstroGradientCard(
+          child: Row(
+            children: [
+              const AstroLoader.inline(size: 48, isDark: true),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      header: true,
+                      liveRegion: true,
+                      child: Text(
+                        'Preparing your career report',
+                        style: AppTypography.displayMedium.copyWith(fontSize: 24, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Personalized for ${widget.profile.name}',
+                      style: const TextStyle(fontSize: 16, color: AppColors.textInverseSecondary),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          child: const AstroLoader.inline(
-            size: 64,
-            isDark: false,
+        ),
+        const SizedBox(height: 20),
+        ReportCard(
+          child: ReportProgressPanel(
+            stage: stage,
+            progress: progress,
+            currentDetail: stageDesc,
+            progressDetail: progressDetail,
           ),
         ),
-
-        const SizedBox(height: 36),
-
-        // 2. Personalization Header
-        Text(
-          'Personalized for ${widget.profile.name}',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.1,
-            color: AppColors.secondary,
+        const SizedBox(height: 16),
+        if (isOffline)
+          const ReportInfoNote(
+            'You are offline. We will continue as soon as you are back online.',
+            icon: Icons.wifi_off_rounded,
+            color: kReportErrorText,
+          )
+        else
+          const ReportInfoNote(
+            'This usually takes a few minutes. You can leave this screen. We will keep working in the background.',
+            icon: Icons.schedule_rounded,
           ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // 3. Stage Title
-        Text(
-          stageTitle,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: AppColors.lightTextPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 12),
-
-        // 4. Stage Description
-        Text(
-          stageDesc,
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColors.lightTextSecondary,
-            height: 1.4,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 32),
-
-        // 5. Backend Progress Bar Indicator
-        Container(
-          width: double.infinity,
-          height: 10,
-          decoration: BoxDecoration(
-            color: AppColors.lightBorder,
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: (progress.clamp(5, 100)) / 100.0,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary, AppColors.premiumAccent],
-                ),
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              isOffline ? 'Offline - Waiting for connection' : 'Cosmic Engine Running...',
-              style: TextStyle(
-                fontSize: 12,
-                color: isOffline ? AppColors.error : AppColors.lightTextMuted,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              '$progress%',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
 
   Widget _buildFailedView(BuildContext context, CareerReportStatusModel? status) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-            size: 36,
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        const Text(
-          'We couldn\'t prepare your report.',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.lightTextPrimary,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          status?.humanFriendlyDescription ??
-              'An unexpected issue occurred while compiling your report. Please try again.',
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppColors.lightTextSecondary,
-            height: 1.4,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 32),
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              ref
-                  .read(careerReportNotifierProvider.notifier)
-                  .createCareerReport(
-                    birthProfileId: widget.profile.id,
-                    forceRegenerate: true,
-                  );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ReportStatusMessage(
+                icon: Icons.error_outline_rounded,
+                iconColor: AppColors.error,
+                title: 'We couldn\'t prepare your report.',
+                message: status?.humanFriendlyDescription ??
+                    'An unexpected issue occurred while compiling your report. Please try again.',
+                actionLabel: 'Try Again',
+                actionIcon: Icons.refresh_rounded,
+                onAction: () {
+                  ref.read(careerReportNotifierProvider.notifier).createCareerReport(
+                        birthProfileId: widget.profile.id,
+                        forceRegenerate: true,
+                      );
+                },
               ),
-            ),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text(
-              'Try Again',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.lightTextSecondary,
+                  minimumSize: const Size(120, 48),
+                  textStyle: const TextStyle(
+                      fontFamily: AppTypography.bodyFamily,
+                      fontFamilyFallback: AppTypography.bodyFontFamilies,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600),
+                ),
+                child: const Text('Go Back'),
+              ),
+            ],
           ),
         ),
-
-        const SizedBox(height: 12),
-
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text(
-            'Go Back',
-            style: TextStyle(
-              color: AppColors.lightTextSecondary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

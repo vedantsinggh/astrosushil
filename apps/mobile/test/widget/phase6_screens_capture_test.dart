@@ -15,6 +15,15 @@ import 'package:astro_mobile/features/consultations/widgets/booking_flow_sheet.d
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
+import 'package:astro_mobile/features/auth/models/user_model.dart';
+import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
+
+class _CaptureAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier {
+  _CaptureAuthNotifier(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
 
 class MockCaptureConsultationService implements ConsultationService {
   @override
@@ -271,6 +280,12 @@ void main() {
         birthProfilesListNotifierProvider.overrideWith(
           (ref) => TestBirthProfilesNotifier([testProfile]),
         ),
+        authStateProvider.overrideWith((ref) => _CaptureAuthNotifier(AuthState.authenticated(UserModel(
+              id: 'usr-cap',
+              email: 'seeker@astrosushil.com',
+              role: 'USER',
+              createdAt: DateTime(2026, 1, 1),
+            )))),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -321,6 +336,10 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      // Opens on My bookings (upcoming booking); the catalogue is the other tab.
+      await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text('Book a session')));
+      await tester.pumpAndSettle();
+
       await captureToFile(tester, boundaryKey, '01_consultations_discovery_catalog.png');
     });
 
@@ -336,13 +355,17 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Video'));
+      // Opens on My bookings (upcoming booking); the catalogue is the other tab.
+      await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text('Book a session')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('consult_filter_VIDEO')));
       await tester.pumpAndSettle();
 
       await captureToFile(tester, boundaryKey, '02_consultations_filter_video.png');
     });
 
-    testWidgets('Capture 03_consultations_filter_urgent', (tester) async {
+    testWidgets('Capture 03_consultations_filter_phone', (tester) async {
       final boundaryKey = GlobalKey();
       tester.view.physicalSize = const Size(390 * 2, 844 * 2);
       tester.view.devicePixelRatio = 2.0;
@@ -354,10 +377,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Urgent'));
+      // Opens on My bookings (upcoming booking); the catalogue is the other tab.
+      await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text('Book a session')));
       await tester.pumpAndSettle();
 
-      await captureToFile(tester, boundaryKey, '03_consultations_filter_urgent.png');
+      await tester.tap(find.byKey(const ValueKey('consult_filter_AUDIO')));
+      await tester.pumpAndSettle();
+
+      await captureToFile(tester, boundaryKey, '03_consultations_filter_phone.png');
     });
 
     testWidgets('Capture 04_consultations_booking_flow_sheet', (tester) async {
@@ -413,8 +440,12 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Tap slot and confirm
+      // Tap slot, step through details to review, and confirm
       await tester.tap(find.text('10:00 - 10:30 IST'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('booking_next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('booking_next')));
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('Proceed to Pay ₹15000'));
@@ -438,9 +469,10 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Switch to My Appointments tab
-      await tester.tap(find.text('My Appointments'));
+      // My bookings is its own tab (and the default with an upcoming booking).
+      await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text('My bookings')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('consult_upcoming_group')), findsOneWidget);
 
       await captureToFile(tester, boundaryKey, '06_consultations_my_appointments.png');
     });
@@ -456,6 +488,8 @@ void main() {
         locale: const Locale('hi'),
         child: const ConsultScreen(),
       ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text('मुलाकात बुक करें')));
       await tester.pumpAndSettle();
 
       await captureToFile(tester, boundaryKey, '07_consultations_hindi_discovery.png');

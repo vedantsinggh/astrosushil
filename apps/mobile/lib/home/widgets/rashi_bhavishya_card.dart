@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/astro_section_header.dart';
 import '../models/home_models.dart';
 
-/// Section and preview card for Today's Rashi Bhavishya
+/// Section and preview card for Today's Rashi Bhavishya.
+///
+/// Renders only genuine backend data. Loading, error and "no profile" states
+/// are explicit; no placeholder horoscope text is ever shown.
 class RashiBhavishyaSection extends StatelessWidget {
-  final RashiBhavishyaPreview preview;
+  final AsyncValue<RashiBhavishyaPreview?> preview;
   final VoidCallback onReadTap;
   final VoidCallback? onViewAllTap;
 
@@ -30,9 +34,27 @@ class RashiBhavishyaSection extends StatelessWidget {
           onActionTap: onViewAllTap ?? onReadTap,
         ),
         const SizedBox(height: 12),
-        RashiBhavishyaCard(
-          preview: preview,
-          onReadTap: onReadTap,
+        preview.when(
+          loading: () => const _RashiStatusCard(
+            icon: Icons.hourglass_top_rounded,
+            message: "Loading today's Rashi Bhavishya…",
+          ),
+          error: (_, __) => _RashiStatusCard(
+            icon: Icons.error_outline_rounded,
+            message: "Today's Rashi Bhavishya could not be loaded. Tap to try again.",
+            isError: true,
+            onTap: onReadTap,
+          ),
+          data: (value) => value == null
+              ? _RashiStatusCard(
+                  icon: Icons.person_add_alt_1_rounded,
+                  message: 'Add your birth profile to see the prediction for your Moon sign.',
+                  onTap: onReadTap,
+                )
+              : RashiBhavishyaCard(
+                  preview: value,
+                  onReadTap: onReadTap,
+                ),
         ),
       ],
     );
@@ -64,7 +86,7 @@ class RashiBhavishyaCard extends StatelessWidget {
     if (clean.contains('CAPRICORN') || clean.contains('MAKARA')) return '♑';
     if (clean.contains('AQUARIUS') || clean.contains('KUMBHA')) return '♒';
     if (clean.contains('PISCES') || clean.contains('MEENA')) return '♓';
-    return '♈';
+    return '✦';
   }
 
   @override
@@ -165,14 +187,15 @@ class RashiBhavishyaCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Daily Transit Planetary Influence',
+                        'Moon sign · ${preview.date}',
                         style: AppTypography.caption.copyWith(
                           color: AppColors.lightTextSecondary,
                         ),
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        'A favorable period for analytical focus and methodical progress. Beneficial planetary transits support strategic initiatives.',
+                        preview.predictionPreview ??
+                            'A verified prediction for today is not available yet.',
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.lightTextSecondary,
                           height: 1.35,
@@ -194,6 +217,54 @@ class RashiBhavishyaCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact status card for loading / error / missing-profile states.
+class _RashiStatusCard extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final bool isError;
+  final VoidCallback? onTap;
+
+  const _RashiStatusCard({
+    required this.icon,
+    required this.message,
+    this.isError = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isError ? AppColors.error : AppColors.primary;
+    return Material(
+      color: AppColors.cardSurfaceWarm,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.cardBorder, width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.lightTextSecondary, height: 1.35),
+                ),
+              ),
+            ],
           ),
         ),
       ),

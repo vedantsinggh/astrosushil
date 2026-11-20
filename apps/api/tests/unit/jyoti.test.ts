@@ -67,13 +67,14 @@ Hope this helps!`;
       expect(res.actions?.[0].type).toBe('OPEN_BIRTH_CHART');
     });
 
-    it('6. Should handle malformed model response gracefully without crashing', () => {
+    it('6. Should raise AI_RESPONSE_INVALID for malformed model output instead of canned text', () => {
       const malformed = 'Not valid JSON { message: broken content';
-      const res = provider.parseJsonResponse(malformed);
-      expect(res).toBeDefined();
-      expect(typeof res.message).toBe('string');
-      expect(res.message).not.toContain('{');
-      expect(res.message.length).toBeGreaterThan(0);
+      expect(() => provider.parseJsonResponse(malformed)).toThrow(
+        expect.objectContaining({ code: 'AI_RESPONSE_INVALID', statusCode: 502 })
+      );
+      expect(() => provider.parseJsonResponse('   ')).toThrow(
+        expect.objectContaining({ code: 'AI_RESPONSE_INVALID' })
+      );
     });
 
     it('7. Should parse Sushil Explainer structured JSON with headline and keyPoints', () => {
@@ -103,7 +104,7 @@ Hope this helps!`;
       vi.restoreAllMocks();
     });
 
-    it('8. Should handle OpenRouter 429 rate limit with retries and eventual controlled fallback', async () => {
+    it('8. Should handle OpenRouter 429 rate limit with retries and then raise AI_SERVICE_UNAVAILABLE', async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: false,
         status: 429,
@@ -112,14 +113,11 @@ Hope this helps!`;
       vi.stubGlobal('fetch', fetchMock);
 
       const provider = new OpenRouterProvider('test-key', 'minimax/minimax-m3:free');
-      const res = await provider.generateResponse('Hello');
-      expect(res).toBeDefined();
-      expect(res.message).toContain('connection difficulty');
-      expect(res.actions).toEqual([]);
+      await expect(provider.generateResponse('Hello')).rejects.toMatchObject({ code: 'AI_SERVICE_UNAVAILABLE', statusCode: 503 });
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    it('9. Should handle OpenRouter timeout (AbortError) with controlled fallback', async () => {
+    it('9. Should raise AI_SERVICE_UNAVAILABLE on OpenRouter timeout (AbortError)', async () => {
       const fetchMock = vi.fn().mockImplementation(() => {
         const err: any = new Error('The operation was aborted');
         err.name = 'AbortError';
@@ -128,21 +126,15 @@ Hope this helps!`;
       vi.stubGlobal('fetch', fetchMock);
 
       const provider = new OpenRouterProvider('test-key', 'minimax/minimax-m3:free');
-      const res = await provider.generateResponse('Hello');
-      expect(res).toBeDefined();
-      expect(res.message).toContain('connection difficulty');
-      expect(res.actions).toEqual([]);
+      await expect(provider.generateResponse('Hello')).rejects.toMatchObject({ code: 'AI_SERVICE_UNAVAILABLE' });
     });
 
-    it('10. Should return controlled fallback when API key is missing', async () => {
+    it('10. Should raise AI_SERVICE_UNAVAILABLE when API key is missing', async () => {
       const provider = new OpenRouterProvider('', 'minimax/minimax-m3:free');
-      const res = await provider.generateResponse('Hello');
-      expect(res).toBeDefined();
-      expect(res.message).toContain('unconfigured');
-      expect(res.actions).toEqual([]);
+      await expect(provider.generateResponse('Hello')).rejects.toMatchObject({ code: 'AI_SERVICE_UNAVAILABLE', statusCode: 503 });
     });
 
-    it('11. Should fail immediately on HTTP 401 Invalid API key and return controlled fallback', async () => {
+    it('11. Should fail immediately on HTTP 401 Invalid API key and raise AI_SERVICE_UNAVAILABLE', async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
@@ -151,10 +143,7 @@ Hope this helps!`;
       vi.stubGlobal('fetch', fetchMock);
 
       const provider = new OpenRouterProvider('invalid-key', 'minimax/minimax-m3:free');
-      const res = await provider.generateResponse('Hello');
-      expect(res).toBeDefined();
-      expect(res.message).toContain('connection difficulty');
-      expect(res.actions).toEqual([]);
+      await expect(provider.generateResponse('Hello')).rejects.toMatchObject({ code: 'AI_SERVICE_UNAVAILABLE' });
       expect(fetchMock).toHaveBeenCalledTimes(1); // Fails immediately, no retry loop
     });
   });
@@ -213,19 +202,17 @@ Hope this helps!`;
       expect(result.actions?.[0].type).toBe('OPEN_BIRTH_CHART');
     });
 
-    it('4. Gracefully catches LLM provider failure and returns controlled application response', async () => {
+    it('4. Surfaces LLM provider failure as AI_SERVICE_UNAVAILABLE instead of canned chat text', async () => {
       const mockLlmProvider = {
         generateResponse: vi.fn().mockRejectedValue(new Error('OpenRouter API timeout')),
       };
 
       const service = new JyotiService(mockLlmProvider);
-      const result = await service.processChat('user-1', {
-        message: 'Explain 7th house dynamics',
-      });
-
-      expect(result).toBeDefined();
-      expect(result.message).toContain('connection difficulty');
-      expect(result.actions).toEqual([]);
+      await expect(
+        service.processChat('user-1', {
+          message: 'Explain 7th house dynamics',
+        })
+      ).rejects.toMatchObject({ code: 'AI_SERVICE_UNAVAILABLE', statusCode: 503 });
     });
 
     it('5. Enforces rate limit per user ID', async () => {
@@ -308,27 +295,38 @@ Hope this helps!`;
       expect(mockLlmProvider.generateResponse).not.toHaveBeenCalled();
     });
 
-    it('3. Gracefully handles LLM provider failure during explanation', async () => {
+    it('3. Surfaces LLM provider failure during explanation as AI_SERVICE_UNAVAILABLE', async () => {
       const mockLlmProvider = {
         generateResponse: vi.fn().mockRejectedValue(new Error('LLM Provider connection timeout')),
       };
 
       const service = new JyotiService(mockLlmProvider);
-      const result = await service.processExplain('user-explainer-3', {
+      await expect(
+        service.processExplain('user-explainer-3', {
+          feature: 'vimshottari_dasha',
+          screenTitle: 'Vimshottari Dasha',
+          context: {
+            astrologyData: {
+              currentMahadasha: 'Jupiter',
+              currentAntardasha: 'Saturn',
+            },
+          },
+        })
+      ).rejects.toMatchObject({ code: 'AI_SERVICE_UNAVAILABLE', statusCode: 503 });
+    });
+
+    it('4. Does not inject generic filler key points when the model returns none', async () => {
+      const mockLlmProvider = {
+        generateResponse: vi.fn().mockResolvedValue({ message: 'Your Jupiter Mahadasha emphasises learning.' }),
+      };
+      const service = new JyotiService(mockLlmProvider);
+      const result = await service.processExplain('user-explainer-4', {
         feature: 'vimshottari_dasha',
         screenTitle: 'Vimshottari Dasha',
-        context: {
-          astrologyData: {
-            currentMahadasha: 'Jupiter',
-            currentAntardasha: 'Saturn',
-          },
-        },
+        context: { astrologyData: { currentMahadasha: 'Jupiter' } },
       });
-
-      expect(result).toBeDefined();
-      expect(result.headline).toBe('Vimshottari Dasha Insights');
-      expect(result.message).toContain('connection delay');
-      expect(result.keyPoints.length).toBeGreaterThan(0);
+      expect(result.message).toContain('Jupiter Mahadasha');
+      expect(result.keyPoints).toEqual([]);
     });
   });
 });

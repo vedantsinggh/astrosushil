@@ -176,8 +176,8 @@ describe('Reports API & PDF Generation Integration Tests', () => {
     vi.restoreAllMocks();
   });
 
-  // 1. Authenticated user can generate KUNDLI report
-  it('1. Authenticated user can generate KUNDLI report', async () => {
+  // 1. Authenticated user can request a KUNDLI report (generated later by the worker)
+  it('1. Authenticated user can request a KUNDLI report and it is queued for the worker', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -191,45 +191,25 @@ describe('Reports API & PDF Generation Integration Tests', () => {
     expect(response.statusCode).toBe(201);
     const body = JSON.parse(response.payload);
     expect(body.id).toBeDefined();
-    expect(body.reportType).toBe('KUNDLI');
-    expect(body.report.title).toBe('Birth Chart & Kundli Report');
+    expect(body.status).toBe('QUEUED');
+    expect(body.report).toBeUndefined(); // no in-request generation
     user1ReportId = body.id;
   });
 
-  // 2. User downloads Kundli PDF
-  it('2. User downloads Kundli PDF with application/pdf Content-Type', async () => {
+  // 2. A report that has not been delivered yet cannot be downloaded
+  it('2. Download before delivery is refused with REPORT_NOT_READY', async () => {
     const response = await app.inject({
       method: 'GET',
       url: `/api/v1/reports/${user1ReportId}/pdf`,
       headers: { authorization: `Bearer ${user1Token}` },
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.headers['content-type']).toBe('application/pdf');
-    expect(response.headers['content-disposition']).toContain('attachment; filename=');
-
-    const pdfRaw = response.payload;
-    // 3. PDF opens correctly (starts with %PDF-1.4)
-    expect(pdfRaw.startsWith('%PDF-1.4')).toBe(true);
-    expect(pdfRaw.includes('%%EOF')).toBe(true);
-
-    // 4 & 5. Verify User Name and Birth Details are present in PDF stream
-    expect(pdfRaw.includes('User 1 Profile')).toBe(true);
-    expect(pdfRaw.includes('1990-05-15')).toBe(true);
-    expect(pdfRaw.includes('14:30:00')).toBe(true);
-
-    // 6 & 7. Ascendant and Planetary positions match report
-    expect(pdfRaw.includes('Ascendant')).toBe(true);
-    expect(pdfRaw.includes('SUN')).toBe(true);
-    expect(pdfRaw.includes('MOON')).toBe(true);
-
-    // 8. North Indian Kundli chart rendered in vector commands
-    expect(pdfRaw.includes('NORTH INDIAN KUNDLI CHART')).toBe(true);
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.payload).error.code).toBe('REPORT_NOT_READY');
   });
 
-  // 9. Planetary report PDF generation works
-  it('9. Planetary report PDF generation works', async () => {
-    // First generate planetary summary report
+  // 9. Planetary summary is served by the platform module and queued
+  it('9. Planetary summary request is accepted and queued', async () => {
     const genRes = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -239,20 +219,8 @@ describe('Reports API & PDF Generation Integration Tests', () => {
         reportType: 'PLANETARY_SUMMARY',
       },
     });
-    const planReportId = JSON.parse(genRes.payload).id;
-
-    // Download PDF
-    const response = await app.inject({
-      method: 'GET',
-      url: `/api/v1/reports/${planReportId}/pdf`,
-      headers: { authorization: `Bearer ${user1Token}` },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.headers['content-type']).toBe('application/pdf');
-    const pdfRaw = response.payload;
-    expect(pdfRaw.startsWith('%PDF-1.4')).toBe(true);
-    expect(pdfRaw.includes('PLANETARY DYNAMICS & FORCE SUMMARY')).toBe(true);
+    expect(genRes.statusCode).toBe(201);
+    expect(JSON.parse(genRes.payload).status).toBe('QUEUED');
   });
 
   // 10. Guest PDF download is rejected
@@ -278,34 +246,24 @@ describe('Reports API & PDF Generation Integration Tests', () => {
     expect(body.error.code).toBe('NOT_FOUND');
   });
 
-  // 12. Incomplete chart data is rejected during report generation (returns 422)
-  it('12. Incomplete chart data is rejected during report generation (returns 422)', async () => {
-    const spy = vi.spyOn(astrologyService, 'calculateChartForProfile').mockResolvedValueOnce({
-      data: { metadata: {} } as any,
-      chart: { ascendant: {}, planets: [], houses: [] } as any, // Missing ascendant sign
-    });
-
+  // 12. A report type with no genuine generator is rejected clearly (nothing is substituted)
+  it('12. CHILDBIRTH_FAMILY is rejected with REPORT_TYPE_NOT_AVAILABLE (400)', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
       headers: { authorization: `Bearer ${user1Token}` },
       payload: {
         birthProfileId: user1ProfileId,
-        reportType: 'KUNDLI',
-        forceRegenerate: true,
+        reportType: 'CHILDBIRTH_FAMILY',
       },
     });
 
-    expect(response.statusCode).toBe(422);
-    const body = JSON.parse(response.payload);
-    expect(body.error.code).toBe('INCOMPLETE_ASTROLOGY_DATA');
-    expect(body.error.message).toBe('Complete chart data is currently unavailable. Please try again.');
-
-    spy.mockRestore();
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.payload).error.code).toBe('REPORT_TYPE_NOT_AVAILABLE');
   });
 
   // 13 & 14. Expired token refreshes and download succeeds
-  it('13 & 14. Download succeeds with refreshed access token', async () => {
+  it('13 & 14. Refreshed access token is accepted by the download route', async () => {
     const refreshedToken = (app as any).jwt.sign({ sub: user1Id, role: 'USER' }, { expiresIn: '15m' });
 
     const response = await app.inject({
@@ -314,7 +272,8 @@ describe('Reports API & PDF Generation Integration Tests', () => {
       headers: { authorization: `Bearer ${refreshedToken}` },
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.headers['content-type']).toBe('application/pdf');
+    // Authenticated (not 401); the report is still being prepared.
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.payload).error.code).toBe('REPORT_NOT_READY');
   });
 });

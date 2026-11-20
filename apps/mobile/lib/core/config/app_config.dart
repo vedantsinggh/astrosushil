@@ -110,6 +110,19 @@ class AppConfig {
     return 'http://$defaultDevHost:$apiPort$apiPrefix';
   }
 
+  /// Google Sign-In "Web application" OAuth client ID, passed to the native SDK as
+  /// `serverClientId` so the returned ID token is issued for our backend.
+  /// Supply with `--dart-define=GOOGLE_SERVER_CLIENT_ID=<id>.apps.googleusercontent.com`.
+  /// The same value must be listed in the API's `GOOGLE_OAUTH_CLIENT_IDS`.
+  static const String googleServerClientId =
+      String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID', defaultValue: '');
+
+  /// Google Sign-In iOS OAuth client ID (iOS builds only).
+  /// Supply with `--dart-define=GOOGLE_IOS_CLIENT_ID=<id>.apps.googleusercontent.com`.
+  /// iOS also needs the reversed client ID registered as a URL scheme in Info.plist.
+  static const String googleIosClientId =
+      String.fromEnvironment('GOOGLE_IOS_CLIENT_ID', defaultValue: '');
+
   /// Network request timeout (JSON)
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);

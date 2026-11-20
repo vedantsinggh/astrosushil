@@ -85,7 +85,13 @@ describe('Varshaphala API & Service Unit Tests (Phase 2S: Annual Astrology Found
     // Mudda Dasha
     expect(result.muddaDasha.dashaSystem).toBe('MUDDA');
     expect(result.muddaDasha.periods).toHaveLength(9);
-    expect(result.muddaDasha.totalCycleDays).toBeCloseTo(365.2425, 2);
+    // The Mudda cycle spans this solar return to the next exact sidereal solar return,
+    // i.e. one sidereal year (~365.256 days), not the 365.2425-day civil-year fallback.
+    expect(result.muddaDasha.totalCycleDays).toBeCloseTo(365.256, 1);
+    expect(result.muddaDasha.totalCycleDays).toBeCloseTo(
+      (Date.parse(result.nextSolarReturn!.solarReturnUtcIso) - Date.parse(result.solarReturn.solarReturnUtcIso)) / 86400000,
+      6
+    );
 
     // Annual Panchanga
     expect(result.panchanga).toBeDefined();

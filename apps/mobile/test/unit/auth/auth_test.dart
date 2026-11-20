@@ -19,7 +19,8 @@ void main() {
       expect(user.id, equals('c39a8c90-9516-4e59-a5b6-ef3930b80f12'));
       expect(user.email, equals('test@example.com'));
       expect(user.role, equals('USER'));
-      expect(user.createdAt, equals(DateTime.parse('2026-08-15T08:33:00.000Z')));
+      // Server instants are held in device-local time; compare the instant.
+      expect(user.createdAt.toUtc(), equals(DateTime.parse('2026-08-15T08:33:00.000Z')));
     });
 
     test('AuthTokensModel.fromJson parses access and refresh tokens', () {

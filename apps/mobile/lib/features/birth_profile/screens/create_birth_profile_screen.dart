@@ -1,23 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/utils/app_date_time.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/astro_card.dart';
 import '../../../shared/widgets/error_banner.dart';
+import '../../../shared/screens/simple_screen_kit.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../astrology/screens/birth_chart_screen.dart';
+import '../../../home/providers/home_provider.dart';
+import '../../../home/screens/home_screen.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/birth_profile_model.dart';
 import '../models/location_model.dart';
 import '../providers/birth_profile_provider.dart';
 import '../widgets/location_autocomplete_field.dart';
+import '../../../shared/widgets/astro_sheets.dart';
 
 class CreateBirthProfileScreen extends ConsumerStatefulWidget {
   final BirthProfileModel? existingProfile;
 
   const CreateBirthProfileScreen({super.key, this.existingProfile});
+
+  /// Opens this form from a sign-in / sign-up flow with the main shell (Home
+  /// tab) as the root route underneath it, so the form and the birth chart it
+  /// opens after saving always have a back path to Home.
+  static void openAboveHome(BuildContext context, WidgetRef ref) {
+    ref.read(homeTabControllerProvider.notifier).state = 0;
+    final navigator = Navigator.of(context);
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
+    navigator.push(MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()));
+  }
 
   @override
   ConsumerState<CreateBirthProfileScreen> createState() => _CreateBirthProfileScreenState();
@@ -106,14 +122,16 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
     final now = DateTime.now();
     final initial = _selectedDate ??
         (widget.existingProfile != null && widget.existingProfile!.dateOfBirth.isNotEmpty
-            ? DateTime.tryParse(widget.existingProfile!.dateOfBirth) ?? DateTime(1998, 8, 15)
+            ? AppDateTime.parseCalendarDate(widget.existingProfile!.dateOfBirth) ?? DateTime(1998, 8, 15)
             : DateTime(1998, 8, 15));
 
-    final picked = await showDatePicker(
+    final picked = await showAstroDatePicker(
       context: context,
       initialDate: initial,
       firstDate: DateTime(1900),
       lastDate: now,
+      helpText: 'Choose date of birth',
+      initialDatePickerMode: _dateController.text.trim().isEmpty ? DatePickerMode.year : DatePickerMode.day,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -138,9 +156,10 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+    final picked = await showAstroTimePicker(
       context: context,
       initialTime: _selectedTime ?? const TimeOfDay(hour: 08, minute: 30),
+      helpText: 'Choose time of birth',
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -259,14 +278,50 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
         });
 
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => BirthChartScreen(profile: savedProfile),
-            ),
+          final navigator = Navigator.of(context);
+          final chartRoute = MaterialPageRoute<void>(
+            builder: (_) => BirthChartScreen(profile: savedProfile),
           );
+          if (navigator.canPop()) {
+            navigator.pushReplacement(chartRoute);
+          } else {
+            // This form is the root route (first profile during onboarding):
+            // never leave the chart as a root with no way back. Reset to the
+            // main shell and show the chart on top of it.
+            ref.read(homeTabControllerProvider.notifier).state = 0;
+            navigator.pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+            navigator.push(chartRoute);
+          }
         }
       }
     }
+  }
+
+  /// Friendly display of the stored `yyyy-MM-dd` value (e.g. "15 August 1998").
+  String? get _dateDisplayText {
+    final raw = _dateController.text.trim();
+    if (raw.isEmpty) return null;
+    // Birth date is the birth place's civil date: format it without any
+    // timezone conversion.
+    return AppDateTime.formatCalendarDate(raw, 'd MMMM yyyy');
+  }
+
+  /// Friendly display of the stored `HH:mm:ss` value (e.g. "8:30 AM").
+  String? _timeDisplayText(BuildContext context) {
+    final raw = _timeController.text.trim();
+    if (raw.isEmpty) return null;
+    final parts = raw.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h != null && m != null && h >= 0 && h < 24 && m >= 0 && m < 60) {
+        return MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay(hour: h, minute: m));
+      }
+    }
+    return raw;
   }
 
   @override
@@ -274,561 +329,577 @@ class _CreateBirthProfileScreenState extends ConsumerState<CreateBirthProfileScr
     final state = ref.watch(birthProfilesListNotifierProvider);
     final isEditing = widget.existingProfile != null;
 
-    final hasDisambiguationOrNonexistent =
-        _ambiguousDetail != null || _nonexistentDetail != null;
+    final hasDisambiguationOrNonexistent = _ambiguousDetail != null || _nonexistentDetail != null;
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: isEditing ? 'Edit Birth Details' : 'Your Birth Details',
-      ),
+      appBar: const SimpleScreenAppBar(),
       body: SubtleCelestialBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-            physics: const BouncingScrollPhysics(),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. HEADER TITLE & SUBTITLE
-                  Text(
-                    isEditing ? 'Confirm & Update Birth Details' : 'Your Birth Details',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isEditing
-                        ? 'Updating your birth details will recalculate all planetary positions, kundli charts, and dasha timelines across the app.'
-                        : 'Accurate birth date, time, and verified location calculate your exact ascendant, houses, and planetary positions.',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.lightTextSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Explanatory Info Card
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.12)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.auto_awesome, color: AppColors.premiumAccent, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            isEditing
-                                ? 'Notice: Any existing PDF reports generated with earlier coordinates will remain archived in your report library.'
-                                : 'Why do we need this? Vedic Astrology (Jyotish) and Gupta Nadi calculations use exact solar alignment and horizon tilt at the precise minute of your birth. If exact birth time is approximate, use 12:00 PM (Noon) or check hospital birth records.',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.lightTextPrimary,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Error banner if standard error and not specifically handled by cards
-                  if (state.errorMessage != null && !hasDisambiguationOrNonexistent) ...[
-                    ErrorBanner(message: state.errorMessage!),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Nonexistent Local Time Explanation Card
-                  if (_nonexistentDetail != null) ...[
-                    AstroCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
-                        ),
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 22),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Clock Change: Time Did Not Occur',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF991B1B),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'The local time ${_timeController.text.trim()} did not occur in ${_selectedLocation?.timezone ?? _selectedTimezone} on ${_dateController.text.trim()} because clocks jumped forward 1 hour for Daylight Saving Time.',
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF7F1D1D), height: 1.4),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Please check your official birth records or certificate and adjust the time above before proceeding.',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF991B1B)),
-                            ),
-                          ],
-                        ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                physics: const BouncingScrollPhysics(),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SimplePageHeading(
+                        title: isEditing ? 'Edit Birth Details' : 'Your Birth Details',
+                        subtitle: isEditing
+                            ? 'Saving updates all your charts. Older PDF reports stay in your library.'
+                            : 'We use these to make your birth chart.',
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 20),
 
-                  // Ambiguous Local Time Disambiguation Selector Card
-                  if (_ambiguousDetail != null) ...[
-                    AstroCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFBEB),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
-                        ),
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.schedule_rounded, color: Color(0xFFD97706), size: 22),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Ambiguous Local Birth Time',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF92400E),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Because clocks turned back by one hour on ${_dateController.text.trim()} in ${_selectedLocation?.timezone ?? _selectedTimezone}, this local time occurred twice.',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF78350F), height: 1.35),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Entered Time: ${_timeController.text.trim()}  |  Timezone: ${_selectedLocation?.timezone ?? _selectedTimezone}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Please select which occurrence corresponds to your birth:',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
-                            ),
-                            const SizedBox(height: 8),
-                            ...(_ambiguousDetail!.candidates ?? []).map((candidate) {
-                              final isSelected = _selectedDisambiguation == candidate.disambiguation;
-                              final isEarlier = candidate.disambiguation == 'earlier';
-                              final offsetStr = candidate.offsetMinutes >= 0
-                                  ? '+${(candidate.offsetMinutes / 60).toStringAsFixed(1)}'
-                                  : (candidate.offsetMinutes / 60).toStringAsFixed(1);
-
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.65),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: isSelected ? const Color(0xFFD97706) : const Color(0xFFE5E7EB),
-                                    width: isSelected ? 2 : 1,
-                                  ),
-                                ),
-                                child: RadioListTile<String>(
-                                  value: candidate.disambiguation,
-                                  groupValue: _selectedDisambiguation,
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _selectedDisambiguation = val;
-                                    });
-                                  },
-                                  title: Text(
-                                    isEarlier
-                                        ? 'Earlier occurrence (First pass before clock change)'
-                                        : 'Later occurrence (Second pass after clock change)',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'UTC: ${candidate.utcIsoString.replaceFirst('.000Z', ' UTC')}  |  UTC Offset: ${offsetStr}h',
-                                    style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                                  ),
-                                  activeColor: const Color(0xFFD97706),
-                                ),
-                              );
-                            }),
-                            const SizedBox(height: 4),
-                            ElevatedButton.icon(
-                              onPressed: state.isLoading ? null : _submit,
-                              icon: const Icon(Icons.check_circle_outline, size: 16),
-                              label: const Text('Confirm Choice & Calculate Chart'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD97706),
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(42),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 2. FORM CARD
-                  AstroCard(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // FULL NAME INPUT
-                        const Text(
-                          'Full Name',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _nameController,
-                          style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                          decoration: InputDecoration(
-                            hintText: 'e.g. Rahul Sharma',
-                            hintStyle: TextStyle(color: AppColors.secondary.withOpacity(0.5)),
-                            prefixIcon: const Icon(Icons.person_outline_rounded, size: 18, color: AppColors.secondary),
-                            filled: true,
-                            fillColor: AppColors.lightBackground,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.lightBorder),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.lightBorder),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                            ),
-                          ),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) {
-                              return 'Please enter your full name';
-                            }
-                            return null;
-                          },
-                        ),
-
+                      // Error banner if standard error and not specifically handled by cards
+                      if (state.errorMessage != null && !hasDisambiguationOrNonexistent) ...[
+                        ErrorBanner(message: state.errorMessage!),
                         const SizedBox(height: 16),
+                      ],
 
-                        // DATE & TIME ROW
-                        Row(
-                          children: [
-                            // DATE PICKER
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Date of Birth',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  TextFormField(
-                                    controller: _dateController,
-                                    readOnly: true,
-                                    onTap: _pickDate,
-                                    style: const TextStyle(fontSize: 13, color: AppColors.primary),
-                                    decoration: InputDecoration(
-                                      hintText: 'YYYY-MM-DD',
-                                      prefixIcon: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.secondary),
-                                      filled: true,
-                                      fillColor: AppColors.lightBackground,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: AppColors.lightBorder),
-                                      ),
-                                    ),
-                                    validator: (val) {
-                                      if (val == null || val.trim().isEmpty) {
-                                        return 'Required';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
+                      // Nonexistent local time explanation
+                      if (_nonexistentDetail != null) ...[
+                        _buildNonexistentCard(),
+                        const SizedBox(height: 16),
+                      ],
 
-                            const SizedBox(width: 12),
+                      // Ambiguous local time chooser
+                      if (_ambiguousDetail != null) ...[
+                        _buildAmbiguousCard(state.isLoading),
+                        const SizedBox(height: 16),
+                      ],
 
-                            // TIME PICKER
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Time of Birth',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  TextFormField(
-                                    controller: _timeController,
-                                    readOnly: true,
-                                    onTap: _pickTime,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: _nonexistentDetail != null ? const Color(0xFFDC2626) : AppColors.primary,
-                                      fontWeight: _nonexistentDetail != null ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: 'HH:MM:SS',
-                                      prefixIcon: Icon(
-                                        Icons.access_time_rounded,
-                                        size: 16,
-                                        color: _nonexistentDetail != null ? const Color(0xFFDC2626) : AppColors.secondary,
-                                      ),
-                                      filled: true,
-                                      fillColor: _nonexistentDetail != null ? const Color(0xFFFEF2F2) : AppColors.lightBackground,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(
-                                          color: _nonexistentDetail != null ? const Color(0xFFEF4444) : AppColors.lightBorder,
-                                        ),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide(
-                                          color: _nonexistentDetail != null ? const Color(0xFFEF4444) : AppColors.lightBorder,
-                                          width: _nonexistentDetail != null ? 1.5 : 1.0,
-                                        ),
-                                      ),
-                                    ),
-                                    validator: (val) {
-                                      if (val == null || val.trim().isEmpty) {
-                                        return 'Required';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // BIRTHPLACE LOCATION AUTOCOMPLETE
-                        const Wrap(
-                          spacing: 4,
-                          children: [
-                            Text(
-                              'Place of Birth',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            Text(
-                              '(City/Town)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        LocationAutocompleteField(
-                          initialLocation: _selectedLocation,
-                          onLocationSelected: _onLocationSelected,
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        // ADVANCED TOGGLE FOR VERIFIED COORDINATES
-                        InkWell(
-                          onTap: () {
-                            setState(() {
-                              _showAdvancedCoordinates = !_showAdvancedCoordinates;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _showAdvancedCoordinates ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                                  size: 18,
-                                  color: AppColors.secondary,
+                      // FORM FIELDS
+                      SimpleGroupCard(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // FULL NAME
+                              const _FieldLabel(text: 'Full Name'),
+                              TextFormField(
+                                controller: _nameController,
+                                style: const TextStyle(fontSize: 18, color: AppColors.primary),
+                                decoration: _fieldDecoration(
+                                  hint: 'e.g. Rahul Sharma',
+                                  icon: Icons.person_outline_rounded,
                                 ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    _showAdvancedCoordinates
-                                        ? 'Hide verified coordinates'
-                                        : 'View verified coordinates & timezone',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.secondary,
-                                    ),
-                                  ),
+                                validator: (val) {
+                                  if (val == null || val.trim().isEmpty) {
+                                    return 'Please enter your full name';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              const SizedBox(height: 22),
+
+                              // DATE OF BIRTH
+                              const _FieldLabel(text: 'Date of Birth'),
+                              _PickerField(
+                                key: const Key('birth_date_field'),
+                                controller: _dateController,
+                                icon: Icons.calendar_month_rounded,
+                                valueText: _dateDisplayText,
+                                placeholder: 'Choose a date',
+                                onTap: _pickDate,
+                              ),
+
+                              const SizedBox(height: 22),
+
+                              // TIME OF BIRTH
+                              const _FieldLabel(text: 'Time of Birth'),
+                              _PickerField(
+                                key: const Key('birth_time_field'),
+                                controller: _timeController,
+                                icon: Icons.schedule_rounded,
+                                valueText: _timeDisplayText(context),
+                                placeholder: 'Choose a time',
+                                onTap: _pickTime,
+                                hasProblem: _nonexistentDetail != null,
+                              ),
+                              if (!isEditing) ...[
+                                const SizedBox(height: 10),
+                                const _FieldHint(
+                                  icon: Icons.help_outline_rounded,
+                                  text:
+                                      'Not sure? If exact birth time is approximate, use 12:00 PM (Noon) or check hospital birth records.',
                                 ),
                               ],
-                            ),
-                          ),
-                        ),
 
-                        if (_showAdvancedCoordinates) ...[
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _latitudeController,
-                                  readOnly: true,
-                                  style: const TextStyle(fontSize: 13, color: AppColors.primary),
-                                  decoration: InputDecoration(
-                                    labelText: 'Latitude',
-                                    filled: true,
-                                    fillColor: AppColors.lightBackground,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: AppColors.lightBorder),
-                                    ),
-                                  ),
+                              const SizedBox(height: 22),
+
+                              // PLACE OF BIRTH
+                              const _FieldLabel(text: 'Place of Birth'),
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 10),
+                                child: Text(
+                                  'Type your city or town, then pick it from the list.',
+                                  style: TextStyle(fontSize: 14, height: 1.35, color: AppColors.textSecondary),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _longitudeController,
-                                  readOnly: true,
-                                  style: const TextStyle(fontSize: 13, color: AppColors.primary),
-                                  decoration: InputDecoration(
-                                    labelText: 'Longitude',
-                                    filled: true,
-                                    fillColor: AppColors.lightBackground,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: AppColors.lightBorder),
-                                    ),
-                                  ),
-                                ),
+                              LocationAutocompleteField(
+                                initialLocation: _selectedLocation,
+                                onLocationSelected: _onLocationSelected,
                               ),
+
+                              const SizedBox(height: 8),
+
+                              // ADVANCED: VERIFIED COORDINATES (hidden by default)
+                              _buildCoordinatesToggle(),
+                              if (_showAdvancedCoordinates) _buildCoordinatesDetail(),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Timezone: $_selectedTimezone',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.lightTextSecondary,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
                         ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // 3. PRIMARY GOLD CTA BUTTON
-                  ElevatedButton(
-                    onPressed: state.isLoading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.premiumAccent,
-                      foregroundColor: AppColors.primary,
-                      elevation: 2,
-                      shadowColor: AppColors.premiumAccent.withOpacity(0.4),
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ),
-                    child: state.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                            ),
-                          )
-                        : Text(
-                            isEditing ? 'Save & Calculate Chart' : 'Create Birth Chart',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                  ),
 
-                  const SizedBox(height: 16),
-                ],
+                      if (!isEditing) ...[
+                        const SizedBox(height: 12),
+                        const SimpleExpander(
+                          label: 'Why do we need this?',
+                          child: SimpleNote(
+                            icon: Icons.auto_awesome,
+                            color: AppColors.goldDark,
+                            text:
+                                'Vedic Astrology (Jyotish) and Gupta Nadi calculations use exact solar alignment and horizon tilt at the precise minute of your birth.',
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      // PRIMARY ACTION
+                      SimplePrimaryButton(
+                        label: isEditing ? 'Save & Calculate Chart' : 'Create Birth Chart',
+                        icon: Icons.check_rounded,
+                        isLoading: state.isLoading,
+                        onPressed: _submit,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({required String hint, required IconData icon}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 17, color: AppColors.textMuted),
+      hintMaxLines: 2,
+      prefixIcon: Icon(icon, size: 24, color: AppColors.secondary),
+      filled: true,
+      fillColor: AppColors.lightBackground,
+      errorStyle: const TextStyle(fontSize: 14, color: AppColors.error),
+      errorMaxLines: 3,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.lightBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.lightBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+    );
+  }
+
+  Widget _buildCoordinatesToggle() {
+    return Semantics(
+      button: true,
+      expanded: _showAdvancedCoordinates,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _showAdvancedCoordinates = !_showAdvancedCoordinates;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Icon(
+                  _showAdvancedCoordinates ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  size: 26,
+                  color: AppColors.secondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _showAdvancedCoordinates ? 'Hide verified coordinates' : 'View verified coordinates & timezone',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoordinatesDetail() {
+    InputDecoration deco(String label) => InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+          filled: true,
+          fillColor: AppColors.lightBackground,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.lightBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.lightBorder),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: _latitudeController,
+            readOnly: true,
+            style: const TextStyle(fontSize: 16, color: AppColors.primary),
+            decoration: deco('Latitude'),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _longitudeController,
+            readOnly: true,
+            style: const TextStyle(fontSize: 16, color: AppColors.primary),
+            decoration: deco('Longitude'),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Timezone: $_selectedTimezone',
+            style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNonexistentCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.errorBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.errorBorder, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 26),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Clock Change: Time Did Not Occur',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                    color: Color(0xFF991B1B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'The local time ${_timeController.text.trim()} did not occur in ${_selectedLocation?.timezone ?? _selectedTimezone} on ${_dateController.text.trim()} because clocks jumped forward 1 hour for Daylight Saving Time.',
+            style: const TextStyle(fontSize: 15, color: Color(0xFF7F1D1D), height: 1.45),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Please check your official birth records or certificate and adjust the time above before proceeding.',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.4, color: Color(0xFF991B1B)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmbiguousCard(bool isLoading) {
+    const amberDark = Color(0xFF92400E);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.warningBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.warningBorder, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.schedule_rounded, color: Color(0xFFD97706), size: 26),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Ambiguous Local Birth Time',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, height: 1.3, color: amberDark),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Because clocks turned back by one hour on ${_dateController.text.trim()} in ${_selectedLocation?.timezone ?? _selectedTimezone}, this local time occurred twice.',
+            style: const TextStyle(fontSize: 15, color: Color(0xFF78350F), height: 1.45),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Entered Time: ${_timeController.text.trim()}  |  Timezone: ${_selectedLocation?.timezone ?? _selectedTimezone}',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: amberDark),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Please select which occurrence corresponds to your birth:',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: amberDark),
+          ),
+          const SizedBox(height: 10),
+          ...(_ambiguousDetail!.candidates ?? []).map((candidate) {
+            final isSelected = _selectedDisambiguation == candidate.disambiguation;
+            final isEarlier = candidate.disambiguation == 'earlier';
+            final offsetStr = candidate.offsetMinutes >= 0
+                ? '+${(candidate.offsetMinutes / 60).toStringAsFixed(1)}'
+                : (candidate.offsetMinutes / 60).toStringAsFixed(1);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected ? const Color(0xFFD97706) : const Color(0xFFE5E7EB),
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: RadioListTile<String>(
+                value: candidate.disambiguation,
+                groupValue: _selectedDisambiguation,
+                onChanged: (val) {
+                  setState(() {
+                    _selectedDisambiguation = val;
+                  });
+                },
+                title: Text(
+                  isEarlier
+                      ? 'Earlier occurrence (First pass before clock change)'
+                      : 'Later occurrence (Second pass after clock change)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: AppColors.primary,
+                  ),
+                ),
+                subtitle: Text(
+                  'UTC: ${candidate.utcIsoString.replaceFirst('.000Z', ' UTC')}  |  UTC Offset: ${offsetStr}h',
+                  style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+                ),
+                activeColor: const Color(0xFFD97706),
+              ),
+            );
+          }),
+          const SizedBox(height: 4),
+          ElevatedButton.icon(
+            onPressed: isLoading ? null : _submit,
+            icon: const Icon(Icons.check_circle_outline, size: 22),
+            label: const Text(
+              'Confirm Choice & Calculate Chart',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB45309),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: const Size.fromHeight(54),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bold label shown above each form field.
+class _FieldLabel extends StatelessWidget {
+  final String text;
+
+  const _FieldLabel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.bold,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Short helper line under a field.
+class _FieldHint extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _FieldHint({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(icon, size: 20, color: AppColors.goldDark),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 14, height: 1.4, color: AppColors.textSecondary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Large, tap-to-open picker field. The stored value lives in [controller]
+/// (unchanged format); this widget only shows a friendlier [valueText] and
+/// validates that a value has been chosen.
+class _PickerField extends StatelessWidget {
+  final TextEditingController controller;
+  final IconData icon;
+  final String? valueText;
+  final String placeholder;
+  final VoidCallback onTap;
+  final bool hasProblem;
+
+  const _PickerField({
+    super.key,
+    required this.controller,
+    required this.icon,
+    required this.valueText,
+    required this.placeholder,
+    required this.onTap,
+    this.hasProblem = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) {
+        final val = controller.text;
+        if (val.trim().isEmpty) {
+          return 'Required';
+        }
+        return null;
+      },
+      builder: (field) {
+        // Clear a previous "Required" error once a value has been picked.
+        if (field.hasError && controller.text.trim().isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (field.mounted) field.validate();
+          });
+        }
+        const problemColor = Color(0xFFDC2626);
+        final borderColor = field.hasError || hasProblem ? AppColors.error : AppColors.lightBorder;
+
+        return Semantics(
+          button: true,
+          child: Material(
+            color: hasProblem ? AppColors.errorBg : AppColors.lightBackground,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: borderColor, width: hasProblem ? 1.5 : 1.0),
+            ),
+            child: InkWell(
+              customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              onTap: onTap,
+              child: InputDecorator(
+                isEmpty: false,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  errorText: field.errorText,
+                  errorStyle: const TextStyle(fontSize: 14, color: AppColors.error),
+                  contentPadding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 24, color: hasProblem ? problemColor : AppColors.secondary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        valueText ?? placeholder,
+                        style: TextStyle(
+                          fontSize: 18,
+                          height: 1.3,
+                          fontWeight: valueText != null ? FontWeight.w600 : FontWeight.normal,
+                          color:
+                              hasProblem ? problemColor : (valueText != null ? AppColors.primary : AppColors.textMuted),
+                        ),
+                      ),
+                    ),
+                    if (valueText != null) ...[
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Change',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.goldDark,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

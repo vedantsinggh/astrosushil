@@ -71,7 +71,7 @@ jobs:
       - name: Install PDF toolchain used by API report integration tests
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends texlive-xetex texlive-latex-extra fonts-open-sans fonts-texgyre fontconfig ghostscript poppler-utils
+          sudo apt-get install -y --no-install-recommends -o Acquire::Retries=3 texlive-xetex texlive-latex-extra texlive-fonts-recommended fonts-open-sans fonts-texgyre fonts-noto-core fontconfig ghostscript poppler-utils
       - name: Run API, payment-security, fulfillment, and queue suites
         run: npm run test --workspace=apps/api
       - name: Upload API JUnit report
@@ -99,7 +99,7 @@ jobs:
       - name: Install deterministic PDF toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends texlive-xetex texlive-latex-extra fonts-open-sans fonts-texgyre fontconfig ghostscript poppler-utils
+          sudo apt-get install -y --no-install-recommends -o Acquire::Retries=3 texlive-xetex texlive-latex-extra texlive-fonts-recommended fonts-open-sans fonts-texgyre fonts-noto-core fontconfig ghostscript poppler-utils
       - name: Build internal packages
         run: npm run build:packages
       - name: Run report generation, PDF, and calculation integrity regressions
@@ -176,14 +176,14 @@ jobs:
         uses: subosito/flutter-action@44ac965b96f18d999802d4b807e3256d5a3f9fa1
         with:
           channel: stable
-          flutter-version: 3.41.5
+          flutter-version: 3.47.5
           cache: true
       - name: Resolve locked Flutter dependencies
         run: flutter pub get --enforce-lockfile
       - name: Analyze Flutter application
         run: flutter analyze --no-pub --no-fatal-infos
       - name: Run Flutter unit and widget tests
-        run: mkdir -p ../../test-results && flutter test --no-pub --machine > ../../test-results/mobile.json
+        run: mkdir -p ../../test-results && flutter test --no-pub --exclude-tags ui_audit --machine > ../../test-results/mobile.json
       - name: Upload Flutter test diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

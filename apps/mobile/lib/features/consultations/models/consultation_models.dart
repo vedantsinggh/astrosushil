@@ -69,7 +69,7 @@ class ConsultationOfferingModel {
       description: json['description'] as String? ?? '',
       hindiDescription: json['hindiDescription'] as String?,
       mode: json['mode'] as String? ?? 'ONLINE_VIDEO',
-      durationMinutes: json['durationMinutes'] as int? ?? 30,
+      durationMinutes: json['durationMinutes'] as int? ?? 0,
       pricePaise: json['pricePaise'] as int? ?? 0,
       responseDaysNotice: json['responseDaysNotice'] as int? ??
           json['responseDays'] as int? ??
@@ -114,7 +114,7 @@ class AppointmentSlotModel {
       startTime: json['startTime'] as String? ?? '',
       endTime: json['endTime'] as String? ?? '',
       mode: json['mode'] as String? ?? 'ONLINE_VIDEO',
-      status: json['status'] as String? ?? 'AVAILABLE',
+      status: json['status'] as String? ?? 'UNKNOWN',
       isBookable: json['isBookable'] as bool? ?? (json['status'] == 'AVAILABLE'),
     );
   }
@@ -168,24 +168,33 @@ class ConsultationBookingModel {
   bool get isCancelled => status == 'CANCELLED';
   bool get isCompleted => status == 'COMPLETED';
 
+  /// Accepts both the legacy client field names and the field names the API
+  /// actually returns for a `ConsultationBooking` row (`title`, `mode`,
+  /// `date`, `primaryQuestion`, nested `birthProfile`).
   factory ConsultationBookingModel.fromJson(Map<String, dynamic> json) {
+    final birthProfile = json['birthProfile'];
     return ConsultationBookingModel(
       id: json['id'] as String? ?? '',
       bookingReference: json['bookingReference'] as String? ?? '',
-      serviceTitle: json['serviceTitle'] as String? ?? 'Astrological Consultation',
-      consultationMode: json['consultationMode'] as String? ?? 'ONLINE_VIDEO',
-      appointmentDate: json['appointmentDate'] as String? ?? '',
+      serviceTitle: json['serviceTitle'] as String? ??
+          json['title'] as String? ??
+          'Astrological Consultation',
+      consultationMode: json['consultationMode'] as String? ??
+          json['mode'] as String? ??
+          'ONLINE_VIDEO',
+      appointmentDate: json['appointmentDate'] as String? ?? json['date'] as String? ?? '',
       startTime: json['startTime'] as String? ?? '',
       endTime: json['endTime'] as String? ?? '',
       status: json['status'] as String? ?? 'PENDING_PAYMENT',
       meetingLink: json['meetingLink'] as String?,
       dialInNumber: json['dialInNumber'] as String?,
       notes: json['notes'] as String?,
-      query: json['query'] as String?,
+      query: json['query'] as String? ?? json['primaryQuestion'] as String?,
       orderId: json['orderId'] as String?,
       orderNumber: json['orderNumber'] as String?,
       pricePaise: json['pricePaise'] as int?,
-      birthProfileName: json['birthProfileName'] as String?,
+      birthProfileName: json['birthProfileName'] as String? ??
+          (birthProfile is Map ? birthProfile['name'] as String? : null),
       createdAt: json['createdAt'] as String?,
     );
   }

@@ -4,11 +4,17 @@ export const CLIENT_CONFIRMATION_REQUIRED = 'CLIENT_CONFIRMATION_REQUIRED' as co
 export type ClientConfirmationRequired = typeof CLIENT_CONFIRMATION_REQUIRED;
 
 export type ZodiacType = 'SIDEREAL' | 'TROPICAL' | ClientConfirmationRequired;
+/**
+ * Ayanamsa systems (definitions and sources: src/ayanamsa/ayanamsa.ts, docs/decisions.md ADR-017).
+ * LAHIRI = true Chitrapaksha (ICRC) and is the default; KP = KP New (zero 291 CE);
+ * KRISHNAMURTI = K.S. Krishnamurti's Reader table.
+ */
 export type AyanamsaSystem =
   | 'LAHIRI'
   | 'RAMAN'
   | 'KRISHNAMURTI'
   | 'KP'
+  | 'FAGAN_BRADLEY'
   | ClientConfirmationRequired;
 export type HouseSystem =
   | 'WHOLE_SIGN'
@@ -16,7 +22,11 @@ export type HouseSystem =
   | 'PLACIDUS'
   | 'SRI_PATI'
   | ClientConfirmationRequired;
+/** MEAN_NODE (default, Meeus eq. 47.7) or TRUE_NODE (osculating node): src/rahu-ketu/lunar-nodes.ts. */
 export type NodeCalculationMethod = 'MEAN_NODE' | 'TRUE_NODE' | ClientConfirmationRequired;
+/** House system used for KP cusps (client decision ADR-017: true Placidus). */
+export type KpCuspSystem = 'PLACIDUS';
+export const KP_CUSP_SYSTEM: KpCuspSystem = 'PLACIDUS';
 export type PlanetaryCalculationMode = 'GEOCENTRIC' | 'TOPOCENTRIC' | ClientConfirmationRequired;
 export type RoundingRule = 'NEAREST' | 'TRUNCATE' | 'NONE';
 export type DashaSystem =
@@ -29,6 +39,10 @@ export type DashaSystem =
   | 'CHATURASEETI_SAMA'
   | 'DWADASHOTTARI'
   | 'PANCHOTTARI'
+  | 'YOGINI'
+  | 'CHARA'
+  | 'NARAYANA'
+  | 'KALACHAKRA'
   | ClientConfirmationRequired;
 
 export interface AstrologyConfig {

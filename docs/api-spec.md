@@ -218,18 +218,26 @@ All error responses adhere to a consistent JSON structure:
   - **Request Body**:
     ```json
     {
-      "birthProfileId": "f8d8b13c-7c08-410a-9d22-ee029199d91f"
+      "birthProfileId": "f8d8b13c-7c08-410a-9d22-ee029199d91f",
+      "ayanamsa": "LAHIRI",
+      "nodeType": "MEAN_NODE"
     }
     ```
-  - **Response 200**:
+  - **Calculation options** (all `/api/v1/astrology/*` POST endpoints, optional, engine 0.2.0, `docs/decisions.md` ADR-017):
+    - `ayanamsa`: `LAHIRI` (default; true Chitrapaksha, ICRC / Indian Astronomical Ephemeris), `RAMAN`, `KRISHNAMURTI` (K.S. Krishnamurti's Reader table), `KP` (KP New, zero 291 CE), `FAGAN_BRADLEY`.
+    - `nodeType`: `MEAN_NODE` (default) or `TRUE_NODE` (osculating node).
+    - KP cusps (`POST /kp`) are always true Placidus (`cuspSystem: "PLACIDUS"` in the response). Above about ±66.56° latitude Placidus is undefined and the endpoint returns an error instead of switching house system.
+    - Invalid values return `400` with the standard envelope: `{"error": {"code": "VALIDATION_ERROR", "message": "Invalid request data", "details": [{"field": "ayanamsa", ...}], "requestId": "..."}}`.
+    - The applied values are echoed in `metadata.config.ayanamsa` / `metadata.config.nodeCalculation`.
+  - **Response 200** (REF_CHART_001: 1990-05-15 14:30 IST, New Delhi; Sun = JPL Horizons apparent longitude 54.2755655° minus the true Lahiri ayanamsa 23.7257785°, see `packages/astrology-engine/tests/fixtures/reference-charts.ts`):
     ```json
     {
       "data": {
         "metadata": {
-          "engineVersion": "0.1.0",
+          "engineVersion": "0.2.0",
           "providerName": "AstronomyEngineAdapter (astronomy-engine)",
           "providerVersion": "2.1.19-mit",
-          "calculationVersion": "0.1.0",
+          "calculationVersion": "0.2.0",
           "normalizedTime": {
             "utcIsoString": "1990-05-15T09:00:00.000Z",
             "julianDayUT": 2448026.875,
@@ -248,17 +256,17 @@ All error responses adhere to a consistent JSON structure:
         "planets": [
           {
             "planet": "SUN",
-            "longitude": 50.2541,
+            "longitude": 30.5498,
             "latitude": 0.0,
-            "speedLongitude": 0.963,
+            "speedLongitude": 0.9643,
             "isRetrograde": false,
             "rashiIndex": 2,
             "rashiName": "Vrishabha",
-            "degreeInRashi": 20.2541,
-            "nakshatraIndex": 4,
-            "nakshatraName": "Rohini",
-            "pada": 4,
-            "nakshatraLord": "MOON"
+            "degreeInRashi": 0.5498,
+            "nakshatraIndex": 3,
+            "nakshatraName": "Krittika",
+            "pada": 2,
+            "nakshatraLord": "SUN"
           }
         ],
         "rashis": [

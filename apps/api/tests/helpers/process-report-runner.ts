@@ -1,10 +1,17 @@
 import { reportsService } from '../../src/modules/reports/reports.service';
 import { careerReportWorker } from '../../src/services/report-worker.service';
-import { redisQueueService } from '../../src/services/redis-queue.service';
+import { postgresQueueService } from '../../src/services/postgres-queue.service';
 import { nativeRedisClient } from '../../src/services/redis-client';
 import { prisma } from '../../src/services/prisma.service';
 import { FulfillmentStatus, OrderStatus } from '@prisma/client';
 import { logger } from '../../src/utils/logger';
+
+/*
+ * Child-process harness for multi-process queue tests. It drives the
+ * production report queue (PostgreSQL row queue with claimToken/claimVersion
+ * fencing, see postgres-queue.service.ts). No action here generates a report,
+ * so no LLM/platform call is ever made from a child process.
+ */
 
 // Signal to parent that process has initialized and is ready
 if (process.send) {
@@ -76,7 +83,7 @@ process.on('message', async (msg: any) => {
       }
 
       case 'CRASH_AFTER_ENQUEUE': {
-        // Creates report in DB, enqueues to Redis, and terminates before DB metadata update
+        // Creates report in DB, enqueues it in the DB queue, and terminates before markJobEnqueued
         const { reportData } = msg;
         const rep = await prisma.report.create({ data: reportData });
         if (rep.orderId) {
@@ -85,7 +92,7 @@ process.on('message', async (msg: any) => {
             data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
           });
         }
-        await redisQueueService.enqueueJob(rep.id);
+        await postgresQueueService.enqueueJob(rep.id);
         process.send({ event: 'CRASHING_AFTER_ENQUEUE', reportId: rep.id, pid: process.pid });
         // Hard exit immediately before markJobEnqueued can run
         setTimeout(() => process.exit(1), 20);
@@ -93,9 +100,11 @@ process.on('message', async (msg: any) => {
       }
 
       case 'DEQUEUE_AND_CRASH': {
-        // Pops job from queue and crashes before pipeline can complete
-        const dequeuedId = await redisQueueService.dequeueJob();
-        process.send({ event: 'DEQUEUED_CRASHING', reportId: dequeuedId, pid: process.pid });
+        // Claims the job from the DB queue (by id when given) and crashes before the pipeline can complete
+        const claim = msg.reportId
+          ? await postgresQueueService.claimJobById(msg.reportId)
+          : await postgresQueueService.claimJob(`runner-${process.pid}`);
+        process.send({ event: 'DEQUEUED_CRASHING', reportId: claim?.id ?? null, claim, pid: process.pid });
         setTimeout(() => process.exit(1), 20);
         break;
       }
@@ -163,15 +172,17 @@ process.on('message', async (msg: any) => {
       }
 
       case 'ACQUIRE_CLAIM': {
-        const { id, reportId, claimToken } = msg;
+        const { id, reportId } = msg;
         try {
-          const acquired = await careerReportWorker.acquireWorkerClaim(reportId, claimToken);
+          // The DB queue generates the claimToken; the winner's claim is returned to the parent.
+          const claim = await careerReportWorker.acquireWorkerClaim(reportId);
           process.send({
             event: 'CLAIM_RESULT',
             id,
             pid: process.pid,
             success: true,
-            acquired,
+            acquired: claim !== null,
+            claim,
           });
         } catch (err: any) {
           process.send({
@@ -186,9 +197,9 @@ process.on('message', async (msg: any) => {
       }
 
       case 'RELEASE_CLAIM': {
-        const { id, reportId, claimToken } = msg;
+        const { id, reportId, claimToken, claimVersion } = msg;
         try {
-          const released = await redisQueueService.releaseReportClaim(reportId, claimToken);
+          const released = await postgresQueueService.releaseClaim(reportId, claimToken, claimVersion);
           process.send({
             event: 'RELEASE_RESULT',
             id,
@@ -209,9 +220,14 @@ process.on('message', async (msg: any) => {
       }
 
       case 'RENEW_CLAIM': {
-        const { id, reportId, claimToken, ttlMs } = msg;
+        const { id, reportId, claimToken, claimVersion, ttlMs } = msg;
         try {
-          const renewed = await redisQueueService.renewReportClaim(reportId, claimToken, ttlMs);
+          const renewed = await postgresQueueService.touchHeartbeat(
+            reportId,
+            claimToken,
+            claimVersion,
+            Math.max(1, Math.round((ttlMs ?? 60000) / 1000))
+          );
           process.send({
             event: 'RENEW_RESULT',
             id,
@@ -232,9 +248,17 @@ process.on('message', async (msg: any) => {
       }
 
       case 'COMPLETE_JOB': {
-        const { id, reportId, claimToken } = msg;
+        const { id, reportId, claimToken, claimVersion } = msg;
         try {
-          const completed = await redisQueueService.completeJob(reportId, claimToken);
+          const completed = await postgresQueueService.completeJob(
+            reportId,
+            claimToken,
+            claimVersion,
+            `reports/test/${reportId}.pdf`,
+            `${reportId}.pdf`,
+            1024,
+            1
+          );
           process.send({
             event: 'COMPLETE_JOB_RESULT',
             id,
@@ -255,9 +279,9 @@ process.on('message', async (msg: any) => {
       }
 
       case 'SET_STAGE': {
-        const { id, reportId, status, progress, stage, claimToken } = msg;
+        const { id, reportId, status, progress, stage, claimToken, claimVersion } = msg;
         try {
-          const updated = await careerReportWorker.updateJobStatus(reportId, status, progress, stage, claimToken);
+          const updated = await careerReportWorker.updateJobStatus(reportId, status, progress, stage, claimToken, claimVersion);
           process.send({
             event: 'SET_STAGE_RESULT',
             id,
@@ -278,9 +302,9 @@ process.on('message', async (msg: any) => {
       }
 
       case 'TOUCH_HEARTBEAT': {
-        const { id, reportId, claimToken } = msg;
+        const { id, reportId, claimToken, claimVersion } = msg;
         try {
-          const alive = await careerReportWorker.touchHeartbeat(reportId, claimToken);
+          const alive = await careerReportWorker.touchHeartbeat(reportId, claimToken, claimVersion);
           process.send({
             event: 'TOUCH_HEARTBEAT_RESULT',
             id,
@@ -354,7 +378,7 @@ process.on('message', async (msg: any) => {
       case 'ENQUEUE_JOB': {
         const { id, reportId } = msg;
         try {
-          const enqueued = await redisQueueService.enqueueJob(reportId);
+          const enqueued = await postgresQueueService.enqueueJob(reportId);
           process.send({
             event: 'ENQUEUE_RESULT',
             id,
@@ -375,9 +399,9 @@ process.on('message', async (msg: any) => {
       }
 
       case 'CLAIM_AND_CRASH': {
-        const { reportId, claimToken } = msg;
-        const acquired = await careerReportWorker.acquireWorkerClaim(reportId, claimToken);
-        process.send({ event: 'CLAIMED_CRASHING', acquired, pid: process.pid });
+        const { reportId } = msg;
+        const claim = await careerReportWorker.acquireWorkerClaim(reportId);
+        process.send({ event: 'CLAIMED_CRASHING', acquired: claim !== null, claim, pid: process.pid });
         setTimeout(() => process.exit(1), 20);
         break;
       }

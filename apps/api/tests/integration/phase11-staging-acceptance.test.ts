@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -9,6 +9,8 @@ import { prisma } from '../../src/services/prisma.service';
 import { commerceService } from '../../src/modules/commerce/commerce.service';
 import { postgresQueueService } from '../../src/services/postgres-queue.service';
 import { storageService } from '../../src/services/storage.service';
+import { careerReportWorker } from '../../src/services/report-worker.service';
+import { stubPlatformGeneration } from '../helpers/platform-report-stub';
 import { logger, LOG_REDACT_KEYS } from '../../src/utils/logger';
 import { COMMERCE_CATALOG } from '../../src/modules/commerce/commerce.catalog';
 import {
@@ -95,17 +97,17 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
       role: stagingUserB.role,
     });
 
-    // Primary canonical birth profile (Puneet Kumar)
+    // Primary canonical birth profile (reference test chart)
     birthProfileA = await prisma.birthProfile.create({
       data: {
         userId: stagingUserA.id,
-        name: 'Puneet Kumar Staging',
+        name: 'Reference Test Staging',
         dateOfBirth: '1983-12-28',
         timeOfBirth: '04:45:00',
         latitude: 28.4069,
         longitude: 77.8498,
         timezone: 'Asia/Kolkata',
-        placeName: 'Bulandshahr, Uttar Pradesh, India',
+        placeName: 'Uttar Pradesh, India',
       },
     });
 
@@ -547,13 +549,12 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
   // 4. COMMERCIAL CONTROLS & UNRELEASED SKU BLOCKING
   // =========================================================================
   describe('4. Commercial Controls & Invariant Audit', () => {
-    it('4.1 should enforce exact authorized prices across all 10 released catalogue items', () => {
+    it('4.1 should enforce exact authorized prices across all 9 released catalogue items', () => {
       const EXPECTED_RELEASED_PRICES: Record<string, number> = {
         'report-kundli': 29900,
         'report-planetary-summary': 19900,
         'report-horoscope': 49900,
         'report-career': 49900,
-        'report-career-pro': 69900,
         'report-finance': 49900,
         'report-love': 49900,
         'report-fortune': 49900,
@@ -567,6 +568,11 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
         expect(item.pricePaise).toBe(expectedPaise);
         expect(item.isActive).toBe(true);
       }
+
+      // report-career-pro is retired from sale (only one Career report exists); its price is kept
+      // so historical CAREER_PROSITY orders still fulfil.
+      expect(COMMERCE_CATALOG['report-career-pro'].pricePaise).toBe(69900);
+      expect(COMMERCE_CATALOG['report-career-pro'].isActive).toBe(false);
     });
 
     it('4.2 should strictly keep all 4 unreleased SKUs inactive at zero price with checkout blocked', async () => {
@@ -628,22 +634,46 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
         },
       });
 
-      // 2. Generate report
-      const genResp = await app.inject({
-        method: 'POST',
-        url: '/api/v1/reports/generate',
-        headers: { authorization: `Bearer ${userAToken}` },
-        payload: {
-          birthProfileId: birthProfileA.id,
-          reportType: 'PLANETARY_SUMMARY',
-          orderId,
-        },
-      });
+      // 2. Request the report: generation always runs in the report worker, the request only queues it.
+      // The request enqueues without awaiting; wait for that durable-queue UPDATE to settle
+      // so the worker claim below is not skipped by its row lock (FOR UPDATE SKIP LOCKED).
+      const enqueueSpy = vi.spyOn(careerReportWorker, 'enqueueReportJob');
+      let genResp;
+      try {
+        genResp = await app.inject({
+          method: 'POST',
+          url: '/api/v1/reports/generate',
+          headers: { authorization: `Bearer ${userAToken}` },
+          payload: {
+            birthProfileId: birthProfileA.id,
+            reportType: 'PLANETARY_SUMMARY',
+            orderId,
+          },
+        });
+        await Promise.all(enqueueSpy.mock.results.map((r) => r.value));
+        expect(enqueueSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        enqueueSpy.mockRestore();
+      }
 
       expect(genResp.statusCode).toBe(201);
       const genBody = JSON.parse(genResp.body);
       completedReportId = genBody.id;
-      expect(genBody.status).toBe('COMPLETED');
+      expect(genBody.status).toBe('QUEUED');
+
+      // Worker delivers it (paid LLM generation substituted; claim, upload to storage and fulfilment run for real).
+      const generation = stubPlatformGeneration('completed');
+      let generationCalls = 0;
+      try {
+        await careerReportWorker.executeReportPipeline(completedReportId);
+        generationCalls = generation.mock.calls.length;
+      } finally {
+        generation.mockRestore();
+      }
+      expect(generationCalls).toBe(1);
+      const delivered = await prisma.report.findUnique({ where: { id: completedReportId } });
+      expect(delivered?.status).toBe('COMPLETED');
+      expect(delivered?.storageKey).toBe(`reports/${stagingUserA.id}/${completedReportId}.pdf`);
 
       // 3. Customer downloads PDF
       const pdfResp = await app.inject({

@@ -26,7 +26,7 @@ describe('Phase 2D Ashtakavarga API Integration Tests', () => {
   });
 
   describe('POST /api/v1/astrology/ashtakavarga', () => {
-    it('calculates full Parashara Ashtakavarga (BAV, SAV, Shodhana, Shodhya Pinda, Kakshyas)', async () => {
+    it('calculates full Parashara Ashtakavarga (BAV, Prastara, SAV, Shodhana, Shodhya Pinda)', async () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/astrology/ashtakavarga',
@@ -36,11 +36,7 @@ describe('Phase 2D Ashtakavarga API Integration Tests', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.payload);
-
-      expect(body.birthDetails).toBeDefined();
-      expect(body.totalSAVPoints).toBe(337);
-      expect(body.convention).toBeDefined();
+      const body = JSON.parse(response.payload).data;
 
       // 1. Verify BAV
       expect(body.bav).toBeDefined();
@@ -59,48 +55,62 @@ describe('Phase 2D Ashtakavarga API Integration Tests', () => {
         const bav = body.bav[p];
         expect(bav).toBeDefined();
         expect(bav.planet).toBe(p);
-        expect(bav.totalBindus).toBe(expectedTotals[p]);
+        expect(bav.totalPoints).toBe(expectedTotals[p]);
 
         let sSum = 0;
         for (let s = 1; s <= 12; s++) {
-          sSum += bav.signBindus[s];
+          sSum += bav.signs[s];
+          expect(bav.signs[s]).toBe(bav.signList[s - 1]);
         }
         expect(sSum).toBe(expectedTotals[p]);
 
+        // Prastara: 8 contributors (7 Grahas + Lagna) x 12 signs of 0/1 bindus
         expect(bav.prastara).toBeDefined();
-        expect(bav.prastara.totalBindus).toBe(expectedTotals[p]);
+        const rows = Object.values(bav.prastara) as number[][];
+        expect(rows).toHaveLength(8);
+        let prastaraTotal = 0;
+        for (const row of rows) {
+          expect(row).toHaveLength(12);
+          for (const cell of row) {
+            expect([0, 1]).toContain(cell);
+            prastaraTotal += cell;
+          }
+        }
+        expect(prastaraTotal).toBe(expectedTotals[p]);
       }
 
       // 2. Verify SAV
       expect(body.sav).toBeDefined();
-      expect(body.sav.totalBindus).toBe(337);
+      expect(body.sav.grandTotal).toBe(337);
       let savSignSum = 0;
       for (let s = 1; s <= 12; s++) {
-        savSignSum += body.sav.signBindus[s];
+        savSignSum += body.sav.signs[s];
+        const perSign = planets.reduce((acc, p) => acc + body.bav[p].signs[s], 0);
+        expect(body.sav.signs[s]).toBe(perSign);
       }
       expect(savSignSum).toBe(337);
 
       // 3. Verify Shodhana & Shodhya Pinda
       expect(body.shodhana).toBeDefined();
+      expect(body.pinda).toBeDefined();
       for (const p of planets) {
         const sh = body.shodhana[p];
         expect(sh).toBeDefined();
         expect(sh.planet).toBe(p);
-        expect(sh.shodhyaPinda).toBeDefined();
-        expect(sh.shodhyaPinda.rashiPinda).toBeGreaterThanOrEqual(0);
-        expect(sh.shodhyaPinda.grahaPinda).toBeGreaterThanOrEqual(0);
-        expect(sh.shodhyaPinda.yogaPinda).toBe(
-          sh.shodhyaPinda.rashiPinda + sh.shodhyaPinda.grahaPinda
-        );
-      }
+        expect(sh.trikonaReduced).toHaveLength(12);
+        expect(sh.ekadhipatyaReduced).toHaveLength(12);
+        expect(sh.totalTrikonaPoints).toBeLessThanOrEqual(expectedTotals[p]);
+        expect(sh.totalEkadhipatyaPoints).toBeLessThanOrEqual(sh.totalTrikonaPoints);
 
-      // 4. Verify Kakshyas
-      expect(body.kakshyas).toBeDefined();
-      for (const p of planets) {
-        const kList = body.kakshyas[p];
-        expect(kList).toBeDefined();
-        expect(kList.length).toBe(12);
+        const pinda = body.pinda[p];
+        expect(pinda).toBeDefined();
+        expect(pinda.planet).toBe(p);
+        expect(pinda.rashiPinda).toBeGreaterThanOrEqual(0);
+        expect(pinda.grahaPinda).toBeGreaterThanOrEqual(0);
+        expect(pinda.shodhyaPinda).toBe(pinda.rashiPinda + pinda.grahaPinda);
       }
+      // Kakshya divisions are a transit (Gochara) concept in the engine; they are
+      // verified in gochara.test.ts via gocharaKakshas.
     });
 
     it('returns 400 when invalid birth details are provided', async () => {
@@ -137,7 +147,8 @@ describe('Phase 2D Ashtakavarga API Integration Tests', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.payload);
+      // No ASHTAKAVARGA entry exists in the engine ConventionRegistry yet (pending spec content).
+      const body = JSON.parse(response.payload).data;
       expect(body.conventions.ashtakavarga).toBeDefined();
       expect(body.conventions.ashtakavarga.subsystem).toBe('Ashtakavarga Engine');
       expect(body.conventions.ashtakavarga.tradition).toBe('Brihat Parashara Hora Shastra');

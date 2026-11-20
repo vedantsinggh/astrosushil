@@ -2,6 +2,37 @@ import { config } from '../../../config';
 import { JYOTI_SYSTEM_PROMPT } from '../prompts/jyoti.prompt';
 import { LLMProvider, LLMProviderOptions, LLMResponse } from './llm.provider';
 import { logger } from '../../../utils/logger';
+import { AppError } from '../../../errors/app-error';
+
+/** Raised when the AI provider is unconfigured, unreachable, or returns unusable output. */
+export class AiServiceUnavailableError extends AppError {
+  constructor(message: string = 'The AI assistant is temporarily unavailable. Please try again in a moment.') {
+    super(message, 503, 'AI_SERVICE_UNAVAILABLE');
+  }
+}
+
+/** Raised when the AI provider returned output that could not be parsed into a usable answer. */
+export class AiResponseInvalidError extends AppError {
+  constructor(message: string = 'The AI assistant returned an unusable response. Please try again.') {
+    super(message, 502, 'AI_RESPONSE_INVALID');
+  }
+}
+
+// Mobile clients wait 60s; keep the server-side budget comfortably below that.
+const DEFAULT_TOTAL_BUDGET_MS = 50000;
+const PER_ATTEMPT_TIMEOUT_MS = 40000;
+const MIN_ATTEMPT_MS = 5000;
+const DEFAULT_MAX_TOKENS = 4000;
+const MAX_TOKENS_CAP = 8000;
+
+function readPositiveInt(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export class OpenRouterProvider implements LLMProvider {
   private readonly apiKey: string;
@@ -11,7 +42,7 @@ export class OpenRouterProvider implements LLMProvider {
 
   constructor(apiKey?: string, model?: string) {
     this.apiKey = apiKey !== undefined ? apiKey : (process.env.OPENROUTER_API_KEY || config.OPENROUTER_API_KEY || '');
-    this.model = model || process.env.OPENROUTER_MODEL || config.OPENROUTER_MODEL || 'minimax/minimax-m3:free';
+    this.model = model || process.env.OPENROUTER_MODEL || config.OPENROUTER_MODEL;
     this.siteUrl = process.env.OPENROUTER_SITE_URL || 'https://astrosushil.com';
     this.siteName = process.env.OPENROUTER_SITE_NAME || 'Astro Sushil';
   }
@@ -51,24 +82,41 @@ export class OpenRouterProvider implements LLMProvider {
         error: 'OPENROUTER_API_KEY is missing or unconfigured',
         parser: 'failure',
       });
-      return {
-        message: "Jyoti AI Assistant is currently unconfigured. Please set OPENROUTER_API_KEY in your environment.",
-        actions: [],
-      };
+      throw new AiServiceUnavailableError('AI assistant is not configured on this server.');
     }
 
     const systemPrompt = options?.systemInstruction || JYOTI_SYSTEM_PROMPT;
-    const maxRetries = 2;
+    const maxAttempts = 3;
+    // Overall wall-clock budget across all attempts. It must stay below the mobile client's
+    // 60s receive timeout so the app always gets a clean JSON error instead of a dropped socket.
+    const totalBudgetMs = options?.totalTimeoutMs ?? readPositiveInt(process.env.JYOTI_LLM_TOTAL_TIMEOUT_MS, DEFAULT_TOTAL_BUDGET_MS);
+    const deadline = Date.now() + totalBudgetMs;
+    // Reasoning ("thinking") models spend completion tokens on hidden reasoning before writing
+    // the answer. With a small max_tokens the whole budget can be consumed by reasoning, leaving
+    // `content` empty (finish_reason=length). Keep reasoning effort low and the budget generous.
+    let maxTokens = options?.maxOutputTokens ?? DEFAULT_MAX_TOKENS;
+    const reasoningEffort = process.env.OPENROUTER_REASONING_EFFORT || 'low';
+
+    const fallbackList = (process.env.OPENROUTER_FALLBACK_MODELS || '')
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean);
+    // OpenRouter accepts at most 3 entries in `models`; the first is the primary model.
+    const candidateModels = Array.from(new Set([this.model, ...fallbackList])).slice(0, 3);
+
     let attempt = 0;
     let lastError: Error | null = null;
     let lastStatus = 0;
     let lastLatency = 0;
 
-    while (attempt <= maxRetries) {
+    while (attempt < maxAttempts) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs < MIN_ATTEMPT_MS) break;
       attempt++;
+      const attemptTimeoutMs = Math.min(PER_ATTEMPT_TIMEOUT_MS, remainingMs);
       const startTime = Date.now();
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout
+      const timeoutId = setTimeout(() => controller.abort(), attemptTimeoutMs);
 
       try {
         const url = 'https://openrouter.ai/api/v1/chat/completions';
@@ -79,30 +127,19 @@ export class OpenRouterProvider implements LLMProvider {
           'X-OpenRouter-Title': this.siteName,
         };
 
-        const fallbackList = (process.env.OPENROUTER_FALLBACK_MODELS || '')
-          .split(',')
-          .map((m) => m.trim())
-          .filter(Boolean);
-
-        const candidateModels = Array.from(
-          new Set([
-            this.model,
-            ...fallbackList,
-            'nvidia/nemotron-3.5-lightning:free',
-            'qwen/qwen3.8-27b:free',
-          ])
-        ).slice(0, 3);
-
-        const requestBody = {
+        const requestBody: Record<string, unknown> = {
           model: this.model,
-          models: candidateModels,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt },
           ],
           temperature: options?.temperature ?? 0.3,
-          max_tokens: options?.maxOutputTokens ?? 1000,
+          max_tokens: maxTokens,
+          reasoning: { effort: reasoningEffort, exclude: true },
         };
+        if (candidateModels.length > 1) {
+          requestBody.models = candidateModels;
+        }
 
         const response = await fetch(url, {
           method: 'POST',
@@ -111,13 +148,16 @@ export class OpenRouterProvider implements LLMProvider {
           signal: controller.signal,
         });
 
-        clearTimeout(timeoutId);
-        const latency = Date.now() - startTime;
-        lastLatency = latency;
+        // NOTE: the abort timer stays armed until the body has been read; the body of a
+        // non-streaming completion only arrives once generation finishes.
+        const latencyToHeaders = Date.now() - startTime;
         lastStatus = response.status;
 
         if (!response.ok) {
           const rawErr = await response.text();
+          clearTimeout(timeoutId);
+          const latency = Date.now() - startTime;
+          lastLatency = latency;
           const redactedErr = this.apiKey ? rawErr.replaceAll(this.apiKey, '[REDACTED]') : rawErr;
 
           if (response.status === 401 || response.status === 403) {
@@ -127,16 +167,20 @@ export class OpenRouterProvider implements LLMProvider {
               error: `Authentication Error (${response.status}): ${redactedErr}`,
               parser: 'failure',
             });
-            throw new Error(`OpenRouter Authentication Error (${response.status}): ${redactedErr}`);
+            lastError = new Error(`OpenRouter Authentication Error (${response.status})`);
+            break; // Retrying cannot fix a bad key.
           }
 
-          if ((response.status === 429 || response.status >= 500) && attempt <= maxRetries) {
-            const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          if (response.status === 429 || response.status >= 500) {
+            lastError = new Error(`OpenRouter transient error ${response.status}: ${redactedErr}`);
+            const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
             logger.warn(
               { status: response.status, attempt, backoffMs },
               '[OpenRouterProvider] Transient error encountered. Retrying with backoff...'
             );
-            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            if (attempt < maxAttempts && deadline - Date.now() > backoffMs + MIN_ATTEMPT_MS) {
+              await sleep(backoffMs);
+            }
             continue;
           }
 
@@ -146,65 +190,80 @@ export class OpenRouterProvider implements LLMProvider {
             error: `API error ${response.status}: ${redactedErr}`,
             parser: 'failure',
           });
-          throw new Error(`OpenRouter API error ${response.status}: ${redactedErr}`);
+          lastError = new Error(`OpenRouter API error ${response.status}`);
+          break; // 4xx (bad request / bad model id) is not transient.
         }
 
         const json: any = await response.json();
+        clearTimeout(timeoutId);
+        const latency = Date.now() - startTime;
+        lastLatency = latency;
+        logger.debug({ latencyToHeaders, latency, attempt }, '[OpenRouterProvider] Completion received');
         const rawText = json?.choices?.[0]?.message?.content;
+        const finishReason = json?.choices?.[0]?.finish_reason;
 
-        if (!rawText || !rawText.trim()) {
+        if (typeof rawText !== 'string' || !rawText.trim()) {
           this.logLlmStatus({
             status: 200,
             latency,
-            error: 'Empty response content from OpenRouter',
+            error: `Empty response content from OpenRouter (finish_reason=${finishReason ?? 'unknown'}, served_by=${json?.model ?? 'unknown'}, completion_tokens=${json?.usage?.completion_tokens ?? '?'}, reasoning_tokens=${json?.usage?.completion_tokens_details?.reasoning_tokens ?? '?'})`,
             parser: 'failure',
           });
-          return {
-            message: "I'm having a little trouble understanding that response right now. Please try again.",
-            actions: [],
-          };
+          lastError = new AiResponseInvalidError();
+          if (finishReason === 'length') {
+            // Token budget exhausted (typically by hidden reasoning): retry with more room.
+            maxTokens = Math.min(maxTokens * 2, MAX_TOKENS_CAP);
+          }
+          continue;
         }
 
-        return this.parseJsonResponse(rawText, latency);
+        try {
+          return this.parseJsonResponse(rawText, latency);
+        } catch (parseErr) {
+          // A truncated or malformed answer: one more attempt may produce a clean one.
+          lastError = parseErr instanceof Error ? parseErr : new Error(String(parseErr));
+          logger.warn(
+            { attempt, finishReason, contentLength: rawText.length },
+            '[OpenRouterProvider] Completion could not be parsed. Retrying...'
+          );
+          if (finishReason === 'length') {
+            maxTokens = Math.min(maxTokens * 2, MAX_TOKENS_CAP);
+          }
+          continue;
+        }
       } catch (err: any) {
         clearTimeout(timeoutId);
         lastLatency = Date.now() - startTime;
         lastError = err instanceof Error ? err : new Error(String(err));
 
-        if (err.name === 'AbortError') {
+        if (err?.name === 'AbortError') {
           lastStatus = 408;
-          lastError = new Error('OpenRouter API request timed out after 45000ms');
+          lastError = new Error(`OpenRouter API request timed out after ${attemptTimeoutMs}ms`);
         }
 
         const sanitizedMsg = this.apiKey ? lastError.message.replaceAll(this.apiKey, '[REDACTED]') : lastError.message;
+        this.logLlmStatus({
+          status: lastStatus || 500,
+          latency: lastLatency,
+          error: sanitizedMsg,
+          parser: 'failure',
+        });
 
-        if (lastError.message.includes('Authentication Error') || attempt > maxRetries || err.name === 'AbortError') {
-          this.logLlmStatus({
-            status: lastStatus || 500,
-            latency: lastLatency,
-            error: sanitizedMsg,
-            parser: 'failure',
-          });
-          break;
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+        if (attempt < maxAttempts && err?.name !== 'AbortError' && deadline - Date.now() > backoffMs + MIN_ATTEMPT_MS) {
+          await sleep(backoffMs);
         }
-
-        const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-        logger.warn({ attempt, backoffMs, err: sanitizedMsg }, '[OpenRouterProvider] Exception occurred. Retrying...');
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
       }
     }
 
     const redactedMsg = this.apiKey ? lastError?.message.replaceAll(this.apiKey, '[REDACTED]') : lastError?.message;
-    logger.error({ err: redactedMsg, status: lastStatus, latency: lastLatency }, '[OpenRouterProvider] Retries exhausted or API error encountered.');
-    return {
-      message: "Jyoti is experiencing temporary connection difficulty. Please try asking your question again in a moment.",
-      actions: [],
-    };
+    logger.error({ err: redactedMsg, status: lastStatus, latency: lastLatency, attempts: attempt }, '[OpenRouterProvider] Retries exhausted or API error encountered.');
+    throw new AiServiceUnavailableError();
   }
 
   private sanitizeMessageText(input: any): string {
     if (typeof input !== 'string') {
-      return "I'm having a little trouble understanding that response right now. Please try again.";
+      return '';
     }
 
     let text = input.trim();
@@ -239,10 +298,7 @@ export class OpenRouterProvider implements LLMProvider {
         error: 'Empty response text passed to parser',
         parser: 'failure',
       });
-      return {
-        message: "I'm having a little trouble understanding that response right now. Please try again.",
-        actions: [],
-      };
+      throw new AiResponseInvalidError();
     }
 
     let cleaned = rawText.trim();
@@ -327,16 +383,13 @@ export class OpenRouterProvider implements LLMProvider {
       };
     }
 
-    // 5. Controlled fallback if parsing fails completely
+    // 5. Parsing failed completely: surface an explicit error instead of canned text
     this.logLlmStatus({
       status: 200,
       latency: latencyMs,
       error: 'Malformed JSON or invalid response structure',
       parser: 'failure',
     });
-    return {
-      message: "I'm having a little trouble understanding that response right now. Please try again.",
-      actions: [],
-    };
+    throw new AiResponseInvalidError();
   }
 }

@@ -1,3 +1,5 @@
+import '../../../core/utils/app_date_time.dart';
+
 enum NotificationCategory {
   all,
   panchang,
@@ -85,9 +87,7 @@ class NotificationItemModel {
       body: json['body'] as String,
       bodyHi: json['bodyHi'] as String? ?? json['body'] as String,
       category: cat,
-      timestamp: json['timestamp'] != null
-          ? DateTime.parse(json['timestamp'] as String)
-          : DateTime.now(),
+      timestamp: AppDateTime.parseInstant(json['timestamp']) ?? DateTime.now(),
       isRead: json['isRead'] as bool? ?? false,
       routeAction: json['routeAction'] as String?,
       entityId: json['entityId'] as String?,
@@ -102,7 +102,7 @@ class NotificationItemModel {
       'body': body,
       'bodyHi': bodyHi,
       'category': category.name,
-      'timestamp': timestamp.toIso8601String(),
+      'timestamp': AppDateTime.toJsonInstant(timestamp),
       'isRead': isRead,
       'routeAction': routeAction,
       'entityId': entityId,

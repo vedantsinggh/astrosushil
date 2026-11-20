@@ -60,11 +60,21 @@ describe('Yoga API Endpoints Integration Tests (Phase 2W)', () => {
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.payload);
+    // The YogaEvaluationReport is returned directly under the standard `{ data }` envelope.
     expect(body.data).toBeDefined();
-    expect(body.data.yogas).toBeDefined();
-    expect(body.data.yogas.totalEvaluated).toBeGreaterThan(0);
-    expect(Array.isArray(body.data.yogas.detectedYogas)).toBe(true);
-    expect(body.data.yogas.categoriesSummary).toBeDefined();
+    expect(body.data.varga).toBe('D1');
+    expect(body.data.totalEvaluated).toBeGreaterThan(0);
+    expect(Array.isArray(body.data.detectedYogas)).toBe(true);
+    expect(body.data.detectedCount).toBe(body.data.detectedYogas.length);
+    expect(body.data.detectedCount).toBeLessThanOrEqual(body.data.totalEvaluated);
+    for (const y of body.data.detectedYogas) {
+      expect(y.isDetected).toBe(true);
+      expect(y.id).toBeDefined();
+      expect(y.category).toBeDefined();
+      expect(y.evidence).toBeDefined();
+    }
+    // Without includeUndetected, undetected yogas are not serialized.
+    expect(body.data.undetectedYogas).toBeUndefined();
   });
 
   it('POST /api/v1/astrology/yogas should evaluate Yogas for saved birth profile with category filter', async () => {
@@ -81,11 +91,15 @@ describe('Yoga API Endpoints Integration Tests (Phase 2W)', () => {
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.payload);
-    expect(body.data.yogas).toBeDefined();
-    expect(body.data.yogas.undetectedYogas).toBeDefined();
+    expect(body.data).toBeDefined();
+    expect(Array.isArray(body.data.undetectedYogas)).toBe(true);
+    expect(body.data.detectedYogas.length + body.data.undetectedYogas.length).toBe(body.data.totalEvaluated);
 
-    for (const y of body.data.yogas.detectedYogas) {
+    for (const y of [...body.data.detectedYogas, ...body.data.undetectedYogas]) {
       expect(['MAHAPURUSHA', 'RAJA']).toContain(y.category);
+    }
+    for (const y of body.data.undetectedYogas) {
+      expect(y.isDetected).toBe(false);
     }
   });
 
@@ -102,14 +116,16 @@ describe('Yoga API Endpoints Integration Tests (Phase 2W)', () => {
           longitude: 77.209,
           timezone: 'Asia/Kolkata',
         },
-        yogaIds: ['GAJAKESARI_YOGA', 'BUDHA_ADITYA_YOGA'],
+        yogaIds: ['YOGA_GAJAKESARI', 'YOGA_BUDHA_ADITYA'],
         includeUndetected: true,
       },
     });
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.payload);
-    expect(body.data.yogas.totalEvaluated).toBe(2);
+    expect(body.data.totalEvaluated).toBe(2);
+    const ids = [...body.data.detectedYogas, ...body.data.undetectedYogas].map((y: any) => y.id).sort();
+    expect(ids).toEqual(['YOGA_BUDHA_ADITYA', 'YOGA_GAJAKESARI']);
   });
 
   it('POST /api/v1/astrology/yogas should return 400 validation error for missing birthDetails & birthProfileId', async () => {

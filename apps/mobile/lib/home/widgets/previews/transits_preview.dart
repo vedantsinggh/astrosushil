@@ -30,6 +30,29 @@ class TransitsPreview extends StatelessWidget {
       );
     }
 
+    // Genuine backend transits only: Saturn and Jupiter relative to natal Lagna.
+    TransitToLagnaRelationshipModel? find(String planet) {
+      for (final t in snapshot?.transitToLagna ?? const <TransitToLagnaRelationshipModel>[]) {
+        if (t.transitPlanet.toUpperCase() == planet) return t;
+      }
+      return null;
+    }
+
+    final rows = <Map<String, Object>>[
+      if (find('SATURN') != null)
+        {'label': 'Saturn (Shani)', 'rel': find('SATURN')!, 'color': const Color(0xFF7C3AED)},
+      if (find('JUPITER') != null)
+        {'label': 'Jupiter (Guru)', 'rel': find('JUPITER')!, 'color': const Color(0xFFD97706)},
+    ];
+
+    if (rows.isEmpty) {
+      return const PreviewEmptyState(
+        title: 'Planetary Transits',
+        message: 'Transit data is not available right now',
+        icon: Icons.sync_alt_rounded,
+      );
+    }
+
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(
@@ -37,19 +60,15 @@ class TransitsPreview extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildTransitRow(
-              planet: 'Saturn (Shani)',
-              transitSign: 'Aquarius',
-              natalHouse: 'H-9 Ingress',
-              color: const Color(0xFF7C3AED),
-            ),
-            const SizedBox(height: 4),
-            _buildTransitRow(
-              planet: 'Jupiter (Guru)',
-              transitSign: 'Taurus',
-              natalHouse: 'H-12 Ingress',
-              color: const Color(0xFFD97706),
-            ),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0) const SizedBox(height: 4),
+              _buildTransitRow(
+                planet: rows[i]['label'] as String,
+                transitSign: (rows[i]['rel'] as TransitToLagnaRelationshipModel).transitSignName,
+                natalHouse: 'H-${(rows[i]['rel'] as TransitToLagnaRelationshipModel).houseFromLagna}',
+                color: rows[i]['color'] as Color,
+              ),
+            ],
           ],
         ),
       ),

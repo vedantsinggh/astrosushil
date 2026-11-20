@@ -1,0 +1,92 @@
+{
+ "input": {
+  "date": {
+   "year": 2026,
+   "month": 3,
+   "day": 3
+  },
+  "timezone": "Asia/Kolkata",
+  "latitude": 28.6139,
+  "longitude": 77.209
+ },
+ "civilDayStartIso": "2026-03-02T18:30:00.000Z",
+ "civilDayEndIso": "2026-03-03T18:30:00.000Z",
+ "sunriseIso": "2026-03-03T01:14:24.940Z",
+ "sunsetIso": "2026-03-03T12:52:10.511Z",
+ "nextSunriseIso": "2026-03-04T01:13:21.388Z",
+ "weekdayIndex": 2,
+ "dayMuhurtaMinutes": 46.51730111111112,
+ "nightMuhurtaMinutes": 49.41208555555556,
+ "durmuhurta": [
+  {
+   "part": "DAY",
+   "muhurtaNumber": 4,
+   "muhurtaName": "Pitri",
+   "startIso": "2026-03-03T03:33:58.054Z",
+   "endIso": "2026-03-03T04:20:29.092Z"
+  },
+  {
+   "part": "NIGHT",
+   "muhurtaNumber": 7,
+   "muhurtaName": "Vahni (Agni)",
+   "startIso": "2026-03-03T17:48:38.862Z",
+   "endIso": "2026-03-03T18:38:03.587Z"
+  }
+ ],
+ "nakshatras": [
+  {
+   "index": 10,
+   "name": "Magha",
+   "startIso": "2026-03-02T02:20:37.939Z",
+   "endIso": "2026-03-03T02:00:38.232Z"
+  },
+  {
+   "index": 11,
+   "name": "Purva Phalguni",
+   "startIso": "2026-03-03T02:00:38.232Z",
+   "endIso": "2026-03-04T02:08:05.596Z"
+  }
+ ],
+ "varjyam": [
+  {
+   "kind": "VARJYAM",
+   "nakshatraIndex": 11,
+   "nakshatraName": "Purva Phalguni",
+   "nakshatraStartIso": "2026-03-03T02:00:38.232Z",
+   "nakshatraEndIso": "2026-03-04T02:08:05.596Z",
+   "ghatiOffset": 20,
+   "ghatiLength": 4,
+   "startIso": "2026-03-03T10:03:07.353Z",
+   "endIso": "2026-03-03T11:39:37.178Z"
+  }
+ ],
+ "amritKalam": [
+  {
+   "kind": "AMRIT_KALAM",
+   "nakshatraIndex": 10,
+   "nakshatraName": "Magha",
+   "nakshatraStartIso": "2026-03-02T02:20:37.939Z",
+   "nakshatraEndIso": "2026-03-03T02:00:38.232Z",
+   "ghatiOffset": 54,
+   "ghatiLength": 4,
+   "startIso": "2026-03-02T23:38:38.203Z",
+   "endIso": "2026-03-03T01:13:18.222Z"
+  }
+ ],
+ "varjyamTable": "PUBLISHED_PANCHANG",
+ "provisional": true,
+ "source": "Muhurta Chintamani (Daivajna Ramacharya), Shubhashubha Prakarana: weekday-forbidden muhurtas \"ravāvaryamā brahma-rakṣaśca some kuje vahni-pitrye budhe cābhijit syāt / gurau toya-rakṣo bhṛgau brahma-pitrye śanāvīśa-sārpau muhūrtā niṣiddhāḥ\", with the 15 day / 15 night muhurta deity order of the same text; as tabulated in published panchangs (Dur Muhurtam) and B.V. Raman, \"Muhurtha (Electional Astrology)\". Varjyam (Tyajyam / Visha ghatis): published panchang table (drikpanchang.com \"Nakshatra Thyajyam\"), 4 ghatis starting after the tabulated ghatis of a 60-ghati nakshatra, scaled to the actual nakshatra duration. Amrit Kalam (Amrita ghatis): Prashna Marga (B.V. Raman tr., Part I, pp. 45–47), 4 ghatis starting after the tabulated ghatis of a 60-ghati nakshatra, scaled to the actual nakshatra duration.",
+ "conventionNotes": [
+  "Day = sunrise to sunset and night = sunset to next sunrise, each divided into 15 equal muhurtas (unequal-hour system).",
+  "Sunrise/sunset from the engine solar-day primitive (DayDivisionsCalculator.calculateSolarDay, ADR-015 sunrise convention).",
+  "Monday's and Friday's \"Brahma\" is taken as the 9th DAY muhurta (Vidhata), as in published panchangs; the night muhurta Dhata (8th) is not used.",
+  "Tuesday's \"Vahni\" is the 7th NIGHT muhurta (sunset→next sunrise of the Tuesday Vedic day); it may fall after civil midnight.",
+  "Verse number not stated: printed editions number the Shubhashubha Prakarana verses differently.",
+  "Window start = nakshatra start + (ghatis / 60) × actual nakshatra duration; length = (4 / 60) × actual duration (standard proportional method).",
+  "Nakshatra = Moon sidereal longitude in 13°20′ divisions; start/end found by bisection on engine Moon positions (±1 s).",
+  "Windows are reported when they overlap the local civil day (local midnight to next local midnight).",
+  "Alternative Varjyam table (Prashna Marga) differs at Ardra 11, Hasta 22, Mula 20; selectable via varjyamTable option.",
+  "Madhaveeyam gives a different Amrita ghati column (e.g. Ashwini 54); not used."
+ ],
+ "utcOffsetMinutes": 330
+}

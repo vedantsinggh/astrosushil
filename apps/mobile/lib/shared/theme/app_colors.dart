@@ -237,4 +237,57 @@ class AppColors {
 
   /// Warm ambient drop shadow for elevated parchment cards
   static const Color cardShadowWarm = Color(0x0C121440);
+
+  // ===========================================================================
+  // 8. iOS-FIRST DESIGN SYSTEM TOKENS (shared nav bar, grouped lists, states)
+  // ===========================================================================
+
+  /// High-contrast success text on white / cream (emerald 700, ~5.5:1).
+  /// Use this for words; [success] is only for fills and icons.
+  static const Color successText = Color(0xFF047857);
+
+  /// High-contrast error text on white / cream (red 700, ~6:1).
+  /// Use this for words; [error] is only for fills and icons.
+  static const Color errorText = Color(0xFFB91C1C);
+
+  /// High-contrast warning text on white / cream (amber 800).
+  static const Color warningText = Color(0xFF92400E);
+
+  /// Interactive tint (iOS "accent"): back chevron, nav actions, links,
+  /// text buttons. Deep brand indigo, AA on white and cream.
+  static const Color accent = Color(0xFF4A3F96);
+
+  /// Soft fill behind tinted / secondary buttons and selected pills.
+  static const Color accentFill = Color(0xFFEDEBF7);
+
+  /// iOS-style hairline separator (navy at low alpha) for nav bars and
+  /// inset list dividers.
+  static const Color separator = Color(0x24121440);
+
+  /// Frosted nav bar fill (cream at ~82%) used over a backdrop blur.
+  static const Color navBarFrost = Color(0xD1FAF7F2);
+
+  /// Track behind segmented controls (iOS "tertiary fill").
+  static const Color segmentedTrack = Color(0xFFEDE8DF);
+}
+
+/// A soft per-category tint pair (foreground + background) for the rounded
+/// icon squares used in list rows and feature cards. Pick one per category
+/// and keep it consistent across screens.
+class AstroTint {
+  final Color foreground;
+  final Color background;
+
+  const AstroTint(this.foreground, this.background);
+
+  static const AstroTint indigo = AstroTint(AppColors.accent, Color(0xFFECEAF8));
+  static const AstroTint violet = AstroTint(AppColors.tintVioletText, AppColors.tintVioletBg);
+  static const AstroTint amber = AstroTint(Color(0xFFB45309), AppColors.tintAmberBg);
+  static const AstroTint sky = AstroTint(Color(0xFF0369A1), AppColors.tintSkyBg);
+  static const AstroTint rose = AstroTint(Color(0xFFBE123C), AppColors.tintRoseBg);
+  static const AstroTint coral = AstroTint(Color(0xFFC2410C), AppColors.tintCoralBg);
+  static const AstroTint sage = AstroTint(AppColors.successText, AppColors.tintSageBg);
+  static const AstroTint slate = AstroTint(Color(0xFF475569), Color(0xFFF1F5F9));
+  static const AstroTint navy = AstroTint(AppColors.primary, Color(0xFFE9EAF3));
+  static const AstroTint danger = AstroTint(AppColors.errorText, AppColors.errorBg);
 }

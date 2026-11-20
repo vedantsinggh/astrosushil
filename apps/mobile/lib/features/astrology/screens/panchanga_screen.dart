@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../core/utils/app_date_time.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -26,6 +23,16 @@ import '../widgets/astrology_explanation_card.dart';
 /// Built deterministically using Fastify backend /astrology/panchang
 class PanchangaScreen extends ConsumerWidget {
   const PanchangaScreen({super.key});
+
+  /// UTC offset of the birth place on the birth date (the date this panchang is
+  /// calculated for), so sunrise/sunset/Rahu Kala show the place's local time
+  /// rather than the device's. Null when the profile has no resolved offset.
+  static Duration? _placeOffset(BirthProfileModel profile) {
+    final seconds = profile.timezoneOffsetSeconds ??
+        profile.normalizedDetails?.timezoneOffsetSeconds ??
+        (profile.normalizedDetails != null ? profile.normalizedDetails!.timezoneOffsetMinutes * 60 : null);
+    return seconds == null ? null : Duration(seconds: seconds);
+  }
 
   ExplanationContext _buildExplanationContext(
     PanchangModel panchang,
@@ -58,9 +65,9 @@ class PanchangaScreen extends ConsumerWidget {
           'name': panchang.karana.name,
         },
         'solarTimings': {
-          'sunrise': panchang.sunriseSunset?.formattedSunrise,
-          'sunset': panchang.sunriseSunset?.formattedSunset,
-          'rahuKalam': panchang.rahuKala?.formattedWindow,
+          'sunrise': panchang.sunriseSunset?.formatSunrise(placeOffset: _placeOffset(profile)),
+          'sunset': panchang.sunriseSunset?.formatSunset(placeOffset: _placeOffset(profile)),
+          'rahuKalam': panchang.rahuKala?.formatWindow(placeOffset: _placeOffset(profile)),
         },
         'hinduMonth': panchang.hinduCalendar?.amantaMasa,
       },
@@ -81,65 +88,55 @@ class PanchangaScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: 'Vedic Panchanga (पञ्चाङ्ग)',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
-            tooltip: 'About Panchanga',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Panchanga computes 5 astronomical dimensions: Tithi, Vara, Nakshatra, Yoga, and Karana.',
-                  ),
-                  duration: Duration(seconds: 4),
+    return AstroPage(
+      title: 'Panchanga',
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Panchanga',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Panchanga computes 5 astronomical dimensions: Tithi, Vara, Nakshatra, Yoga, and Karana.',
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Profile Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: ActiveBirthProfileSelector(
-                  isDark: false,
-                  onProfileChanged: (_) {},
-                ),
+                duration: Duration(seconds: 4),
               ),
-
-              // Main Content
-              Expanded(
-                child: activeProfile == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: AstrologyEmptyState(
-                            title: 'No Active Birth Profile',
-                            message: 'Select or create a birth profile to calculate your local Vedic Panchanga.',
-                            actionLabel: 'Add Birth Profile',
-                            onAction: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const CreateBirthProfileScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : _buildPanchangBody(context, ref, activeProfile),
-              ),
-            ],
-          ),
+            );
+          },
         ),
+      ],
+      onRefresh: () async {
+        if (activeProfile != null) {
+          ref.invalidate(panchangForProfileProvider(activeProfile));
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Top Profile Bar
+          ActiveBirthProfileSelector(
+            isDark: false,
+            onProfileChanged: (_) {},
+          ),
+          const SizedBox(height: 20),
+
+          // Main Content
+          activeProfile == null
+              ? AstrologyEmptyState(
+                  title: 'No Active Birth Profile',
+                  message: 'Select or create a birth profile to calculate your local Vedic Panchanga.',
+                  actionLabel: 'Add Birth Profile',
+                  onAction: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CreateBirthProfileScreen(),
+                      ),
+                    );
+                  },
+                )
+              : _buildPanchangBody(context, ref, activeProfile),
+        ],
       ),
     );
   }
@@ -153,7 +150,7 @@ class PanchangaScreen extends ConsumerWidget {
       ),
       error: (error, stack) => Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: AstrologyErrorState(
             error: error,
             customMessage: 'Failed to calculate Panchanga. Tap to retry.',
@@ -161,14 +158,14 @@ class PanchangaScreen extends ConsumerWidget {
           ),
         ),
       ),
-      data: (panchang) => RefreshIndicator(
-        onRefresh: () async => ref.refresh(panchangForProfileProvider(profile)),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
+      data: (panchang) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1. HERO: Date, today's tithi, location & timezone
+              _buildContextBanner(panchang, profile),
+
+              const SizedBox(height: 16),
+
               // Educational Explanation Card
               AstrologyExplanationCard(
                 title: context.l10n.explainPanchangaTitle,
@@ -177,39 +174,34 @@ class PanchangaScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
 
-              // 1. CONTEXT HEADER: Date, Location & Timezone
-              _buildContextBanner(panchang, profile),
-
-              const SizedBox(height: 12),
-
               // Sushil Sir Explainer Button
               SushilExplainerButton(
                 contextBuilder: () => _buildExplanationContext(panchang, profile),
                 poseAsset: AppAssets.sushilGuiding,
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
               // 2. HERO: 5 COSMIC LIMBS (PANCHA-ANGA)
               _buildFiveLimbsCard(panchang),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
               // 3. ASTRONOMICAL SOLAR TIMINGS & RAHU KALA
-              _buildSunAndRahuCard(panchang),
+              _buildSunAndRahuCard(panchang, _placeOffset(profile)),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
               // 4. HINDU CALENDAR MASA & SOLAR RASHI
               if (panchang.hinduCalendar != null) ...[
                 _buildHinduCalendarCard(panchang.hinduCalendar!),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
               ],
 
               // 5. PROGRESSIVE DISCLOSURE: TRANSITIONS
               if (panchang.transitions.isNotEmpty) ...[
-                _buildTransitionsCard(panchang.transitions),
-                const SizedBox(height: 14),
+                _buildTransitionsCard(panchang.transitions, _placeOffset(profile)),
+                const SizedBox(height: 16),
               ],
 
               // 6. CLASSICAL SIGNIFICANCE INFO
@@ -225,79 +217,65 @@ class PanchangaScreen extends ConsumerWidget {
                   '• Nakshatra (Lunar Mansion): Guides mind, subconscious inclinations, and karmic flow.\n'
                   '• Yoga (Soli-Lunar Angle): Shapes physiological well-being and life longevity.\n'
                   '• Karana (Half-Tithi): Directs enterprise, practical productivity, and execution success.',
-                  style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.primary),
+                  style: TextStyle(fontSize: 15, height: 1.5, color: AppColors.primary),
                 ),
               ),
 
-              const SizedBox(height: 24),
             ],
           ),
-        ),
-      ),
     );
   }
 
   Widget _buildContextBanner(PanchangModel panchang, BirthProfileModel profile) {
-    String formattedDate = profile.dateOfBirth;
-    try {
-      final dt = DateTime.parse(profile.dateOfBirth);
-      formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(dt);
-    } catch (_) {}
+    // Birth date: civil calendar date of the birth place, never shifted.
+    final String formattedDate = AppDateTime.formatCalendarDate(profile.dateOfBirth, 'EEEE, MMMM d, yyyy');
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.lightBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return AstroGradientCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.wb_twilight_rounded, color: AppColors.secondary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  formattedDate,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.wb_twilight_rounded, color: AppColors.gold, size: 22),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
                 ),
                 child: const Text(
-                  'EPHEMERIS',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
-                    letterSpacing: 0.5,
-                  ),
+                  'Ephemeris',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.gold),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+          Text(
+            formattedDate,
+            style: AppTypography.headlineLarge.copyWith(fontSize: 22, color: Colors.white, height: 1.25),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${panchang.tithi.name} • ${panchang.tithi.formattedPaksha}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.gold, height: 1.35),
+          ),
+          const SizedBox(height: 16),
+          Container(height: 0.5, color: Colors.white.withValues(alpha: 0.18)),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 12,
-            runSpacing: 4,
+            spacing: 16,
+            runSpacing: 8,
             children: [
               if (profile.placeName.isNotEmpty)
                 _buildInfoTag(Icons.location_on_outlined, profile.placeName),
@@ -320,17 +298,16 @@ class PanchangaScreen extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.lightTextMuted),
-        const SizedBox(width: 4),
+        Icon(icon, size: 16, color: AppColors.textInverseSecondary),
+        const SizedBox(width: 6),
         Flexible(
           child: Text(
             text,
             style: const TextStyle(
-              fontSize: 11.5,
-              color: AppColors.lightTextMuted,
+              fontSize: 14,
+              color: AppColors.textInverseSecondary,
               fontWeight: FontWeight.w500,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -363,11 +340,11 @@ class PanchangaScreen extends ConsumerWidget {
               ),
               child: Text(
                 'Tithi #${panchang.tithi.index}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
               ),
             ),
           ),
-          const Divider(height: 18, color: AppColors.lightBorder),
+          const Divider(height: 22, thickness: 0.5, color: AppColors.separator),
 
           // 2. VARA
           _buildLimbTile(
@@ -380,7 +357,7 @@ class PanchangaScreen extends ConsumerWidget {
               isCompact: true,
             ),
           ),
-          const Divider(height: 18, color: AppColors.lightBorder),
+          const Divider(height: 22, thickness: 0.5, color: AppColors.separator),
 
           // 3. NAKSHATRA
           _buildLimbTile(
@@ -393,7 +370,7 @@ class PanchangaScreen extends ConsumerWidget {
               isCompact: true,
             ),
           ),
-          const Divider(height: 18, color: AppColors.lightBorder),
+          const Divider(height: 22, thickness: 0.5, color: AppColors.separator),
 
           // 4. YOGA
           _buildLimbTile(
@@ -402,7 +379,7 @@ class PanchangaScreen extends ConsumerWidget {
             mainValue: panchang.yoga.name,
             subValue: 'Yoga #${panchang.yoga.index} of 27 • ${(panchang.yoga.completionPercentage).toStringAsFixed(1)}% complete',
           ),
-          const Divider(height: 18, color: AppColors.lightBorder),
+          const Divider(height: 22, thickness: 0.5, color: AppColors.separator),
 
           // 5. KARANA
           _buildLimbTile(
@@ -431,19 +408,18 @@ class PanchangaScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: 36,
+          height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
+            color: AstroTint.amber.background,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             limbNumber,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+            style: AppTypography.headlineLarge.copyWith(
+              fontSize: 17,
+              color: AppColors.goldDark,
             ),
           ),
         ),
@@ -452,22 +428,20 @@ class PanchangaScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
-                    child: Text(
-                      limbTitle,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.lightTextMuted,
-                        letterSpacing: 0.3,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    limbTitle,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.lightTextSecondary,
                     ),
                   ),
                   if (badgeText != null) ...[
-                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -477,7 +451,7 @@ class PanchangaScreen extends ConsumerWidget {
                       child: Text(
                         badgeText,
                         style: TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: badgeColor ?? AppColors.secondary,
                         ),
@@ -499,7 +473,7 @@ class PanchangaScreen extends ConsumerWidget {
               Text(
                 subValue,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   color: AppColors.primary,
                 ),
               ),
@@ -514,7 +488,7 @@ class PanchangaScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSunAndRahuCard(PanchangModel panchang) {
+  Widget _buildSunAndRahuCard(PanchangModel panchang, Duration? placeOffset) {
     return AstrologySectionCard(
       title: 'Solar & Inauspicious Timings',
       subtitle: 'Exact Sunrise, Sunset, and Rahu Kala',
@@ -527,7 +501,7 @@ class PanchangaScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildTimeMetric(
                     title: 'SUNRISE',
-                    time: panchang.sunriseSunset!.formattedSunrise,
+                    time: panchang.sunriseSunset!.formatSunrise(placeOffset: placeOffset),
                     icon: Icons.wb_sunny_outlined,
                     color: Colors.amber.shade700,
                   ),
@@ -536,7 +510,7 @@ class PanchangaScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildTimeMetric(
                     title: 'SUNSET',
-                    time: panchang.sunriseSunset!.formattedSunset,
+                    time: panchang.sunriseSunset!.formatSunset(placeOffset: placeOffset),
                     icon: Icons.nights_stay_outlined,
                     color: Colors.deepPurple.shade400,
                   ),
@@ -556,11 +530,11 @@ class PanchangaScreen extends ConsumerWidget {
                   const Icon(Icons.timer_outlined, size: 16, color: AppColors.primary),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text('Daylight Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                    child: Text('Daylight Duration', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                   ),
                   Text(
                     panchang.sunriseSunset!.formattedDayLength,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
                 ],
               ),
@@ -593,7 +567,7 @@ class PanchangaScreen extends ConsumerWidget {
                         const Text(
                           'RAHU KALA (राहुकाल)',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppColors.error,
                             letterSpacing: 0.5,
@@ -601,9 +575,9 @@ class PanchangaScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          panchang.rahuKala!.formattedWindow,
+                          panchang.rahuKala!.formatWindow(placeOffset: placeOffset),
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
                           ),
@@ -611,7 +585,7 @@ class PanchangaScreen extends ConsumerWidget {
                         const SizedBox(height: 1),
                         const Text(
                           'Inauspicious 1/8th daytime window; avoid initiating ventures.',
-                          style: TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
+                          style: TextStyle(fontSize: 14, color: AppColors.lightTextMuted),
                         ),
                       ],
                     ),
@@ -649,7 +623,7 @@ class PanchangaScreen extends ConsumerWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: color,
                     letterSpacing: 0.3,
@@ -741,7 +715,7 @@ class PanchangaScreen extends ConsumerWidget {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
               color: AppColors.lightTextMuted,
               letterSpacing: 0.3,
@@ -751,27 +725,25 @@ class PanchangaScreen extends ConsumerWidget {
           Text(
             value,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: FontWeight.bold,
               color: AppColors.primary,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 1),
           Text(
             subtitle,
             style: const TextStyle(
-              fontSize: 10.5,
+              fontSize: 13,
               color: AppColors.lightTextMuted,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTransitionsCard(List<PanchangTransitionModel> transitions) {
+  Widget _buildTransitionsCard(List<PanchangTransitionModel> transitions, Duration? placeOffset) {
     return ExpandableAstrologyCard(
       title: 'Panchanga Transitions (${transitions.length})',
       subtitle: 'Chronological changes throughout the day',
@@ -793,9 +765,9 @@ class PanchangaScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  t.formattedTime,
+                  t.formatTime(placeOffset: placeOffset),
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
@@ -809,7 +781,7 @@ class PanchangaScreen extends ConsumerWidget {
                     Text(
                       t.name,
                       style: const TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
                       ),
@@ -818,7 +790,7 @@ class PanchangaScreen extends ConsumerWidget {
                       Text(
                         '${t.fromName} → ${t.toName}',
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 14,
                           color: AppColors.lightTextMuted,
                         ),
                       ),

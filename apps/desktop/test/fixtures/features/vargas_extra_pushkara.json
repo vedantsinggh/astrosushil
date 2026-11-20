@@ -1,0 +1,447 @@
+{
+ "bodies": [
+  {
+   "body": "Ascendant",
+   "longitude": 151.9122337589685,
+   "rashiIndex": 6,
+   "rashiName": "Kanya",
+   "degreeInSign": 1.9122337589685117,
+   "navamsaNumber": 1,
+   "navamsaSign": 10,
+   "navamsaSignName": "Makara",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    3,
+    5
+   ],
+   "pushkaraBhaga": 9,
+   "distanceFromBhaga": -7.087766241031488,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "SUN",
+   "longitude": 30.55977528193318,
+   "rashiIndex": 2,
+   "rashiName": "Vrishabha",
+   "degreeInSign": 0.5597752819331809,
+   "navamsaNumber": 1,
+   "navamsaSign": 10,
+   "navamsaSignName": "Makara",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    3,
+    5
+   ],
+   "pushkaraBhaga": 14,
+   "distanceFromBhaga": -13.440224718066819,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "MOON",
+   "longitude": 271.9040489960244,
+   "rashiIndex": 10,
+   "rashiName": "Makara",
+   "degreeInSign": 1.9040489960244145,
+   "navamsaNumber": 1,
+   "navamsaSign": 10,
+   "navamsaSignName": "Makara",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    3,
+    5
+   ],
+   "pushkaraBhaga": 14,
+   "distanceFromBhaga": -12.095951003975586,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "MARS",
+   "longitude": 324.5256864226512,
+   "rashiIndex": 11,
+   "rashiName": "Kumbha",
+   "degreeInSign": 24.525686422651177,
+   "navamsaNumber": 8,
+   "navamsaSign": 2,
+   "navamsaSignName": "Vrishabha",
+   "inPushkaraNavamsa": true,
+   "pushkaraNavamsas": [
+    6,
+    8
+   ],
+   "pushkaraBhaga": 19,
+   "distanceFromBhaga": 5.525686422651177,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "MERCURY",
+   "longitude": 14.312159300363074,
+   "rashiIndex": 1,
+   "rashiName": "Mesha",
+   "degreeInSign": 14.312159300363074,
+   "navamsaNumber": 5,
+   "navamsaSign": 5,
+   "navamsaSignName": "Simha",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    7,
+    9
+   ],
+   "pushkaraBhaga": 21,
+   "distanceFromBhaga": -6.687840699636926,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "JUPITER",
+   "longitude": 75.80264164420402,
+   "rashiIndex": 3,
+   "rashiName": "Mithuna",
+   "degreeInSign": 15.802641644204016,
+   "navamsaNumber": 5,
+   "navamsaSign": 11,
+   "navamsaSignName": "Kumbha",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    6,
+    8
+   ],
+   "pushkaraBhaga": 18,
+   "distanceFromBhaga": -2.197358355795984,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "VENUS",
+   "longitude": 348.9602882016883,
+   "rashiIndex": 12,
+   "rashiName": "Meena",
+   "degreeInSign": 18.960288201688286,
+   "navamsaNumber": 6,
+   "navamsaSign": 9,
+   "navamsaSignName": "Dhanu",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    1,
+    3
+   ],
+   "pushkaraBhaga": 9,
+   "distanceFromBhaga": 9.960288201688286,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "SATURN",
+   "longitude": 271.53595568611155,
+   "rashiIndex": 10,
+   "rashiName": "Makara",
+   "degreeInSign": 1.5359556861115493,
+   "navamsaNumber": 1,
+   "navamsaSign": 10,
+   "navamsaSignName": "Makara",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    3,
+    5
+   ],
+   "pushkaraBhaga": 14,
+   "distanceFromBhaga": -12.46404431388845,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "RAHU",
+   "longitude": 287.626967293327,
+   "rashiIndex": 10,
+   "rashiName": "Makara",
+   "degreeInSign": 17.626967293327027,
+   "navamsaNumber": 6,
+   "navamsaSign": 3,
+   "navamsaSignName": "Mithuna",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    3,
+    5
+   ],
+   "pushkaraBhaga": 14,
+   "distanceFromBhaga": 3.626967293327027,
+   "inPushkaraBhaga": false
+  },
+  {
+   "body": "KETU",
+   "longitude": 107.62696729332703,
+   "rashiIndex": 4,
+   "rashiName": "Karka",
+   "degreeInSign": 17.626967293327027,
+   "navamsaNumber": 6,
+   "navamsaSign": 9,
+   "navamsaSignName": "Dhanu",
+   "inPushkaraNavamsa": false,
+   "pushkaraNavamsas": [
+    1,
+    3
+   ],
+   "pushkaraBhaga": 8,
+   "distanceFromBhaga": 9.626967293327027,
+   "inPushkaraBhaga": false
+  }
+ ],
+ "table": [
+  {
+   "rashiIndex": 1,
+   "rashiName": "Mesha",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 7,
+     "fromDegree": 20,
+     "toDegree": 23.333333333333332,
+     "navamsaSign": 7,
+     "navamsaSignName": "Tula"
+    },
+    {
+     "navamsaNumber": 9,
+     "fromDegree": 26.666666666666668,
+     "toDegree": 30,
+     "navamsaSign": 9,
+     "navamsaSignName": "Dhanu"
+    }
+   ],
+   "pushkaraBhaga": 21
+  },
+  {
+   "rashiIndex": 2,
+   "rashiName": "Vrishabha",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 3,
+     "fromDegree": 6.666666666666667,
+     "toDegree": 10,
+     "navamsaSign": 12,
+     "navamsaSignName": "Meena"
+    },
+    {
+     "navamsaNumber": 5,
+     "fromDegree": 13.333333333333334,
+     "toDegree": 16.666666666666668,
+     "navamsaSign": 2,
+     "navamsaSignName": "Vrishabha"
+    }
+   ],
+   "pushkaraBhaga": 14
+  },
+  {
+   "rashiIndex": 3,
+   "rashiName": "Mithuna",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 6,
+     "fromDegree": 16.666666666666668,
+     "toDegree": 20,
+     "navamsaSign": 12,
+     "navamsaSignName": "Meena"
+    },
+    {
+     "navamsaNumber": 8,
+     "fromDegree": 23.333333333333332,
+     "toDegree": 26.666666666666668,
+     "navamsaSign": 2,
+     "navamsaSignName": "Vrishabha"
+    }
+   ],
+   "pushkaraBhaga": 18
+  },
+  {
+   "rashiIndex": 4,
+   "rashiName": "Karka",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 1,
+     "fromDegree": 0,
+     "toDegree": 3.3333333333333335,
+     "navamsaSign": 4,
+     "navamsaSignName": "Karka"
+    },
+    {
+     "navamsaNumber": 3,
+     "fromDegree": 6.666666666666667,
+     "toDegree": 10,
+     "navamsaSign": 6,
+     "navamsaSignName": "Kanya"
+    }
+   ],
+   "pushkaraBhaga": 8
+  },
+  {
+   "rashiIndex": 5,
+   "rashiName": "Simha",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 7,
+     "fromDegree": 20,
+     "toDegree": 23.333333333333332,
+     "navamsaSign": 7,
+     "navamsaSignName": "Tula"
+    },
+    {
+     "navamsaNumber": 9,
+     "fromDegree": 26.666666666666668,
+     "toDegree": 30,
+     "navamsaSign": 9,
+     "navamsaSignName": "Dhanu"
+    }
+   ],
+   "pushkaraBhaga": 19
+  },
+  {
+   "rashiIndex": 6,
+   "rashiName": "Kanya",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 3,
+     "fromDegree": 6.666666666666667,
+     "toDegree": 10,
+     "navamsaSign": 12,
+     "navamsaSignName": "Meena"
+    },
+    {
+     "navamsaNumber": 5,
+     "fromDegree": 13.333333333333334,
+     "toDegree": 16.666666666666668,
+     "navamsaSign": 2,
+     "navamsaSignName": "Vrishabha"
+    }
+   ],
+   "pushkaraBhaga": 9
+  },
+  {
+   "rashiIndex": 7,
+   "rashiName": "Tula",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 6,
+     "fromDegree": 16.666666666666668,
+     "toDegree": 20,
+     "navamsaSign": 12,
+     "navamsaSignName": "Meena"
+    },
+    {
+     "navamsaNumber": 8,
+     "fromDegree": 23.333333333333332,
+     "toDegree": 26.666666666666668,
+     "navamsaSign": 2,
+     "navamsaSignName": "Vrishabha"
+    }
+   ],
+   "pushkaraBhaga": 24
+  },
+  {
+   "rashiIndex": 8,
+   "rashiName": "Vrischika",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 1,
+     "fromDegree": 0,
+     "toDegree": 3.3333333333333335,
+     "navamsaSign": 4,
+     "navamsaSignName": "Karka"
+    },
+    {
+     "navamsaNumber": 3,
+     "fromDegree": 6.666666666666667,
+     "toDegree": 10,
+     "navamsaSign": 6,
+     "navamsaSignName": "Kanya"
+    }
+   ],
+   "pushkaraBhaga": 11
+  },
+  {
+   "rashiIndex": 9,
+   "rashiName": "Dhanu",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 7,
+     "fromDegree": 20,
+     "toDegree": 23.333333333333332,
+     "navamsaSign": 7,
+     "navamsaSignName": "Tula"
+    },
+    {
+     "navamsaNumber": 9,
+     "fromDegree": 26.666666666666668,
+     "toDegree": 30,
+     "navamsaSign": 9,
+     "navamsaSignName": "Dhanu"
+    }
+   ],
+   "pushkaraBhaga": 23
+  },
+  {
+   "rashiIndex": 10,
+   "rashiName": "Makara",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 3,
+     "fromDegree": 6.666666666666667,
+     "toDegree": 10,
+     "navamsaSign": 12,
+     "navamsaSignName": "Meena"
+    },
+    {
+     "navamsaNumber": 5,
+     "fromDegree": 13.333333333333334,
+     "toDegree": 16.666666666666668,
+     "navamsaSign": 2,
+     "navamsaSignName": "Vrishabha"
+    }
+   ],
+   "pushkaraBhaga": 14
+  },
+  {
+   "rashiIndex": 11,
+   "rashiName": "Kumbha",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 6,
+     "fromDegree": 16.666666666666668,
+     "toDegree": 20,
+     "navamsaSign": 12,
+     "navamsaSignName": "Meena"
+    },
+    {
+     "navamsaNumber": 8,
+     "fromDegree": 23.333333333333332,
+     "toDegree": 26.666666666666668,
+     "navamsaSign": 2,
+     "navamsaSignName": "Vrishabha"
+    }
+   ],
+   "pushkaraBhaga": 19
+  },
+  {
+   "rashiIndex": 12,
+   "rashiName": "Meena",
+   "pushkaraNavamsas": [
+    {
+     "navamsaNumber": 1,
+     "fromDegree": 0,
+     "toDegree": 3.3333333333333335,
+     "navamsaSign": 4,
+     "navamsaSignName": "Karka"
+    },
+    {
+     "navamsaNumber": 3,
+     "fromDegree": 6.666666666666667,
+     "toDegree": 10,
+     "navamsaSign": 6,
+     "navamsaSignName": "Kanya"
+    }
+   ],
+   "pushkaraBhaga": 9
+  }
+ ],
+ "provisional": true,
+ "provisionalLabel": "provisional – pending client review",
+ "source": "Standard published Pushkara Navamsha table (benefic-ruled navamsas per element: fire 7th & 9th, earth 3rd & 5th, air 6th & 8th, water 1st & 3rd) and Pushkara Bhaga table (Ar 21, Ta 14, Ge 18, Cn 8, Le 19, Vi 9, Li 24, Sc 11, Sg 23, Cp 14, Aq 19, Pi 9), as reproduced in Jagannatha Hora (P.V.R. Narasimha Rao) and in muhurta literature following B.V. Raman, \"Muhurtha (Electional Astrology)\"",
+ "conventionNotes": [
+  "Pushkara Bhaga: a body is flagged when it lies within the bhaga-th degree of the sign, i.e. degreeInSign in [bhaga - 1, bhaga) (ordinal reading, as for Mrityu Bhaga degrees). distanceFromBhaga (degreeInSign - bhaga) is also given for users who apply an orb around the exact degree.",
+  "Alternative Pushkara Bhaga table (element-based): fire signs 21, earth 14, air 24, water 7.",
+  "Some sources list Cancer 7 instead of 8 in the per-sign Pushkara Bhaga table.",
+  "Pushkara Navamsha table has no widely published variant; it is asserted against the benefic-sign rule in the tests."
+ ]
+}

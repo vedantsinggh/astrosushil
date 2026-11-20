@@ -350,7 +350,7 @@ describe('Phase 2B.5 Task 1C: Genuine Cross-Process Concurrency & Infrastructure
   // =========================================================================
   // 2. RECURRING STALE-JOB & ORPHANED ORDER RECOVERY
   // =========================================================================
-  it('2.1 Recurring stale-job recovery recovers crashed report jobs and orphaned PROCESSING orders', async () => {
+  it('2.1 Recurring stale-job recovery requeues crashed report jobs; the paid order stays in fulfilment', async () => {
     const order = await createPaidOrder('KUNDLI');
     const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000);
 
@@ -366,9 +366,13 @@ describe('Phase 2B.5 Task 1C: Genuine Cross-Process Concurrency & Infrastructure
         status: 'CALCULATING',
         stage: 'CALCULATING',
         progress: 25,
+        claimToken: crypto.randomUUID(),
+        claimVersion: 1,
+        executionAttempts: 1,
       } as any,
     });
-    await prisma.$executeRaw`UPDATE "reports" SET "updatedAt" = (NOW() at time zone 'UTC') - INTERVAL '10 minutes' WHERE id = ${staleReportId}`;
+    // The crashed worker stopped heartbeating 10 minutes ago; its 60 s lease is long expired
+    await prisma.$executeRaw`UPDATE "reports" SET "updatedAt" = clock_timestamp() - INTERVAL '10 minutes', "claimExpiresAt" = clock_timestamp() - INTERVAL '9 minutes' WHERE id = ${staleReportId}`;
 
     // Mark order as PROCESSING in the past
     await prisma.$executeRaw`UPDATE "orders" SET "fulfillmentStatus" = 'PROCESSING'::"FulfillmentStatus", "updatedAt" = (NOW() at time zone 'UTC') - INTERVAL '10 minutes' WHERE id = ${order.id}`;
@@ -377,17 +381,22 @@ describe('Phase 2B.5 Task 1C: Genuine Cross-Process Concurrency & Infrastructure
     const recoveryStats = await careerReportWorker.recoverStaleJobs();
     expect(recoveryStats.recoveredReports).toBeGreaterThanOrEqual(1);
 
-    // 3. Verify report was transitioned to FAILED
+    // 3. Retry-later policy: the crashed job is requeued with backoff (not FAILED) and the dead worker fenced out
     const recoveredReport = await prisma.report.findUnique({ where: { id: staleReportId } });
-    expect(recoveredReport?.status).toBe('FAILED');
-    expect(recoveredReport?.errorCode).toBe('WORKER_TIMEOUT_RECOVERED');
+    expect(recoveredReport?.status).toBe('QUEUED');
+    expect(recoveredReport?.errorCode).toBeNull();
+    expect(recoveredReport?.recoveryAttempts).toBe(1);
+    expect(recoveredReport?.claimVersion).toBe(2);
+    expect(recoveredReport?.claimToken).toBeNull();
+    expect(recoveredReport?.retryAfter).not.toBeNull();
 
-    // 4. Verify order was transitioned to FAILED (leaving status: PAID)
+    // 4. The order stays PAID and in fulfilment
     const recoveredOrder = await prisma.order.findUnique({ where: { id: order.id } });
     expect(recoveredOrder?.status).toBe(OrderStatus.PAID);
-    expect(recoveredOrder?.fulfillmentStatus).toBe(FulfillmentStatus.FAILED);
+    expect(recoveredOrder?.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
 
-    // 5. Customer can immediately retry using the same orderId without being charged again
+    // 5. A repeated customer request for the same paid order reuses the report being prepared
+    //    (no second report, no second charge) and does not bypass the recovery backoff
     const userContext = { id: testUser.id, role: 'USER' };
     const retryResult = await worker1.sendRequest('CREATE_REPORT', {
       input: {
@@ -399,26 +408,48 @@ describe('Phase 2B.5 Task 1C: Genuine Cross-Process Concurrency & Infrastructure
       user: userContext,
     });
 
-    expect(retryResult.reportId).toBeDefined();
-    expect(retryResult.reportId).not.toBe(staleReportId);
+    expect(retryResult.reportId).toBe(staleReportId);
+    expect(retryResult.reused).toBe(true);
+    expect(await prisma.report.count({ where: { orderId: order.id } })).toBe(1);
+
+    const afterRequest = await prisma.report.findUnique({ where: { id: staleReportId } });
+    expect(afterRequest?.status).toBe('QUEUED');
+    expect(afterRequest?.retryAfter?.getTime()).toBe(recoveredReport?.retryAfter?.getTime());
 
     const finalOrder = await prisma.order.findUnique({ where: { id: order.id } });
+    expect(finalOrder?.status).toBe(OrderStatus.PAID);
     expect(finalOrder?.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
   });
 
-  it('2.2 Autonomous recovery recovers orphaned PROCESSING order without active report records', async () => {
+  it('2.2 Stale recovery never fails a paid PROCESSING order that has no report yet; the report can still be requested', async () => {
     const order = await createPaidOrder('PLANETARY_SUMMARY');
 
-    // Simulate server crash between order claim and report creation:
-    // Order was marked PROCESSING, but no Report row exists!
+    // In the fulfilment-unit model a paid order whose report has not been requested yet aggregates to
+    // PROCESSING (unit UNFULFILLED). That is a normal waiting state, not an orphan to fail.
     await prisma.$executeRaw`UPDATE "orders" SET "fulfillmentStatus" = 'PROCESSING'::"FulfillmentStatus", "updatedAt" = (NOW() at time zone 'UTC') - INTERVAL '10 minutes' WHERE id = ${order.id}`;
 
     // Run recovery
     const recoveryStats = await careerReportWorker.recoverStaleJobs();
-    expect(recoveryStats.recoveredOrders).toBeGreaterThanOrEqual(1);
+    expect(recoveryStats.recoveredOrders).toBe(0);
 
     const recoveredOrder = await prisma.order.findUnique({ where: { id: order.id } });
-    expect(recoveredOrder?.fulfillmentStatus).toBe(FulfillmentStatus.FAILED);
+    expect(recoveredOrder?.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
     expect(recoveredOrder?.status).toBe(OrderStatus.PAID);
+
+    // The customer can still request the report against the same paid order
+    const created = await worker1.sendRequest('CREATE_REPORT', {
+      input: {
+        birthProfileId: testProfileA.id,
+        reportType: 'PLANETARY_SUMMARY',
+        orderId: order.id,
+        async: true,
+      },
+      user: { id: testUser.id, role: 'USER' },
+    });
+    expect(created.reportId).toBeDefined();
+    const report = await prisma.report.findUnique({ where: { id: created.reportId } });
+    expect(report?.orderId).toBe(order.id);
+    expect(report?.status).toBe('QUEUED');
+    expect((await prisma.order.findUnique({ where: { id: order.id } }))?.status).toBe(OrderStatus.PAID);
   });
 });

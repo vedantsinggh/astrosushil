@@ -74,26 +74,17 @@ void main() {
       expect(find.text('Aarav Sharma'), findsOneWidget);
       expect(find.textContaining('1995-05-15'), findsOneWidget);
 
-      // Category filter tabs
-      expect(find.text('All Systems'), findsOneWidget);
-      expect(find.text('Charts & Kundli'), findsWidgets);
-      expect(find.text('Timing & Dashas'), findsOneWidget);
-
-      // Section Cards
-      expect(find.text('Charts & Kundli'), findsWidgets);
-      expect(find.text('Birth Chart (Kundli)'), findsOneWidget);
-      expect(find.text('Planetary Placements'), findsOneWidget);
-      expect(find.text('Divisional Charts (Vargas)'), findsOneWidget);
-
+      // Section headings
+      expect(find.text('Charts & Kundli'), findsOneWidget);
       expect(find.text('Timing & Periods'), findsOneWidget);
-      expect(find.text('Vimshottari Dasha'), findsOneWidget);
-      expect(find.text('Transits (Gochara)'), findsOneWidget);
-      expect(find.text('Panchanga'), findsOneWidget);
-      expect(find.text('Vedic Yogas'), findsOneWidget);
+      expect(find.text('Strength'), findsOneWidget);
+      expect(find.text('Advanced Tools'), findsOneWidget);
+      expect(find.text('Matchmaking'), findsOneWidget);
 
-      expect(find.text('Planetary & House Strength'), findsOneWidget);
-      expect(find.text('Advanced Astrological Systems'), findsOneWidget);
-      expect(find.text('Matchmaking & Compatibility'), findsOneWidget);
+      // Every astrology tool is shown as a labelled tile (no filtering needed)
+      for (final tool in _allHubTools) {
+        expect(find.text(tool), findsOneWidget, reason: '$tool tile missing');
+      }
     });
 
     testWidgets('ActiveBirthProfileSelector displays active profile and allows profile switching', (tester) async {
@@ -117,30 +108,23 @@ void main() {
       expect(find.textContaining('1998-11-22'), findsOneWidget);
     });
 
-    testWidgets('Category tabs filter displayed sections appropriately', (tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
+    testWidgets('All tool tiles are reachable on a small phone at large text without overflow', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
       await tester.pumpWidget(createTestWidget(profiles: [testProfile1]));
       await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isNull);
 
-      // Tap on "Timing & Dashas" tab
-      await tester.tap(find.text('Timing & Dashas'));
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Timing & Periods'), findsOneWidget);
-      expect(find.text('Vimshottari Dasha'), findsOneWidget);
-      expect(find.text('Birth Chart (Kundli)'), findsNothing);
-
-      // Scroll tab bar to reveal "Matchmaking" tab and tap
-      await tester.ensureVisible(find.text('Matchmaking'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Matchmaking'), warnIfMissed: false);
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Matchmaking & Compatibility'), findsOneWidget);
-      expect(find.text('Kundli Matchmaking (Guna Milan)'), findsOneWidget);
+      for (final tool in _allHubTools) {
+        await tester.ensureVisible(find.text(tool));
+        await tester.pump();
+        expect(find.text(tool), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('Tapping Kundli Matchmaking navigates to Matchmaking screen', (tester) async {
@@ -151,12 +135,12 @@ void main() {
       await tester.pumpWidget(createTestWidget(profiles: [testProfile1]));
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Tap to expand Matchmaking & Compatibility then tap Kundli Matchmaking
-      await tester.ensureVisible(find.text('Matchmaking & Compatibility'));
-      await tester.tap(find.text('Matchmaking & Compatibility'));
-      await tester.pumpAndSettle();
-
-      await tester.ensureVisible(find.text('Kundli Matchmaking (Guna Milan)'));
+      // Scroll it into the open viewport (ensureVisible would park it under
+      // the pinned large-title nav bar).
+      await tester.scrollUntilVisible(find.text('Kundli Matchmaking (Guna Milan)'), 200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
+      await tester.pump();
       await tester.tap(find.text('Kundli Matchmaking (Guna Milan)'));
       await tester.pumpAndSettle();
 
@@ -328,3 +312,24 @@ class _MockBirthProfilesNotifier extends StateNotifier<BirthProfilesState>
   @override
   Future<BirthProfileModel?> migrateGuestProfile(CreateBirthProfileDto dto) async => null;
 }
+
+const _allHubTools = [
+  'Birth Chart (Kundli)',
+  'Planetary Placements',
+  '12 Houses (Bhavas)',
+  'Nakshatra Profile',
+  'Divisional Charts (Vargas)',
+  'Vimshottari Dasha',
+  'Transits (Gochara)',
+  'Panchanga',
+  'Vedic Yogas',
+  'Shadbala (षड्बल)',
+  'Bhava Bala (भावबल)',
+  'Ashtakavarga Matrix',
+  'Jaimini Astrology',
+  'KP System (Krishnamurti Padhdhati)',
+  'Varshaphala (Solar Return)',
+  'Prashna (Horary Astrology)',
+  'Special Lagnas & Upagrahas',
+  'Kundli Matchmaking (Guna Milan)',
+];

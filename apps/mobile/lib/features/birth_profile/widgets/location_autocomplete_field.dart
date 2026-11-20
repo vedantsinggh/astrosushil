@@ -121,12 +121,15 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
           key: const Key('location_search_field'),
           controller: _textController,
           focusNode: _focusNode,
-          style: const TextStyle(fontSize: 14, color: AppColors.primary),
+          style: const TextStyle(fontSize: 18, color: AppColors.primary),
           onChanged: _onTextChanged,
           decoration: InputDecoration(
             hintText: 'Search city or place (e.g. Delhi, London)',
-            hintStyle: TextStyle(color: AppColors.secondary.withOpacity(0.5)),
-            prefixIcon: const Icon(Icons.place_outlined, size: 18, color: AppColors.secondary),
+            hintStyle: const TextStyle(fontSize: 17, color: AppColors.textMuted),
+            hintMaxLines: 2,
+            errorStyle: const TextStyle(fontSize: 14, color: AppColors.error),
+            errorMaxLines: 3,
+            prefixIcon: const Icon(Icons.place_outlined, size: 24, color: AppColors.secondary),
             suffixIcon: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -141,25 +144,27 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
                   )
                 else if (_textController.text.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.clear, size: 16, color: AppColors.secondary),
+                    icon: const Icon(Icons.clear, size: 22, color: AppColors.secondary),
+                    tooltip: 'Clear',
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     onPressed: _clearSelection,
                   ),
               ],
             ),
             filled: true,
             fillColor: AppColors.lightBackground,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.lightBorder),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.lightBorder),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
           validator: (val) {
@@ -180,25 +185,26 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
         if (_selectedLocation != null) ...[
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.premiumAccent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.premiumAccent.withOpacity(0.4)),
+              color: AppColors.successBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.successBorder),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.verified_rounded, size: 14, color: AppColors.primary),
-                const SizedBox(width: 6),
+                const Icon(Icons.verified_rounded, size: 20, color: AppColors.tintSageText),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Verified • ${_selectedLocation!.timezone} (${_selectedLocation!.latitude.toStringAsFixed(2)}°, ${_selectedLocation!.longitude.toStringAsFixed(2)}°)',
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 14,
+                      height: 1.35,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -210,7 +216,7 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
         if (_isOpen && _textController.text.trim().length >= 2) ...[
           const SizedBox(height: 6),
           Container(
-            constraints: const BoxConstraints(maxHeight: 240),
+            constraints: const BoxConstraints(maxHeight: 300),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -249,7 +255,7 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
               SizedBox(width: 10),
               Text(
                 'Searching places...',
-                style: TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
+                style: TextStyle(fontSize: 15, color: AppColors.lightTextSecondary),
               ),
             ],
           ),
@@ -267,14 +273,14 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
             Expanded(
               child: Text(
                 state.errorMessage!,
-                style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 ref.read(locationSearchNotifierProvider.notifier).search(_textController.text.trim());
               },
-              child: const Text('Retry', style: TextStyle(fontSize: 12)),
+              child: const Text('Retry', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -291,7 +297,7 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
             Expanded(
               child: Text(
                 'No locations found. Try searching for a nearby major city.',
-                style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
               ),
             ),
           ],
@@ -318,10 +324,10 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
             key: Key('location_item_${loc.id}'),
             onTap: () => _selectLocation(loc),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               child: Row(
                 children: [
-                  const Icon(Icons.location_city_rounded, size: 18, color: AppColors.secondary),
+                  const Icon(Icons.location_city_rounded, size: 22, color: AppColors.secondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -330,7 +336,7 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
                         Text(
                           loc.name,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
                           ),
@@ -339,7 +345,7 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
                           Text(
                             subtitle,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 14,
                               color: AppColors.lightTextSecondary,
                             ),
                           ),
@@ -356,9 +362,8 @@ class _LocationAutocompleteFieldState extends ConsumerState<LocationAutocomplete
                     child: Text(
                       loc.timezone,
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         color: AppColors.lightTextSecondary,
-                        fontFamily: 'monospace',
                       ),
                     ),
                   ),

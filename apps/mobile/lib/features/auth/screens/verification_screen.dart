@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/astro_controls.dart';
 import '../../../home/screens/home_screen.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
@@ -95,7 +96,20 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
   Future<bool> _checkAndPromptProfileSetup() async {
     final repo = ref.read(birthProfileRepositoryProvider);
-    final guestProfile = await repo.getGuestProfile();
+
+    // Load this account's own profiles fresh from the server (the local list
+    // cache is not per-account). If they cannot be loaded we cannot tell
+    // whether guest data is already saved, so we do not prompt at all.
+    List<BirthProfileModel>? accountProfiles;
+    try {
+      accountProfiles = await repo.getProfiles(forceRefresh: true);
+    } catch (_) {
+      accountProfiles = null;
+    }
+
+    // Only offer to save guest details that were really created in guest
+    // mode on this device and are not already on the account.
+    final guestProfile = accountProfiles == null ? null : await repo.getPendingGuestProfile(accountProfiles);
     if (guestProfile != null && mounted) {
       final shouldMigrate = await showDialog<bool>(
         context: context,
@@ -140,10 +154,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
         // to CreateBirthProfileScreen so they can enter their own details.
         await repo.clearGuestProfile();
         if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-            (route) => false,
-          );
+          CreateBirthProfileScreen.openAboveHome(context, ref);
         }
         return true;
       }
@@ -151,8 +162,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
     // Check if the newly authenticated user has any existing birth profiles
     try {
-      final profiles = await repo.getProfiles();
-      if (profiles.isEmpty && mounted) {
+      final profiles = accountProfiles;
+      if (profiles != null && profiles.isEmpty && mounted) {
         final shouldCreate = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -162,7 +173,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               children: [
                 Icon(Icons.auto_awesome, color: AppColors.premiumAccent, size: 22),
                 SizedBox(width: 8),
-                Text('Create Birth Profile'),
+                Flexible(child: Text('Create Birth Profile')),
               ],
             ),
             content: const Text(
@@ -186,10 +197,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
         );
 
         if (shouldCreate == true && mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-            (route) => false,
-          );
+          CreateBirthProfileScreen.openAboveHome(context, ref);
           return true;
         }
       }
@@ -349,7 +357,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                           child: Text(
                             _errorMessage!,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               color: AppColors.error,
                               fontWeight: FontWeight.w500,
                             ),
@@ -364,47 +372,55 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(6, (index) {
-                    return SizedBox(
-                      width: 46,
-                      height: 56,
-                      child: TextFormField(
-                        controller: _controllers[index],
-                        focusNode: _focusNodes[index],
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(1),
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: AppColors.lightSurface,
-                          contentPadding: EdgeInsets.zero,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.lightBorder),
+                    // Shrinks a little on the narrowest phones instead of overflowing.
+                    return Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 46),
+                          child: SizedBox(
+                            height: 56,
+                            child: TextFormField(
+                              controller: _controllers[index],
+                              focusNode: _focusNodes[index],
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                              inputFormatters: [
+                                LengthLimitingTextInputFormatter(1),
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: AppColors.lightSurface,
+                                contentPadding: EdgeInsets.zero,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.lightBorder),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AppColors.accent, width: 2),
+                                ),
+                              ),
+                              onChanged: (val) {
+                                if (val.isNotEmpty && index < 5) {
+                                  _focusNodes[index + 1].requestFocus();
+                                } else if (val.isEmpty && index > 0) {
+                                  _focusNodes[index - 1].requestFocus();
+                                }
+                                if (_otpCode.length == 6) {
+                                  FocusScope.of(context).unfocus();
+                                  _verifyCode();
+                                }
+                              },
+                            ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
                         ),
-                        onChanged: (val) {
-                          if (val.isNotEmpty && index < 5) {
-                            _focusNodes[index + 1].requestFocus();
-                          } else if (val.isEmpty && index > 0) {
-                            _focusNodes[index - 1].requestFocus();
-                          }
-                          if (_otpCode.length == 6) {
-                            FocusScope.of(context).unfocus();
-                            _verifyCode();
-                          }
-                        },
                       ),
                     );
                   }),
@@ -421,7 +437,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                           ? 'Resend Code in 00:${_resendCountdown.toString().padLeft(2, '0')}'
                           : 'Resend Verification Code',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: _resendCountdown > 0 ? AppColors.lightTextMuted : AppColors.primary,
                       ),
@@ -433,21 +449,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
                 _isLoading
                     ? const AstroLoaderButton(label: 'Verifying...', isDark: false)
-                    : ElevatedButton(
-                        onPressed: _verifyCode,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          'Verify & Continue',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    : AstroPrimaryButton(label: 'Verify & Continue', onPressed: _verifyCode),
               ],
             ),
           ),

@@ -22,8 +22,8 @@ class AstroLoaderFullScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final String displayMessage = message ?? 'Aligning your stars...';
     final Color bgColor = isDark ? AppColors.primary : AppColors.lightBackground;
-    final Color textColor = isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
-    final Color subTextColor = isDark ? AppColors.textSecondary : AppColors.lightTextSecondary;
+    final Color textColor = isDark ? AppColors.textInversePrimary : AppColors.lightTextPrimary;
+    final Color subTextColor = isDark ? AppColors.textInverseSecondary : AppColors.lightTextSecondary;
 
     return Semantics(
       label: 'Loading, $displayMessage',

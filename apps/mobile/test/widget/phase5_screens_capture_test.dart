@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../helpers/report_catalog_fixture.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -151,6 +152,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -179,6 +181,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('hi'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -207,6 +210,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -235,6 +239,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([]),
             ),
@@ -263,6 +268,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -275,8 +281,7 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 100));
-      // Switch to History tab
-      await tester.tap(find.text('My Reports'));
+      // My reports is part of the single Reports page (no tab to switch).
       await tester.pump(const Duration(milliseconds: 300));
 
       await captureToFile(tester, boundaryKey, 'reports_history_390w_en.png');
@@ -296,6 +301,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('hi'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -308,8 +314,7 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 100));
-      // Switch to History tab
-      await tester.tap(find.text('मेरी रिपोर्ट्स'));
+      // My reports is part of the single Reports page (no tab to switch).
       await tester.pump(const Duration(milliseconds: 300));
 
       await captureToFile(tester, boundaryKey, 'reports_history_360w_hi.png');
@@ -329,6 +334,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -339,7 +345,6 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.text('My Reports'));
       await tester.pump(const Duration(milliseconds: 300));
 
       await captureToFile(tester, boundaryKey, 'reports_history_empty_390w_en.png');
@@ -359,6 +364,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -404,6 +410,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -448,6 +455,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             reportGenerationNotifierProvider.overrideWith(
               (ref) => _MockGenerationNotifier(
                 ReportGenerationState(
@@ -485,6 +493,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             reportGenerationNotifierProvider.overrideWith(
               (ref) => _MockGenerationNotifier(
                 ReportGenerationState(
@@ -522,6 +531,7 @@ void main() {
           boundaryKey: boundaryKey,
           locale: const Locale('en'),
           overrides: [
+            reportCatalogTestOverride,
             reportGenerationNotifierProvider.overrideWith(
               (ref) => _MockGenerationNotifier(
                 ReportGenerationState(

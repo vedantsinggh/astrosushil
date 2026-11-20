@@ -555,9 +555,9 @@ void main() {
 
       expect(find.text('KP Astrology (Krishnamurti)'), findsOneWidget);
       expect(find.text('Planetary 4-Tier Lordships'), findsOneWidget);
-      expect(find.text('SignL'), findsWidgets);
-      expect(find.text('StarL'), findsWidgets);
-      expect(find.text('SubL'), findsWidgets);
+      expect(find.textContaining('Sign lord'), findsWidgets);
+      expect(find.textContaining('Star lord'), findsWidgets);
+      expect(find.textContaining('Sub lord'), findsWidgets);
 
       // Switch to Cusps tab
       await tester.tap(find.text('Placidus Cusps'));
@@ -705,9 +705,13 @@ void main() {
       expect(find.text('Prashna (Horary Astrology)'), findsOneWidget);
       expect(find.text('Will the contract finalize smoothly?'), findsOneWidget);
       expect(find.text('Prashna Lagna (Horary Ascendant)'), findsOneWidget);
-      expect(find.text('Scorpio'), findsOneWidget);
+      // Lagna sign appears in the at-a-glance summary and in the Lagna section.
+      expect(find.text('Scorpio'), findsNWidgets(2));
       expect(find.text('Chandra (Moon Position & Query Mind)'), findsOneWidget);
       expect(find.text('Classical Horary Sphutas (Sensitive Points)'), findsOneWidget);
+      // Sphutas are collapsed under an expander: open it.
+      await tester.tap(find.text('Classical Horary Sphutas (Sensitive Points)'));
+      await tester.pumpAndSettle();
       expect(find.text('Gulika / Mandi'), findsOneWidget);
       expect(find.text('Trisphuta (Lagna + Moon + Gulika)'), findsOneWidget);
       expect(find.text('Moment Panchanga'), findsOneWidget);
@@ -736,7 +740,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1. Query Details'), findsOneWidget);
+      expect(find.text('Query Details'), findsOneWidget);
+      expect(find.text('Step 1 of 2'), findsOneWidget);
       expect(find.text('Cast Prashna Chart'), findsOneWidget);
     });
   });

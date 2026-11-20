@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/app_date_time.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../models/consultation_models.dart';
 import '../providers/consultation_provider.dart';
@@ -20,7 +21,9 @@ class BookingFlowSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
+      barrierColor: const Color(0x66121440),
       builder: (ctx) => BookingFlowSheet(offering: offering),
     );
   }
@@ -35,12 +38,13 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
   String? _selectedProfileId;
   bool _isSuccess = false;
   ConsultationBookingModel? _confirmedBooking;
+  int _step = 0;
 
   @override
   void initState() {
     super.initState();
     final minDays = widget.offering.responseDaysNotice;
-    _selectedDate = DateTime.now().add(Duration(days: minDays));
+    _selectedDate = AppDateTime.addCalendarDays(AppDateTime.istToday(), minDays);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(consultationNotifierProvider.notifier).selectOffering(widget.offering);
@@ -82,8 +86,8 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     );
 
     if (bookingResult != null && mounted) {
-      final bookingJson = bookingResult['booking'] as Map<String, dynamic>? ??
-          bookingResult['data'] as Map<String, dynamic>?;
+      final bookingJson =
+          bookingResult['booking'] as Map<String, dynamic>? ?? bookingResult['data'] as Map<String, dynamic>?;
       final orderJson = bookingResult['order'] as Map<String, dynamic>?;
 
       if (bookingJson != null) {
@@ -107,6 +111,20 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     }
   }
 
+  // ── Step-by-step navigation (presentation only) ─────────────────────────
+
+  static const int _stepCount = 3;
+
+  String get _nextLabel => context.l10n.commonNext;
+  String get _backLabel => context.l10n.commonBack;
+  String get _pickTimeHint => context.l10n.comm2BookingPickTimeHint;
+
+  void _goToStep(int step) {
+    setState(() {
+      _step = step.clamp(0, _stepCount - 1);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -116,25 +134,24 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(
-          top: BorderSide(color: AppColors.cardBorder, width: 1.5),
-          left: BorderSide(color: AppColors.cardBorder, width: 1),
-          right: BorderSide(color: AppColors.cardBorder, width: 1),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AstroMetrics.cardRadius)),
       ),
       padding: EdgeInsets.only(
-        top: 16,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 0,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.92,
       ),
-      child: _isSuccess && _confirmedBooking != null
-          ? _buildSuccessView(context, _confirmedBooking!)
-          : _buildBookingSteps(context, l10n, state, profilesState.profiles),
+      child: SafeArea(
+        top: false,
+        child: _isSuccess && _confirmedBooking != null
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: _buildSuccessView(context, _confirmedBooking!),
+              )
+            : _buildBookingSteps(context, l10n, state, profilesState.profiles),
+      ),
     );
   }
 
@@ -144,537 +161,533 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     ConsultationState state,
     List<dynamic> profiles,
   ) {
-    final offering = widget.offering;
-    final minDate = DateTime.now().add(Duration(days: offering.responseDaysNotice));
-    final dates = List.generate(28, (index) => minDate.add(Duration(days: index)));
+    final Widget stepBody;
+    switch (_step) {
+      case 0:
+        stepBody = _buildDateTimeStep(l10n, state);
+        break;
+      case 1:
+        stepBody = _buildDetailsStep(l10n, profiles);
+        break;
+      default:
+        stepBody = _buildReviewStep(l10n, state, profiles);
+    }
 
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AstroSheetGrabber(),
+        const SizedBox(height: 4),
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildServiceHeader(l10n),
+                const SizedBox(height: 18),
+                _buildStepProgress(),
+                const SizedBox(height: 20),
+                stepBody,
+              ],
+            ),
+          ),
+        ),
+        _buildFooter(l10n, state),
+      ],
+    );
+  }
+
+  /// Service title, duration/mode and the total price, always visible.
+  Widget _buildServiceHeader(AppLocalizations l10n) {
+    final offering = widget.offering;
     final isVoice = offering.mode.contains('VOICE') || offering.mode.contains('AUDIO');
     final isInPerson = offering.mode.contains('IN_PERSON');
-    final modeColor = isVoice
-        ? const Color(0xFF2563EB)
-        : (isInPerson ? const Color(0xFF7C3AED) : const Color(0xFF0D9488));
-    final modeIcon = isVoice
-        ? Icons.phone_in_talk_rounded
-        : (isInPerson ? Icons.handshake_rounded : Icons.videocam_rounded);
+    final modeIcon =
+        isVoice ? Icons.phone_in_talk_rounded : (isInPerson ? Icons.handshake_rounded : Icons.videocam_rounded);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AstroIconSquare(icon: modeIcon, tint: AstroTint.indigo, size: 48),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                offering.title,
+                style: AppTypography.headlineLarge.copyWith(fontSize: 21, height: 1.25),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${l10n.consultDurationMin(offering.durationMinutes)} • ${offering.mode.replaceAll('_', ' ')}',
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppColors.lightTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '₹${offering.priceRupees}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// "Step X of 3" with the shared segmented progress track.
+  Widget _buildStepProgress() {
+    return Semantics(
+      liveRegion: true,
+      child: AstroStepIndicator(current: _step + 1, total: _stepCount),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Semantics(
+        header: true,
+        child: Text(text, style: AppTypography.headlineMedium.copyWith(fontSize: 19)),
+      ),
+    );
+  }
+
+  // ── Step 1: date and time ──────────────────────────────────────────────
+
+  Widget _buildDateTimeStep(AppLocalizations l10n, ConsultationState state) {
+    final offering = widget.offering;
+    // Dates are IST calendar days (slots are in IST), not device-local days.
+    final minDate = AppDateTime.addCalendarDays(AppDateTime.istToday(), offering.responseDaysNotice);
+    final dates = List.generate(28, (index) => AppDateTime.addCalendarDays(minDate, index));
+    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _sectionTitle(l10n.consultSelectDate),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warningBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.warningBorder),
+                ),
+                child: Text(
+                  l10n.consultDaysNotice(offering.responseDaysNotice),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.goldDark,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // Horizontal date picker (scrolls sideways; arrows not required)
+        SizedBox(
+          height: 92 * textScale,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: dates.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (ctx, idx) {
+              final date = dates[idx];
+              final isSelected =
+                  _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
+
+              final dayName = _getDayName(date.weekday);
+              final monthName = _getMonthName(date.month);
+
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                label: '$dayName ${date.day} $monthName',
+                excludeSemantics: true,
+                child: Material(
+                  color: isSelected ? AppColors.primary : AppColors.cardSurface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isSelected ? AppColors.primary : AppColors.cardBorder,
+                      width: 1.2,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _onDateSelected(date),
+                    child: SizedBox(
+                      width: 70 * textScale,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            dayName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected ? AppColors.textInverseSecondary : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${date.day}',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? AppColors.premiumAccent : AppColors.lightTextPrimary,
+                            ),
+                          ),
+                          Text(
+                            monthName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isSelected ? AppColors.textInverseSecondary : AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 24),
+        _sectionTitle(l10n.consultSelectSlot),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(Icons.schedule_rounded, size: 18, color: AppColors.lightTextSecondary),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.consultTimeZoneNotice,
+                  style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.35),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (state.isSlotLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+          )
+        else if (state.slots.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.warningBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.warningBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.event_busy_rounded, color: AppColors.goldDark, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n.consultNoSlots,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.4,
+                      color: AppColors.lightTextPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: state.slots.map((slot) {
+              final isSelected = state.selectedSlot?.id == slot.id;
+              final isAvailable = slot.isBookable;
+
+              return _SelectableTile(
+                label: '${slot.startTime} - ${slot.endTime} IST',
+                selected: isSelected,
+                enabled: isAvailable,
+                onTap: () => ref.read(consultationNotifierProvider.notifier).selectSlot(slot),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  // ── Step 2: who it is for, and the question ────────────────────────────
+
+  Widget _buildDetailsStep(AppLocalizations l10n, List<dynamic> profiles) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _sectionTitle(l10n.consultSelectProfile),
+        _ProfileOption(
+          label: l10n.consultNoProfile,
+          icon: Icons.person_outline_rounded,
+          selected: _selectedProfileId == null,
+          onTap: () => setState(() => _selectedProfileId = null),
+        ),
+        ...profiles.map((p) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _ProfileOption(
+              label: p.name as String,
+              icon: Icons.person_pin_circle_outlined,
+              selected: _selectedProfileId == p.id,
+              onTap: () => setState(() => _selectedProfileId = p.id as String),
+            ),
+          );
+        }),
+        const SizedBox(height: 24),
+
+        // Confidential question / focus area (optional)
+        TextField(
+          controller: _queryController,
+          minLines: 3,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            labelText: l10n.consultQueryHint,
+            labelStyle: const TextStyle(fontSize: 16, color: AppColors.lightTextSecondary),
+            alignLabelWithHint: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppColors.cardBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppColors.cardBorder),
+            ),
+            filled: true,
+            fillColor: AppColors.canvas,
+            contentPadding: const EdgeInsets.all(16),
+          ),
+          style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.lightTextPrimary),
+        ),
+        const SizedBox(height: 12),
+
+        // Privacy note
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.lightTextSecondary),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.consultPrivacyReassurance,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.lightTextSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ── Step 3: review and pay ─────────────────────────────────────────────
+
+  Widget _buildReviewStep(AppLocalizations l10n, ConsultationState state, List<dynamic> profiles) {
+    final offering = widget.offering;
 
     // GST Breakdown calculations
     final totalRupees = offering.priceRupees;
     final baseRupees = (totalRupees / 1.18).round();
     final gstRupees = totalRupees - baseRupees;
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header drag handle
-          Center(
-            child: Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.cardBorder,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+    final slot = state.selectedSlot;
+    final dateText =
+        '${_getDayName(_selectedDate.weekday)}, ${_selectedDate.day} ${_getMonthName(_selectedDate.month)} ${_selectedDate.year}';
+    String profileName = l10n.consultNoProfile;
+    for (final p in profiles) {
+      if (p.id == _selectedProfileId) profileName = p.name as String;
+    }
+    final query = _queryController.text.trim();
 
-          // Title & Service summary
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Booking summary with quick "change" links back to each step
+        AstroSurfaceCard(
+          padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: modeColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(modeIcon, color: modeColor, size: 22),
+              _SummaryRow(
+                icon: Icons.calendar_month_outlined,
+                text: slot != null ? '$dateText\n${slot.startTime} - ${slot.endTime} IST' : dateText,
+                onEdit: () => _goToStep(0),
+                editTooltip: l10n.consultSelectDate,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      offering.title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${l10n.consultDurationMin(offering.durationMinutes)} • ${offering.mode.replaceAll('_', ' ')}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.lightTextSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              const Divider(height: 8, color: AppColors.separator),
+              _SummaryRow(
+                icon: Icons.person_outline_rounded,
+                text: profileName,
+                onEdit: () => _goToStep(1),
+                editTooltip: l10n.consultSelectProfile,
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.cardBorder),
+              if (query.isNotEmpty) ...[
+                const Divider(height: 8, color: AppColors.separator),
+                _SummaryRow(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  text: query,
+                  onEdit: () => _goToStep(1),
+                  editTooltip: l10n.consultQueryHint,
                 ),
-                child: Text(
-                  '₹${offering.priceRupees}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Price & 18% Inclusive GST Breakdown
+        AstroSurfaceCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _PriceRow(label: l10n.consultBasePrice, value: _formatRupees(baseRupees)),
+              const SizedBox(height: 8),
+              _PriceRow(label: l10n.consultGstAmount, value: _formatRupees(gstRupees)),
+              const Divider(height: 24, color: AppColors.cardBorder),
+              _PriceRow(
+                label: l10n.consultTotalAmount,
+                value: _formatRupees(totalRupees),
+                emphasise: true,
               ),
             ],
           ),
-
-          const SizedBox(height: 16),
-          const Divider(color: AppColors.cardBorder),
-          const SizedBox(height: 12),
-
-          // 1. Select Birth Profile
-          Text(
-            l10n.consultSelectProfile,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.lightTextPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                label: Text(l10n.consultNoProfile),
-                avatar: const Icon(Icons.person_outline_rounded, size: 16),
-                selected: _selectedProfileId == null,
-                onSelected: (val) {
-                  if (val) {
-                    setState(() {
-                      _selectedProfileId = null;
-                    });
-                  }
-                },
-                selectedColor: AppColors.primary,
-                backgroundColor: AppColors.cardSurfaceParchment,
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: _selectedProfileId == null ? FontWeight.bold : FontWeight.w500,
-                  color: _selectedProfileId == null ? Colors.white : AppColors.lightTextPrimary,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                    color: _selectedProfileId == null ? AppColors.primary : AppColors.cardBorder,
-                  ),
-                ),
-              ),
-              ...profiles.map((p) {
-                final isSelected = _selectedProfileId == p.id;
-                return ChoiceChip(
-                  label: Text(p.name as String),
-                  avatar: const Icon(Icons.person_pin_circle_outlined, size: 16),
-                  selected: isSelected,
-                  onSelected: (val) {
-                    if (val) {
-                      setState(() {
-                        _selectedProfileId = p.id as String;
-                      });
-                    }
-                  },
-                  selectedColor: AppColors.primary,
-                  backgroundColor: AppColors.cardSurfaceParchment,
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? Colors.white : AppColors.lightTextPrimary,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(
-                      color: isSelected ? AppColors.primary : AppColors.cardBorder,
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // 2. Select Date
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                l10n.consultSelectDate,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.lightTextPrimary,
-                ),
-              ),
-              Text(
-                l10n.consultDaysNotice(offering.responseDaysNotice),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber.shade900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.schedule_rounded, size: 13, color: AppColors.lightTextSecondary),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  l10n.consultTimeZoneNotice,
-                  style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Horizontal Date Picker
-          SizedBox(
-            height: 74,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: dates.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (ctx, idx) {
-                final date = dates[idx];
-                final isSelected = _selectedDate.year == date.year &&
-                    _selectedDate.month == date.month &&
-                    _selectedDate.day == date.day;
-
-                final dayName = _getDayName(date.weekday);
-                final monthName = _getMonthName(date.month);
-
-                return InkWell(
-                  onTap: () => _onDateSelected(date),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 62,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.cardSurfaceParchment,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? AppColors.premiumAccent : AppColors.cardBorder,
-                        width: isSelected ? 1.5 : 1,
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          dayName,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white70 : AppColors.lightTextSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${date.day}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : AppColors.lightTextPrimary,
-                          ),
-                        ),
-                        Text(
-                          monthName,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isSelected ? Colors.white70 : AppColors.lightTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // 3. Select Time Slot
-          Text(
-            l10n.consultSelectSlot,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.lightTextPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          if (state.isSlotLoading)
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: CircularProgressIndicator(strokeWidth: 2.5),
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.info_outline_rounded, size: 18, color: AppColors.lightTextSecondary),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.consultReschedulePolicy,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.lightTextSecondary,
+                  height: 1.4,
+                ),
               ),
-            )
-          else if (state.slots.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amber.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.event_busy_rounded, color: Colors.amber.shade900, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      l10n.consultNoSlots,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.amber.shade900,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: state.slots.map((slot) {
-                final isSelected = state.selectedSlot?.id == slot.id;
-                final isAvailable = slot.isBookable;
-
-                return ChoiceChip(
-                  label: Text('${slot.startTime} - ${slot.endTime} IST'),
-                  selected: isSelected,
-                  onSelected: isAvailable
-                      ? (val) {
-                          if (val) {
-                            ref.read(consultationNotifierProvider.notifier).selectSlot(slot);
-                          }
-                        }
-                      : null,
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected
-                        ? Colors.white
-                        : (isAvailable ? AppColors.lightTextPrimary : Colors.grey.shade400),
-                  ),
-                  selectedColor: AppColors.primary,
-                  backgroundColor: AppColors.cardSurfaceParchment,
-                  disabledColor: Colors.grey.shade200,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isAvailable ? AppColors.cardBorder : Colors.transparent),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-          const SizedBox(height: 20),
-
-          // 4. Confidential Queries & Focus Areas
-          TextField(
-            controller: _queryController,
-            maxLines: 2,
-            decoration: InputDecoration(
-              labelText: l10n.consultQueryHint,
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.cardBorder),
-              ),
-              filled: true,
-              fillColor: AppColors.cardSurfaceParchment,
-              contentPadding: const EdgeInsets.all(12),
-            ),
-            style: const TextStyle(fontSize: 13),
-          ),
-          const SizedBox(height: 8),
-
-          // Privacy note
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceParchment,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.cardBorderSubtle),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.lightTextSecondary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.consultPrivacyReassurance,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.lightTextSecondary,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // 5. Price & 18% Inclusive GST Breakdown
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceParchment,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.cardBorder),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.consultBasePrice,
-                        style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatRupees(baseRupees),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.consultGstAmount,
-                        style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatRupees(gstRupees),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Divider(height: 1, color: AppColors.cardBorder),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.consultTotalAmount,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatRupees(totalRupees),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.consultReschedulePolicy,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.lightTextSecondary,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          if (state.errorMessage != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              state.errorMessage!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
             ),
           ],
+        ),
+      ],
+    );
+  }
 
-          const SizedBox(height: 18),
+  // ── Fixed footer: Back + one primary action ────────────────────────────
 
-          // 6. Action Button
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: (state.selectedSlot != null && !state.isBookingLoading)
-                  ? _handleBookAndPay
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 2,
-              ),
-              child: state.isBookingLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : Text(
-                      l10n.consultPayAndConfirm(offering.priceRupees.toString()),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
+  Widget _buildFooter(AppLocalizations l10n, ConsultationState state) {
+    final isLastStep = _step == _stepCount - 1;
+    final canContinue = _step != 0 || state.selectedSlot != null;
+    final canPay = state.selectedSlot != null && !state.isBookingLoading;
+
+    final Widget primary = isLastStep
+        ? AstroPrimaryButton(
+            buttonKey: const ValueKey('booking_pay'),
+            label: l10n.consultPayAndConfirm(widget.offering.priceRupees.toString()),
+            isLoading: state.isBookingLoading,
+            onPressed: canPay ? _handleBookAndPay : null,
+          )
+        : AstroPrimaryButton(
+            buttonKey: const ValueKey('booking_next'),
+            label: _nextLabel,
+            icon: Icons.arrow_forward_rounded,
+            onPressed: canContinue ? () => _goToStep(_step + 1) : null,
+          );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AstroMetrics.gutter, 12, AstroMetrics.gutter, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.cardSurface,
+        border: Border(top: BorderSide(color: AppColors.separator, width: 0.5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (state.errorMessage != null && isLastStep) ...[
+            Text(
+              state.errorMessage!,
+              style: const TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w600),
             ),
+            const SizedBox(height: 10),
+          ],
+          if (_step == 0 && state.selectedSlot == null && !state.isSlotLoading && state.slots.isNotEmpty) ...[
+            Text(
+              _pickTimeHint,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              if (_step > 0) ...[
+                AstroSecondaryButton(
+                  key: const ValueKey('booking_back'),
+                  label: _backLabel,
+                  icon: AstroIcons.back(context),
+                  expand: false,
+                  variant: AstroSecondaryVariant.outlined,
+                  onPressed: state.isBookingLoading ? null : () => _goToStep(_step - 1),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(child: primary),
+            ],
           ),
         ],
       ),
@@ -685,29 +698,28 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     final l10n = context.l10n;
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFFD1FAE5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF059669),
-              size: 52,
+          const Center(
+            child: CircleAvatar(
+              radius: 40,
+              backgroundColor: AppColors.successBg,
+              child: Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.tintSageText,
+                size: 52,
+              ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Text(
             l10n.consultBookingSuccess,
-            style: const TextStyle(
-              fontSize: 20,
+            textAlign: TextAlign.center,
+            style: AppTypography.titleLarge.copyWith(
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: AppColors.lightTextPrimary,
             ),
@@ -715,19 +727,19 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
           const SizedBox(height: 6),
           Text(
             l10n.consultBookingReference(booking.bookingReference),
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.lightTextSecondary,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Container(
-            width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.cardSurfaceParchment,
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.cardBorder),
             ),
             child: Column(
@@ -737,102 +749,80 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
                   booking.serviceTitle,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontSize: 17,
                     color: AppColors.lightTextPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.calendar_month_outlined, size: 16, color: AppColors.lightTextSecondary),
-                    const SizedBox(width: 6),
-                    Flexible(
+                    const Icon(Icons.calendar_month_outlined, size: 20, color: AppColors.lightTextSecondary),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: Text(
                         '${booking.appointmentDate} • ${booking.startTime} - ${booking.endTime} IST',
-                        style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
+                        style: const TextStyle(fontSize: 16, color: AppColors.lightTextPrimary, height: 1.35),
                       ),
                     ),
                   ],
                 ),
                 if (booking.meetingLink != null) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFD1FAE5)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.videocam_rounded, color: Color(0xFF059669), size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            booking.meetingLink!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF059669),
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.videocam_rounded, color: AppColors.tintSageText, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          booking.meetingLink!,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: AppColors.tintSageText,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Next steps
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceWarm,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.cardBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.consultNextStepsTitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.consultNextStepsDesc,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.lightTextSecondary,
-                    height: 1.35,
-                  ),
-                ),
-              ],
+          Text(
+            l10n.consultNextStepsTitle,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: AppColors.lightTextPrimary,
             ),
           ),
-          const SizedBox(height: 20),
-
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(l10n.close, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(
+            l10n.consultNextStepsDesc,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.lightTextSecondary,
+              height: 1.4,
             ),
+          ),
+          const SizedBox(height: 24),
+
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.premiumAccent,
+              foregroundColor: AppColors.primary,
+              minimumSize: const Size.fromHeight(56),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              textStyle: AppTypography.labelLarge.copyWith(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -845,10 +835,229 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
   }
 
   String _getMonthName(int month) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
+  }
+}
+
+/// Large selectable time-slot tile (>= 52dp tall) with a clear selected state.
+class _SelectableTile extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _SelectableTile({
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg = selected ? AppColors.primary : (enabled ? AppColors.cardSurface : AppColors.disabledSurface);
+    final Color fg = selected ? Colors.white : (enabled ? AppColors.lightTextPrimary : AppColors.disabled);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: enabled,
+      child: Material(
+        color: bg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.cardBorder,
+            width: 1.2,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 52),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    selected ? Icons.check_circle_rounded : Icons.access_time_rounded,
+                    size: 20,
+                    color: selected ? AppColors.premiumAccent : fg,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                        color: fg,
+                        decoration: enabled ? null : TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width radio-style option for choosing the birth profile.
+class _ProfileOption extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ProfileOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? AppColors.canvas : AppColors.cardSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.cardBorder,
+            width: selected ? 1.6 : 1.2,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(icon, size: 24, color: AppColors.secondary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                        color: AppColors.lightTextPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    selected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                    size: 24,
+                    color: selected ? AppColors.primary : AppColors.lightTextSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One line of the booking summary, with a labelled "Change" link.
+class _SummaryRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onEdit;
+  final String editTooltip;
+
+  const _SummaryRow({
+    required this.icon,
+    required this.text,
+    required this.onEdit,
+    required this.editTooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 7),
+          child: AstroIconSquare(icon: icon, tint: AstroTint.indigo),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.lightTextPrimary),
+            ),
+          ),
+        ),
+        Tooltip(
+          message: editTooltip,
+          child: TextButton(
+            onPressed: onEdit,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.accent,
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              textStyle: AppTypography.labelLarge.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            child: Text(context.l10n.commonChange),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Label/value row for the price breakdown; wraps instead of clipping.
+class _PriceRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool emphasise;
+
+  const _PriceRow({required this.label, required this.value, this.emphasise = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: emphasise ? 17 : 15,
+              fontWeight: emphasise ? FontWeight.bold : FontWeight.w500,
+              color: emphasise ? AppColors.lightTextPrimary : AppColors.lightTextSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: emphasise ? 20 : 15,
+            fontWeight: emphasise ? FontWeight.bold : FontWeight.w600,
+            color: emphasise ? AppColors.primary : AppColors.lightTextPrimary,
+          ),
+        ),
+      ],
+    );
   }
 }

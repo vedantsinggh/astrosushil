@@ -57,7 +57,7 @@ export const CLIENT_CONFIRMATION_REQUIRED = 'CLIENT_CONFIRMATION_REQUIRED' as co
 
 export interface AstrologyConfig {
   zodiacType: 'SIDEREAL' | 'TROPICAL' | typeof CLIENT_CONFIRMATION_REQUIRED;
-  ayanamsa: 'LAHIRI' | 'RAMAN' | 'KRISHNAMURTI' | 'KP' | typeof CLIENT_CONFIRMATION_REQUIRED;
+  ayanamsa: 'LAHIRI' | 'RAMAN' | 'KRISHNAMURTI' | 'KP' | 'FAGAN_BRADLEY' | typeof CLIENT_CONFIRMATION_REQUIRED;
   houseSystem: 'WHOLE_SIGN' | 'EQUAL' | 'PLACIDUS' | 'SRI_PATI' | typeof CLIENT_CONFIRMATION_REQUIRED;
   nodeCalculation: 'MEAN_NODE' | 'TRUE_NODE' | typeof CLIENT_CONFIRMATION_REQUIRED;
   planetaryCalculationMode: 'GEOCENTRIC' | 'TOPOCENTRIC' | typeof CLIENT_CONFIRMATION_REQUIRED;
@@ -66,6 +66,13 @@ export interface AstrologyConfig {
   dashaSystem: 'VIMSHOTTARI' | 'ASHTOTTARI' | typeof CLIENT_CONFIRMATION_REQUIRED;
 }
 ```
+
+### 3.1 Ayanamsa, nodes and house cusps (engine 0.2.0, `docs/decisions.md` ADR-017)
+
+- **Ayanamsa** (`src/ayanamsa/ayanamsa.ts`): default `LAHIRI` = true Chitrapaksha (ICRC 23°15'00".658 true on 1956-03-21 0h TT + IAU 2006 precession pA; true = mean + nutation), as in the Indian Astronomical Ephemeris. `RAMAN`, `KRISHNAMURTI` (KSK table), `KP` (KP New, zero 291 CE) and `FAGAN_BRADLEY` are selectable; a missing value means `LAHIRI`. True ayanamsa is subtracted from apparent planetary longitudes, mean ayanamsa from mean-equinox quantities (ascendant, MC, cusps, nodes).
+- **Nodes** (`src/rahu-ketu/lunar-nodes.ts`): `MEAN_NODE` (default, Meeus eq. 47.7) or `TRUE_NODE` (osculating node, as JPL Horizons).
+- **KP cusps**: true Placidus (`src/houses/house-cusps.ts`); undefined above ~66.56° latitude (`PlacidusUndefinedError`).
+- **Bhava Chalit**: Sripati from the real MC and Lagna (madhya trisection, sandhi midpoints).
 
 ---
 
@@ -89,7 +96,7 @@ AstronomyEngineAdapter   MockEphemerisProvider
 ## 5. Output Model (`AstroChart`)
 
 ```ts
-export const ASTROLOGY_ENGINE_VERSION = '0.1.0';
+export const ASTROLOGY_ENGINE_VERSION = '0.2.0'; // 0.2.0: ADR-017 (true Lahiri, node choice, Placidus KP)
 
 export interface ChartCalculationMetadata {
   engineVersion: string;
@@ -171,10 +178,10 @@ export interface AstroChart {
 | **Chaturaseeti Sama** | IMPLEMENTED | 84y | Nakshatra (27) | 10th Lord in 10th House | Exact Moon in Janma Nakshatra | 3 Levels | Parashara (BPHS 46:36-39) |
 | **Dwadashottari** | IMPLEMENTED | 112y | Nakshatra (27) | Lagna in Venus Navamsha (Taurus or Libra) | Exact Moon in Janma Nakshatra | 3 Levels | Parashara (BPHS 46:40-45) |
 | **Panchottari** | IMPLEMENTED | 105y | Nakshatra (27) | Cancer Lagna (D1) AND Cancer Dwadasamsha (D12) | Exact Moon in Janma Nakshatra | 3 Levels | Parashara (BPHS 46:46-51) |
-| **Yogini** | PENDING | 36y | Nakshatra (27) | Universal | Nakshatra fraction | Planned | Parashara |
-| **Chara** | PENDING | 96y | Rashi (12) | Universal | Sign / Karaka progression | Planned | Jaimini |
-| **Narayana** | PENDING | 144y | Rashi (12) | Universal | Padakrama sign progression | Planned | Jaimini |
-| **Kalachakra** | PENDING | 100y | Nakshatra (27) | Universal | Pada fraction / Deha-Jeeva | Planned | Parashara |
+| **Yogini** | IMPLEMENTED | 36y | Nakshatra (27) | Universal | Nakshatra fraction | Implemented 2026-11-18 — see docs/report-system/decisions/engine-extensions.md | Parashara |
+| **Chara** | IMPLEMENTED | 144y (max) | Rashi (12) | Universal | Sign / Karaka progression | Implemented 2026-11-18 — see docs/report-system/decisions/engine-extensions.md | Jaimini |
+| **Narayana** | IMPLEMENTED | 144y | Rashi (12) | Universal | Padakrama sign progression | Implemented 2026-11-18 — see docs/report-system/decisions/engine-extensions.md | Jaimini |
+| **Kalachakra** | IMPLEMENTED | 100y | Nakshatra (27) | Universal | Pada fraction / Deha-Jeeva | Implemented 2026-11-18 — see docs/report-system/decisions/engine-extensions.md | Parashara |
 
 #### System Specifications
 
@@ -270,9 +277,9 @@ export interface AstroChart {
   - [x] Clean API endpoint (`POST /api/v1/astrology/varshaphala`) and zero `{}` serialization.
 
 ### 7.2 Unresolved Requirements (Awaiting Client Confirmation)
-- [ ] Confirmation of primary Ayanamsa (Lahiri vs Raman vs KP).
-- [ ] Confirmation of primary House system for natal chart and Bhava Chalit.
-- [ ] Confirmation of Mean Node vs True Node for Rahu/Ketu calculations.
+- [x] Confirmation of primary Ayanamsa: true Chitrapaksha Lahiri, others selectable (ADR-017).
+- [x] House systems: whole sign for the natal chart, Sripati for Bhava Chalit, true Placidus for KP (ADR-017).
+- [x] Mean Node by default, True Node selectable (ADR-017).
 - [ ] Confirmation of required Divisional Charts (Vargas list).
 - [ ] Confirmation of Dasha year length (365.2425 days solar year vs 360-day Savana year).
 - [ ] Client reference benchmark chart fixtures.
@@ -374,7 +381,7 @@ Prashna (Horary Astrology) evaluates the planetary geometry at the exact moment 
 | Parameter | Setting | Rationale |
 | :--- | :--- | :--- |
 | **Zodiac** | `SIDEREAL` (Nirayana) | Classical Vedic Horary / Prashna Marga standard |
-| **Ayanamsa** | `LAHIRI` | Standard Lahiri formula (23.85° at J2000 + precession) |
+| **Ayanamsa** | `LAHIRI` | True Chitrapaksha Lahiri (ICRC / IAE, ADR-017) |
 | **House System** | `WHOLE_SIGN` | Canonical default across the Astro Sushil engine |
 | **Planetary Coordinates** | `GEOCENTRIC` | Apparent geocentric coordinates via `astronomy-engine` |
 | **Lunar Node Mode** | `MEAN_NODE` | Canonical mean lunar node calculation |
@@ -382,7 +389,7 @@ Prashna (Horary Astrology) evaluates the planetary geometry at the exact moment 
 | **Location Parameter** | Explicit Geographic Coordinates | Query location coordinates (latitude, longitude, timezone) |
 
 ### 9.3 Prashna Lagna (Udaya Lagna) & Houses
-- **Prashna Lagna**: Sidereal Ascendant rising at the query moment and location, calculated using verified GMST, LST, and obliquity equations with Lahiri Ayanamsa. Exposes Rashi, degree in sign, Nakshatra, Pada, Nakshatra Lord, and Rashi Lord.
+- **Prashna Lagna**: Sidereal Ascendant rising at the query moment and location, calculated using verified GMST, LST, and obliquity equations with the true Lahiri ayanamsa (mean value, as the ascendant is mean-equinox). Exposes Rashi, degree in sign, Nakshatra, Pada, Nakshatra Lord, and Rashi Lord.
 - **Whole Sign Houses (Bhavas)**: 12 houses established from Prashna Lagna (House 1 = Lagna sign, House 2 = next sign, etc.), detailing sign, lord, cusp boundaries, and occupying planets.
 - **Planetary States**: 9 Vedic planets (Sun through Ketu) with sidereal longitude, sign, degree, speed, retrograde status, house position from Prashna Lagna, and combustion status relative to the Sun.
 

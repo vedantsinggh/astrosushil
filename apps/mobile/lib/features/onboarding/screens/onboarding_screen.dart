@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_theme.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../auth/screens/login_screen.dart';
 import '../models/onboarding_page_model.dart';
 import '../providers/onboarding_provider.dart';
@@ -10,7 +11,11 @@ import '../widgets/celestial_onboarding_background.dart';
 import '../widgets/onboarding_navigation.dart';
 import '../widgets/onboarding_page_widget.dart';
 
-/// Official 3-page Onboarding Screen for Astro Platform
+/// Official 3-page Onboarding Screen for Astro Platform.
+///
+/// Kept minimal and senior-friendly: large text, one big labelled action per
+/// page, a visible "Step X of Y" counter, Back/Skip buttons, and a written
+/// hint describing how to move forward.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -76,149 +81,114 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  void _previousPage() {
+    if (_currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   void _showBirthDataExplanation(BuildContext context) {
-    showModalBottomSheet(
+    showAstroSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.cardSurfaceWarm,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      title: 'Why We Ask for Birth Details',
+      showDone: false,
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Vedic Astrology and BNN calculations depend on exact astronomical coordinates at your moment of birth:',
+            style: TextStyle(fontSize: 16, color: AppColors.lightTextSecondary, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          AstroGroupedSection(
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.lightBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Row(
-                children: [
-                  Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 22),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Why We Ask for Birth Details',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Vedic Astrology and BNN calculations depend on exact astronomical coordinates at your moment of birth:',
-                style: TextStyle(fontSize: 13, color: AppColors.lightTextSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              _buildReasonBullet(
+              _reasonRow(
+                Icons.schedule_rounded,
+                AstroTint.indigo,
                 'Birth Date & Time',
                 'Determines planetary longitudes and the Ascendant (Lagna), which changes every 2 hours.',
               ),
-              const SizedBox(height: 8),
-              _buildReasonBullet(
+              _reasonRow(
+                Icons.place_rounded,
+                AstroTint.sage,
                 'Verified Birthplace',
                 'Latitude and longitude calculate the exact local horizon tilt and divisional charts.',
               ),
-              const SizedBox(height: 8),
-              _buildReasonBullet(
+              _reasonRow(
+                Icons.lock_rounded,
+                AstroTint.amber,
                 'Privacy Assured',
                 'Your details are used strictly for astrological chart generation and never shared with third parties.',
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Understood'),
-                ),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: 20),
+          AstroPrimaryButton(label: 'Understood', onPressed: () => Navigator.of(ctx).pop()),
+        ],
       ),
     );
   }
 
-  static Widget _buildReasonBullet(String title, String description) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.premiumAccent),
-        const SizedBox(width: 8),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 12, color: AppColors.lightTextPrimary, height: 1.35),
-              children: [
-                TextSpan(text: '$title: ', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                TextSpan(text: description),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
+  static Widget _reasonRow(IconData icon, AstroTint tint, String title, String description) {
+    return AstroListRow(icon: icon, tint: tint, title: title, subtitle: description);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CelestialOnboardingBackground(
         child: SafeArea(
           child: Column(
             children: [
-              // Top Bar with 'Why Birth Details?' & Skip Action
+              // Top Bar: Back (after first page) on the left, Skip on the right
               Padding(
-                padding: const EdgeInsets.only(top: 8.0, right: 16.0, left: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _showBirthDataExplanation(context),
-                      icon: const Icon(Icons.help_outline_rounded, size: 16, color: AppColors.premiumAccent),
-                      label: const Text(
-                        'Why Birth Data?',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.premiumAccent,
+                padding: const EdgeInsets.only(top: 4.0, right: 8.0, left: 8.0),
+                child: SizedBox(
+                  height: 52,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_currentIndex > 0)
+                        TextButton.icon(
+                          onPressed: _previousPage,
+                          style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                          icon: Icon(AstroIcons.back(context), size: 20, color: AppColors.textInverseSecondary),
+                          label: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textInverseSecondary,
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 48),
+                      TextButton(
+                        onPressed: _finishOnboarding,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(64, 40),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                          shape: StadiumBorder(side: BorderSide(color: Colors.white.withValues(alpha: 0.18))),
+                        ),
+                        child: const Text(
+                          'Skip',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textInverseSecondary,
+                          ),
                         ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: _finishOnboarding,
-                      child: Text(
-                        'Skip',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -235,6 +205,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   itemBuilder: (context, index) {
                     return OnboardingPageWidget(page: _pages[index]);
                   },
+                ),
+              ),
+
+              // Plain-language link explaining why birth details are needed
+              TextButton.icon(
+                onPressed: () => _showBirthDataExplanation(context),
+                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                icon: const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFFE9C766)),
+                label: const Text(
+                  'Why Birth Data?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE9C766),
+                  ),
                 ),
               ),
 

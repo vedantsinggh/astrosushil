@@ -6,7 +6,8 @@ export const evaluateGuptaNadiSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'transitDate must be in canonical YYYY-MM-DD format' })
     .optional(),
-  gender: z.enum(['MALE', 'FEMALE']).optional().default('MALE'),
+  // No assumed default: gender changes the Jiva Karaka, so it must come from the user.
+  gender: z.enum(['MALE', 'FEMALE']).optional(),
 });
 
 export type EvaluateGuptaNadiInput = z.infer<typeof evaluateGuptaNadiSchema>;

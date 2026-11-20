@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme_tokens.dart';
+import 'astro_nav_bar.dart';
 
 /// Standardized Navigation AppBar for Astro Sushil screens.
-/// Guarantees high contrast and visible back buttons for light and dark themes.
+///
+/// Now a thin, backwards-compatible wrapper around the shared adaptive
+/// [AstroNavBar] (chevron + "Back" and centred title on iOS, arrow + start
+/// title on Android, frosted when content scrolls under it). Existing call
+/// sites upgrade automatically. New screens should prefer `AstroPage` /
+/// [AstroSliverNavBar] for the collapsing large title.
+///
+/// * [isDark] or a [backgroundColor] of [AppColors.primary] selects the
+///   navy→indigo `hero` style.
+/// * [centerTitle] is kept for API compatibility; alignment now follows the
+///   platform convention.
 class AstroAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final Widget? leading;
@@ -29,44 +41,20 @@ class AstroAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveIsDark = isDark || backgroundColor == AppColors.primary;
-    final defaultFgColor = effectiveIsDark ? Colors.white : AppColors.primary;
-    final fgColor = foregroundColor ?? defaultFgColor;
-    final bgColor = backgroundColor ?? (effectiveIsDark ? AppColors.primary : Colors.transparent);
-
-    return AppBar(
-      backgroundColor: bgColor,
-      foregroundColor: fgColor,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      centerTitle: centerTitle,
-      iconTheme: IconThemeData(color: fgColor),
-      actionsIconTheme: IconThemeData(color: fgColor),
-      leading: leading ??
-          (showBackButton
-              ? IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: fgColor,
-                    size: 20,
-                  ),
-                  tooltip: 'Back',
-                  onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
-                )
-              : null),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: fgColor,
-          letterSpacing: -0.2,
-        ),
-      ),
+    final hero = isDark || backgroundColor == AppColors.primary;
+    final solid = !hero && backgroundColor != null && backgroundColor != Colors.transparent;
+    return AstroNavBar(
+      title: title,
+      leading: leading,
       actions: actions,
+      showBack: showBackButton,
+      onBack: onBackPressed,
+      style: hero ? AstroNavBarStyle.hero : AstroNavBarStyle.accent,
+      foregroundColor: foregroundColor,
+      backgroundColor: solid ? backgroundColor : null,
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(AstroMetrics.navBarHeight);
 }

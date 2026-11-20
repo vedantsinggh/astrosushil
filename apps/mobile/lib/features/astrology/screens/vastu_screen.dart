@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/vastu_model.dart';
 import '../providers/vastu_provider.dart';
+import '../widgets/adv_widgets.dart';
+import '../widgets/astrology_error_state.dart';
 import 'vastu_detail_screen.dart';
 
 class VastuScreen extends ConsumerWidget {
@@ -39,23 +37,20 @@ class VastuScreen extends ConsumerWidget {
     final categoriesAsync = ref.watch(vastuCategoriesProvider);
     final categories = categoriesAsync.valueOrNull;
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: const AstroAppBar(
-        title: 'Vastu Shastra',
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return AstroPage(
+      title: 'Vastu Shastra',
+      child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. HERO VASTU BANNER
-                _buildHeroVastuCard(),
+                // 1. AT-A-GLANCE SUMMARY
+                const AdvSummaryCard(
+                  label: 'Home guidance',
+                  icon: Icons.home_rounded,
+                  title: 'Harmonize Your Environment',
+                  subtitle: 'Align your home layout with five natural elements for peace, prosperity and health.',
+                ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: kAdvGap),
 
                 // Sushil Sir Explainer Button
                 SushilExplainerButton(
@@ -63,166 +58,72 @@ class VastuScreen extends ConsumerWidget {
                   poseAsset: AppAssets.sushilGuiding,
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: kAdvGap + 4),
 
-                // 2. SUBTITLE & GRID HEADER
-                const Text(
-                  'Explore Your Space',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                    letterSpacing: -0.3,
+                // 2. ROOM CATEGORIES
+                AdvSection(
+                  title: 'Explore Your Space',
+                  subtitle: 'Simple guidance for a balanced space.',
+                  icon: Icons.grid_view_rounded,
+                  tint: AstroTint.sage,
+                  inCard: false,
+                  child: categoriesAsync.when(
+                    loading: () => const AstroLoaderCard(
+                      message: AstroLoaderMessages.vastu,
+                    ),
+                    error: (err, _) => AstrologyErrorState(
+                      error: err,
+                      customMessage: 'Vastu categories could not be loaded. Please try again.',
+                      onRetry: () => ref.invalidate(vastuCategoriesProvider),
+                    ),
+                    data: (categories) => categories.isEmpty
+                        ? const AstroEmptyState(
+                            title: 'No Vastu guidance available',
+                            message: 'Vastu categories have not been published yet. Please check back later.',
+                          )
+                        : _buildCategoryGrid(context, categories),
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Simple guidance for a balanced space.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.lightTextSecondary,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 3. 2-COLUMN GRID OF ROOM CATEGORIES
-                categoriesAsync.when(
-                  loading: () => const AstroLoaderCard(
-                    message: AstroLoaderMessages.vastu,
-                  ),
-                  error: (err, _) => _buildCategoryGrid(context, _getMockCategories()),
-                  data: (categories) => _buildCategoryGrid(
-                    context,
-                    categories.isNotEmpty ? categories : _getMockCategories(),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
               ],
             ),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _buildHeroVastuCard() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.premiumAccent.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // Background Vastu hero image if present
-            const Positioned.fill(
-              child: AstroImage(
-                assetPath: AppAssets.vastuHero,
-                fit: BoxFit.cover,
-                fallback: AstroImageFallback.celestial,
-                semanticLabel: 'Vastu Shastra background',
-              ),
-            ),
-            // Dark gradient overlay for text readability
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withValues(alpha: 0.92),
-                    AppColors.primary.withValues(alpha: 0.6),
-                    Colors.transparent,
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.premiumAccent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.premiumAccent.withValues(alpha: 0.4)),
-                    ),
-                    child: const Text(
-                      'VASTU SHASTRA',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.premiumAccent,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Harmonize Your Environment',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: Text(
-                      'Align your home layout with five natural elements for peace, prosperity and health.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.85),
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /// Inset-grouped list of rooms: illustration thumbnail, room name and the
+  /// ideal direction. Rows wrap at large text sizes.
   Widget _buildCategoryGrid(BuildContext context, List<VastuCategoryModel> categories) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        final cat = categories[index];
-        return _buildGridCard(context, cat);
-      },
+    return AstroGroupedSection(
+      dividerInset: 16 + 48 + 14,
+      children: [
+        for (final cat in categories) _buildGridCard(context, cat),
+      ],
     );
   }
 
   Widget _buildGridCard(BuildContext context, VastuCategoryModel cat) {
     final assetPath = _getVastuAssetPath(cat.slug);
+    const tint = AstroTint.sage;
 
-    return AstroCard(
-      padding: const EdgeInsets.all(14),
+    return AstroListRow(
+      leading: SizedBox(
+        width: 48,
+        height: 48,
+        child: assetPath != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AstroImage(
+                  assetPath: assetPath,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
+                  fallback: AstroImageFallback.icon,
+                  semanticLabel: '${cat.name} vastu illustration',
+                ),
+              )
+            : AstroIconSquare(icon: _getIconForCategory(cat.slug), tint: tint, size: 48),
+      ),
+      title: cat.name,
+      subtitle: 'Ideal: ${cat.idealDirection}',
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -230,66 +131,6 @@ class VastuScreen extends ConsumerWidget {
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: assetPath != null
-                      ? AstroImage(
-                          assetPath: assetPath,
-                          width: 28,
-                          height: 28,
-                          fit: BoxFit.cover,
-                          fallback: AstroImageFallback.icon,
-                          semanticLabel: '${cat.name} vastu illustration',
-                        )
-                      : Icon(_getIconForCategory(cat.slug), size: 18, color: AppColors.primary),
-                ),
-              ),
-              const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.lightTextMuted),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                cat.name,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Ideal: ${cat.idealDirection}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.secondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -329,70 +170,5 @@ class VastuScreen extends ConsumerWidget {
       default:
         return Icons.home_rounded;
     }
-  }
-
-  List<VastuCategoryModel> _getMockCategories() {
-    return const [
-      VastuCategoryModel(
-        id: 1,
-        slug: 'main-entrance',
-        name: 'Entrance',
-        sanskritName: 'Simhadwara',
-        description: 'The primary gateway of cosmic Prana energy entering the residence.',
-        idealDirection: 'North / East',
-        element: 'Air / Space',
-        iconName: 'door',
-      ),
-      VastuCategoryModel(
-        id: 2,
-        slug: 'master-bedroom',
-        name: 'Bedroom',
-        sanskritName: 'Nairrutya',
-        description: 'Zone of stability, deep rest, leadership, and emotional security.',
-        idealDirection: 'South-West',
-        element: 'Earth',
-        iconName: 'bed',
-      ),
-      VastuCategoryModel(
-        id: 3,
-        slug: 'living-room',
-        name: 'Living Room',
-        sanskritName: 'Sabhagruha',
-        description: 'Zone of social interaction, harmony, and welcoming energy.',
-        idealDirection: 'North-East',
-        element: 'Air',
-        iconName: 'couch',
-      ),
-      VastuCategoryModel(
-        id: 4,
-        slug: 'kitchen',
-        name: 'Kitchen',
-        sanskritName: 'Agni Kona',
-        description: 'Zone of fire energy, health, digestive strength, and vitality.',
-        idealDirection: 'South-East',
-        element: 'Fire',
-        iconName: 'kitchen',
-      ),
-      VastuCategoryModel(
-        id: 5,
-        slug: 'study-office',
-        name: 'Study Space',
-        sanskritName: 'Vidyasthana',
-        description: 'Zone of intellect, memory, sharp concentration, and career growth.',
-        idealDirection: 'North / East',
-        element: 'Air',
-        iconName: 'book',
-      ),
-      VastuCategoryModel(
-        id: 6,
-        slug: 'puja-room',
-        name: 'Puja Space',
-        sanskritName: 'Devasthana',
-        description: 'Sacred sanctuary for spiritual focus, peace, and divine vibrations.',
-        idealDirection: 'North-East',
-        element: 'Water / Ether',
-        iconName: 'temple',
-      ),
-    ];
   }
 }

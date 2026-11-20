@@ -1,0 +1,912 @@
+{
+ "dashaSystem": "PATYAYINI",
+ "provisional": true,
+ "label": "provisional – pending client review",
+ "source": "Patyayini dasa of the Tajaka writers (Tajika Neelakanthi tradition), krisamsa/patyamsa procedure as stated in P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\", ch. 30.3 (Patyayini Dasa), steps (1)-(4) and Table 75.",
+ "conventionNotes": [
+  "Points: Lagna and the seven grahas of the Tajika annual chart; Rahu and Ketu are excluded.",
+  "Year: the interval between this solar return and the next (engine sidereal solar-return solver). Narasimha Rao scales to 365.2425 days; the difference is under a day over the year.",
+  "Ties in krisamsa give a zero-length period and keep the fixed order Lagna, Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn.",
+  "Antardashas use the same ratios and order, starting with the dasha's own point (step 4). Some authors use a 360-day Tajika year or include the nodes; not adopted.",
+  "Annual location defaults to the birth place unless one is given."
+ ],
+ "targetYear": 2026,
+ "solarReturnUtcIso": "2026-05-15T14:34:26.763Z",
+ "nextSolarReturnUtcIso": "2027-05-15T20:29:56.074Z",
+ "yearLengthDays": 365.24686702546296,
+ "annualLocation": {
+  "latitude": 28.6139,
+  "longitude": 77.209,
+  "timezone": "Asia/Kolkata",
+  "placeName": "New Delhi"
+ },
+ "rows": [
+  {
+   "key": "SUN",
+   "order": 1,
+   "krishamsha": 0.5597667592672622,
+   "patyamsha": 0.5597667592672622,
+   "fraction": 0.020784402941543347
+  },
+  {
+   "key": "VENUS",
+   "order": 2,
+   "krishamsha": 1.666806796683403,
+   "patyamsha": 1.1070400374161409,
+   "fraction": 0.041104917055449
+  },
+  {
+   "key": "MERCURY",
+   "order": 3,
+   "krishamsha": 1.7868337048635397,
+   "patyamsha": 0.12002690818013662,
+   "fraction": 0.004456655530437614
+  },
+  {
+   "key": "MARS",
+   "order": 4,
+   "krishamsha": 3.272200737964255,
+   "patyamsha": 1.4853670331007152,
+   "fraction": 0.055152376272685884
+  },
+  {
+   "key": "MOON",
+   "order": 5,
+   "krishamsha": 13.23401603216277,
+   "patyamsha": 9.961815294198516,
+   "fraction": 0.36988688534289044
+  },
+  {
+   "key": "LAGNA",
+   "order": 6,
+   "krishamsha": 14.14301623415372,
+   "patyamsha": 0.9090002019909491,
+   "fraction": 0.03375160485923683
+  },
+  {
+   "key": "SATURN",
+   "order": 7,
+   "krishamsha": 16.49493171144968,
+   "patyamsha": 2.351915477295961,
+   "fraction": 0.0873277274066074
+  },
+  {
+   "key": "JUPITER",
+   "order": 8,
+   "krishamsha": 26.932058661565605,
+   "patyamsha": 10.437126950115925,
+   "fraction": 0.38753543059114953
+  }
+ ],
+ "periods": [
+  {
+   "level": 1,
+   "order": 1,
+   "key": "SUN",
+   "lord": "SUN",
+   "fraction": 0.020784402941543347,
+   "days": 7.591438057393524,
+   "startDateIso": "2026-05-15T14:34:26.763Z",
+   "endDateIso": "2026-05-23T04:46:07.011Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 0.157783507452433,
+     "startDateIso": "2026-05-15T14:34:26.763Z",
+     "endDateIso": "2026-05-15T18:21:39.258Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 0.3120454316051901,
+     "startDateIso": "2026-05-15T18:21:39.258Z",
+     "endDateIso": "2026-05-16T01:50:59.983Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.03383242439426624,
+     "startDateIso": "2026-05-16T01:50:59.983Z",
+     "endDateIso": "2026-05-16T02:39:43.104Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 0.4186858480907869,
+     "startDateIso": "2026-05-16T02:39:43.104Z",
+     "endDateIso": "2026-05-16T12:42:37.561Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 2.807973377642933,
+     "startDateIso": "2026-05-16T12:42:37.561Z",
+     "endDateIso": "2026-05-19T08:06:06.461Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 0.2562232175644843,
+     "startDateIso": "2026-05-19T08:06:06.461Z",
+     "endDateIso": "2026-05-19T14:15:04.147Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 0.6629430331397013,
+     "startDateIso": "2026-05-19T14:15:04.147Z",
+     "endDateIso": "2026-05-20T06:09:42.425Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 2.9419512156657612,
+     "startDateIso": "2026-05-20T06:09:42.425Z",
+     "endDateIso": "2026-05-23T04:46:07.011Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 2,
+   "key": "VENUS",
+   "lord": "VENUS",
+   "fraction": 0.041104917055449,
+   "days": 15.013442173844265,
+   "startDateIso": "2026-05-23T04:46:07.011Z",
+   "endDateIso": "2026-06-07T05:05:28.415Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 0.617126295358215,
+     "startDateIso": "2026-05-23T04:46:07.011Z",
+     "endDateIso": "2026-05-23T19:34:46.723Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.06690974010424561,
+     "startDateIso": "2026-05-23T19:34:46.723Z",
+     "endDateIso": "2026-05-23T21:11:07.725Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 0.8280270120348785,
+     "startDateIso": "2026-05-23T21:11:07.725Z",
+     "endDateIso": "2026-05-24T17:03:29.259Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 5.553275364728829,
+     "startDateIso": "2026-05-24T17:03:29.259Z",
+     "endDateIso": "2026-05-30T06:20:12.251Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 0.5067277678988527,
+     "startDateIso": "2026-05-30T06:20:12.251Z",
+     "endDateIso": "2026-05-30T18:29:53.530Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 1.3110897857741217,
+     "startDateIso": "2026-05-30T18:29:53.530Z",
+     "endDateIso": "2026-06-01T01:57:51.687Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 5.818240778302779,
+     "startDateIso": "2026-06-01T01:57:51.687Z",
+     "endDateIso": "2026-06-06T21:36:07.690Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 0.3120454317240058,
+     "startDateIso": "2026-06-06T21:36:07.690Z",
+     "endDateIso": "2026-06-07T05:05:28.415Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 3,
+   "key": "MERCURY",
+   "lord": "MERCURY",
+   "fraction": 0.004456655530437614,
+   "days": 1.6277794699040413,
+   "startDateIso": "2026-06-07T05:05:28.415Z",
+   "endDateIso": "2026-06-08T20:09:28.561Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.007254452366579323,
+     "startDateIso": "2026-06-07T05:05:28.415Z",
+     "endDateIso": "2026-06-07T05:15:55.200Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 0.08977590568561895,
+     "startDateIso": "2026-06-07T05:15:55.200Z",
+     "endDateIso": "2026-06-07T07:25:11.838Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 0.6020942772929325,
+     "startDateIso": "2026-06-07T07:25:11.838Z",
+     "endDateIso": "2026-06-07T21:52:12.784Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 0.05494016938816409,
+     "startDateIso": "2026-06-07T21:52:12.784Z",
+     "endDateIso": "2026-06-07T23:11:19.615Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 0.14215028162399843,
+     "startDateIso": "2026-06-07T23:11:19.615Z",
+     "endDateIso": "2026-06-08T02:36:01.399Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 0.6308222168809274,
+     "startDateIso": "2026-06-08T02:36:01.399Z",
+     "endDateIso": "2026-06-08T17:44:24.439Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 0.033832424354415344,
+     "startDateIso": "2026-06-08T17:44:24.439Z",
+     "endDateIso": "2026-06-08T18:33:07.560Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 0.06690973999995645,
+     "startDateIso": "2026-06-08T18:33:07.560Z",
+     "endDateIso": "2026-06-08T20:09:28.561Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 4,
+   "key": "MARS",
+   "lord": "MARS",
+   "fraction": 0.055152376272685884,
+   "days": 20.144232642608,
+   "startDateIso": "2026-06-08T20:09:28.561Z",
+   "endDateIso": "2026-06-28T23:37:10.261Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 1.11100229822452,
+     "startDateIso": "2026-06-08T20:09:28.561Z",
+     "endDateIso": "2026-06-09T22:49:19.160Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 7.451087468421205,
+     "startDateIso": "2026-06-09T22:49:19.160Z",
+     "endDateIso": "2026-06-17T09:38:53.117Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 0.6799001802203194,
+     "startDateIso": "2026-06-17T09:38:53.117Z",
+     "endDateIso": "2026-06-18T01:57:56.493Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 1.7591500567041725,
+     "startDateIso": "2026-06-18T01:57:56.493Z",
+     "endDateIso": "2026-06-19T20:11:07.058Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 7.806603869640094,
+     "startDateIso": "2026-06-19T20:11:07.058Z",
+     "endDateIso": "2026-06-27T15:32:37.632Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 0.4186858481148557,
+     "startDateIso": "2026-06-27T15:32:37.632Z",
+     "endDateIso": "2026-06-28T01:35:32.089Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 0.8280270117671962,
+     "startDateIso": "2026-06-28T01:35:32.089Z",
+     "endDateIso": "2026-06-28T21:27:53.623Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.08977590579652607,
+     "startDateIso": "2026-06-28T21:27:53.623Z",
+     "endDateIso": "2026-06-28T23:37:10.261Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 5,
+   "key": "MOON",
+   "lord": "MOON",
+   "fraction": 0.36988688534289044,
+   "days": 135.10002602529738,
+   "startDateIso": "2026-06-28T23:37:10.261Z",
+   "endDateIso": "2026-11-11T02:01:12.510Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 49.971727838014374,
+     "startDateIso": "2026-06-28T23:37:10.261Z",
+     "endDateIso": "2026-08-17T22:56:27.546Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 4.559842695040296,
+     "startDateIso": "2026-08-17T22:56:27.546Z",
+     "endDateIso": "2026-08-22T12:22:37.955Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 11.797978245781488,
+     "startDateIso": "2026-08-22T12:22:37.955Z",
+     "endDateIso": "2026-09-03T07:31:43.275Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 52.35604676044745,
+     "startDateIso": "2026-09-03T07:31:43.275Z",
+     "endDateIso": "2026-10-25T16:04:25.715Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 2.807973378422439,
+     "startDateIso": "2026-10-25T16:04:25.715Z",
+     "endDateIso": "2026-10-28T11:27:54.615Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 5.553275364155956,
+     "startDateIso": "2026-10-28T11:27:54.615Z",
+     "endDateIso": "2026-11-03T00:44:37.606Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.6020942781692777,
+     "startDateIso": "2026-11-03T00:44:37.606Z",
+     "endDateIso": "2026-11-03T15:11:38.552Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 7.451087470061323,
+     "startDateIso": "2026-11-03T15:11:38.552Z",
+     "endDateIso": "2026-11-11T02:01:12.510Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 6,
+   "key": "LAGNA",
+   "lord": "LAGNA",
+   "fraction": 0.03375160485923683,
+   "days": 12.327667931917645,
+   "startDateIso": "2026-11-11T02:01:12.510Z",
+   "endDateIso": "2026-11-23T09:53:03.019Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 0.4160785767498682,
+     "startDateIso": "2026-11-11T02:01:12.510Z",
+     "endDateIso": "2026-11-11T12:00:21.699Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 1.076547224396584,
+     "startDateIso": "2026-11-11T12:00:21.699Z",
+     "endDateIso": "2026-11-12T13:50:35.379Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 4.77740809875548,
+     "startDateIso": "2026-11-12T13:50:35.379Z",
+     "endDateIso": "2026-11-17T08:30:03.439Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 0.2562232175500964,
+     "startDateIso": "2026-11-17T08:30:03.439Z",
+     "endDateIso": "2026-11-17T14:39:01.125Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 0.5067277676774544,
+     "startDateIso": "2026-11-17T14:39:01.125Z",
+     "endDateIso": "2026-11-18T02:48:42.404Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.054940169449792506,
+     "startDateIso": "2026-11-18T02:48:42.404Z",
+     "endDateIso": "2026-11-18T04:07:49.235Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 0.6799001801430554,
+     "startDateIso": "2026-11-18T04:07:49.235Z",
+     "endDateIso": "2026-11-18T20:26:52.611Z",
+     "isActive": false,
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 4.55984269351841,
+     "startDateIso": "2026-11-18T20:26:52.611Z",
+     "endDateIso": "2026-11-23T09:53:03.019Z",
+     "isActive": true,
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": true,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 7,
+   "key": "SATURN",
+   "lord": "SATURN",
+   "fraction": 0.0873277274066074,
+   "days": 31.89617883971701,
+   "startDateIso": "2026-11-23T09:53:03.019Z",
+   "endDateIso": "2026-12-25T07:23:32.871Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 2.785420811278324,
+     "startDateIso": "2026-11-23T09:53:03.019Z",
+     "endDateIso": "2026-11-26T04:44:03.377Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 12.360899401976434,
+     "startDateIso": "2026-11-26T04:44:03.377Z",
+     "endDateIso": "2026-12-08T13:23:45.085Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 0.6629430333599742,
+     "startDateIso": "2026-12-08T13:23:45.085Z",
+     "endDateIso": "2026-12-09T05:18:23.363Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 1.3110897857105357,
+     "startDateIso": "2026-12-09T05:18:23.363Z",
+     "endDateIso": "2026-12-10T12:46:21.520Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.14215028183866749,
+     "startDateIso": "2026-12-10T12:46:21.520Z",
+     "endDateIso": "2026-12-10T16:11:03.304Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 1.7591500571875491,
+     "startDateIso": "2026-12-10T16:11:03.304Z",
+     "endDateIso": "2026-12-12T10:24:13.869Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 11.797978246426373,
+     "startDateIso": "2026-12-12T10:24:13.869Z",
+     "endDateIso": "2026-12-24T05:33:19.189Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 1.0765472248147352,
+     "startDateIso": "2026-12-24T05:33:19.189Z",
+     "endDateIso": "2026-12-25T07:23:32.871Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  },
+  {
+   "level": 1,
+   "order": 8,
+   "key": "JUPITER",
+   "lord": "JUPITER",
+   "fraction": 0.38753543059114953,
+   "days": 141.5461018847811,
+   "startDateIso": "2026-12-25T07:23:32.871Z",
+   "endDateIso": "2027-05-15T20:29:56.074Z",
+   "subPeriods": [
+    {
+     "level": 2,
+     "order": 1,
+     "key": "JUPITER",
+     "lord": "JUPITER",
+     "fraction": 0.38753543059114953,
+     "days": 54.85412954311221,
+     "startDateIso": "2026-12-25T07:23:32.871Z",
+     "endDateIso": "2027-02-18T03:53:29.664Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 2,
+     "key": "SUN",
+     "lord": "SUN",
+     "fraction": 0.020784402941543347,
+     "days": 2.9419512164153043,
+     "startDateIso": "2027-02-18T03:53:29.664Z",
+     "endDateIso": "2027-02-21T02:29:54.249Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 3,
+     "key": "VENUS",
+     "lord": "VENUS",
+     "fraction": 0.041104917055449,
+     "days": 5.81824077756976,
+     "startDateIso": "2027-02-21T02:29:54.249Z",
+     "endDateIso": "2027-02-26T22:08:10.252Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 4,
+     "key": "MERCURY",
+     "lord": "MERCURY",
+     "fraction": 0.004456655530437614,
+     "days": 0.6308222177846864,
+     "startDateIso": "2027-02-26T22:08:10.252Z",
+     "endDateIso": "2027-02-27T13:16:33.292Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 5,
+     "key": "MARS",
+     "lord": "MARS",
+     "fraction": 0.055152376272685884,
+     "days": 7.8066038711802666,
+     "startDateIso": "2027-02-27T13:16:33.292Z",
+     "endDateIso": "2027-03-07T08:38:03.866Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 6,
+     "key": "MOON",
+     "lord": "MOON",
+     "fraction": 0.36988688534289044,
+     "days": 52.356046759252315,
+     "startDateIso": "2027-03-07T08:38:03.866Z",
+     "endDateIso": "2027-04-28T17:10:46.306Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 7,
+     "key": "LAGNA",
+     "lord": "LAGNA",
+     "fraction": 0.03375160485923683,
+     "days": 4.777408100240925,
+     "startDateIso": "2027-04-28T17:10:46.306Z",
+     "endDateIso": "2027-05-03T11:50:14.366Z",
+     "utcOffsetMinutes": 330
+    },
+    {
+     "level": 2,
+     "order": 8,
+     "key": "SATURN",
+     "lord": "SATURN",
+     "fraction": 0.0873277274066074,
+     "days": 12.360899401018617,
+     "startDateIso": "2027-05-03T11:50:14.366Z",
+     "endDateIso": "2027-05-15T20:29:56.074Z",
+     "utcOffsetMinutes": 330
+    }
+   ],
+   "isActive": false,
+   "utcOffsetMinutes": 330
+  }
+ ],
+ "activePath": [
+  "LAGNA",
+  "MOON"
+ ],
+ "utcOffsetMinutes": 330
+}

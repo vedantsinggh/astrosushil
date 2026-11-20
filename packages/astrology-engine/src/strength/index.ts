@@ -11,3 +11,4 @@ export * from './vimshopaka.types';
 export * from './shodashvarga-summary';
 export * from './rashmi-calculator';
 export * from './vimshopaka-calculator';
+export * from './ishta-kashta';

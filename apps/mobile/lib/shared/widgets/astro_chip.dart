@@ -26,7 +26,10 @@ class AstroChip extends StatelessWidget {
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            // The visible chip itself meets the 44pt target, not just its
+            // invisible hit area.
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
             decoration: BoxDecoration(
               color: isSelected ? AppColors.primary : AppColors.cardSurfaceWarm,
               borderRadius: BorderRadius.circular(20),
@@ -46,22 +49,25 @@ class AstroChip extends StatelessWidget {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (icon != null) ...[
                   Icon(
                     icon,
-                    size: 14,
-                    color: isSelected ? Colors.white : AppColors.secondary,
+                    size: 18,
+                    color: isSelected ? AppColors.gold : AppColors.accent,
                   ),
                   const SizedBox(width: 6),
                 ],
-                Text(
+                Flexible(
+                  child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     color: isSelected ? Colors.white : AppColors.primary,
                   ),
+                ),
                 ),
               ],
             ),

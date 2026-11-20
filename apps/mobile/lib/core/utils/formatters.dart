@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'app_date_time.dart';
 
 /// Formatting helpers for dates, times, and astrological output
 class Formatters {
@@ -9,14 +10,11 @@ class Formatters {
     return DateFormat('yyyy-MM-dd').format(date);
   }
 
+  /// Formats a calendar date such as a birth date (`yyyy-MM-dd`). The value is
+  /// the birth place's civil date and is never converted to another timezone.
   static String formatDisplayDate(String? isoDate) {
     if (isoDate == null || isoDate.isEmpty) return 'N/A';
-    try {
-      final date = DateTime.parse(isoDate);
-      return DateFormat('MMM dd, yyyy').format(date);
-    } catch (_) {
-      return isoDate;
-    }
+    return AppDateTime.formatCalendarDate(isoDate, 'MMM dd, yyyy');
   }
 
   static String formatCoordinate(double? val, bool isLatitude) {

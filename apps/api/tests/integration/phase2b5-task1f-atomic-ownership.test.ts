@@ -4,6 +4,7 @@ import { fork, ChildProcess } from 'child_process';
 import crypto from 'crypto';
 import { prisma } from '../../src/services/prisma.service';
 import { redisQueueService } from '../../src/services/redis-queue.service';
+import { postgresQueueService } from '../../src/services/postgres-queue.service';
 import { nativeRedisClient } from '../../src/services/redis-client';
 import { careerReportWorker } from '../../src/services/report-worker.service';
 import { OrderStatus, FulfillmentStatus, ReportType } from '@prisma/client';
@@ -95,6 +96,11 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
     });
   }
 
+  /** Simulates a crashed worker's lease running out (judged by the DB clock). */
+  async function expireLease(reportId: string) {
+    await prisma.$executeRaw`UPDATE "reports" SET "claimExpiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE id = ${reportId}`;
+  }
+
   beforeAll(async () => {
     [workerA, workerB] = await Promise.all([spawnWorker(), spawnWorker()]);
 
@@ -178,16 +184,17 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
     const successes = [resA.acquired, resB.acquired].filter(Boolean).length;
     expect(successes).toBe(1);
 
-    // Verify DB state
+    // Verify DB state: the winner's DB-generated fencing token holds the claim
+    const winner = resA.acquired ? resA.claim : resB.claim;
+    const loser = resA.acquired ? resB : resA;
+    expect(loser.claim).toBeNull();
     const dbReport = await prisma.report.findUnique({ where: { id: report.id } });
     expect(dbReport?.status).toBe('CALCULATING');
-    const meta = dbReport?.metadata as Record<string, any>;
-    expect(meta?.claimToken).toBeDefined();
-    expect([tokenA, tokenB]).toContain(meta?.claimToken);
-
-    // Verify winner holds claim in Redis
-    const activeClaim = await redisQueueService.getClaimToken(report.id);
-    expect(activeClaim).toBe(meta?.claimToken);
+    expect(dbReport?.claimToken).toBeTruthy();
+    expect(dbReport?.claimToken).toBe(winner.claimToken);
+    expect(dbReport?.claimVersion).toBe(1);
+    expect(dbReport?.executionAttempts).toBe(1);
+    expect(dbReport?.claimExpiresAt!.getTime()).toBeGreaterThan(Date.now());
   });
 
   it('2. Enqueue attempt while report is actively claimed: active claim is NOT removed or overwritten', async () => {
@@ -365,11 +372,12 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
     const successCount = [resA.retried, resB.retried].filter(Boolean).length;
     expect(successCount).toBe(1);
 
-    // Verify queue has exactly ONE job
-    expect(await redisQueueService.getQueueLength()).toBe(1);
-    const dequeued = await redisQueueService.dequeueJob();
-    expect(dequeued).toBe(report.id);
-    expect(await redisQueueService.getQueueLength()).toBe(0);
+    // Verify exactly ONE queued job: one claim succeeds, a second finds nothing
+    expect(await prisma.report.count({ where: { orderId: order.id } })).toBe(1);
+    const firstClaim = await postgresQueueService.claimJobById(report.id);
+    expect(firstClaim?.id).toBe(report.id);
+    expect(await postgresQueueService.claimJobById(report.id)).toBeNull();
+    await postgresQueueService.releaseClaim(report.id, firstClaim!.claimToken, firstClaim!.claimVersion);
 
     // Verify DB report status transitioned to QUEUED
     const updatedReport = await prisma.report.findUnique({ where: { id: report.id } });
@@ -436,25 +444,23 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
     nativeRedisClient.setMockDisabled(true);
 
     try {
-      const claimToken1 = `fallback_token_1_${crypto.randomUUID()}`;
-      const claimToken2 = `fallback_token_2_${crypto.randomUUID()}`;
-
-      // Worker 1 claims under Redis outage (uses fallback)
-      const claimed1 = await careerReportWorker.acquireWorkerClaim(report.id, claimToken1);
-      expect(claimed1).toBe(true);
+      // Worker 1 claims under Redis outage (the DB queue CAS needs no Redis)
+      const claimed1 = await careerReportWorker.acquireWorkerClaim(report.id);
+      expect(claimed1?.id).toBe(report.id);
 
       // Verify PostgreSQL state
       const dbReport1 = await prisma.report.findUnique({ where: { id: report.id } });
       expect(dbReport1?.status).toBe('CALCULATING');
-      expect((dbReport1?.metadata as any)?.claimToken).toBe(claimToken1);
+      expect(dbReport1?.claimToken).toBe(claimed1!.claimToken);
 
       // Worker 2 attempts claim on the same report
-      const claimed2 = await careerReportWorker.acquireWorkerClaim(report.id, claimToken2);
-      expect(claimed2).toBe(false);
+      const claimed2 = await careerReportWorker.acquireWorkerClaim(report.id);
+      expect(claimed2).toBeNull();
 
       // PostgreSQL state unchanged
       const dbReport2 = await prisma.report.findUnique({ where: { id: report.id } });
-      expect((dbReport2?.metadata as any)?.claimToken).toBe(claimToken1);
+      expect(dbReport2?.claimToken).toBe(claimed1!.claimToken);
+      expect(dbReport2?.claimVersion).toBe(claimed1!.claimVersion);
     } finally {
       nativeRedisClient.setMockDisabled(false);
     }
@@ -499,11 +505,12 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
       const successes = [resA.acquired, resB.acquired].filter(Boolean).length;
       expect(successes).toBe(1);
 
-      // Verify DB record
+      // Verify DB record holds the winner's token
+      const winner = resA.acquired ? resA.claim : resB.claim;
       const dbReport = await prisma.report.findUnique({ where: { id: report.id } });
       expect(dbReport?.status).toBe('CALCULATING');
-      const meta = dbReport?.metadata as Record<string, any>;
-      expect([tokenA, tokenB]).toContain(meta?.claimToken);
+      expect(dbReport?.claimToken).toBe(winner.claimToken);
+      expect(dbReport?.claimVersion).toBe(1);
     } finally {
       // Re-enable Redis on child workers
       await workerA.sendRequest('ENABLE_REDIS');
@@ -512,7 +519,8 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
   });
 
   it('10. Process termination (crash) at each critical point: claim, execution, completion', async () => {
-    // 10a: Crash after claim but before execution -> stale recovery marks FAILED, ready for retry
+    // 10a: Crash after claim but before execution -> after lease expiry, stale recovery requeues it
+    //      with backoff; once recovery attempts are exhausted it is FAILED and ready for retry
     const orderA = await createPaidOrder('CAREER');
     const reportA = await prisma.report.create({
       data: {
@@ -547,22 +555,37 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
       crashWorker.on('exit', () => resolve());
     });
 
-    // Manually age the report updatedAt to simulate stale crash
-    await prisma.report.update({
-      where: { id: reportA.id },
-      data: { updatedAt: new Date(Date.now() - 6 * 60 * 1000) },
-    });
+    const claimedA = await prisma.report.findUnique({ where: { id: reportA.id } });
+    expect(claimedA?.status).toBe('CALCULATING');
+    expect(claimedA?.claimVersion).toBe(1);
+
+    // The crashed worker's lease runs out
+    await expireLease(reportA.id);
 
     // Run recovery
     const rec1 = await careerReportWorker.recoverStaleJobs();
     expect(rec1.recoveredReports).toBeGreaterThanOrEqual(1);
 
     const reportAAfterRecovery = await prisma.report.findUnique({ where: { id: reportA.id } });
-    expect(reportAAfterRecovery?.status).toBe('FAILED');
+    expect(reportAAfterRecovery?.status).toBe('QUEUED');
+    expect(reportAAfterRecovery?.recoveryAttempts).toBe(1);
+    expect(reportAAfterRecovery?.claimVersion).toBe(2);
+    expect(reportAAfterRecovery?.claimToken).toBeNull();
+    expect(reportAAfterRecovery?.retryAfter).not.toBeNull();
+    // Requeued, not FAILED: a manual retry is neither needed nor allowed
+    expect(await careerReportWorker.retryReportJob(reportA.id)).toBe(false);
 
-    // Can be cleanly retried
+    // Recovery attempts exhausted -> FAILED (order recoverable), then cleanly retried
+    await prisma.$executeRaw`UPDATE "reports" SET status = 'CALCULATING'::"ReportStatus", stage = 'CALCULATING', "claimToken" = ${crypto.randomUUID()}, "claimExpiresAt" = clock_timestamp() - INTERVAL '1 second', "recoveryAttempts" = 3 WHERE id = ${reportA.id}`;
+    await careerReportWorker.recoverStaleJobs();
+    const reportAExhausted = await prisma.report.findUnique({ where: { id: reportA.id } });
+    expect(reportAExhausted?.status).toBe('FAILED');
+    expect(reportAExhausted?.errorCode).toBe('RECOVERY_EXHAUSTED');
+    expect((await prisma.order.findUnique({ where: { id: orderA.id } }))?.fulfillmentStatus).toBe(FulfillmentStatus.FAILED);
+
     const retried = await careerReportWorker.retryReportJob(reportA.id);
     expect(retried).toBe(true);
+    expect((await prisma.report.findUnique({ where: { id: reportA.id } }))?.status).toBe('QUEUED');
 
     // 10b: Crash during execution -> heartbeat ceases -> recovery picks up
     const orderB = await createPaidOrder('CAREER');
@@ -576,7 +599,11 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
         status: 'ANALYZING',
         stage: 'ANALYZING',
         progress: 35,
-        updatedAt: new Date(Date.now() - 7 * 60 * 1000), // Ceased heartbeating 7 mins ago
+        claimToken: crypto.randomUUID(),
+        claimVersion: 1,
+        // Ceased heartbeating 7 mins ago: the 60 s lease expired 6 mins ago
+        claimExpiresAt: new Date(Date.now() - 6 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 7 * 60 * 1000),
       },
     });
 
@@ -584,7 +611,10 @@ describe('Phase 2B.5 Task 1F: Atomic Worker Ownership & Race-Safe Queue Recovery
     expect(rec2.recoveredReports).toBeGreaterThanOrEqual(1);
 
     const reportBAfterRecovery = await prisma.report.findUnique({ where: { id: reportB.id } });
-    expect(reportBAfterRecovery?.status).toBe('FAILED');
+    expect(reportBAfterRecovery?.status).toBe('QUEUED');
+    expect(reportBAfterRecovery?.recoveryAttempts).toBe(1);
+    expect(reportBAfterRecovery?.claimVersion).toBe(2);
+    expect(reportBAfterRecovery?.claimToken).toBeNull();
 
     // 10c: Crash after completion -> no recovery needed
     const orderC = await createPaidOrder('CAREER');

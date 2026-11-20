@@ -9,6 +9,9 @@ import { AstroChart, ASTROLOGY_ENGINE_VERSION } from './astro-chart.types';
 import { normalizeDegree } from '../coordinates/angular-math';
 import { getRashiByLongitude, getDegreeInRashi, RASHIS } from '../zodiac/rashi';
 import { getNakshatraByLongitude, getPada } from '../nakshatra/nakshatra';
+import { AyanamsaValue, computeAyanamsa, resolveAyanamsaSystem } from '../ayanamsa/ayanamsa';
+import { calculateLunarNodes, LunarNodeType } from '../rahu-ketu/lunar-nodes';
+import { calculateHouseAngles } from '../houses/house-cusps';
 
 export class ChartCalculator {
   private readonly ephemerisProvider: EphemerisProvider;
@@ -30,25 +33,42 @@ export class ChartCalculator {
     // Step 2: Validate required methodology settings (Fails clearly if unconfirmed)
     const zodiacType = validateRequiredMethodology(config.zodiacType, 'zodiacType');
 
-    let ayanamsaOffset = 0;
+    // Ayanamsa (ADR-017): true Chitrapaksha Lahiri unless the config selects another system.
+    // The TRUE ayanamsa is subtracted from apparent (true-equinox) ephemeris longitudes and the
+    // MEAN ayanamsa from mean-equinox quantities (ascendant, MC, lunar nodes): src/ayanamsa/ayanamsa.ts.
+    let ayanamsa: AyanamsaValue | null = null;
     if (zodiacType === 'SIDEREAL') {
-      const ayanamsaSystem = validateRequiredMethodology(config.ayanamsa, 'ayanamsa');
-
-      if (ayanamsaSystem === 'LAHIRI') {
-        // Standard Lahiri Ayanamsa formula approximation based on epoch J2000
-        // J2000 = 2451545.0 Julian Day
-        const yearsFromJ2000 = (normalizedTime.julianDayUT - 2451545.0) / 365.25;
-        ayanamsaOffset = 23.85 + 0.01396 * yearsFromJ2000;
-      } else {
-        // Additional confirmed ayanamsa systems will be implemented upon client confirmation
-        ayanamsaOffset = 23.85;
-      }
+      const ayanamsaSystem = resolveAyanamsaSystem(validateRequiredMethodology(config.ayanamsa, 'ayanamsa'));
+      ayanamsa = computeAyanamsa(normalizedTime.julianDayUT, ayanamsaSystem);
     }
+    const trueAyanamsaOffset = ayanamsa ? ayanamsa.trueDegrees : 0;
+    const meanAyanamsaOffset = ayanamsa ? ayanamsa.meanDegrees : 0;
+
+    // Lunar nodes (ADR-017): mean node by default, true (osculating) node selectable.
+    const nodeType: LunarNodeType =
+      validateRequiredMethodology(config.nodeCalculation ?? 'MEAN_NODE', 'nodeCalculation') === 'TRUE_NODE'
+        ? 'TRUE_NODE'
+        : 'MEAN_NODE';
 
     // Step 3: Compute raw planetary positions from EphemerisProvider
-    const rawPositions = await this.ephemerisProvider.getAllPlanetaryPositions(
-      normalizedTime.julianDayUT
-    );
+    const rawPositions = {
+      ...(await this.ephemerisProvider.getAllPlanetaryPositions(normalizedTime.julianDayUT)),
+    };
+    if (nodeType === 'TRUE_NODE') {
+      const nodes = calculateLunarNodes(normalizedTime.julianDayUT, 'TRUE_NODE');
+      for (const [symbol, longitude] of [
+        [PlanetSymbol.RAHU, nodes.rahuLongitude],
+        [PlanetSymbol.KETU, nodes.ketuLongitude],
+      ] as const) {
+        if (!rawPositions[symbol]) continue;
+        rawPositions[symbol] = {
+          ...rawPositions[symbol],
+          longitude,
+          speedLongitude: nodes.speedLongitude,
+          isRetrograde: nodes.speedLongitude < 0,
+        };
+      }
+    }
 
     // Step 4: Map raw coordinates into normalized PlanetPosition vectors
     const planetsResult: Partial<Record<PlanetSymbol, PlanetPosition>> = {};
@@ -59,8 +79,10 @@ export class ChartCalculator {
         continue;
       }
 
-      // Convert tropical longitude to sidereal longitude if configured
-      const finalLongitude = normalizeDegree(raw.longitude - ayanamsaOffset);
+      // Convert tropical longitude to sidereal longitude if configured. Node longitudes are
+      // referred to the mean equinox of date (EphemerisProvider contract), planets to the true one.
+      const isNode = planetSymbol === PlanetSymbol.RAHU || planetSymbol === PlanetSymbol.KETU;
+      const finalLongitude = normalizeDegree(raw.longitude - (isNode ? meanAyanamsaOffset : trueAyanamsaOffset));
 
       const rashiDef = getRashiByLongitude(finalLongitude);
       const nakshatraDef = getNakshatraByLongitude(finalLongitude);
@@ -85,23 +107,10 @@ export class ChartCalculator {
     }
 
     // Step 5: Compute Ascendant (Lagna) & Houses
-    const T = (normalizedTime.julianDayUT - 2451545.0) / 36525.0;
-    let gmst = 280.46061837 + 360.98564736629 * (normalizedTime.julianDayUT - 2451545.0) + 0.000387933 * T * T - (T * T * T) / 38710000;
-    gmst = ((gmst % 360) + 360) % 360;
-
-    const lst = ((gmst + ((details.longitude % 360) + 360) % 360) + 360) % 360;
-    const eps = 23.4392911 - 0.0130042 * T - 0.00000016 * T * T + 0.0005036 * T * T * T;
-
-    const lstRad = (lst * Math.PI) / 180;
-    const latRad = (details.latitude * Math.PI) / 180;
-    const epsRad = (eps * Math.PI) / 180;
-
-    const y = Math.cos(lstRad);
-    const x = -Math.sin(lstRad) * Math.cos(epsRad) - Math.tan(latRad) * Math.sin(epsRad);
-    let ascTropical = (Math.atan2(y, x) * 180) / Math.PI;
-    ascTropical = ((ascTropical % 360) + 360) % 360;
-
-    const ascSidereal = normalizeDegree(ascTropical - ayanamsaOffset);
+    // Mean-equinox angles (GMST, mean obliquity; Meeus eq. 12.4 / 14.2): src/houses/house-cusps.ts.
+    const angles = calculateHouseAngles(normalizedTime.julianDayUT, details.latitude, details.longitude);
+    const ascSidereal = normalizeDegree(angles.ascendantTropical - meanAyanamsaOffset);
+    const mcSidereal = normalizeDegree(angles.mcTropical - meanAyanamsaOffset);
 
     const ascRashiDef = getRashiByLongitude(ascSidereal);
     const ascNakshatraDef = getNakshatraByLongitude(ascSidereal);
@@ -116,6 +125,18 @@ export class ChartCalculator {
       nakshatraIndex: ascNakshatraDef.index,
       pada: ascPada,
       nakshatraLord: ascNakshatraDef.lord,
+    };
+
+    const mcRashiDef = getRashiByLongitude(mcSidereal);
+    const mcNakshatraDef = getNakshatraByLongitude(mcSidereal);
+    const midheaven: CalculatedPoint = {
+      name: 'Midheaven',
+      longitude: mcSidereal,
+      rashiIndex: mcRashiDef.index,
+      degreeInRashi: getDegreeInRashi(mcSidereal),
+      nakshatraIndex: mcNakshatraDef.index,
+      pada: getPada(mcSidereal),
+      nakshatraLord: mcNakshatraDef.lord,
     };
 
     // Build Whole Sign Houses (1 to 12)
@@ -145,9 +166,19 @@ export class ChartCalculator {
         providerVersion: this.ephemerisProvider.getProviderVersion(),
         config,
         normalizedTime,
+        ayanamsa: ayanamsa
+          ? {
+              system: ayanamsa.system,
+              label: ayanamsa.definition.label,
+              trueDegrees: ayanamsa.trueDegrees,
+              meanDegrees: ayanamsa.meanDegrees,
+            }
+          : null,
+        nodeType,
       },
       birthDetails: details,
       ascendant,
+      midheaven,
       planets: planetsResult as Record<PlanetSymbol, PlanetPosition>,
       houses,
     };

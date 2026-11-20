@@ -15,6 +15,9 @@ import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:astro_mobile/features/consultations/providers/consultation_provider.dart';
+
+import 'phase6_consultations_experience_test.dart' show MockConsultationService;
 
 void main() {
   final testUser = UserModel(
@@ -46,6 +49,10 @@ void main() {
     return ProviderScope(
       overrides: [
         secureStorageProvider.overrideWithValue(InMemorySecureStorageService()),
+        // HomeScreen keeps every tab mounted (IndexedStack), so the Consult tab
+        // loads its catalogue and bookings at start-up: answer from a fake
+        // instead of the real API (whose retry timer outlives the test).
+        consultationServiceProvider.overrideWithValue(MockConsultationService()),
         authStateProvider.overrideWith(
           (ref) => TestAuthNotifier(AuthState.authenticated(testUser)),
         ),

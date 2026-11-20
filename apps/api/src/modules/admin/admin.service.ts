@@ -19,8 +19,10 @@ const DEFAULT_ASTRO_CONFIG: AstrologyConfig = {
   roundingRule: 'NEAREST',
   dashaSystem: 'VIMSHOTTARI',
 };
-import { reportsService } from '../reports/reports.service';
+import { careerReportWorker } from '../../services/report-worker.service';
+import { isPlatformReportType } from '../../services/platform-report.runner';
 import { featureAccessService } from '../../services/feature-access.service';
+import { parseDateBound } from '../../utils/business-time';
 import {
   SubscriptionsQueryInput,
   PaymentsQueryInput,
@@ -610,8 +612,9 @@ export class AdminService {
 
     if (query.startDate || query.endDate) {
       where.createdAt = {};
-      if (query.startDate) where.createdAt.gte = new Date(query.startDate);
-      if (query.endDate) where.createdAt.lte = new Date(query.endDate);
+      // YYYY-MM-DD filters are IST business days; the end day is inclusive.
+      if (query.startDate) where.createdAt.gte = parseDateBound(query.startDate, 'start');
+      if (query.endDate) where.createdAt.lte = parseDateBound(query.endDate, 'end');
     }
 
     const [orders, total] = await Promise.all([
@@ -819,8 +822,9 @@ export class AdminService {
 
     if (query.startDate || query.endDate) {
       where.createdAt = {};
-      if (query.startDate) where.createdAt.gte = new Date(query.startDate);
-      if (query.endDate) where.createdAt.lte = new Date(query.endDate);
+      // YYYY-MM-DD filters are IST business days; the end day is inclusive.
+      if (query.startDate) where.createdAt.gte = parseDateBound(query.startDate, 'start');
+      if (query.endDate) where.createdAt.lte = parseDateBound(query.endDate, 'end');
     }
 
     const [orders, total] = await Promise.all([
@@ -970,8 +974,9 @@ export class AdminService {
 
     if (query.startDate || query.endDate) {
       where.createdAt = {};
-      if (query.startDate) where.createdAt.gte = new Date(query.startDate);
-      if (query.endDate) where.createdAt.lte = new Date(query.endDate);
+      // YYYY-MM-DD filters are IST business days; the end day is inclusive.
+      if (query.startDate) where.createdAt.gte = parseDateBound(query.startDate, 'start');
+      if (query.endDate) where.createdAt.lte = parseDateBound(query.endDate, 'end');
     }
 
     const [users, total] = await Promise.all([
@@ -1526,8 +1531,9 @@ export class AdminService {
 
     if (query.startDate || query.endDate) {
       where.createdAt = {};
-      if (query.startDate) where.createdAt.gte = new Date(query.startDate);
-      if (query.endDate) where.createdAt.lte = new Date(query.endDate);
+      // YYYY-MM-DD filters are IST business days; the end day is inclusive.
+      if (query.startDate) where.createdAt.gte = parseDateBound(query.startDate, 'start');
+      if (query.endDate) where.createdAt.lte = parseDateBound(query.endDate, 'end');
     }
 
     let orderBy: any = { createdAt: 'desc' };
@@ -1725,7 +1731,10 @@ export class AdminService {
   }
 
   /**
-   * Regenerate a Report: Creates a NEW Report entity & new job (Idempotency & Non-destructive)
+   * Regenerate a Report: creates a NEW Report row (the source report and its PDF are
+   * kept untouched) and enqueues it on the report queue, where the worker generates
+   * it through the universal report platform. Partner and Baby Name inputs are
+   * carried over from the source report. Nothing is generated inside the request.
    */
   public async regenerateReport(sourceReportId: string, adminUser: { id: string; email: string }, reqMeta?: { ipAddress?: string; userAgent?: string }) {
     // Idempotency check: Reject duplicate regeneration requests within 10 seconds
@@ -1748,45 +1757,54 @@ export class AdminService {
       throw new AppError('Cannot regenerate report: Missing associated birth profile', 400);
     }
 
-    // Create a NEW Report entity in the database
+    if (!isPlatformReportType(sourceReport.reportType)) {
+      throw new AppError(
+        `Cannot regenerate report: the ${sourceReport.reportType} report has no genuine generator.`,
+        400,
+        'REPORT_TYPE_NOT_AVAILABLE'
+      );
+    }
+
+    const sourceMeta = (sourceReport.metadata && typeof sourceReport.metadata === 'object' ? sourceReport.metadata : {}) as Record<string, unknown>;
+    const now = new Date();
     const newReport = await prisma.report.create({
       data: {
         userId: sourceReport.userId,
         birthProfileId: sourceReport.birthProfileId,
         reportType: sourceReport.reportType,
-        status: 'PENDING',
+        status: 'QUEUED',
         stage: 'QUEUED',
         progress: 0,
+        // Admin regeneration is delivered on the standard one-day schedule from the request.
+        expectedDeliveryAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+        metadata: {
+          enqueued: false,
+          regeneratedFrom: sourceReportId,
+          regeneratedBy: adminUser.id,
+          ...(typeof sourceMeta.partnerProfileId === 'string' ? { partnerProfileId: sourceMeta.partnerProfileId } : {}),
+          ...(Array.isArray(sourceMeta.candidateNames) ? { candidateNames: sourceMeta.candidateNames as string[] } : {}),
+        },
       },
     });
 
-    // Trigger backend report generation job
-    const job = await reportsService.createReportJob(
-      {
-        birthProfileId: sourceReport.birthProfileId,
-        reportType: sourceReport.reportType as any,
-      },
-      { id: sourceReport.userId, role: 'ADMIN' }
-    );
-
-    const jobId = (job as any).id || (job as any).reportId || newReport.id;
+    const enqueued = await careerReportWorker.enqueueReportJob(newReport.id);
 
     await this.logAction({
       adminId: adminUser.id,
       adminEmail: adminUser.email,
       action: 'REPORT_REGENERATED',
       resource: `Report:${newReport.id}`,
-      details: JSON.stringify({ oldReportId: sourceReportId, newReportId: newReport.id, jobId }),
+      details: JSON.stringify({ oldReportId: sourceReportId, newReportId: newReport.id, jobId: newReport.id, enqueued }),
       ipAddress: reqMeta?.ipAddress,
       userAgent: reqMeta?.userAgent,
     });
 
     return {
-      message: 'New report generation job created successfully',
+      message: 'New report generation job queued successfully',
       sourceReportId,
       newReportId: newReport.id,
-      jobId,
-      status: 'PENDING',
+      jobId: newReport.id,
+      status: 'QUEUED',
     };
   }
 
@@ -1964,8 +1982,9 @@ export class AdminService {
 
     if (query.startDate || query.endDate) {
       where.createdAt = {};
-      if (query.startDate) where.createdAt.gte = new Date(query.startDate);
-      if (query.endDate) where.createdAt.lte = new Date(query.endDate);
+      // YYYY-MM-DD filters are IST business days; the end day is inclusive.
+      if (query.startDate) where.createdAt.gte = parseDateBound(query.startDate, 'start');
+      if (query.endDate) where.createdAt.lte = parseDateBound(query.endDate, 'end');
     }
 
     const [items, total] = await Promise.all([

@@ -1,0 +1,196 @@
+{
+ "system": "PORUTHAM",
+ "boy": {
+  "label": "Boy",
+  "moonLongitude": 271.9040489960244,
+  "nakshatraIndex": 21,
+  "nakshatraName": "Uttara Ashadha",
+  "pada": 2,
+  "rashiIndex": 10,
+  "rashiName": "Makara",
+  "rashiLord": "SATURN",
+  "gana": "MANUSHYA",
+  "yoni": {
+   "animal": "MONGOOSE",
+   "gender": "MALE"
+  },
+  "rajju": "NABHI"
+ },
+ "girl": {
+  "label": "Girl",
+  "moonLongitude": 16.87793628163591,
+  "nakshatraIndex": 2,
+  "nakshatraName": "Bharani",
+  "pada": 2,
+  "rashiIndex": 1,
+  "rashiName": "Mesha",
+  "rashiLord": "MARS",
+  "gana": "MANUSHYA",
+  "yoni": {
+   "animal": "ELEPHANT",
+   "gender": "MALE"
+  },
+  "rajju": "KATI"
+ },
+ "countDirection": "GIRL_TO_BOY_INCLUSIVE",
+ "kootas": [
+  {
+   "key": "DINA",
+   "name": "Dinam",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Count girl→boy nakshatra in {2, 4, 6, 8, 9, 11, 13, 15, 18, 20, 24, 26}",
+   "inputs": {
+    "girlNakshatra": "Bharani",
+    "boyNakshatra": "Uttara Ashadha",
+    "count": 20
+   }
+  },
+  {
+   "key": "GANA",
+   "name": "Ganam",
+   "matched": true,
+   "grade": "UTTAMA",
+   "dosha": false,
+   "rule": "Same gana: uttama; Deva–Manushya: madhyama; Rakshasa with a different gana: no agreement",
+   "inputs": {
+    "girlGana": "MANUSHYA",
+    "boyGana": "MANUSHYA"
+   }
+  },
+  {
+   "key": "MAHENDRA",
+   "name": "Mahendram",
+   "matched": false,
+   "grade": null,
+   "dosha": false,
+   "rule": "Count girl→boy nakshatra in {4, 7, 10, 13, 16, 19, 22, 25}",
+   "inputs": {
+    "girlNakshatra": "Bharani",
+    "boyNakshatra": "Uttara Ashadha",
+    "count": 20
+   }
+  },
+  {
+   "key": "STREE_DEERGHA",
+   "name": "Stree Deergham",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Count girl→boy nakshatra greater than 13",
+   "inputs": {
+    "girlNakshatra": "Bharani",
+    "boyNakshatra": "Uttara Ashadha",
+    "count": 20
+   }
+  },
+  {
+   "key": "YONI",
+   "name": "Yoni",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Hostile animal pair (horse–buffalo, elephant–lion, sheep–monkey, serpent–mongoose, dog–deer, cat–rat, cow–tiger): no agreement; same animal: uttama",
+   "inputs": {
+    "girlYoni": "ELEPHANT",
+    "girlYoniGender": "MALE",
+    "boyYoni": "MONGOOSE",
+    "boyYoniGender": "MALE",
+    "enemyPair": false
+   }
+  },
+  {
+   "key": "RASI",
+   "name": "Rasi",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Count girl→boy rashi: same rashi or beyond the 6th agrees",
+   "inputs": {
+    "girlRashi": "Mesha",
+    "boyRashi": "Makara",
+    "count": 10,
+    "reverseCount": 4,
+    "shashtashtaka": false,
+    "dvirdvadasa": false
+   }
+  },
+  {
+   "key": "RASI_ADHIPATI",
+   "name": "Rasi Athipathi",
+   "matched": false,
+   "grade": "ADHAMA",
+   "dosha": false,
+   "rule": "Rashi lords same or mutual friends: uttama; neutral involved: madhyama; enmity either way: no agreement (naisargika maitri)",
+   "inputs": {
+    "girlRashiLord": "MARS",
+    "boyRashiLord": "SATURN",
+    "boyLordTowardGirlLord": "ENEMY",
+    "girlLordTowardBoyLord": "NEUTRAL"
+   }
+  },
+  {
+   "key": "VASYA",
+   "name": "Vasiyam",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Either person's rashi is vasya to the other's (published vasya table)",
+   "inputs": {
+    "girlRashi": "Mesha",
+    "boyRashi": "Makara",
+    "boyVasyaToGirl": false,
+    "girlVasyaToBoy": true
+   }
+  },
+  {
+   "key": "RAJJU",
+   "name": "Rajju",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Both nakshatras in the same rajju group: Rajju dosha (no agreement)",
+   "inputs": {
+    "girlNakshatra": "Bharani",
+    "boyNakshatra": "Uttara Ashadha",
+    "girlRajju": "Kati / Ooru (waist / thigh)",
+    "boyRajju": "Nabhi / Udara (navel)"
+   }
+  },
+  {
+   "key": "VEDHA",
+   "name": "Vedhai",
+   "matched": true,
+   "grade": null,
+   "dosha": false,
+   "rule": "Nakshatras form a published vedha pair: Vedha dosha (no agreement)",
+   "inputs": {
+    "girlNakshatra": "Bharani",
+    "boyNakshatra": "Uttara Ashadha",
+    "vedhaPair": false
+   }
+  }
+ ],
+ "matchedCount": 8,
+ "totalKootas": 10,
+ "rajjuDosha": false,
+ "vedhaDosha": false,
+ "provisional": true,
+ "provisionalLabel": "provisional – pending client review",
+ "source": "Standard published Tamil/Kerala 10-porutham tables (Dinam, Ganam, Mahendram, Stree Deergham, Yoni, Rasi, Rasi Athipathi, Vasiyam, Rajju, Vedhai) as reproduced in Tamil panchanga porutham explainers (e.g. hindutone.com \"Porutham Explained\", astroved.com \"Vasya Porutham\" table); kuta list as in B.V. Raman, \"Muhurtha (Electional Astrology)\", chapter on marriage; rashi-lord friendship by BPHS naisargika maitri (engine table).",
+ "conventionNotes": [
+  "Dinam uses the Tamil count list {2,4,6,8,9,11,13,15,18,20,24,26}; the Dashakoota variant uses the remainder-after-9 rule (which also accepts counts 17, 22 and 27).",
+  "All counts are inclusive, from the girl's (bride's) nakshatra or rashi to the boy's (groom's); same = 1.",
+  "Inputs are the Moon nakshatra and rashi of each chart, computed by the engine with the active AstrologyConfig (ayanamsa).",
+  "Gana and yoni tables are the same as the Ashtakoota tables (src/matchmaking, imported unchanged).",
+  "Gana: some Tamil texts accept a Rakshasa boy with a Deva/Manushya girl, or apply exceptions by star count; not applied.",
+  "Stree Deergham: some astrologers grade a count above 9 as moderate (madhyama); the default here is count > 13 only.",
+  "Yoni: some reports additionally grade by yoni gender (e.g. male–male); not applied — only the seven hostile pairs fail.",
+  "Rasi: some texts fail 6/8 (shashtashtaka) and 2/12 (dvirdvadasa) separately, with lord-friendship exceptions; reported as flags only, not used in the match.",
+  "Rasi Athipathi: uses naisargika (natural) relationships from the engine table; some texts fail only mutual enmity.",
+  "Vasya table per astroved.com; some Tamil panchangas give Simha → Makara, Thula → Kanni + Makara, Vrischika → Kataka only.",
+  "Rajju: 5-fold (Siro, Kantha, Nabhi, Kati, Pada) Tamil grouping; Kerala practice also uses a 3-fold (Prathama/Madhya/Antya) grouping and ascending/descending sub-divisions — not applied.",
+  "Same-nakshatra exceptions (e.g. Rohini, Ardra, Pushya, Magha, Hasta, Shravana treated as acceptable when shared) are not applied."
+ ]
+}

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/theme/app_theme_tokens.dart';
+import '../../../shared/theme/app_typography.dart';
+import '../../../shared/widgets/astro_lists.dart';
+import '../../../shared/widgets/astro_surfaces.dart';
 
 /// Reusable expandable card component enabling progressive disclosure in astrology views.
 /// Displays a summary header, optional preview badges/metrics, and smoothly expands to reveal deep data.
@@ -31,7 +34,7 @@ class ExpandableAstrologyCard extends StatefulWidget {
     this.summaryWidget,
     required this.expandedChild,
     this.initiallyExpanded = false,
-    this.padding = const EdgeInsets.all(14),
+    this.padding = const EdgeInsets.all(16),
     this.margin = const EdgeInsets.only(bottom: 12),
     this.onExpansionChanged,
   });
@@ -67,126 +70,111 @@ class _ExpandableAstrologyCardState extends State<ExpandableAstrologyCard>
 
   @override
   Widget build(BuildContext context) {
+    final accent = widget.iconColor ?? AppColors.secondary;
+    final badge = widget.badgeColor ?? AppColors.secondary;
+
     return Padding(
       padding: widget.margin,
-      child: AstroCard(
+      child: AstroSurfaceCard(
         padding: EdgeInsets.zero,
+        radius: AstroMetrics.groupRadius,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header (Tappable to expand / collapse)
-            InkWell(
-              onTap: _toggleExpansion,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: widget.padding,
-                child: Row(
-                  children: [
-                    if (widget.icon != null) ...[
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: (widget.iconColor ?? AppColors.secondary)
-                              .withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            widget.icon,
-                            size: 16,
-                            color: widget.iconColor ?? AppColors.secondary,
+            Semantics(
+              button: true,
+              expanded: _isExpanded,
+              child: InkWell(
+                onTap: _toggleExpansion,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 56),
+                  child: Padding(
+                    padding: widget.padding,
+                    child: Row(
+                      children: [
+                        if (widget.icon != null) ...[
+                          AstroIconSquare(
+                            icon: widget.icon!,
+                            size: 38,
+                            tint: AstroTint(accent, accent.withValues(alpha: 0.12)),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  widget.title,
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Text(
+                                    widget.title,
+                                    style: AppTypography.rowTitle.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                  if (widget.badgeText != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: badge.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        widget.badgeText!,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: badge,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              if (widget.subtitle != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.subtitle!,
                                   style: const TextStyle(
                                     fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                    letterSpacing: -0.1,
+                                    color: AppColors.lightTextSecondary,
+                                    height: 1.35,
                                   ),
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (widget.badgeText != null) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: (widget.badgeColor ??
-                                            AppColors.premiumAccent)
-                                        .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: (widget.badgeColor ??
-                                              AppColors.premiumAccent)
-                                          .withValues(alpha: 0.4),
-                                      width: 0.7,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    widget.badgeText!,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: widget.badgeColor ??
-                                          AppColors.premiumAccent,
-                                    ),
-                                  ),
                                 ),
                               ],
                             ],
                           ),
-                          if (widget.subtitle != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.subtitle!,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.lightTextSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                        ),
+                        if (widget.headerTrailing != null) ...[
+                          const SizedBox(width: 8),
+                          widget.headerTrailing!,
                         ],
-                      ),
+                        const SizedBox(width: 8),
+                        AnimatedRotation(
+                          turns: _isExpanded ? 0.5 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: AppColors.accent,
+                            size: 28,
+                          ),
+                        ),
+                      ],
                     ),
-                    if (widget.headerTrailing != null) ...[
-                      const SizedBox(width: 6),
-                      widget.headerTrailing!,
-                    ],
-                    const SizedBox(width: 6),
-                    AnimatedRotation(
-                      turns: _isExpanded ? 0.5 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.lightTextMuted,
-                        size: 22,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
 
-            // Optional Always-Visible Summary Row
+            // Optional always-visible summary row
             if (widget.summaryWidget != null && !_isExpanded)
               Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -198,27 +186,21 @@ class _ExpandableAstrologyCardState extends State<ExpandableAstrologyCard>
                 child: widget.summaryWidget!,
               ),
 
-            // Expandable Detail Body with Animated CrossFade
             AnimatedCrossFade(
-              firstChild: const SizedBox.shrink(),
+              firstChild: const SizedBox(width: double.infinity),
               secondChild: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: AppColors.lightBorder,
-                  ),
+                  const Divider(height: 0.5, thickness: 0.5, color: AppColors.separator),
                   Padding(
                     padding: widget.padding,
                     child: widget.expandedChild,
                   ),
                 ],
               ),
-              crossFadeState: _isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
+              crossFadeState:
+                  _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 250),
             ),
           ],

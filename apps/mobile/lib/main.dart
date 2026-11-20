@@ -1,10 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Edge-to-edge with transparent system bars (Android); the shared nav bar
+  // sets the status / navigation bar icon brightness per screen.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ));
 
   // Handle and suppress known Linux Desktop HardwareKeyboard assertion glitches
   final originalOnError = FlutterError.onError;

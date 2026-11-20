@@ -37,8 +37,14 @@ import {
   GhatChakraCalculator,
   TaraChakraCalculator,
   VimshopakaCalculator,
+  PlanetaryIntelligenceCalculator,
+  PlanetaryIntelligenceReport,
+  ConventionRegistry,
+  SystemConventionMetadata,
+  DashaSystemMetadata,
 } from '@astro/astrology-engine';
 import { prisma } from '../../services/prisma.service';
+import { currentCalculationOptions } from './calculation-options';
 import { NotFoundError, AppError, ValidationError } from '../../errors/app-error';
 import { mapBirthProfileToBirthDetails, mapDirectBirthDetailsToBirthDetails } from './birth-details.mapper';
 import { mapAstroChartToResponse, AstroChartResponseDto } from './astrology-response.mapper';
@@ -46,6 +52,7 @@ import {
   CalculateChartInput,
   DirectBirthDetailsInput,
   DashaRequestInput,
+  AdditionalDashaRequestInput,
   PanchangRequestInput,
   VargasRequestInput,
   MatchmakingRequestInput,
@@ -64,6 +71,7 @@ import {
   ChartVariantsRequestInput,
   AvakhadaRequestInput,
   VimshopakaRequestInput,
+  PlanetaryIntelligenceRequestInput,
 } from './astrology.schemas';
 
 export class AstrologyService {
@@ -84,6 +92,7 @@ export class AstrologyService {
   private readonly kpCalculator: KPCalculator;
   private readonly chartVariantsCalculator: ChartVariantsCalculator;
   private readonly vimshopakaCalculator: VimshopakaCalculator;
+  private readonly planetaryIntelligenceCalculator: PlanetaryIntelligenceCalculator;
 
   constructor(calculator?: ChartCalculator) {
     this.calculator = calculator || new ChartCalculator();
@@ -103,14 +112,20 @@ export class AstrologyService {
     this.kpCalculator = new KPCalculator();
     this.chartVariantsCalculator = new ChartVariantsCalculator(this.vargaCalculator, this.jaiminiCalculator);
     this.vimshopakaCalculator = new VimshopakaCalculator(this.vargaCalculator);
+    this.planetaryIntelligenceCalculator = new PlanetaryIntelligenceCalculator();
   }
 
+  /**
+   * Engine defaults (true Chitrapaksha Lahiri, mean node: ADR-017) with the request's optional
+   * `ayanamsa` / `nodeType` (validated in astrology.routes.ts) applied.
+   */
   private getActiveConfig(): AstrologyConfig {
+    const options = currentCalculationOptions();
     return {
       zodiacType: 'SIDEREAL',
-      ayanamsa: 'LAHIRI',
+      ayanamsa: options.ayanamsa ?? 'LAHIRI',
       houseSystem: 'WHOLE_SIGN',
-      nodeCalculation: 'MEAN_NODE',
+      nodeCalculation: options.nodeType ?? 'MEAN_NODE',
       planetaryCalculationMode: 'GEOCENTRIC',
       precisionDegrees: 0.0001,
       roundingRule: 'NEAREST',
@@ -272,6 +287,31 @@ export class AstrologyService {
     };
   }
 
+  /**
+   * Yogini / Chara / Narayana / Kalachakra Dasha (POST /dashas/{system}). The engine tree is
+   * returned unchanged, prefixed with the normalized birth details.
+   */
+  public async calculateAdditionalDasha(
+    system: 'YOGINI' | 'CHARA' | 'NARAYANA' | 'KALACHAKRA',
+    input: AdditionalDashaRequestInput,
+    requestingUser?: { id: string; role?: string }
+  ) {
+    const birthDetails = await this.resolveBirthDetails(
+      { birthProfileId: input.birthProfileId, birthDetails: input.birthDetails },
+      requestingUser
+    );
+    const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
+    const tree = DashaRegistry.calculateDasha(system, chart, {
+      maxLevel: input.maxLevel,
+      targetDate: input.targetDate ? new Date(input.targetDate) : undefined,
+      cycleCount: input.cycles,
+    });
+    return {
+      birthDetails: chart.birthDetails,
+      ...tree,
+    };
+  }
+
   public async calculatePanchang(input: PanchangRequestInput) {
     const timeParts = input.timeOfBirth.split(':');
     const hours = parseInt(timeParts[0] || '12', 10);
@@ -285,12 +325,21 @@ export class AstrologyService {
 
     const targetDateUtc = new Date(Date.UTC(year, month, day, hours, minutes, seconds));
 
-    const panchang = this.panchangCalculator.calculateDailyPanchang(
-      targetDateUtc,
-      input.latitude,
-      input.longitude,
-      input.timezone || 'UTC'
-    );
+    let panchang;
+    try {
+      // Sunrise is searched from local midnight in input.timezone, so the zone is validated here.
+      panchang = this.panchangCalculator.calculateDailyPanchang(
+        targetDateUtc,
+        input.latitude,
+        input.longitude,
+        input.timezone
+      );
+    } catch (error) {
+      if (error instanceof BirthDetailsValidationError) {
+        throw new ValidationError(error.message);
+      }
+      throw error;
+    }
 
     return {
       panchang: panchang.instantaneous,
@@ -487,6 +536,7 @@ export class AstrologyService {
         questionNumber: input.questionNumber,
         questionNumberSystem: input.questionNumberSystem,
         questionText: input.questionText,
+        questionDomain: input.questionDomain,
       },
       this.getActiveConfig()
     );
@@ -628,10 +678,14 @@ export class AstrologyService {
     const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
 
     const moon = chart.planets[PlanetSymbol.MOON];
-    const ascRashi = chart.ascendant?.rashiIndex ?? 1;
+    const ascRashi = chart.ascendant?.rashiIndex;
 
     if (!moon) {
       throw new AppError('Could not calculate natal Moon position', 500, 'ASTRONOMY_CALCULATION_ERROR');
+    }
+    // Never substitute Mesha (1) for a missing ascendant: that would fabricate Avakhada values.
+    if (!ascRashi) {
+      throw new AppError('Could not calculate natal ascendant', 500, 'ASTRONOMY_CALCULATION_ERROR');
     }
 
     const avakhada = AvakhadaChakraCalculator.calculateAvakhada(moon.longitude, ascRashi);
@@ -653,6 +707,33 @@ export class AstrologyService {
     const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
 
     return this.vimshopakaCalculator.calculateVimshopaka(chart);
+  }
+
+  public async calculatePlanetaryIntelligence(
+    input: PlanetaryIntelligenceRequestInput,
+    requestingUser?: { id: string; role?: string }
+  ): Promise<PlanetaryIntelligenceReport> {
+    const birthDetails = await this.resolveBirthDetails(input, requestingUser);
+    const chart = await this.calculator.calculateChart(birthDetails, this.getActiveConfig());
+
+    return this.planetaryIntelligenceCalculator.calculateFromChart(chart);
+  }
+
+  /**
+   * Read-only calculation convention metadata, sourced verbatim from the engine's
+   * ConventionRegistry and DashaRegistry (no metadata is defined in the API layer).
+   */
+  public getConventions(): {
+    conventions: Record<string, SystemConventionMetadata>;
+    dashaSystems: { implemented: DashaSystemMetadata[]; pending: DashaSystemMetadata[] };
+  } {
+    return {
+      conventions: ConventionRegistry.getAllConventions(),
+      dashaSystems: {
+        implemented: DashaRegistry.getImplementedSystems(),
+        pending: DashaRegistry.getPendingSystems(),
+      },
+    };
   }
 }
 

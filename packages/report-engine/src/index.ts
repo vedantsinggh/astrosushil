@@ -1,37 +1,6 @@
-export * from './types/report.types';
-export * from './types/career-report.types';
-export * from './validation/report-data.validator';
-export * from './providers/interpretation-provider.interface';
-export * from './providers/deterministic-interpretation.provider';
-export * from './generators/kundli-report.generator';
-export * from './generators/planetary-report.generator';
-export * from './generators/pro-horoscope.generator';
-export * from './generators/matchmaking-report.generator';
-export * from './generators/career-report.generator';
-export * from './generators/finance-report.generator';
-export * from './generators/love-report.generator';
-export * from './generators/fortune-report.generator';
-export * from './generators/fortune-plus-report.generator';
-export * from './generators/saturn-report.generator';
-export * from './generators/jupiter-report.generator';
-export * from './generators/rahu-ketu-report.generator';
-export * from './generators/varshphal-report.generator';
-export * from './generators/report-data-tex.generator';
-export * from './mappers/career-report.mapper';
-export * from './services/career-report.service';
-export * from './pdf/pdf-writer';
-export * from './pdf/report-pdf.service';
-export type { LatexCompilationOptions, LatexCompilationResult, LatexCompiler } from './pdf/latex-compiler.interface';
-export { latextoCompiler, LatextoCompiler } from './pdf/latexto-compiler';
-export { localXeLatexCompiler, xeLatexCompiler, XeLatexCompiler, LocalXeLatexCompiler } from './pdf/xelatex-compiler';
-export { latexCompiler, getLatexCompiler } from './pdf/latex-compiler.factory';
-export * from './validation/pdf-qa.validator';
-export * from './validation/claim-validation.engine';
-export * from './validation/duplication-detector';
-export * from './types/shared-report-foundation.types';
-export * from './validation/report-evidence.validator';
-export * from './composition/report-section-composer';
-export * from './pipeline/shared-interpretation-pipeline';
-export * from './pdf/shared-report-pdf-renderer';
-export * from './validation/traceability.validator';
-
+/**
+ * @astro/report-engine — the universal report platform is the only report
+ * path. Every sellable ReportType is served by a module registered in
+ * ./platform/registry.ts; see docs/report-system/PLATFORM.md.
+ */
+export * as reportPlatform from './platform';

@@ -18,7 +18,7 @@ export async function guptaNadiRoutes(fastify: FastifyInstance, _options: Fastif
         properties: {
           birthProfileId: { type: 'string', format: 'uuid' },
           transitDate: { type: 'string', example: '2026-08-16' },
-          gender: { type: 'string', enum: ['MALE', 'FEMALE'], default: 'MALE' },
+          gender: { type: 'string', enum: ['MALE', 'FEMALE'] },
         },
       },
     },

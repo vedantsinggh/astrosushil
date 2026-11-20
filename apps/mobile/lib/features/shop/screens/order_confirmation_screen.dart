@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/astro_design_system.dart';
+import '../widgets/shop_ui.dart';
 import 'digital_downloads_screen.dart';
 import 'order_history_screen.dart';
 import 'shop_catalog_screen.dart';
 
+/// Order confirmation: clear success mark, short summary with the total and
+/// one gold next step (digital library, or order details).
 class OrderConfirmationScreen extends ConsumerWidget {
   final Map<String, dynamic> orderData;
   final dynamic digitalEntitlements;
@@ -25,198 +28,141 @@ class OrderConfirmationScreen extends ConsumerWidget {
     final amount = orderData['amount'] is int ? orderData['amount'] as int : 0;
     final formattedAmount = '₹${(amount / 100).round()}';
     final hasDigital = digitalEntitlements != null &&
-        ((digitalEntitlements is List && (digitalEntitlements as List).isNotEmpty) ||
-            digitalEntitlements == true);
+        ((digitalEntitlements is List && (digitalEntitlements as List).isNotEmpty) || digitalEntitlements == true);
+
+    void openLibrary() {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const DigitalDownloadsScreen()),
+      );
+    }
+
+    void openOrders() {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+      );
+    }
+
+    final libraryLabel = isHindi ? 'मेरी डिजिटल लाइब्रेरी खोलें' : 'Open My Digital Library';
+    final ordersLabel = isHindi ? 'आर्डर विवरण एवं इतिहास' : 'View Order Details & History';
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
+      backgroundColor: AppColors.lightBackground,
+      appBar: AstroNavBar(
+        showBack: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: AppColors.primary),
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
+          AstroNavAction.text(
+            label: isHindi ? 'बंद करें' : 'Close',
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           ),
         ],
       ),
       body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Success Icon Animation
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.check_circle_rounded, color: AppColors.success, size: 54),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Text(
-                isHindi ? 'आर्डर सफलतापूर्वक स्वीकार हुआ!' : 'Order Placed Successfully!',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              Text(
-                isHindi
-                    ? 'आपका भुगतान सत्यापित हो चुका है एवं रसीद आपके खाते में सुरक्षित है।'
-                    : 'Your payment was securely verified and order confirmed.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.lightTextSecondary,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Order Summary Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.lightBackground,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.lightBorder),
-                ),
-                child: Column(
-                  children: [
-                    _InfoRow(
-                      label: isHindi ? 'आर्डर संख्या' : 'Order ID',
-                      value: orderId.length > 12 ? orderId.substring(0, 12).toUpperCase() : orderId,
-                    ),
-                    const Divider(height: 20, color: AppColors.lightBorder),
-                    _InfoRow(
-                      label: isHindi ? 'भुगतान स्थिति' : 'Payment Status',
-                      value: 'PAID (Captured)',
-                      isSuccess: true,
-                    ),
-                    const Divider(height: 20, color: AppColors.lightBorder),
-                    _InfoRow(
-                      label: isHindi ? 'कुल भुगतान' : 'Total Amount',
-                      value: formattedAmount,
-                      isBold: true,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Digital Fulfillment CTA
-              if (hasDigital) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-                  ),
+          padding: const EdgeInsets.fromLTRB(AstroMetrics.gutter, 8, AstroMetrics.gutter, 24),
+          child: ShopContentWidth(
+            maxWidth: 520,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Hero: success + receipt summary in one card.
+                AstroGradientCard(
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.download_for_offline_rounded, color: AppColors.secondary, size: 24),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              isHindi ? 'डिजिटल उत्पाद तैयार हैं!' : 'Digital Products Ready!',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
-                            ),
-                          ),
-                        ],
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: AppColors.gold.withValues(alpha: 0.16),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+                        ),
+                        child: const Icon(Icons.check_rounded, color: AppColors.gold, size: 46),
+                      ),
+                      const SizedBox(height: 18),
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          isHindi ? 'आर्डर सफलतापूर्वक स्वीकार हुआ!' : 'Order Placed Successfully!',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.headlineLarge.copyWith(fontSize: 24, color: Colors.white, height: 1.25),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         isHindi
-                            ? 'आपके द्वारा खरीदे गए वॉलपेपर और कला "मेरी डिजिटल लाइब्रेरी" में उपलब्ध करा दिए गए हैं।'
-                            : 'Your purchased wallpapers and sacred art are active in your personal library.',
-                        style: const TextStyle(fontSize: 12, color: AppColors.lightTextPrimary, height: 1.4),
+                            ? 'आपका भुगतान सत्यापित हो चुका है एवं रसीद आपके खाते में सुरक्षित है।'
+                            : 'Your payment was securely verified and order confirmed.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 16, color: AppColors.textInverseSecondary, height: 1.4),
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 40,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const DigitalDownloadsScreen()),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: Text(
-                            isHindi ? 'मेरी डिजिटल लाइब्रेरी खोलें' : 'Open My Digital Library',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          children: [
+                            _HeroRow(
+                              label: isHindi ? 'आर्डर संख्या' : 'Order ID',
+                              value: orderId.length > 12 ? orderId.substring(0, 12).toUpperCase() : orderId,
+                            ),
+                            _HeroRow(
+                              label: isHindi ? 'भुगतान स्थिति' : 'Payment Status',
+                              value: isHindi ? 'भुगतान हो गया' : 'Paid',
+                            ),
+                            Divider(height: 20, color: Colors.white.withValues(alpha: 0.18)),
+                            _HeroRow(
+                              label: isHindi ? 'कुल भुगतान' : 'Total Amount',
+                              value: formattedAmount,
+                              emphasize: true,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-              ],
 
-              // Actions
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                if (hasDigital) ...[
+                  AstroNote(
+                    isHindi
+                        ? 'आपके द्वारा खरीदे गए वॉलपेपर और कला "मेरी डिजिटल लाइब्रेरी" में उपलब्ध करा दिए गए हैं।'
+                        : 'Your purchased wallpapers and sacred art are active in your personal library.',
+                    icon: Icons.download_done_rounded,
+                    tint: AstroTint.sage,
                   ),
-                  child: Text(
-                    isHindi ? 'आर्डर विवरण एवं इतिहास' : 'View Order Details & History',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  AstroPrimaryButton(label: libraryLabel, icon: Icons.folder_open_outlined, onPressed: openLibrary),
+                  const SizedBox(height: 12),
+                  AstroSecondaryButton(label: ordersLabel, icon: Icons.receipt_long_outlined, onPressed: openOrders),
+                ] else
+                  AstroPrimaryButton(label: ordersLabel, icon: Icons.receipt_long_outlined, onPressed: openOrders),
 
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: TextButton(
+                const SizedBox(height: 8),
+                TextButton(
                   onPressed: () {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (_) => const ShopCatalogScreen()),
                       (route) => route.isFirst,
                     );
                   },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
                   child: Text(
                     isHindi ? 'दुकान में वापस जाएं' : 'Continue Shopping',
-                    style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 14),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -224,34 +170,38 @@ class OrderConfirmationScreen extends ConsumerWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+/// Label / value line on the dark hero card.
+class _HeroRow extends StatelessWidget {
   final String label;
   final String value;
-  final bool isSuccess;
-  final bool isBold;
+  final bool emphasize;
 
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.isSuccess = false,
-    this.isBold = false,
-  });
+  const _HeroRow({required this.label, required this.value, this.emphasize = false});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isBold ? 15 : 13,
-            fontWeight: isBold || isSuccess ? FontWeight.bold : FontWeight.normal,
-            color: isSuccess ? AppColors.success : AppColors.lightTextPrimary,
-          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 2,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 16, color: AppColors.textInverseSecondary)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: emphasize ? 24 : 16,
+                fontWeight: FontWeight.w700,
+                color: emphasize ? AppColors.gold : Colors.white,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

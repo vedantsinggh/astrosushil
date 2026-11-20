@@ -30,28 +30,45 @@ class KPPreview extends StatelessWidget {
       );
     }
 
+    // Genuine backend KP cusps only (Cusp 1 and Cusp 10).
+    final cusps = report?.cusps ?? const <KPCuspPlacementModel>[];
+    KPCuspPlacementModel? findCusp(int n) {
+      for (final c in cusps) {
+        if (c.cuspNumber == n) return c;
+      }
+      return null;
+    }
+
+    final shown = [findCusp(1), findCusp(10)].whereType<KPCuspPlacementModel>().toList();
+    if (shown.isEmpty) {
+      return const PreviewEmptyState(
+        title: 'KP Astrology',
+        message: 'KP cusp data is not available right now',
+        icon: Icons.layers_rounded,
+      );
+    }
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Cusp 1 (Lagna)
-        _buildCuspRow(
-          cusp: 'Cusp 1',
-          degree: 'Gemini 14°22\'',
-          signLord: 'Mercury',
-          starLord: 'Rahu',
-          subLord: 'Jupiter',
-        ),
-        const SizedBox(height: 4),
-        // Cusp 10 (Career)
-        _buildCuspRow(
-          cusp: 'Cusp 10',
-          degree: 'Pisces 11°08\'',
-          signLord: 'Jupiter',
-          starLord: 'Saturn',
-          subLord: 'Venus',
-        ),
+        for (var i = 0; i < shown.length; i++) ...[
+          if (i > 0) const SizedBox(height: 4),
+          _buildCuspRow(
+            cusp: 'Cusp ${shown[i].cuspNumber}',
+            degree: _formatDegree(shown[i].rashiName, shown[i].degreeInRashi),
+            signLord: shown[i].signLord,
+            starLord: shown[i].starLord,
+            subLord: shown[i].subLord,
+          ),
+        ],
       ],
     );
+  }
+
+  String _formatDegree(String sign, double deg) {
+    final whole = deg.floor();
+    final minutes = ((deg - whole) * 60).floor();
+    return "$sign $whole°${minutes.toString().padLeft(2, '0')}'";
   }
 
   Widget _buildCuspRow({

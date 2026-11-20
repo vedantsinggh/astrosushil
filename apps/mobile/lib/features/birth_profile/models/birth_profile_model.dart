@@ -1,3 +1,5 @@
+import '../../../core/utils/app_date_time.dart';
+
 /// Strongly typed model for NormalizedDetails object nested inside BirthProfile
 class NormalizedDetailsModel {
   final String profileId;
@@ -145,7 +147,8 @@ class BirthProfileModel {
       timeOfBirth: json['timeOfBirth'] as String? ?? '',
       latitude: lat,
       longitude: lng,
-      timezone: tz.isNotEmpty ? tz : 'Asia/Kolkata',
+      // No assumed timezone: an empty value is surfaced as an error before calculation.
+      timezone: tz,
       placeName: json['placeName'] as String? ?? '',
       country: json['country'] as String?,
       countryCode: json['countryCode'] as String?,
@@ -157,12 +160,10 @@ class BirthProfileModel {
           : null,
       timezoneOffsetSeconds: (json['timezoneOffsetSeconds'] as num?)?.toInt(),
       disambiguationRequired: json['disambiguationRequired'] as bool? ?? false,
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'] as String) ?? DateTime.now()
-          : DateTime.now(),
+      // Record timestamps (instants). Birth date/time above stay untouched
+      // strings in the birth place's civil time; never convert them.
+      createdAt: AppDateTime.parseInstant(json['createdAt']) ?? DateTime.now(),
+      updatedAt: AppDateTime.parseInstant(json['updatedAt']) ?? DateTime.now(),
       normalizedDetails: json['normalizedDetails'] is Map
           ? NormalizedDetailsModel.fromJson(Map<String, dynamic>.from(json['normalizedDetails'] as Map))
           : null,
@@ -188,8 +189,8 @@ class BirthProfileModel {
       if (utcDateTime != null) 'utcDateTime': utcDateTime!.toIso8601String(),
       if (timezoneOffsetSeconds != null) 'timezoneOffsetSeconds': timezoneOffsetSeconds,
       'disambiguationRequired': disambiguationRequired,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': AppDateTime.toJsonInstant(createdAt),
+      'updatedAt': AppDateTime.toJsonInstant(updatedAt),
       if (normalizedDetails != null) 'normalizedDetails': normalizedDetails!.toJson(),
     };
   }

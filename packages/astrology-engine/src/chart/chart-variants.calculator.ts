@@ -11,6 +11,9 @@ import {
 } from './chart-variants.types';
 import { VargaCalculator } from '../varga/varga-calculator';
 import { JaiminiCalculator } from '../jaimini/jaimini-calculator';
+import { calculateHouseAngles, calculateSripatiBhavas, houseOfLongitude } from '../houses/house-cusps';
+import { computeAyanamsa, resolveAyanamsaSystem } from '../ayanamsa/ayanamsa';
+import { AstrologyEngineError } from '../errors/astrology.error';
 
 export class ChartVariantsCalculator {
   private vargaCalculator: VargaCalculator;
@@ -148,7 +151,7 @@ export class ChartVariantsCalculator {
     };
 
     // 7. Bhava Sripati (Sripati unequal house chalit)
-    const bhavaSripatiChart = this.buildSripatiBhavaChart(normNatal, natalAscLong);
+    const bhavaSripatiChart = this.buildSripatiBhavaChart(normNatal, natalAscLong, resolveMidheavenLongitude(baseChart));
     const bhavaSripatiSummary: ChartVariantSummary = {
       variantType: 'BHAVA_SRIPATI',
       title: 'Sripati Bhava Chalit Chart',
@@ -197,44 +200,63 @@ export class ChartVariantsCalculator {
     };
   }
 
-  private buildSripatiBhavaChart(baseNorm: any, ascLong: number): any {
-    // Sripati system: Ascendant (1st mid) to MC (10th mid) arc divided into 3 equal portions
-    const mcLong = normalizeDegree(ascLong + 270); // Quadrant approximation
-    const quadrant1Span = normalizeDegree(mcLong - ascLong);
-    const portion1 = quadrant1Span / 3;
+  /**
+   * Sripati Bhava Chalit (client decision ADR-017; B.V. Raman, "A Manual of Hindu Astrology"
+   * ch. X §§83-90): bhava madhyas from the real Lagna and MC by quadrant trisection, bhava
+   * sandhis at the midpoints of consecutive madhyas, and each planet placed in the bhava whose
+   * [arambha sandhi, next arambha sandhi) interval contains it.
+   */
+  private buildSripatiBhavaChart(baseNorm: any, ascLong: number, mcLong: number): any {
+    const { madhya, arambhaSandhi } = calculateSripatiBhavas(ascLong, mcLong);
+
+    const planets = (baseNorm.planets || []).map((p: any) => ({
+      ...p,
+      house: houseOfLongitude(p.absoluteDegree, arambhaSandhi),
+    }));
 
     const houses: any[] = [];
     for (let h = 1; h <= 12; h++) {
-      let cuspLong = 0;
-      if (h >= 1 && h <= 4) {
-        cuspLong = normalizeDegree(ascLong + (h - 1) * portion1);
-      } else if (h >= 4 && h <= 7) {
-        const span2 = normalizeDegree(ascLong + 180 - mcLong) / 3;
-        cuspLong = normalizeDegree(mcLong + (h - 4) * span2);
-      } else if (h >= 7 && h <= 10) {
-        cuspLong = normalizeDegree(ascLong + 180 + (h - 7) * portion1);
-      } else {
-        const span2 = normalizeDegree(ascLong + 180 - mcLong) / 3;
-        cuspLong = normalizeDegree(ascLong + 270 + (h - 10) * span2);
-      }
-
+      const cuspLong = madhya[h - 1];
       const rashiDef = getRashiByLongitude(cuspLong);
       houses.push({
         number: h,
         sign: rashiDef.englishName,
         rashiIndex: rashiDef.index,
         lord: rashiDef.ruler,
-        occupants: [],
+        occupants: planets.filter((p: any) => p.house === h).map((p: any) => p.name),
         cuspLongitude: Number(cuspLong.toFixed(4)),
-        startLongitude: Number(normalizeDegree(cuspLong - 15).toFixed(4)),
-        endLongitude: Number(normalizeDegree(cuspLong + 15).toFixed(4)),
+        startLongitude: Number(arambhaSandhi[h - 1].toFixed(4)),
+        endLongitude: Number(arambhaSandhi[h % 12].toFixed(4)),
         status: 'VERIFIED',
       });
     }
 
     return {
       ...baseNorm,
+      planets,
       houses,
     };
   }
+}
+
+/**
+ * The chart's MC in its own zodiac: `chart.midheaven` (engine 0.2.0), else recomputed from the
+ * chart's time and place with the chart's mean ayanamsa (same formulas as ChartCalculator).
+ */
+function resolveMidheavenLongitude(chart: AstroChart): number {
+  if (chart.midheaven && typeof chart.midheaven.longitude === 'number') return chart.midheaven.longitude;
+  const jd = chart.metadata?.normalizedTime?.julianDayUT;
+  const lat = chart.birthDetails?.latitude;
+  const lon = chart.birthDetails?.longitude;
+  if (typeof jd !== 'number' || typeof lat !== 'number' || typeof lon !== 'number') {
+    throw new AstrologyEngineError('Sripati Bhava Chalit needs the chart birth time and place to compute the MC.');
+  }
+  const angles = calculateHouseAngles(jd, lat, lon);
+  const sidereal = chart.metadata.config?.zodiacType !== 'TROPICAL';
+  const mean = chart.metadata.ayanamsa
+    ? chart.metadata.ayanamsa.meanDegrees
+    : sidereal
+      ? computeAyanamsa(jd, resolveAyanamsaSystem(chart.metadata.config?.ayanamsa)).meanDegrees
+      : 0;
+  return normalizeDegree(angles.mcTropical - mean);
 }

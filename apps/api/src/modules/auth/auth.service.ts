@@ -5,6 +5,7 @@ import { TokenService } from '../../services/token.service';
 import { emailService } from '../../services/email.service';
 import { otpService } from './otp.service';
 import { googleAuthService } from './google-auth.service';
+import { getMissingProfileFields } from './profile-completeness';
 import { logger } from '../../utils/logger';
 import { AuthenticationError, ConflictError, NotFoundError, RateLimitError } from '../../errors/app-error';
 import {
@@ -19,12 +20,18 @@ import {
   ResendVerificationInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  UpdateProfileInput,
 } from './auth.schemas';
 import { config } from '../../config';
 import { VerificationPurpose } from '@prisma/client';
 
 export class AuthService {
   private formatUser(user: any) {
+    const missingProfileFields = getMissingProfileFields({
+      fullName: user.fullName,
+      phoneNumber: user.phoneNumber,
+      phoneVerifiedAt: user.phoneVerifiedAt,
+    });
     return {
       id: user.id,
       email: user.email || null,
@@ -37,6 +44,8 @@ export class AuthService {
       phoneVerifiedAt: user.phoneVerifiedAt ? (user.phoneVerifiedAt.toISOString ? user.phoneVerifiedAt.toISOString() : user.phoneVerifiedAt) : null,
       createdAt: user.createdAt?.toISOString ? user.createdAt.toISOString() : new Date().toISOString(),
       updatedAt: user.updatedAt?.toISOString ? user.updatedAt.toISOString() : (user.createdAt?.toISOString ? user.createdAt.toISOString() : new Date().toISOString()),
+      profileComplete: missingProfileFields.length === 0,
+      missingProfileFields,
     };
   }
 
@@ -636,6 +645,25 @@ export class AuthService {
     }
 
     return this.formatUser(user);
+  }
+
+  /**
+   * Updates the authenticated user's own basic profile details (currently the full name).
+   * Phone numbers are not accepted here: they must be verified through
+   * POST /auth/phone/send-otp followed by POST /auth/link-phone.
+   */
+  public async updateProfile(userId: string, input: UpdateProfileInput) {
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) {
+      throw new NotFoundError('User profile not found');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { fullName: input.fullName },
+    });
+
+    return this.formatUser(updatedUser);
   }
 }
 

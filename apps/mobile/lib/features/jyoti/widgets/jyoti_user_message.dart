@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../../core/utils/app_date_time.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../models/jyoti_message.dart';
+import 'jyoti_bubble_layout.dart';
 
-/// User chat bubble widget.
+/// User chat bubble widget, shown on the right like a sent message.
 class JyotiUserMessage extends StatelessWidget {
   final JyotiMessageModel message;
 
@@ -14,32 +15,21 @@ class JyotiUserMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a').format(message.timestamp);
+    final timeStr = AppDateTime.formatLocal(message.timestamp, 'h:mm a');
 
-    return Align(
-      alignment: Alignment.centerRight,
+    return JyotiBubbleLayout.align(
+      context: context,
+      fromUser: true,
       child: Container(
-        margin: const EdgeInsets.only(left: 48, right: 12, top: 6, bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+        decoration: const BoxDecoration(
           color: AppColors.primary,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(4),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(6),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
           ),
-          border: Border.all(
-            color: AppColors.surfaceElevated,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -48,18 +38,18 @@ class JyotiUserMessage extends StatelessWidget {
             Text(
               message.text,
               style: const TextStyle(
-                fontSize: 14.5,
-                height: 1.4,
-                color: AppColors.textPrimary,
+                fontSize: 17,
+                height: 1.45,
+                color: AppColors.textInversePrimary,
                 fontWeight: FontWeight.w400,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               timeStr,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.white.withValues(alpha: 0.6),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textInverseSecondary,
               ),
             ),
           ],

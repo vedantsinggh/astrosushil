@@ -1,0 +1,21 @@
+{
+  "name": "@astro/desktop-engine-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline stdin/stdout JSON sidecar exposing @astro/astrology-engine to the Astro Sushil Desktop (Flutter) app",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "tsx --tsconfig tsconfig.dev.json src/main.ts",
+    "typecheck": "node scripts/engine-types.mjs && tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "bundle": "node scripts/bundle.mjs",
+    "build:sea": "node scripts/bundle.mjs && node scripts/build-sea.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6",
+    "tsx": "4.23.12",
+    "typescript": "^5.3.3",
+    "vitest": "1.6.1"
+  }
+}

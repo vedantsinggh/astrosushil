@@ -21,6 +21,9 @@ export function buildApp(): FastifyInstance {
         keywords: ['example'],
       },
     },
+    // Behind a reverse proxy (e.g. Caddy on the dev VM) set TRUST_PROXY=127.0.0.1 so
+    // request.ip (rate limiting, audit logs) is the client, not the proxy. Unset = off.
+    trustProxy: process.env.TRUST_PROXY ? (process.env.TRUST_PROXY === 'true' ? true : process.env.TRUST_PROXY) : false,
     genReqId: (req) => {
       const existingReqId = req.headers['x-request-id'];
       // Validate user-provided request ID to prevent injection/log tampering

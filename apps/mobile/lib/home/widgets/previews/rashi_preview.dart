@@ -3,11 +3,12 @@ import '../../../shared/theme/app_colors.dart';
 
 /// Zodiac strip preview highlighting active Rashi for Rashi Bhavishya card.
 class RashiPreview extends StatelessWidget {
-  final String activeRashi;
+  /// The user's genuine Moon rashi from their chart, or null when unknown.
+  final String? activeRashi;
 
   const RashiPreview({
     super.key,
-    this.activeRashi = 'Aries',
+    this.activeRashi,
   });
 
   @override
@@ -29,8 +30,10 @@ class RashiPreview extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: rashis.map((r) {
-              final isSelected = r['full']!.toLowerCase() == activeRashi.toLowerCase() ||
-                  (activeRashi.toLowerCase().contains(r['full']!.toLowerCase()));
+              final active = activeRashi?.toLowerCase();
+              final isSelected = active != null &&
+                  active.isNotEmpty &&
+                  (r['full']!.toLowerCase() == active || active.contains(r['full']!.toLowerCase()));
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 1.5),
@@ -81,19 +84,13 @@ class RashiPreview extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Active: $activeRashi',
+                  activeRashi != null && activeRashi!.isNotEmpty
+                      ? 'Moon: $activeRashi'
+                      : 'Moon sign not available',
                   style: const TextStyle(
                     fontSize: 7.5,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFB45309),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Favorable Transits',
-                  style: TextStyle(
-                    fontSize: 7.5,
-                    color: AppColors.lightTextSecondary,
                   ),
                 ),
               ],

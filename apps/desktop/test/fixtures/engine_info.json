@@ -1,0 +1,36 @@
+{
+ "protocolVersion": 1,
+ "sidecarVersion": "0.1.0",
+ "engineVersion": "0.2.0",
+ "config": {
+  "zodiacType": "SIDEREAL",
+  "ayanamsa": "LAHIRI",
+  "houseSystem": "WHOLE_SIGN",
+  "nodeCalculation": "MEAN_NODE",
+  "planetaryCalculationMode": "GEOCENTRIC",
+  "precisionDegrees": 0.0001,
+  "roundingRule": "NEAREST",
+  "dashaSystem": "VIMSHOTTARI"
+ },
+ "options": {
+  "ayanamsa": [
+   "LAHIRI",
+   "RAMAN",
+   "KRISHNAMURTI",
+   "KP",
+   "FAGAN_BRADLEY"
+  ],
+  "nodeType": [
+   "MEAN_NODE",
+   "TRUE_NODE"
+  ],
+  "kpCuspSystem": [
+   "PLACIDUS"
+  ],
+  "defaults": {
+   "ayanamsa": "LAHIRI",
+   "nodeType": "MEAN_NODE",
+   "kpCuspSystem": "PLACIDUS"
+  }
+ }
+}

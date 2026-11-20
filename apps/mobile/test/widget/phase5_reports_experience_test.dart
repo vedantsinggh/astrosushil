@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../helpers/report_catalog_fixture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:astro_mobile/core/network/api_client.dart';
 import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
+import 'package:astro_mobile/shared/widgets/astro_lists.dart';
 import 'package:astro_mobile/home/screens/reports_screen.dart';
 import 'package:astro_mobile/features/reports/models/user_report_item_model.dart';
 import 'package:astro_mobile/features/reports/providers/reports_provider.dart';
@@ -120,13 +122,14 @@ void main() {
   }
 
   group('Phase 5 Reports Experience Tests', () {
-    testWidgets('Catalogue renders all 5 active report tiers and 2 upcoming tiers', (tester) async {
+    testWidgets('Catalogue renders only server-offered report tiers', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 844 * 2);
       tester.view.devicePixelRatio = 2.0;
 
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -138,43 +141,47 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify header and badge
-      expect(find.text('100% Deterministic Engine'), findsOneWidget);
-      expect(find.text('Your Astrology Reports'), findsOneWidget);
-      expect(find.text('Personalized Reports'), findsOneWidget);
+      // Simple header: one heading, no slogan badge
+      expect(find.text('Reports'), findsOneWidget);
+      expect(find.text('Get a report'), findsOneWidget);
+      expect(find.text('100% Deterministic Engine'), findsNothing);
 
       // Verify 5 active report tiers
-      expect(find.text('Birth Chart & Kundli Report'), findsOneWidget);
+      expect(find.text('Janma Kundli & Birth Chart Report'), findsOneWidget);
       expect(find.text('₹299'), findsOneWidget);
 
-      expect(find.text('Mini Horoscope & Transit Forecast'), findsOneWidget);
+      expect(find.text('Planetary Dynamics & Dignity Summary'), findsOneWidget);
       expect(find.text('₹199'), findsOneWidget);
 
-      expect(find.text('Career & Professional Life'), findsOneWidget);
-      expect(find.text('PREMIUM PDF'), findsOneWidget);
+      expect(find.text('Career & Professional Life Report'), findsOneWidget);
+      expect(find.text('₹499'), findsWidgets); // career price from server catalogue
 
-      expect(find.text('Pro Horoscope & Divisional Charts'), findsOneWidget);
-      expect(find.text('₹699'), findsOneWidget);
+      // Retired Pro/Executive career report must not be shown.
+      expect(find.text('Executive Career & Wealth Prosperity Dossier'), findsNothing);
+      expect(find.text('₹699'), findsNothing);
 
-      expect(find.text('Marriage & Relationship Report'), findsOneWidget);
+      expect(find.text('Marriage & Relationship Compatibility Report'), findsOneWidget);
       expect(find.text('₹499'), findsWidgets);
 
-      // Scroll to view upcoming categories
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      // Scroll to the end of the list
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
       await tester.pumpAndSettle();
 
-      expect(find.text('Childbirth & Family Lineage'), findsOneWidget);
-      expect(find.text('Gupta Nadi Life Dossier'), findsOneWidget);
-      expect(find.text('COMING SOON'), findsNWidgets(2));
+      // Childbirth/Family and Gupta Nadi have no genuine generator and are
+      // inactive in the server catalogue: they must not be listed at all.
+      expect(find.text('Childbirth & Family Lineage'), findsNothing);
+      expect(find.text('Gupta Nadi Life Dossier'), findsNothing);
+      expect(find.text('COMING SOON'), findsNothing);
     });
 
-    testWidgets('Compare Report Tiers bottom sheet displays all comparison matrices', (tester) async {
+    testWidgets('Hardcoded tier comparison sheet is no longer offered', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 844 * 2);
       tester.view.devicePixelRatio = 2.0;
 
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -186,18 +193,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final compareButton = find.textContaining('Compare Report Tiers');
-      expect(compareButton, findsOneWidget);
-      await tester.tap(compareButton);
-      await tester.pumpAndSettle();
-
-      // Comparison sheet should display
-      expect(find.text('Compare Report Tiers'), findsWidgets);
-      expect(find.text('Understand what each verified report tier provides.'), findsOneWidget);
-      expect(find.textContaining('Mini'), findsWidgets);
-      expect(find.textContaining('Basic'), findsWidgets);
-      expect(find.textContaining('Pro'), findsWidgets);
-      expect(find.text('Janma Kundli (D1 & Chandra)'), findsOneWidget);
+      // The old matrix was client-made feature claims with mismatched columns.
+      expect(find.textContaining('Compare Report Tiers'), findsNothing);
     });
 
     testWidgets('My Reports tab renders empty state when no reports generated', (tester) async {
@@ -207,31 +204,31 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
             selectedBirthProfileProvider.overrideWith((ref) => testProfile1),
             userReportsProvider.overrideWith((ref) => Future.value([])),
           ],
-          child: const ReportsScreen(),
+          // No reports defaults to "Get a report"; open "My reports" explicitly.
+          child: const ReportsScreen(initialTab: ReportsTab.mine),
         ),
       );
       await tester.pumpAndSettle();
 
-      // Switch to My Reports tab
-      final historyTab = find.text('My Reports');
-      expect(historyTab, findsOneWidget);
-      await tester.tap(historyTab);
-      await tester.pumpAndSettle();
-
-      expect(find.text('No Reports Generated Yet'), findsOneWidget);
-      final browseBtn = find.text('Browse Report Catalogue');
+      expect(find.text('My reports'), findsOneWidget);
+      expect(find.text('No reports yet'), findsOneWidget);
+      // The empty state has exactly one button.
+      final emptyCard = find.byKey(const ValueKey('my-reports-empty'));
+      final browseBtn = find.descendant(of: emptyCard, matching: find.byType(ElevatedButton));
       expect(browseBtn, findsOneWidget);
 
-      // Tapping browse button switches back to Catalogue tab
+      // Tapping it switches to the "Get a report" tab.
       await tester.tap(browseBtn);
       await tester.pumpAndSettle();
-      expect(find.text('Your Astrology Reports'), findsOneWidget);
+      expect(find.byKey(const ValueKey('my-reports-empty')), findsNothing);
+      expect(find.byKey(const ValueKey('report-offer-CAREER')).hitTestable(), findsOneWidget);
     });
 
     testWidgets('My Reports tab displays reports with correct status badges and filtering', (tester) async {
@@ -241,6 +238,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -254,14 +252,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Switch to My Reports tab
-      await tester.tap(find.text('My Reports'));
-      await tester.pumpAndSettle();
-
-      // Filter chips should be present
-      expect(find.text('All Reports (3)'), findsOneWidget);
+      // Filter pills wrap onto new lines (no hidden horizontal scrolling)
+      expect(find.text('All (3)'), findsOneWidget);
       expect(find.text('Ready (1)'), findsOneWidget);
-      expect(find.text('In Progress (1)'), findsOneWidget);
+      expect(find.text('Being prepared (1)'), findsOneWidget);
       expect(find.text('Failed (1)'), findsOneWidget);
 
       // Initial visible reports
@@ -274,24 +268,20 @@ void main() {
       expect(find.text('Birth Chart & Kundli Report'), findsOneWidget);
       expect(find.text('Career & Professional Life'), findsNothing);
 
-      // Drag filter chips horizontally to bring In Progress into view
-      await tester.drag(find.text('Ready (1)'), const Offset(-250, 0));
-      await tester.pumpAndSettle();
-
-      // Filter by In Progress
-      await tester.tap(find.text('In Progress (1)'));
+      // Filter by Being prepared
+      await tester.tap(find.text('Being prepared (1)'));
       await tester.pumpAndSettle();
       expect(find.text('Career & Professional Life'), findsOneWidget);
       expect(find.text('Birth Chart & Kundli Report'), findsNothing);
-
-      // Drag filter chips horizontally to bring Failed into view
-      await tester.drag(find.text('In Progress (1)'), const Offset(-250, 0));
-      await tester.pumpAndSettle();
 
       // Filter by Failed
       await tester.tap(find.text('Failed (1)'));
       await tester.pumpAndSettle();
       expect(find.text('Marriage & Relationship Report'), findsOneWidget);
+      // Technical error detail sits behind a "Details" expander.
+      expect(find.text('Ephemeris calculation timeout'), findsNothing);
+      await tester.tap(find.text('Details'));
+      await tester.pumpAndSettle();
       expect(find.text('Ephemeris calculation timeout'), findsOneWidget);
     });
 
@@ -302,6 +292,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -353,6 +344,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1, testProfile2]),
             ),
@@ -381,12 +373,14 @@ void main() {
       expect(find.text('Partner Profile'), findsOneWidget);
       expect(find.text('Select Partner'), findsOneWidget);
 
-      // Tap to pick partner profile
+      // Tap to pick partner profile (scroll it into view first)
+      await tester.ensureVisible(find.text('Select Partner'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Select Partner'));
       await tester.pumpAndSettle();
 
       // Bottom sheet with Priya Patel
-      final partnerTile = find.widgetWithText(ListTile, 'Priya Patel');
+      final partnerTile = find.widgetWithText(AstroListRow, 'Priya Patel');
       expect(partnerTile, findsOneWidget);
       await tester.tap(partnerTile);
       await tester.pumpAndSettle();
@@ -402,6 +396,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             reportGenerationNotifierProvider.overrideWith(
               (ref) => _MockGenerationNotifier(
                 ReportGenerationState(
@@ -424,9 +419,10 @@ void main() {
 
       expect(find.text('Career & Professional Life'), findsWidgets);
       expect(find.text('Rahul Sharma'), findsOneWidget);
-      expect(find.text('Analyzing astrological yogas...'), findsOneWidget);
+      expect(find.text('Reading your chart'), findsOneWidget);
       expect(find.text('45%'), findsOneWidget);
-      expect(find.text('PROCESSING'), findsOneWidget);
+      expect(find.text('Preparing your report'), findsOneWidget);
+      expect(find.text('Step 3 of 6'), findsOneWidget);
     });
 
     testWidgets('ReportGenerationScreen displays failure state with retry button', (tester) async {
@@ -436,6 +432,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             reportGenerationNotifierProvider.overrideWith(
               (ref) => _MockGenerationNotifier(
                 ReportGenerationState(
@@ -456,7 +453,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Report Generation Failed'), findsOneWidget);
+      expect(find.text("We couldn't finish your report"), findsOneWidget);
       expect(find.text('Ephemeris calculation timeout'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
@@ -468,6 +465,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             reportGenerationNotifierProvider.overrideWith(
               (ref) => _MockGenerationNotifier(
                 ReportGenerationState(
@@ -499,6 +497,7 @@ void main() {
         await tester.pumpWidget(
           createTestWidget(
             overrides: [
+            reportCatalogTestOverride,
               birthProfilesListNotifierProvider.overrideWith(
                 (ref) => _MockBirthProfilesNotifier([testProfile1]),
               ),
@@ -512,7 +511,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('100% Deterministic Engine'), findsOneWidget);
+        expect(find.text('Reports'), findsOneWidget);
         expect(tester.takeException(), isNull, reason: 'Overflow occurred at width $width');
       }
     });
@@ -525,6 +524,7 @@ void main() {
         createTestWidget(
           locale: const Locale('hi'),
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -536,9 +536,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('100% प्रामाणिक वैदिक गणना'), findsOneWidget);
-      expect(find.text('रिपोर्ट कैटलॉग'), findsOneWidget);
-      expect(find.text('मेरी रिपोर्ट्स'), findsOneWidget);
+      expect(find.text('रिपोर्ट'), findsOneWidget);
+      expect(find.text('मेरी रिपोर्ट'), findsOneWidget);
+      expect(find.text('नई रिपोर्ट'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -550,6 +550,7 @@ void main() {
         createTestWidget(
           textScaleFactor: 1.5,
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile1]),
             ),
@@ -561,7 +562,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Your Astrology Reports'), findsOneWidget);
+      expect(find.text('Reports'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

@@ -1,0 +1,107 @@
+/**
+ * Deterministic plain-wording narrative for Rashi Bhavishya.
+ *
+ * Used when the LLM narrative is unavailable (no API key, provider error,
+ * validation failure, store unavailable). Every sentence is a fixed template
+ * filled only with the day's computed gochara facts and the neutral table
+ * wording (RB-005, RB-007): sign, house from the Moon sign, house meaning,
+ * favourable/demanding classification, motion, sign changes, events, panchang
+ * and the plain count. No outcome, advice or result text is added.
+ */
+import { ordinal } from './rashi-gochara.tables';
+import { PlanetGochara, RashiDailyFacts } from './rashi-gochara.engine';
+import type { RashiNarrative } from './rashi-bhavishya.narrator';
+
+/** Identifies the template wording; bump when the sentences change. */
+export const RASHI_PLAIN_VERSION = 'rb-plain-1';
+
+/** Background planets first, then faster ones (same order as the LLM topic). */
+const WIDER_ORDER = ['JUPITER', 'SATURN', 'RAHU', 'KETU', 'SUN', 'MERCURY', 'VENUS', 'MARS'] as const;
+
+function planetSentence(p: PlanetGochara, sign: string): string {
+  const parts = [
+    `${p.name} is in ${p.sign.englishName} (${p.sign.sanskritName}), the ${ordinal(p.house)} house from your Moon sign ${sign}; this house is about ${p.houseTheme}.`,
+    `In classical gochara this placement is ${p.classification}.`,
+  ];
+  if (p.planet === 'RAHU' || p.planet === 'KETU') {
+    // Mean nodes always move backwards; this is not stated as a retrograde phase (RB-010).
+  } else if (p.isRetrograde) {
+    parts.push(`${p.name} is retrograde at sunrise.`);
+  }
+  if (p.changesTo) {
+    parts.push(
+      `At ${p.changesTo.timeIst} IST on ${p.changesTo.dateIst} it moves into ${p.changesTo.sign.englishName}, the ${ordinal(p.changesTo.house)} house from ${sign}, where it is ${p.changesTo.classification}.`
+    );
+  }
+  return parts.join(' ');
+}
+
+function eventBullets(facts: RashiDailyFacts): string[] {
+  const out: string[] = [];
+  for (const e of facts.sky.events) {
+    if (e.planet === 'MOON') continue; // covered in the Moon section
+    if (e.planet === 'KETU' && e.type === 'SIGN_INGRESS') continue; // mirrors Rahu (RB-008)
+    const when = `${e.timeIst} IST on ${e.dateIst}`;
+    if (e.type === 'SIGN_INGRESS' && e.fromSign && e.toSign) {
+      out.push(`${e.planetName} moves from ${e.fromSign.englishName} into ${e.toSign.englishName} at ${when}.`);
+    } else if (e.sign) {
+      out.push(`${e.planetName} ${e.type === 'RETROGRADE_STATION' ? 'turns retrograde' : 'turns direct'} in ${e.sign.englishName} at ${when}.`);
+    }
+  }
+  return out;
+}
+
+export function buildPlainNarrative(facts: RashiDailyFacts): RashiNarrative {
+  const sign = facts.rashi.englishName;
+  const { moon, tally } = facts;
+  const { panchang } = facts.sky;
+  const bySymbol = new Map(facts.planets.map((p) => [p.planet, p]));
+
+  const summary =
+    `Today the Moon is in ${moon.sign.englishName}, the ${ordinal(moon.house)} house from your Moon sign ${sign}, ` +
+    `which is about ${moon.houseTheme}; classical gochara classes this Moon transit as ${moon.classification}. ` +
+    `${tally.favourable} of ${tally.total} planets are in favourable houses from ${sign} today.`;
+
+  const panchangSentence =
+    `It is ${panchang.vara.name} (${panchang.vara.english}), ruled by ${panchang.vara.lord}. ` +
+    `Tithi at sunrise: ${panchang.tithi.label}. Nakshatra: ${panchang.nakshatra.name} (pada ${panchang.nakshatra.pada}), ruled by ${panchang.nakshatra.lord}. ` +
+    `Yoga: ${panchang.yoga.name}.`;
+
+  const wider = WIDER_ORDER.map((k) => bySymbol.get(k)).filter((p): p is PlanetGochara => Boolean(p));
+
+  const areas = (cls: 'favourable' | 'demanding') =>
+    facts.planets
+      .filter((p) => p.classification === cls)
+      .map((p) => `${p.name}: ${ordinal(p.house)} house (${p.houseTheme})`);
+
+  return {
+    summary,
+    sections: [
+      {
+        id: 'day-overview',
+        title: "Today's Moon",
+        lead: `The Moon is in the ${ordinal(moon.house)} house from ${sign} today.`,
+        paragraphs: [planetSentence(moon, sign), panchangSentence],
+        bullets: [],
+      },
+      {
+        id: 'planetary-weather',
+        title: 'The wider planetary picture',
+        lead: `Where the other planets are, counted from your Moon sign ${sign}.`,
+        paragraphs: wider.map((p) => planetSentence(p, sign)),
+        bullets: eventBullets(facts),
+      },
+      {
+        id: 'tally',
+        title: 'Favourable and demanding today',
+        lead: `${tally.favourable} favourable, ${tally.demanding} demanding.`,
+        paragraphs: [
+          `${tally.favourable} of ${tally.total} planets are in classically favourable houses from ${sign} at sunrise, and ${tally.demanding} are in houses classed demanding. ` +
+            `This is a plain count, not a score. "Demanding" means the classical table asks for extra care in that area of life.`,
+        ],
+        bullets: [...areas('favourable').map((a) => `Favourable - ${a}`), ...areas('demanding').map((a) => `Demanding - ${a}`)],
+      },
+    ],
+    verifiedEvidenceIds: [],
+  };
+}

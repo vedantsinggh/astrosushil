@@ -18,7 +18,7 @@ import 'package:astro_mobile/features/jyoti/models/jyoti_message.dart';
 import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_api_repository.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_local_chat_repository.dart';
-import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
+import '../helpers/jyoti_test_responses.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
 class _CaptureExplainerRepository implements SushilExplainerRepository {

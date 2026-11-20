@@ -18,7 +18,7 @@ import 'package:astro_mobile/features/jyoti/widgets/jyoti_explanation_card.dart'
 import 'package:astro_mobile/features/jyoti/widgets/jyoti_error.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_api_repository.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_local_chat_repository.dart';
-import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
+import '../helpers/jyoti_test_responses.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
 class _FakeExplainerRepository implements SushilExplainerRepository {
@@ -237,7 +237,7 @@ void main() {
         child: const JyotiChatScreen(),
       ));
 
-      expect(find.text('AI ASTROLOGY ASSISTANT'), findsOneWidget);
+      expect(find.text('AI astrology assistant'), findsOneWidget);
       expect(find.text("Hi, I'm Jyoti."), findsOneWidget);
       expect(find.text("How can I help you?"), findsOneWidget);
       expect(find.text('Automated AI Guidance · Based on Vedic Jyotish principles'), findsOneWidget);
@@ -255,8 +255,11 @@ void main() {
       await tester.enterText(textField, 'Explain my birth chart');
       await tester.pump();
 
-      final sendBtn = find.byIcon(Icons.arrow_upward_rounded);
+      final sendBtn = find.text('Send');
       expect(sendBtn, findsOneWidget);
+      // Labelled Send button keeps a >= 48dp touch target.
+      final sendButton = find.ancestor(of: sendBtn, matching: find.byWidgetPredicate((w) => w is ElevatedButton));
+      expect(tester.getSize(sendButton).height, greaterThanOrEqualTo(48.0));
       await tester.tap(sendBtn);
       await tester.pump();
 
@@ -280,7 +283,7 @@ void main() {
         ),
       ));
 
-      expect(find.text('SUGGESTED ACTION'), findsOneWidget);
+      expect(find.text('Suggested action'), findsOneWidget);
       expect(find.text('✦ View Kundli'), findsOneWidget);
       expect(find.text('Open Birth Chart →'), findsOneWidget);
 
@@ -308,7 +311,7 @@ void main() {
         ),
       ));
 
-      expect(find.text('RELATIONSHIPS'), findsOneWidget);
+      expect(find.text('Relationships'), findsOneWidget);
       expect(find.text('7th House of Partnerships'), findsOneWidget);
       expect(find.text('Read more'), findsOneWidget);
 

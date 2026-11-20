@@ -109,4 +109,46 @@ void main() {
     expect(isCompleted, 'true');
     expect(find.byType(LoginScreen), findsOneWidget);
   });
+
+  testWidgets('Shows "Step X of Y" counter and written instruction on each page', (WidgetTester tester) async {
+    await tester.pumpWidget(buildTestWidget());
+
+    expect(find.text('Step 1 of 3'), findsOneWidget);
+    expect(find.text('Tap "Next" to continue, or swipe the screen left'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
+    expect(find.text('Back'), findsNothing);
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Step 2 of 3'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Step 3 of 3'), findsOneWidget);
+    expect(find.text('Tap "Get Started" to sign in or create your account'), findsOneWidget);
+  });
+
+  testWidgets('Back button returns to the previous page', (WidgetTester tester) async {
+    await tester.pumpWidget(buildTestWidget());
+
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Back'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Step 1 of 3'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('Know Your Chart'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Back'), findsNothing);
+  });
 }

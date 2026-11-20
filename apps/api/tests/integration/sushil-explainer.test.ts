@@ -4,6 +4,13 @@ import '@fastify/jwt';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 
+// The OpenRouter provider is a module-level singleton that now refuses to run (503) when no API key is
+// configured (no fabricated fallbacks). Provide a dummy key before the app modules are imported; the
+// global `fetch` is stubbed below, so no network request is ever made.
+vi.hoisted(() => {
+  process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-openrouter-key';
+});
+
 describe('Sushil AI Explainer Integration Test Suite', () => {
   let app: FastifyInstance;
   let userToken: string;
@@ -372,5 +379,38 @@ describe('Sushil AI Explainer Integration Test Suite', () => {
     expect(res.statusCode).toBe(403);
     const body = JSON.parse(res.payload);
     expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('11. Accepts the home_dashboard and courses_overview feature ids sent by the mobile app', async () => {
+    for (const feature of ['home_dashboard', 'courses_overview']) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/jyoti/explain',
+        headers: { Authorization: `Bearer ${userToken}` },
+        payload: { feature, screenTitle: 'Screen', context: { astrologyData: { summary: 'value' } } },
+      });
+      expect(res.statusCode).toBe(200);
+    }
+  });
+
+  it('12. LLM failure returns a 503 standard error envelope with friendly Sushil Sir copy', async () => {
+    const failingFetch = vi.fn().mockResolvedValue({ ok: false, status: 400, text: async () => 'bad request' });
+    vi.stubGlobal('fetch', failingFetch);
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/jyoti/explain',
+        headers: { Authorization: `Bearer ${userToken}` },
+        payload: { feature: 'birth_chart', screenTitle: 'Birth Chart', mode: 'detailed', context: { astrologyData: { ascendant: { sign: 'Leo' } } } },
+      });
+      expect(res.statusCode).toBe(503);
+      const body = JSON.parse(res.payload);
+      expect(body.error.code).toBe('AI_SERVICE_UNAVAILABLE');
+      expect(body.error.message).toMatch(/Sushil Sir is unavailable right now/);
+      expect(body.error.requestId).toBeTruthy();
+      expect(res.payload).not.toContain('test-openrouter-key');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

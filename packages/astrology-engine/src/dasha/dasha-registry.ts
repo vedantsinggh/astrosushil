@@ -29,6 +29,10 @@ import {
   evaluateDwadashottariEligibility,
   evaluatePanchottariEligibility,
 } from './dasha-eligibility';
+import { YoginiDashaCalculator, evaluateYoginiEligibility } from './yogini-dasha-calculator';
+import { CharaDashaCalculator, evaluateCharaEligibility } from './chara-dasha-calculator';
+import { NarayanaDashaCalculator, evaluateNarayanaEligibility } from './narayana-dasha-calculator';
+import { KalachakraDashaCalculator, evaluateKalachakraEligibility } from './kalachakra-dasha-calculator';
 
 export type DashaImplementationStatus = 'IMPLEMENTED' | 'PENDING';
 
@@ -67,6 +71,10 @@ export class DashaRegistry {
   private static chaturaseetiCalc = new ChaturaseetiSamaCalculator();
   private static dwadashottariCalc = new DwadashottariCalculator();
   private static panchottariCalc = new PanchottariCalculator();
+  private static yoginiCalc = new YoginiDashaCalculator();
+  private static charaCalc = new CharaDashaCalculator();
+  private static narayanaCalc = new NarayanaDashaCalculator();
+  private static kalachakraCalc = new KalachakraDashaCalculator();
 
   private static registry: Map<DashaSystem, DashaSystemDefinition> = new Map([
     [
@@ -267,77 +275,102 @@ export class DashaRegistry {
           DashaRegistry.panchottariCalc.calculateForChart(chart, options),
       },
     ],
+    [
+      'YOGINI',
+      {
+        system: 'YOGINI',
+        name: 'Yogini Dasha',
+        sanskritName: 'योगिनी दशा',
+        tradition: 'PARASHARA',
+        basis: 'NAKSHATRA',
+        totalCycleYears: 36,
+        maxSupportedLevel: 3,
+        isConditional: false,
+        status: 'IMPLEMENTED',
+        eligibilityMethod: 'UNIVERSAL_PARASHARA_YOGINI',
+        description: '36-year cycle of 8 Yoginis: Mangala (Moon 1y), Pingala (Sun 2y), Dhanya (Jupiter 3y), Bhramari (Mars 4y), Bhadrika (Mercury 5y), Ulka (Saturn 6y), Siddha (Venus 7y), Sankata (Rahu 8y).',
+        startingRule: 'Starting Yogini = (Janma Nakshatra number + 3) mod 8; remainder 0 = Sankata (BPHS).',
+        durationRule: 'The n-th Yogini rules n years. Sub-periods start from the parent Yogini, each parentYears x yoginiYears / 36.',
+        balanceMethodology: 'Unelapsed fraction of the Moon in the Janma Nakshatra multiplied by the starting Yogini years.',
+        checkEligibility: () => evaluateYoginiEligibility(),
+        calculate: (chart: AstroChart, options?: DashaCalculationOptions) =>
+          DashaRegistry.yoginiCalc.calculateForChart(chart, options),
+      },
+    ],
+    [
+      'CHARA',
+      {
+        system: 'CHARA',
+        name: 'Chara Dasha',
+        sanskritName: 'चर दशा',
+        tradition: 'JAIMINI',
+        basis: 'RASHI',
+        totalCycleYears: 144,
+        maxSupportedLevel: 3,
+        isConditional: false,
+        status: 'IMPLEMENTED',
+        eligibilityMethod: 'UNIVERSAL_JAIMINI_CHARA',
+        description: 'Jaimini Chara Dasha (K.N. Rao method). Cycle length is chart-dependent (12 signs x 1-12 years, maximum 144).',
+        startingRule: 'Starts from the Lagna sign. Forward if the 9th from Lagna is odd-footed (Ar, Ta, Ge, Li, Sc, Sg), otherwise reverse.',
+        durationRule: 'Count from the sign to its lord (forward for odd-footed signs, reverse otherwise) minus 1; own sign = 12; exalted lord +1, debilitated -1. Scorpio/Aquarius use the stronger co-lord.',
+        balanceMethodology: 'No balance: the first sign runs its full length from birth. Antardashas are 12 equal parts starting from the next sign, the Mahadasha sign last.',
+        checkEligibility: () => evaluateCharaEligibility(),
+        calculate: (chart: AstroChart, options?: DashaCalculationOptions) =>
+          DashaRegistry.charaCalc.calculateForChart(chart, options),
+      },
+    ],
+    [
+      'NARAYANA',
+      {
+        system: 'NARAYANA',
+        name: 'Narayana Dasha',
+        sanskritName: 'नारायण दशा',
+        tradition: 'JAIMINI',
+        basis: 'RASHI',
+        totalCycleYears: 144,
+        maxSupportedLevel: 3,
+        isConditional: false,
+        status: 'IMPLEMENTED',
+        eligibilityMethod: 'UNIVERSAL_JAIMINI_NARAYANA',
+        description: 'Jaimini Narayana (Padakrama) Dasha. Cycle length is chart-dependent (12 signs x 1-12 years, maximum 144).',
+        startingRule: 'Stronger of Lagna and 7th by Jaimini Rasi Bala. Odd sign forward, even reverse; Ketu in it reverses, Saturn in it makes it forward.',
+        durationRule: 'Count from the sign to its lord (forward from odd signs, reverse from even) minus 1; own sign = 12; exalted lord +1, debilitated -1.',
+        balanceMethodology: 'No balance: the first sign runs its full length from birth. Movable start: consecutive signs; fixed: every 6th; dual: trines. Antardashas: 12 equal parts in the same pattern from the Mahadasha sign.',
+        checkEligibility: () => evaluateNarayanaEligibility(),
+        calculate: (chart: AstroChart, options?: DashaCalculationOptions) =>
+          DashaRegistry.narayanaCalc.calculateForChart(chart, options),
+      },
+    ],
+    [
+      'KALACHAKRA',
+      {
+        system: 'KALACHAKRA',
+        name: 'Kalachakra Dasha',
+        sanskritName: 'कालचक्र दशा',
+        tradition: 'PARASHARA',
+        basis: 'NAKSHATRA',
+        totalCycleYears: 100,
+        maxSupportedLevel: 3,
+        isConditional: false,
+        status: 'IMPLEMENTED',
+        eligibilityMethod: 'UNIVERSAL_PARASHARA_KALACHAKRA',
+        description: 'BPHS Kalachakra Dasha over the 108 nakshatra padas (Savya / Apasavya), with Deha and Jeeva signs. Pada paramayus 83-100 years.',
+        startingRule: 'The Moon pada selects a 9-sign sequence (BPHS table); the running sign at birth is found from the elapsed fraction of the pada.',
+        durationRule: 'Sign years by lord: Sun 5, Moon 21, Mars 7, Mercury 9, Jupiter 10, Venus 16, Saturn 4.',
+        balanceMethodology: 'Elapsed fraction of the Moon pada x pada paramayus, walked through the 9 signs. Antardashas: the pada signs from the Mahadasha sign, MD x signYears / paramayus.',
+        checkEligibility: () => evaluateKalachakraEligibility(),
+        calculate: (chart: AstroChart, options?: DashaCalculationOptions) =>
+          DashaRegistry.kalachakraCalc.calculateForChart(chart, options),
+      },
+    ],
   ]);
 
   /**
    * Pending classical Dasha systems scheduled for future phases.
+   * (Yogini, Chara, Narayana and Kalachakra were implemented on 2026-11-18; see
+   * docs/report-system/decisions/engine-extensions.md.)
    */
-  private static pendingSystems: DashaSystemMetadata[] = [
-    {
-      system: 'YOGINI' as any,
-      name: 'Yogini Dasha',
-      sanskritName: 'योगिनी दशा',
-      tradition: 'PARASHARA',
-      basis: 'NAKSHATRA',
-      totalCycleYears: 36,
-      maxSupportedLevel: 3,
-      isConditional: false,
-      status: 'PENDING',
-      eligibilityMethod: 'UNIVERSAL_PARASHARA_YOGINI',
-      description: '36-year cycle with 8 Yoginis (Mangala, Pingala, Dhanya, Bhramari, Bhadrika, Ulka, Siddha, Sankata).',
-      startingRule: 'Count from Ardra plus birth Nakshatra modulo 8.',
-      durationRule: '1 through 8 years successively (total 36y).',
-      balanceMethodology: 'Nakshatra balance proportion.',
-    },
-    {
-      system: 'CHARA' as any,
-      name: 'Chara Dasha',
-      sanskritName: 'चर दशा',
-      tradition: 'JAIMINI',
-      basis: 'RASHI',
-      totalCycleYears: 96,
-      maxSupportedLevel: 3,
-      isConditional: false,
-      status: 'PENDING',
-      eligibilityMethod: 'UNIVERSAL_JAIMINI_CHARA',
-      description: 'Jaimini Chara Dasha evaluated by counting from sign to lord.',
-      startingRule: 'Lagna or 7th house.',
-      durationRule: 'Variable year durations based on Karakas and lord placement.',
-      balanceMethodology: 'Lagna fraction or full year cycles.',
-    },
-    {
-      system: 'NARAYANA' as any,
-      name: 'Narayana Dasha',
-      sanskritName: 'नारायण दशा',
-      tradition: 'JAIMINI',
-      basis: 'RASHI',
-      totalCycleYears: 144,
-      maxSupportedLevel: 3,
-      isConditional: false,
-      status: 'PENDING',
-      eligibilityMethod: 'UNIVERSAL_JAIMINI_NARAYANA',
-      description: 'Padakrama Rashi progression dasha.',
-      startingRule: 'Stronger of Lagna vs 7th house.',
-      durationRule: 'Lord counting rules with exaltation/debilitation modifications.',
-      balanceMethodology: 'Sign progression.',
-    },
-    {
-      system: 'KALACHAKRA' as any,
-      name: 'Kalachakra Dasha',
-      sanskritName: 'कालचक्र दशा',
-      tradition: 'PARASHARA',
-      basis: 'NAKSHATRA',
-      totalCycleYears: 100,
-      maxSupportedLevel: 3,
-      isConditional: false,
-      status: 'PENDING',
-      eligibilityMethod: 'UNIVERSAL_PARASHARA_KALACHAKRA',
-      description: 'Deha and Jeeva Nakshatra Pada progression dasha.',
-      startingRule: 'Moon Pada within Savya/Apasavya cycle.',
-      durationRule: 'Rashi lord durations.',
-      balanceMethodology: 'Pada fraction.',
-    },
-  ];
+  private static pendingSystems: DashaSystemMetadata[] = [];
 
   /**
    * Checks if a given Dasha system is supported and implemented.

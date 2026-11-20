@@ -18,12 +18,14 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
     app = buildApp();
     await app.ready();
 
-    // Create test users in postgres
+    // Create test users in postgres. Phone numbers are unique per run (User.phoneNumber is @unique),
+    // so leftovers from another test file or an aborted run in the shared CI database cannot collide.
+    const phoneSuffix = String(Date.now() % 1_000_000_000).padStart(9, '0');
     userA = await prisma.user.create({
       data: {
         email: `consult_client_a_${Date.now()}@example.com`,
         fullName: 'Client Aarav',
-        phoneNumber: '+919876543210',
+        phoneNumber: `+919${phoneSuffix}`,
         role: 'USER',
       },
     });
@@ -32,7 +34,7 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
       data: {
         email: `consult_client_b_${Date.now()}@example.com`,
         fullName: 'Client Diya',
-        phoneNumber: '+919876543211',
+        phoneNumber: `+918${phoneSuffix}`,
         role: 'USER',
       },
     });
@@ -68,6 +70,10 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
       where: { userId: { in: [userA.id, userB.id] } },
     });
     await prisma.appointmentSlot.deleteMany({});
+    // Paid consultation orders get fulfillment units (FK onDelete: Restrict), so remove them before the orders.
+    await prisma.fulfillmentUnit.deleteMany({
+      where: { order: { userId: { in: [userA.id, userB.id] } } },
+    });
     await prisma.order.deleteMany({
       where: { userId: { in: [userA.id, userB.id] } },
     });

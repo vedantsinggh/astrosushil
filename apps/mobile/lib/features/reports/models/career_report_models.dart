@@ -3,6 +3,9 @@ class CareerReportStatusModel {
   final String status;
   final String stage;
   final int progress;
+
+  /// Short server-provided progress line (e.g. "Writing section 23 of 60").
+  final String? progressDetail;
   final String? errorCode;
   final String? errorMessage;
 
@@ -11,6 +14,7 @@ class CareerReportStatusModel {
     required this.status,
     required this.stage,
     required this.progress,
+    this.progressDetail,
     this.errorCode,
     this.errorMessage,
   });
@@ -21,6 +25,7 @@ class CareerReportStatusModel {
       status: json['status'] as String? ?? 'QUEUED',
       stage: json['stage'] as String? ?? json['status'] as String? ?? 'QUEUED',
       progress: (json['progress'] as num?)?.toInt() ?? 0,
+      progressDetail: json['progressDetail'] as String?,
       errorCode: json['errorCode'] as String?,
       errorMessage: json['errorMessage'] as String?,
     );
@@ -125,8 +130,8 @@ class CareerReportDetailModel {
       status: json['status'] as String? ?? 'QUEUED',
       stage: json['stage'] as String? ?? json['status'] as String? ?? 'QUEUED',
       progress: (json['progress'] as num?)?.toInt() ?? 0,
-      reportVersion: json['reportVersion'] as String? ?? '1.0.0',
-      calculationVersion: json['calculationVersion'] as String? ?? '1.0.0',
+      reportVersion: json['reportVersion'] as String? ?? '',
+      calculationVersion: json['calculationVersion'] as String? ?? '',
       pageCount: (json['pageCount'] as num?)?.toInt(),
       fileSize: (json['fileSize'] as num?)?.toInt(),
       downloadUrl: json['downloadUrl'] as String?,

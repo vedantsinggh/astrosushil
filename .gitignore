@@ -49,3 +49,12 @@ docs/audits/screenshots
 /untimed_varshphal_report.pdf
 scratch/output/
 docs/audits/referencerepots/
+
+# Report platform dev LLM cache (contains generated narrative)
+.cache/
+platform-output/
+
+# Android release signing secrets (never commit)
+apps/mobile/android/key.properties
+*.jks
+*.keystore

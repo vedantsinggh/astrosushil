@@ -50,7 +50,8 @@ class CourseSummaryModel {
   final String? platformUrl;
   final int totalDurationMinutes;
   final int totalLessons;
-  final double rating;
+  /// Null when the backend has no genuine rating (never invented).
+  final double? rating;
   final bool isEnrolled;
   final bool isFeatured;
 
@@ -74,7 +75,7 @@ class CourseSummaryModel {
     this.platformUrl,
     required this.totalDurationMinutes,
     required this.totalLessons,
-    required this.rating,
+    this.rating,
     required this.isEnrolled,
     required this.isFeatured,
   });
@@ -92,7 +93,7 @@ class CourseSummaryModel {
       shortDescription: json['shortDescription'] as String? ?? '',
       hindiDescription: json['hindiDescription'] as String?,
       instructorName: json['instructorName'] as String? ?? 'Astro Sushil Kumar Singh',
-      language: json['language'] as String? ?? 'English',
+      language: json['language'] as String? ?? '',
       level: CourseLevelEnum.fromString(json['level'] as String?),
       pricePaise: pricePaise,
       priceRupees: json['priceRupees'] as int? ?? (pricePaise ~/ 100),
@@ -104,7 +105,7 @@ class CourseSummaryModel {
       platformUrl: json['platformUrl'] as String?,
       totalDurationMinutes: json['totalDurationMinutes'] as int? ?? 0,
       totalLessons: json['totalLessons'] as int? ?? 0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 4.9,
+      rating: (json['rating'] as num?)?.toDouble(),
       isEnrolled: json['isEnrolled'] as bool? ?? false,
       isFeatured: json['isFeatured'] as bool? ?? false,
     );
@@ -261,7 +262,8 @@ class CourseDetailModel {
   final String? thumbnail;
   final String? platformUrl;
   final int totalDurationMinutes;
-  final double rating;
+  /// Null when the backend has no genuine rating (never invented).
+  final double? rating;
   final bool isEnrolled;
   final int progressPercent;
   final List<CourseSectionModel> sections;
@@ -285,7 +287,7 @@ class CourseDetailModel {
     this.thumbnail,
     this.platformUrl,
     required this.totalDurationMinutes,
-    required this.rating,
+    this.rating,
     required this.isEnrolled,
     required this.progressPercent,
     required this.sections,
@@ -305,7 +307,7 @@ class CourseDetailModel {
       shortDescription: json['shortDescription'] as String? ?? '',
       hindiDescription: json['hindiDescription'] as String?,
       instructorName: json['instructorName'] as String? ?? 'Astro Sushil Kumar Singh',
-      language: json['language'] as String? ?? 'English',
+      language: json['language'] as String? ?? '',
       level: CourseLevelEnum.fromString(json['level'] as String?),
       pricePaise: pricePaise,
       priceRupees: json['priceRupees'] as int? ?? (pricePaise ~/ 100),
@@ -316,7 +318,7 @@ class CourseDetailModel {
       thumbnail: json['thumbnail'] as String?,
       platformUrl: json['platformUrl'] as String?,
       totalDurationMinutes: json['totalDurationMinutes'] as int? ?? 0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 4.9,
+      rating: (json['rating'] as num?)?.toDouble(),
       isEnrolled: json['isEnrolled'] as bool? ?? false,
       progressPercent: json['progressPercent'] as int? ?? 0,
       sections: rawSections

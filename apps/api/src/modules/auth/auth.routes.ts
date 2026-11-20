@@ -14,6 +14,7 @@ import {
   resetPasswordSchema,
   refreshSchema,
   logoutSchema,
+  updateProfileSchema,
 } from './auth.schemas';
 
 export async function authRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
@@ -353,6 +354,29 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const profile = await authService.getProfile(request.user.id);
+      return reply.status(200).send(profile);
+    },
+  });
+
+  // PATCH /api/v1/auth/me
+  fastify.patch('/me', {
+    onRequest: [fastify.authenticate],
+    schema: {
+      tags: ['Auth'],
+      summary: 'Update current user basic profile details',
+      description: 'Sets the full name used to complete the account profile. Phone numbers are linked separately via OTP (send-otp + link-phone).',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['fullName'],
+        properties: {
+          fullName: { type: 'string', example: 'Rahul Sharma' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = updateProfileSchema.parse(request.body);
+      const profile = await authService.updateProfile(request.user.id, input);
       return reply.status(200).send(profile);
     },
   });

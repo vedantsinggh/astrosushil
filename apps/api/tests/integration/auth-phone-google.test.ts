@@ -54,6 +54,7 @@ describe('Phone OTP, Google Auth, Account Linking & Multi-Page PDF Tests', () =>
         phoneNumber: data.phoneNumber || null,
         phoneVerifiedAt: data.phoneVerifiedAt || null,
         googleId: data.googleId || null,
+        fullName: data.fullName || null,
         passwordHash: data.passwordHash || null,
         role: data.role || 'USER',
         createdAt: new Date(),
@@ -165,6 +166,13 @@ describe('Phone OTP, Google Auth, Account Linking & Multi-Page PDF Tests', () =>
     vi.spyOn(googleAuthService, 'verifyGoogleToken').mockImplementation(async (token: string) => {
       if (token === 'invalid-token') {
         throw new AuthenticationError('Invalid Google credential token');
+      }
+      if (token === 'google-token-profile-gate') {
+        return {
+          googleId: 'google-sub-profile-gate',
+          email: 'profile.gate@gmail.com',
+          emailVerified: true,
+        };
       }
       if (token === 'google-token-user-b') {
         return {
@@ -444,6 +452,108 @@ describe('Phone OTP, Google Auth, Account Linking & Multi-Page PDF Tests', () =>
       expect(conflictRes.statusCode).toBe(409);
       const body = JSON.parse(conflictRes.payload);
       expect(body.error.code).toBe('CONFLICT');
+    });
+  });
+
+  describe('5. Profile completion after Google sign-in', () => {
+    let gateToken: string;
+    const gatePhone = '+919700011122';
+
+    it('reports missing phone number and name for a new Google account without a name', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/google',
+        payload: { idToken: 'google-token-profile-gate' },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.payload);
+      expect(body.user.profileComplete).toBe(false);
+      expect(body.user.missingProfileFields).toEqual(['fullName', 'phoneNumber']);
+      gateToken = body.tokens.accessToken;
+    });
+
+    it('reports only the phone number missing when Google provides the name', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/google',
+        payload: { idToken: 'google-token-user-b' },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.payload);
+      expect(body.user.profileComplete).toBe(false);
+      expect(body.user.missingProfileFields).toEqual(['phoneNumber']);
+    });
+
+    it('rejects PATCH /auth/me without authentication', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/auth/me',
+        payload: { fullName: 'Someone' },
+      });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('rejects an empty name and refuses an unverified phone number in PATCH /auth/me', async () => {
+      const emptyRes = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/auth/me',
+        headers: { authorization: `Bearer ${gateToken}` },
+        payload: { fullName: '   ' },
+      });
+      expect(emptyRes.statusCode).toBe(400);
+      const emptyBody = JSON.parse(emptyRes.payload);
+      expect(emptyBody.error.code).toBeDefined();
+      expect(emptyBody.error.message).toBeDefined();
+
+      const phoneRes = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/auth/me',
+        headers: { authorization: `Bearer ${gateToken}` },
+        payload: { fullName: 'Asha Verma', phoneNumber: gatePhone },
+      });
+      expect(phoneRes.statusCode).toBe(400);
+    });
+
+    it('saves the name, then links an OTP-verified phone to complete the profile', async () => {
+      const nameRes = await app.inject({
+        method: 'PATCH',
+        url: '/api/v1/auth/me',
+        headers: { authorization: `Bearer ${gateToken}` },
+        payload: { fullName: '  Asha Verma ' },
+      });
+      expect(nameRes.statusCode).toBe(200);
+      const nameBody = JSON.parse(nameRes.payload);
+      expect(nameBody.fullName).toBe('Asha Verma');
+      expect(nameBody.profileComplete).toBe(false);
+      expect(nameBody.missingProfileFields).toEqual(['phoneNumber']);
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/phone/send-otp',
+        payload: { phoneNumber: gatePhone },
+      });
+
+      const linkRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/link-phone',
+        headers: { authorization: `Bearer ${gateToken}` },
+        payload: { phoneNumber: gatePhone, otp: '123456' },
+      });
+      expect(linkRes.statusCode).toBe(200);
+      const linkBody = JSON.parse(linkRes.payload);
+      expect(linkBody.user.phoneNumber).toBe(gatePhone);
+      expect(linkBody.user.profileComplete).toBe(true);
+      expect(linkBody.user.missingProfileFields).toEqual([]);
+
+      const meRes = await app.inject({
+        method: 'GET',
+        url: '/api/v1/auth/me',
+        headers: { authorization: `Bearer ${gateToken}` },
+      });
+      expect(meRes.statusCode).toBe(200);
+      expect(JSON.parse(meRes.payload).profileComplete).toBe(true);
     });
   });
 

@@ -562,5 +562,80 @@
 
   "welcomeSuccessTitle": "Welcome to Astro Sushil!",
   "welcomeSuccessSubtitle": "Your account has been created successfully. Explore authentic Vedic astrology, reports, and consultations.",
-  "getStartedButton": "Get Started"
+  "getStartedButton": "Get Started",
+  "homeSectionAstrology": "Astrology",
+  "homeSectionServices": "Services",
+  "homeTileKundli": "Kundli",
+  "homeTileHoroscope": "Horoscope",
+  "homeTilePanchang": "Panchang",
+  "homeTileMatching": "Matching",
+  "homeTilePlanets": "Planets",
+  "homeTileDasha": "Dasha",
+  "homeTileAskJyoti": "Ask Jyoti",
+  "homeTileExplainChart": "Explain Chart",
+  "homeTileCourses": "Courses",
+  "homeTileGuptaNadi": "Gupta Nadi",
+  "homeTileShop": "Shop",
+  "homeTodayHoroscope": "Today's Horoscope",
+  "homeRead": "Read",
+  "homeHoroscopeNotReady": "Today's horoscope is not ready yet.",
+  "homeHoroscopeError": "Could not load today's horoscope.",
+  "homeLoading": "Loading…",
+  "homeAddDetailsTitle": "Add your birth details",
+  "homeAddDetailsSubtitle": "See your Kundli and daily horoscope",
+  "homeChangeProfile": "Change",
+  "homeProfileSemantics": "Birth profile: {name}. Tap to change.",
+  "@homeProfileSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "commonBack": "Back",
+  "@commonBack": {
+    "description": "Label next to the back chevron in the shared nav bar"
+  },
+  "commonNext": "Next",
+  "commonChange": "Change",
+  "commonStepOf": "Step {current} of {total}",
+  "@commonStepOf": {
+    "description": "Progress label for multi-step flows",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "commonTryAgain": "Try again",
+  "commonLearnMore": "Learn more",
+  "commonShowLess": "Show less",
+  "commonDone": "Done",
+  "commonCancel": "Cancel",
+  "commonClose": "Close",
+  "commonLoading": "Loading…",
+  "commonMore": "More",
+  "comm2StepCart": "Cart",
+  "comm2StepAddress": "Address",
+  "comm2StepPay": "Pay",
+  "comm2BookingPickTimeHint": "Choose a time to continue",
+  "core2ReportsTabMine": "My reports",
+  "@core2ReportsTabMine": {"description": "Reports tab segment: purchased reports"},
+  "core2ReportsTabGet": "Get a report",
+  "@core2ReportsTabGet": {"description": "Reports tab segment: report catalogue"},
+  "core2ReportsTabsLabel": "Report sections",
+  "@core2ReportsTabsLabel": {"description": "Accessibility label for the Reports tab segmented control"},
+  "core2ConsultTabBook": "Book a session",
+  "@core2ConsultTabBook": {"description": "Consult tab segment: services to book; also the empty-bookings button"},
+  "core2ConsultTabBookings": "My bookings",
+  "@core2ConsultTabBookings": {"description": "Consult tab segment: the user's consultation bookings"},
+  "core2ConsultTabsLabel": "Consultation sections",
+  "@core2ConsultTabsLabel": {"description": "Accessibility label for the Consult tab segmented control"},
+  "core2ConsultBookingsEmptyTitle": "No bookings yet",
+  "@core2ConsultBookingsEmptyTitle": {"description": "Consult > My bookings empty state title"},
+  "core2ConsultBookingsEmptyBody": "Sessions you book with Sushil Sir are shown here.",
+  "@core2ConsultBookingsEmptyBody": {"description": "Consult > My bookings empty state text"}
 }

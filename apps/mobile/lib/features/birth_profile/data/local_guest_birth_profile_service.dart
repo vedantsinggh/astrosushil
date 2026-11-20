@@ -9,33 +9,16 @@ class LocalGuestBirthProfileService {
 
   LocalGuestBirthProfileService(this._storage);
 
-  static final BirthProfileModel defaultGuestProfile = BirthProfileModel(
-    id: guestProfileId,
-    userId: 'guest',
-    name: 'Guest User',
-    dateOfBirth: '1995-01-01',
-    timeOfBirth: '12:00:00',
-    latitude: 28.6139,
-    longitude: 77.2090,
-    timezone: 'Asia/Kolkata',
-    placeName: 'New Delhi, India',
-    country: 'India',
-    countryCode: 'IN',
-    state: 'Delhi',
-    isResolved: true,
-    createdAt: DateTime(1995, 1, 1),
-    updatedAt: DateTime(1995, 1, 1),
-  );
-
-  /// Fetch local guest birth profile if saved, or return default profile
+  /// Fetch the guest's own saved birth profile, or null if none was saved.
+  /// Never substitutes an invented default person.
   Future<BirthProfileModel?> getGuestProfile() async {
     final raw = await _storage.read(key: StorageKeys.guestBirthProfile);
-    if (raw == null || raw.isEmpty) return defaultGuestProfile;
+    if (raw == null || raw.isEmpty) return null;
     try {
       final jsonMap = jsonDecode(raw) as Map<String, dynamic>;
       return BirthProfileModel.fromJson(jsonMap);
     } catch (_) {
-      return defaultGuestProfile;
+      return null;
     }
   }
 
@@ -88,6 +71,44 @@ class LocalGuestBirthProfileService {
     final jsonStr = jsonEncode(updated.toJson());
     await _storage.write(key: StorageKeys.guestBirthProfile, value: jsonStr);
     return updated;
+  }
+
+  /// Returns the guest-created profile saved on this device only when it should
+  /// be offered for saving to the signed-in account:
+  /// - it is a genuine guest record (written by [saveGuestProfile]) with real
+  ///   birth details, and
+  /// - the account does not already hold the same person.
+  ///
+  /// Stale or already-saved records are cleared so they never prompt again.
+  /// Duplicate matching mirrors the backend's idempotent migrate check
+  /// (same name ignoring case, same date of birth, same place within 0.001 deg).
+  Future<BirthProfileModel?> getPendingGuestProfile(List<BirthProfileModel> accountProfiles) async {
+    final guest = await getGuestProfile();
+    if (guest == null) return null;
+
+    final isGenuineGuestRecord = guest.id == guestProfileId &&
+        guest.userId == 'guest' &&
+        guest.name.trim().isNotEmpty &&
+        guest.dateOfBirth.trim().isNotEmpty &&
+        guest.timeOfBirth.trim().isNotEmpty;
+    if (!isGenuineGuestRecord) {
+      await clearGuestProfile();
+      return null;
+    }
+
+    final alreadyOnAccount = accountProfiles.any(
+      (p) =>
+          p.name.trim().toLowerCase() == guest.name.trim().toLowerCase() &&
+          p.dateOfBirth == guest.dateOfBirth &&
+          (p.latitude - guest.latitude).abs() < 0.001 &&
+          (p.longitude - guest.longitude).abs() < 0.001,
+    );
+    if (alreadyOnAccount) {
+      await clearGuestProfile();
+      return null;
+    }
+
+    return guest;
   }
 
   /// Clear local guest birth profile after migration or explicit cleanup

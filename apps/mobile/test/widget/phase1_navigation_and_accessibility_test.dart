@@ -114,12 +114,12 @@ void main() {
   });
 
   group('Phase 1: Consult Screen Integration Tests', () {
-    testWidgets('ConsultScreen renders Book Consultation and My Appointments tabs', (tester) async {
+    testWidgets('ConsultScreen renders Book a session and My bookings tabs', (tester) async {
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Book Consultation'), findsOneWidget);
-      expect(find.text('My Appointments'), findsOneWidget);
+      expect(find.text('Book a session'), findsOneWidget);
+      expect(find.text('My bookings'), findsOneWidget);
     });
 
     testWidgets('ConsultScreen renders smoothly under 1.5x large text scale without overflow', (tester) async {
@@ -132,7 +132,8 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Book Consultation'), findsOneWidget);
+      expect(find.text('Book a session'), findsOneWidget);
+      expect(find.text('My bookings'), findsOneWidget);
     });
   });
 
@@ -146,11 +147,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('My Account'), findsOneWidget);
+      expect(find.text('Account'), findsWidgets);
       expect(find.text('App Language / भाषा'), findsOneWidget);
 
       // Tap on Language Setting (ensure visible in scroll view)
       await tester.scrollUntilVisible(find.text('App Language / भाषा'), 200);
+      // Centre the row (the pinned large-title nav bar covers the top edge).
+      await Scrollable.ensureVisible(tester.element(find.text('App Language / भाषा')), alignment: 0.5);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('App Language / भाषा'));
       await tester.pumpAndSettle();
 

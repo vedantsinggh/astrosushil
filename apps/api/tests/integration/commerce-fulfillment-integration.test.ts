@@ -29,6 +29,8 @@ describe('Phase 3 Commerce and Fulfillment Integration Tests', () => {
     await app.ready();
 
     await coursesService.seedVerifiedCourses();
+    // Test 11 needs a verified digital product row; a fresh database has none until the shop seed runs.
+    await productsService.ensureProductsSeeded();
 
     // Setup test users
     await prisma.user.upsert({

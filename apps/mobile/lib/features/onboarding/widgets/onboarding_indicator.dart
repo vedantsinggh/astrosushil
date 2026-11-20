@@ -16,7 +16,7 @@ class OnboardingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.premiumAccent;
-    final inactiveColor = theme.colorScheme.secondary.withOpacity(0.3);
+    final inactiveColor = Colors.white.withValues(alpha: 0.28);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -31,15 +31,6 @@ class OnboardingIndicator extends StatelessWidget {
           decoration: BoxDecoration(
             color: isActive ? goldColor : inactiveColor,
             borderRadius: BorderRadius.circular(4.0),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: goldColor.withOpacity(0.4),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
           ),
         );
       }),

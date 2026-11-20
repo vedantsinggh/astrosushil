@@ -34,9 +34,21 @@ class YogasPreview extends StatelessWidget {
         ? report!.detectedYogas.first
         : null;
 
-    final yogaCount = report?.detectedCount ?? 8;
-    final yogaName = topYoga?.canonicalName ?? 'Gaja Kesari Yoga';
-    final yogaCategory = topYoga?.formattedCategory ?? 'Raja Yoga';
+    // Genuine backend yogas only: no invented yoga names, counts or planets.
+    if (report == null || topYoga == null) {
+      return PreviewEmptyState(
+        title: 'Vedic Yogas',
+        message: report == null
+            ? 'Yoga data is not available right now'
+            : 'No yogas detected in this chart',
+        icon: Icons.stars_rounded,
+      );
+    }
+    final yogaCount = report!.detectedCount;
+    final yogaName = topYoga.canonicalName;
+    final yogaCategory = topYoga.formattedCategory;
+    const nodeColors = [Color(0xFFD97706), AppColors.primary];
+    final involved = topYoga.evidence.involvedPlanets.take(2).toList();
 
     return FittedBox(
       fit: BoxFit.scaleDown,
@@ -81,12 +93,15 @@ class YogasPreview extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildPlanetNode('Jupiter', const Color(0xFFD97706)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Text('+', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.lightTextSecondary)),
-                  ),
-                  _buildPlanetNode('Moon', AppColors.primary),
+                  for (var i = 0; i < involved.length; i++) ...[
+                    if (i > 0)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Text('+', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.lightTextSecondary)),
+                      ),
+                    _buildPlanetNode(involved[i].planet, nodeColors[i % nodeColors.length]),
+                  ],
+                  if (involved.isNotEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.0),
                     child: Icon(Icons.arrow_forward_rounded, size: 10, color: AppColors.lightTextSecondary),

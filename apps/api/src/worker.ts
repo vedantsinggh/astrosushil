@@ -1,26 +1,57 @@
 import { postgresQueueService } from './services/postgres-queue.service';
 import { careerReportWorker } from './services/report-worker.service';
+import { rashiBhavishyaScheduler } from './services/rashi-bhavishya.scheduler';
+import { disconnectPrisma } from './services/prisma.service';
+import { setProcessRole } from './services/process-identity';
 import { logger } from './utils/logger';
+
+setProcessRole('worker');
 
 async function startWorkerLoop() {
   logger.info('🚀 [ReportWorkerProcess] Background Report Worker started (PostgreSQL Queue)');
 
-  // Start autonomous recurring stale-job recovery loop
-  careerReportWorker.startStaleRecoveryLoop();
-
   let isRunning = true;
+  let shuttingDown = false;
 
+  // Graceful shutdown: stop claiming, give in-flight reports a short grace period,
+  // then release their claims (back to QUEUED) so the next process resumes them at once.
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger.info(`[ReportWorkerProcess] Received ${signal}. Shutting down worker gracefully...`);
     isRunning = false;
-    careerReportWorker.stopStaleRecoveryLoop();
+    rashiBhavishyaScheduler.stop();
+    try {
+      const result = await careerReportWorker.shutdown();
+      logger.info(result, '[ReportWorkerProcess] In-flight reports handled');
+      await disconnectPrisma();
+    } catch (err: any) {
+      logger.error({ err: err?.message || err }, '[ReportWorkerProcess] Error during graceful shutdown');
+    }
     process.exit(0);
   };
 
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
-  while (isRunning) {
+  // Requeue reports left by a previous boot of this worker and expired leases
+  // before claiming anything.
+  try {
+    await careerReportWorker.recoverOnStartup();
+  } catch (err: any) {
+    logger.error({ err: err?.message || err }, '[ReportWorkerProcess] Start-up recovery error');
+  }
+
+  // Start autonomous recurring stale-job recovery loop
+  careerReportWorker.startStaleRecoveryLoop();
+
+  // Prepare the daily Rashi Bhavishya (12 Moon signs) ahead of time
+  rashiBhavishyaScheduler.start();
+
+  // pm2 wait_ready: the worker is ready once recovery ran.
+  if (process.send) process.send('ready');
+
+  while (isRunning && !careerReportWorker.isDraining()) {
     try {
       const claim = await postgresQueueService.claimJob('worker-main');
       if (claim) {

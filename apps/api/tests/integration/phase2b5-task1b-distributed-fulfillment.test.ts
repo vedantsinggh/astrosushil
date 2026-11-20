@@ -3,11 +3,14 @@ import crypto from 'node:crypto';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
+import { CURRENT_CALCULATION_VERSION } from '../../src/modules/reports/reports.service';
 import { distributedLockService } from '../../src/services/distributed-lock.service';
 import { nativeRedisClient } from '../../src/services/redis-client';
 import { careerReportWorker } from '../../src/services/report-worker.service';
+import { postgresQueueService } from '../../src/services/postgres-queue.service';
 import { paymentService } from '../../src/services/payment.service';
 import { OrderStatus, PaymentStatus, FulfillmentStatus } from '@prisma/client';
+import { stubPlatformGeneration } from '../helpers/platform-report-stub';
 
 describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillment Integrity', () => {
   let appInstanceA: FastifyInstance;
@@ -344,10 +347,11 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
       expect(bodyA.reportId).toBe(bodyB.reportId);
     });
 
-    it('1.6 Stale orphaned job recovery handles worker crash and resets order to FAILED (recoverable)', async () => {
+    it('1.6 Stale orphaned job recovery requeues a crashed worker job and, once recovery is exhausted, resets order to FAILED (recoverable)', async () => {
       const order = await createPaidOrder('KUNDLI');
 
-      // Simulate a crashed worker: report stuck in QUEUED with updatedAt 10 minutes ago
+      // Simulate a crashed worker: report claimed (CALCULATING) 10 minutes ago, lease long expired,
+      // already recovered twice before
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
       const crashedReport = await prisma.report.create({
         data: {
@@ -356,7 +360,12 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
           birthProfileId: testProfileA.id,
           orderId: order.id,
           reportType: 'KUNDLI',
-          status: 'QUEUED',
+          status: 'CALCULATING',
+          stage: 'CALCULATING',
+          claimToken: crypto.randomUUID(),
+          claimVersion: 3,
+          claimExpiresAt: new Date(Date.now() - 9 * 60 * 1000),
+          recoveryAttempts: 2,
           createdAt: tenMinutesAgo,
           updatedAt: tenMinutesAgo,
         },
@@ -368,13 +377,27 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
         data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
       });
 
-      // Run stale job recovery
+      // Run stale job recovery: a retry is still allowed, so the job is requeued (not failed)
+      await careerReportWorker.recoverStaleJobs();
+      const requeued = await prisma.report.findUnique({ where: { id: crashedReport.id } });
+      expect(requeued?.status).toBe('QUEUED');
+      expect(requeued?.errorCode).toBeNull();
+      expect(requeued?.recoveryAttempts).toBe(3);
+      expect(requeued?.claimToken).toBeNull();
+      expect(requeued?.claimVersion).toBe(4);
+      expect((await prisma.order.findUnique({ where: { id: order.id } }))?.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
+
+      // The next worker also crashes after claiming: recovery attempts are now exhausted
+      await prisma.$executeRaw`UPDATE "reports" SET "retryAfter" = NULL WHERE id = ${crashedReport.id}`;
+      const claim = await postgresQueueService.claimJobById(crashedReport.id);
+      expect(claim?.claimVersion).toBe(5);
+      await prisma.$executeRaw`UPDATE "reports" SET "claimExpiresAt" = clock_timestamp() - INTERVAL '1 second' WHERE id = ${crashedReport.id}`;
       await careerReportWorker.recoverStaleJobs();
 
       // Report should be marked FAILED
       const recoveredReport = await prisma.report.findUnique({ where: { id: crashedReport.id } });
       expect(recoveredReport?.status).toBe('FAILED');
-      expect(recoveredReport?.errorCode).toBe('WORKER_TIMEOUT_RECOVERED');
+      expect(recoveredReport?.errorCode).toBe('RECOVERY_EXHAUSTED');
 
       // Order fulfillmentStatus should be transitioned to FAILED, ready for retry without re-charge!
       const updatedOrder = await prisma.order.findUnique({ where: { id: order.id } });
@@ -397,7 +420,7 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
           stage: 'COMPLETED',
           progress: 100,
           reportVersion: '1.0.0',
-          calculationVersion: '1.0.0',
+          calculationVersion: CURRENT_CALCULATION_VERSION, // reuse needs the current method version (ADR-017)
           storageKey: `reports/test-${Date.now()}.pdf`,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -437,7 +460,7 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
           stage: 'COMPLETED',
           progress: 100,
           reportVersion: '1.0.0',
-          calculationVersion: '1.0.0',
+          calculationVersion: CURRENT_CALCULATION_VERSION, // reuse needs the current method version (ADR-017)
           storageKey: `reports/test-old-${Date.now()}.pdf`,
           createdAt: oneHourAgo,
           updatedAt: oneHourAgo,
@@ -503,7 +526,15 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
       expect(processingOrder?.reports.some((r) => r.id === body.reportId)).toBe(true);
 
       // Simulate worker pipeline completion
-      await careerReportWorker.executeReportPipeline(body.reportId);
+      {
+        // The paid LLM generation is substituted; delivery, fencing and fulfilment run for real.
+        const generation = stubPlatformGeneration();
+        try {
+          await careerReportWorker.executeReportPipeline(body.reportId);
+        } finally {
+          generation.mockRestore();
+        }
+      }
 
       // Order must now be marked FULFILLED
       const fulfilledOrder = await prisma.order.findUnique({ where: { id: order.id } });
@@ -581,7 +612,15 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
       expect(retryingOrder?.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
 
       // Complete second attempt
-      await careerReportWorker.executeReportPipeline(body2.reportId);
+      {
+        // The paid LLM generation is substituted; delivery, fencing and fulfilment run for real.
+        const generation = stubPlatformGeneration();
+        try {
+          await careerReportWorker.executeReportPipeline(body2.reportId);
+        } finally {
+          generation.mockRestore();
+        }
+      }
 
       // Final order must be FULFILLED
       const finalOrder = await prisma.order.findUnique({ where: { id: order.id } });
@@ -603,7 +642,7 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
           stage: 'COMPLETED',
           progress: 100,
           reportVersion: '1.0.0',
-          calculationVersion: '1.0.0',
+          calculationVersion: CURRENT_CALCULATION_VERSION, // reuse needs the current method version (ADR-017)
           storageKey: `reports/fulfilled-${Date.now()}.pdf`,
         },
       });
@@ -632,7 +671,7 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
       expect(body.reused).toBe(true);
     });
 
-    it('2.5 Submitting the same paid order for a DIFFERENT birth profile is strictly rejected with 403 Forbidden', async () => {
+    it('2.5 Submitting the same single-report paid order for a DIFFERENT birth profile is strictly rejected (all report slots used)', async () => {
       const order = await createPaidOrder('KUNDLI');
 
       // Fulfill order for Profile A
@@ -661,9 +700,15 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
         },
       });
 
-      expect(res.statusCode).toBe(403);
+      // The order's only fulfilment unit (report slot) is already bound to Profile A
+      expect(res.statusCode).toBe(400);
       const body = JSON.parse(res.payload);
-      expect(body.error?.message).toMatch(/bound to a different birth profile|Payment or entitlement required/);
+      expect(body.error?.code).toBe('ORDER_ALREADY_FULFILLED');
+      expect(body.error?.message).toMatch(/All report slots for this order have already been utilized/);
+
+      // No report was created for Profile B and the order stays bound to one report
+      expect(await prisma.report.count({ where: { orderId: order.id, birthProfileId: testProfileB.id } })).toBe(0);
+      expect(await prisma.report.count({ where: { orderId: order.id } })).toBe(1);
     });
 
     it('2.6 Submitting an order with a MISMATCHED report SKU is strictly rejected with 403 Forbidden', async () => {
@@ -811,11 +856,16 @@ describe('Phase 2B.5 Task 1B: Distributed Report Deduplication & Order Fulfillme
       expect(resVerify1.statusCode).toBe(200);
       expect(resVerify2.statusCode).toBe(200);
 
-      // Order must be PAID and UNFULFILLED
+      // Order must be PAID. Verification creates the fulfilment units exactly once; an order whose
+      // report unit is still UNFULFILLED (report not requested yet) aggregates to PROCESSING.
       const verifiedOrder = await prisma.order.findUnique({ where: { id: orderId } });
       expect(verifiedOrder?.status).toBe(OrderStatus.PAID);
       expect(verifiedOrder?.paymentStatus).toBe(PaymentStatus.CAPTURED);
-      expect(verifiedOrder?.fulfillmentStatus).toBe(FulfillmentStatus.UNFULFILLED);
+      const units = await prisma.fulfillmentUnit.findMany({ where: { orderId } });
+      expect(units).toHaveLength(1);
+      expect(units[0].status).toBe('UNFULFILLED');
+      expect(verifiedOrder?.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
+      expect(await prisma.report.count({ where: { orderId } })).toBe(0);
     });
 
     it('2.10 Final order-to-report relationship is strictly bound and verifiable in database', async () => {

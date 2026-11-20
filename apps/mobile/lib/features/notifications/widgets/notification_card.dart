@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/app_date_time.dart';
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_typography.dart';
 import '../models/notification_item_model.dart';
@@ -63,17 +64,7 @@ class NotificationCard extends StatelessWidget {
     }
   }
 
-  String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final difference = now.difference(dt);
-    if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
-    }
-  }
+  String _formatTimestamp(DateTime dt) => AppDateTime.timeAgo(dt);
 
   @override
   Widget build(BuildContext context) {
@@ -81,61 +72,56 @@ class NotificationCard extends StatelessWidget {
     final title = isHindi ? notification.titleHi : notification.title;
     final body = isHindi ? notification.bodyHi : notification.body;
 
+    final radius = BorderRadius.circular(18);
+    final isUnread = !notification.isRead;
+
     return Dismissible(
       key: Key(notification.id),
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onDismiss(),
       background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
           color: AppColors.error.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: radius,
         ),
         child: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
       ),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: notification.isRead ? AppColors.cardSurfaceWarm : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: isUnread ? Colors.white : AppColors.canvasSecondary.withValues(alpha: 0.6),
+          borderRadius: radius,
           border: Border.all(
-            color: notification.isRead
-                ? AppColors.cardBorder
-                : AppColors.premiumAccent.withValues(alpha: 0.6),
-            width: notification.isRead ? 1.0 : 1.5,
+            color: isUnread ? AppColors.premiumAccent : AppColors.cardBorder,
+            width: isUnread ? 1.5 : 1.0,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          type: MaterialType.transparency,
+          borderRadius: radius,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: radius,
             child: Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Category Icon
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       color: _getCategoryBgColor(),
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
                       _getCategoryIcon(),
                       color: _getCategoryColor(),
-                      size: 22,
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -145,40 +131,42 @@ class NotificationCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: AppTypography.titleSmall.copyWith(
-                                  fontWeight: notification.isRead
-                                      ? FontWeight.w600
-                                      : FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                        if (isUnread) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.premiumAccent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              isHindi ? 'नई' : 'New',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
                             ),
-                            if (!notification.isRead) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.premiumAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        Text(
+                          title,
+                          style: AppTypography.titleLarge.copyWith(
+                            fontSize: 17,
+                            height: 1.3,
+                            fontWeight: isUnread ? FontWeight.bold : FontWeight.w500,
+                            color: isUnread ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           body,
-                          style: AppTypography.bodySmall.copyWith(
+                          style: const TextStyle(
+                            fontSize: 15,
                             color: AppColors.lightTextSecondary,
-                            height: 1.35,
+                            height: 1.4,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -186,19 +174,23 @@ class NotificationCard extends StatelessWidget {
                         const SizedBox(height: 6),
                         Text(
                           _formatTimestamp(notification.timestamp),
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.lightTextMuted,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.lightBorder,
-                    size: 20,
+                  const SizedBox(width: 4),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textMuted,
+                      size: 26,
+                    ),
                   ),
                 ],
               ),

@@ -60,7 +60,15 @@ class PlanetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = getPlanetIcon(planetName);
-    final cleanName = planetName.replaceAll('(R)', '').trim();
+    final rawName = planetName.replaceAll('(R)', '').trim();
+    // Show names in Title Case even when the data arrives as "SUN".
+    final cleanName = rawName == rawName.toUpperCase() && rawName.length > 2
+        ? rawName
+            .toLowerCase()
+            .split(' ')
+            .map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1))
+            .join(' ')
+        : rawName;
 
     return InkWell(
       onTap: onTap,
@@ -68,8 +76,8 @@ class PlanetChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: EdgeInsets.symmetric(
-          horizontal: isCompact ? 8 : 12,
-          vertical: isCompact ? 4 : 6,
+          horizontal: isCompact ? 10 : 12,
+          vertical: isCompact ? 5 : 8,
         ),
         decoration: BoxDecoration(
           color: isSelected
@@ -82,22 +90,13 @@ class PlanetChip extends StatelessWidget {
                 : AppColors.lightBorder,
             width: 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
                   ),
-                ]
-              : null,
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: isCompact ? 12 : 14,
+              size: isCompact ? 14 : 16,
               color: isSelected ? AppColors.premiumAccent : AppColors.secondary,
             ),
             const SizedBox(width: 5),
@@ -105,7 +104,7 @@ class PlanetChip extends StatelessWidget {
               child: Text(
                 cleanName,
                 style: TextStyle(
-                  fontSize: isCompact ? 11 : 12,
+                  fontSize: isCompact ? 13 : 14,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   color: isSelected ? Colors.white : AppColors.primary,
                 ),
@@ -123,7 +122,7 @@ class PlanetChip extends StatelessWidget {
                 child: const Text(
                   'R',
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -135,7 +134,7 @@ class PlanetChip extends StatelessWidget {
               Text(
                 '• $houseOrSign',
                 style: TextStyle(
-                  fontSize: isCompact ? 10 : 11,
+                  fontSize: isCompact ? 13 : 14,
                   color: isSelected
                       ? Colors.white.withValues(alpha: 0.8)
                       : AppColors.lightTextSecondary,

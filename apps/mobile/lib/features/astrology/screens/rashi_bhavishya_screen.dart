@@ -1,422 +1,857 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/astro_card.dart';
+import 'package:intl/intl.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/error_banner.dart';
+import '../widgets/astrology_error_state.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/rashi_bhavishya_model.dart';
 import '../providers/rashi_bhavishya_provider.dart';
 
+/// Status colours with ≥4.5:1 contrast on their tinted backgrounds.
+const Color _favourableText = Color(0xFF065F46);
+const Color _demandingText = Color(0xFF92400E);
+
+class _RashiMeta {
+  final int index;
+  final String sanskrit;
+  final String english;
+  final String hindi;
+  final String symbol;
+  const _RashiMeta(this.index, this.sanskrit, this.english, this.hindi, this.symbol);
+}
+
+const List<_RashiMeta> _rashis = [
+  _RashiMeta(1, 'Mesha', 'Aries', 'मेष', '♈'),
+  _RashiMeta(2, 'Vrishabha', 'Taurus', 'वृषभ', '♉'),
+  _RashiMeta(3, 'Mithuna', 'Gemini', 'मिथुन', '♊'),
+  _RashiMeta(4, 'Karka', 'Cancer', 'कर्क', '♋'),
+  _RashiMeta(5, 'Simha', 'Leo', 'सिंह', '♌'),
+  _RashiMeta(6, 'Kanya', 'Virgo', 'कन्या', '♍'),
+  _RashiMeta(7, 'Tula', 'Libra', 'तुला', '♎'),
+  _RashiMeta(8, 'Vrischika', 'Scorpio', 'वृश्चिक', '♏'),
+  _RashiMeta(9, 'Dhanu', 'Sagittarius', 'धनु', '♐'),
+  _RashiMeta(10, 'Makara', 'Capricorn', 'मकर', '♑'),
+  _RashiMeta(11, 'Kumbha', 'Aquarius', 'कुंभ', '♒'),
+  _RashiMeta(12, 'Meena', 'Pisces', 'मीन', '♓'),
+];
+
+const Map<String, String> _planetHindi = {
+  'SUN': 'सूर्य',
+  'MOON': 'चंद्र',
+  'MARS': 'मंगल',
+  'MERCURY': 'बुध',
+  'JUPITER': 'गुरु',
+  'VENUS': 'शुक्र',
+  'SATURN': 'शनि',
+  'RAHU': 'राहु',
+  'KETU': 'केतु',
+};
+
+String _ordinal(int n) {
+  if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
+  switch (n % 10) {
+    case 1:
+      return '${n}st';
+    case 2:
+      return '${n}nd';
+    case 3:
+      return '${n}rd';
+    default:
+      return '${n}th';
+  }
+}
+
 class RashiBhavishyaScreen extends ConsumerWidget {
   const RashiBhavishyaScreen({super.key});
 
-  static const List<Map<String, dynamic>> _rashisList = [
-    {'index': 1, 'sanskrit': 'Mesha', 'english': 'Aries', 'dates': 'March 21 - April 19', 'symbol': '♈'},
-    {'index': 2, 'sanskrit': 'Vrishabha', 'english': 'Taurus', 'dates': 'April 20 - May 20', 'symbol': '♉'},
-    {'index': 3, 'sanskrit': 'Mithuna', 'english': 'Gemini', 'dates': 'May 21 - June 20', 'symbol': '♊'},
-    {'index': 4, 'sanskrit': 'Karka', 'english': 'Cancer', 'dates': 'June 21 - July 22', 'symbol': '♋'},
-    {'index': 5, 'sanskrit': 'Simha', 'english': 'Leo', 'dates': 'July 23 - August 22', 'symbol': '♌'},
-    {'index': 6, 'sanskrit': 'Kanya', 'english': 'Virgo', 'dates': 'August 23 - September 22', 'symbol': '♍'},
-    {'index': 7, 'sanskrit': 'Tula', 'english': 'Libra', 'dates': 'September 23 - October 22', 'symbol': '♎'},
-    {'index': 8, 'sanskrit': 'Vrischika', 'english': 'Scorpio', 'dates': 'October 23 - November 21', 'symbol': '♏'},
-    {'index': 9, 'sanskrit': 'Dhanu', 'english': 'Sagittarius', 'dates': 'November 22 - December 21', 'symbol': '♐'},
-    {'index': 10, 'sanskrit': 'Makara', 'english': 'Capricorn', 'dates': 'December 22 - January 19', 'symbol': '♑'},
-    {'index': 11, 'sanskrit': 'Kumbha', 'english': 'Aquarius', 'dates': 'January 20 - February 18', 'symbol': '♒'},
-    {'index': 12, 'sanskrit': 'Meena', 'english': 'Pisces', 'dates': 'February 19 - March 20', 'symbol': '♓'},
-  ];
+  /// Formats the prediction date exactly as returned by the backend (yyyy-MM-dd).
+  static String formatPredictionDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    return DateFormat('d MMMM yyyy, EEEE').format(parsed);
+  }
 
-  ExplanationContext _buildExplanationContext(
-    Map<String, dynamic> selectedRashi,
-    RashiBhavishyaModel? data,
-  ) {
+  /// Local IST clock time (HH:mm) of a UTC ISO instant.
+  static String istClock(String iso) {
+    final t = DateTime.tryParse(iso);
+    if (t == null) return '';
+    return DateFormat('HH:mm').format(t.toUtc().add(const Duration(hours: 5, minutes: 30)));
+  }
+
+  static String _shortDate(String ymd) {
+    final d = DateTime.tryParse(ymd);
+    return d == null ? ymd : DateFormat('d MMM').format(d);
+  }
+
+  ExplanationContext _buildExplanationContext(_RashiMeta rashi, RashiBhavishyaModel data, bool isHindi) {
     return ExplanationContext(
       feature: 'rashi_bhavishya',
-      screenTitle: '${selectedRashi['english']} Daily Horoscope',
-      purpose: 'Explain the daily astrological influences and energy guidance for ${selectedRashi['english']} (${selectedRashi['sanskrit']}).',
+      screenTitle: '${rashi.english} Rashi Bhavishya',
+      language: isHindi ? 'hi' : 'en',
+      purpose: 'Explain today\'s gochara (planet transits counted from the ${rashi.english} Moon sign) and what favourable and demanding houses mean.',
       astrologyData: {
-        'sign': selectedRashi['english'],
-        'sanskrit': selectedRashi['sanskrit'],
-        'summary': data?.prediction.summary,
-        'luckyColor': data?.prediction.luckyColor,
-        'luckyNumber': data?.prediction.luckyNumber,
-        'career': data?.prediction.categories.career,
-        'finance': data?.prediction.categories.finance,
-        'love': data?.prediction.categories.love,
-        'health': data?.prediction.categories.health,
+        'date': data.date,
+        'moonSign': rashi.english,
+        'summary': data.prediction.summary,
+        'moon': '${data.facts.moon.sign.englishName}, ${_ordinal(data.facts.moon.house)} from the Moon sign (${data.facts.moon.classification})',
+        'transits': [
+          for (final p in data.facts.planets)
+            '${p.name}: ${p.sign.englishName}, ${_ordinal(p.house)} house from the Moon sign, ${p.classification}${p.isRetrograde && !p.isNode ? ', retrograde' : ''}',
+        ],
+        'panchang': '${data.facts.panchang.varaEnglish}, ${data.facts.panchang.tithi}, ${data.facts.panchang.nakshatra}',
+        'method': data.method.summary,
       },
       importantValues: {
-        'luckyColor': data?.prediction.luckyColor,
-        'luckyNumber': data?.prediction.luckyNumber,
+        'favourablePlanets': data.facts.tally.favourable,
+        'demandingPlanets': data.facts.tally.demanding,
       },
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedIndex = ref.watch(selectedRashiIndexProvider);
-    final selectedRashi = _rashisList.firstWhere((r) => r['index'] == selectedIndex);
-    final predictionAsync = ref.watch(todayRashiBhavishyaProvider(selectedIndex));
-    final predictionData = predictionAsync.valueOrNull;
+    final isHindi = Localizations.localeOf(context).languageCode == 'hi';
+    final selected = ref.watch(selectedRashiIndexProvider);
+    final userMoonAsync = ref.watch(userMoonRashiIndexProvider);
+    final userMoon = userMoonAsync.valueOrNull;
+    final effectiveIndex = selected ?? userMoon;
+    final waitingForMoon = selected == null && userMoonAsync.isLoading;
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: 'Today\'s Rashi Bhavishya',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
-            onPressed: () => ref.refresh(todayRashiBhavishyaProvider(selectedIndex)),
+    return AstroPage(
+      title: isHindi ? 'आज का राशि भविष्य' : 'Rashi Bhavishya',
+      style: AstroNavBarStyle.hero,
+      actions: [
+        if (effectiveIndex != null)
+          AstroNavAction(
+            tooltip: isHindi ? 'फिर से लोड करें' : 'Reload',
+            icon: Icons.refresh_rounded,
+            onPressed: () => ref.invalidate(todayRashiBhavishyaProvider(effectiveIndex)),
           ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              children: [
-                // 1. COMPACT RASHI SELECTOR BAR (< Aries >)
-                _buildRashiSelectorBar(context, ref, selectedIndex, selectedRashi),
-
-                const SizedBox(height: 12),
-
-                // Sushil Sir Explainer Button
-                SushilExplainerButton(
-                  contextBuilder: () => _buildExplanationContext(selectedRashi, predictionData),
-                  poseAsset: AppAssets.sushilFriendly,
-                ),
-
-                const SizedBox(height: 14),
-
-                // 2. TODAY'S DATE BADGE
-                _buildDateHeaderBadge(),
-
-                const SizedBox(height: 16),
-
-                // 3. MAIN PREDICTION CARD
-                predictionAsync.when(
-                  loading: () => const AstroLoaderCard(
-                    message: AstroLoaderMessages.rashiBhavishya,
-                  ),
-                  error: (err, _) => _buildPredictionContent(_getMockPrediction(selectedRashi)),
-                  data: (data) => _buildPredictionContent(data),
-                ),
-
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
+      ],
+      onRefresh: effectiveIndex == null
+          ? null
+          : () async => ref.invalidate(todayRashiBhavishyaProvider(effectiveIndex)),
+      padding: const EdgeInsets.fromLTRB(AstroMetrics.gutter, 16, AstroMetrics.gutter, 32),
+      // App body font with its Devanagari-capable fallbacks for every text on this screen.
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(fontFamily: AppTypography.bodyFamily, fontFamilyFallback: AppTypography.bodyFontFamilies),
+        child: waitingForMoon
+            ? const AstroLoaderCard(message: AstroLoaderMessages.rashiBhavishya)
+            : effectiveIndex == null
+                ? _SignPicker(isHindi: isHindi, onPick: (i) => ref.read(selectedRashiIndexProvider.notifier).state = i)
+                : _buildForSign(context, ref, effectiveIndex, userMoon, isHindi),
       ),
     );
   }
 
-  Widget _buildRashiSelectorBar(
-      BuildContext context, WidgetRef ref, int selectedIndex, Map<String, dynamic> selectedRashi) {
-    final rashiAsset = AppAssets.getRashiAsset(selectedRashi['english']);
+  Widget _buildForSign(BuildContext context, WidgetRef ref, int index, int? userMoon, bool isHindi) {
+    final rashi = _rashis[index - 1];
+    final predictionAsync = ref.watch(todayRashiBhavishyaProvider(index));
+    final data = predictionAsync.valueOrNull;
+    final genuine = (data != null && !data.isDevelopmentFixture) ? data : null;
 
-    return AstroCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left_rounded, color: AppColors.primary),
-            onPressed: () {
-              final newIndex = selectedIndex == 1 ? 12 : selectedIndex - 1;
-              ref.read(selectedRashiIndexProvider.notifier).state = newIndex;
-            },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SignSelector(
+          rashi: rashi,
+          isUserMoon: userMoon == index,
+          showResetToMine: userMoon != null && userMoon != index,
+          isHindi: isHindi,
+          onPrev: () => ref.read(selectedRashiIndexProvider.notifier).state = index == 1 ? 12 : index - 1,
+          onNext: () => ref.read(selectedRashiIndexProvider.notifier).state = index == 12 ? 1 : index + 1,
+          onReset: () => ref.read(selectedRashiIndexProvider.notifier).state = null,
+        ),
+        const SizedBox(height: 12),
+        if (genuine != null) ...[
+          SushilExplainerButton(
+            contextBuilder: () => _buildExplanationContext(rashi, genuine, isHindi),
+            poseAsset: AppAssets.sushilFriendly,
           ),
+          const SizedBox(height: 14),
+        ],
+        predictionAsync.when(
+          loading: () => const AstroLoaderCard(message: AstroLoaderMessages.rashiBhavishya),
+          error: (err, _) => AstrologyErrorState(
+            error: err,
+            customMessage: isHindi
+                ? 'आज का राशि भविष्य अभी तैयार नहीं हो सका। कृपया कुछ मिनट बाद पुनः प्रयास करें।'
+                : (err is AppException ? err.message : 'Today\'s Rashi Bhavishya could not be loaded. Please try again later.'),
+            onRetry: () => ref.invalidate(todayRashiBhavishyaProvider(index)),
+          ),
+          data: (d) => d.isDevelopmentFixture
+              ? ErrorBanner(
+                  message: isHindi
+                      ? 'इस राशि का आज का प्रामाणिक भविष्यफल अभी उपलब्ध नहीं है।'
+                      : 'A verified daily prediction for this rashi is not available yet.',
+                )
+              : _RashiContent(model: d, rashi: rashi, isHindi: isHindi),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+class _SignSelector extends StatelessWidget {
+  final _RashiMeta rashi;
+  final bool isUserMoon;
+  final bool showResetToMine;
+  final bool isHindi;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onReset;
+
+  const _SignSelector({
+    required this.rashi,
+    required this.isUserMoon,
+    required this.showResetToMine,
+    required this.isHindi,
+    required this.onPrev,
+    required this.onNext,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rashiAsset = AppAssets.getRashiAsset(rashi.english);
+    Widget arrow({required String tooltip, required IconData icon, required VoidCallback onPressed}) => IconButton(
+          tooltip: tooltip,
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1)),
+          icon: Icon(icon, color: Colors.white, size: 26),
+          onPressed: onPressed,
+        );
+    return AstroGradientCard(
+      padding: const EdgeInsets.fromLTRB(10, 18, 10, 16),
+      child: Column(
+        children: [
           Row(
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: ClipOval(
-                  child: rashiAsset != null
-                      ? AstroImage(
-                          assetPath: rashiAsset,
-                          width: 46,
-                          height: 46,
-                          fit: BoxFit.cover,
-                          fallback: AstroImageFallback.icon,
-                          semanticLabel: '${selectedRashi['english']} zodiac sign',
-                        )
-                      : _buildSymbolText(selectedRashi['symbol'] as String),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${selectedRashi['english']} (${selectedRashi['sanskrit']})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+              arrow(tooltip: isHindi ? 'पिछली राशि' : 'Previous sign', icon: Icons.chevron_left_rounded, onPressed: onPrev),
+              Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.gold.withValues(alpha: 0.7), width: 1.5),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 14, offset: const Offset(0, 6))],
+                      ),
+                      child: ClipOval(
+                        child: rashiAsset != null
+                            ? AstroImage(
+                                assetPath: rashiAsset,
+                                width: 76,
+                                height: 76,
+                                fit: BoxFit.cover,
+                                fallback: AstroImageFallback.icon,
+                                semanticLabel: '${rashi.english} zodiac sign',
+                              )
+                            : Center(child: Text(rashi.symbol, style: const TextStyle(fontSize: 32, color: AppColors.gold))),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    selectedRashi['dates'] as String,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.lightTextSecondary,
+                    const SizedBox(height: 12),
+                    Text(
+                      isHindi ? '${rashi.hindi} (${rashi.english})' : '${rashi.english} (${rashi.sanskrit})',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.headlineLarge.copyWith(fontSize: 22, color: Colors.white, height: 1.2),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      isUserMoon
+                          ? (isHindi ? 'आपकी चंद्र राशि' : 'Your Moon sign')
+                          : (isHindi ? 'चंद्र राशि' : 'Moon sign (janma rashi)'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: isUserMoon ? FontWeight.w600 : FontWeight.w500,
+                        color: isUserMoon ? AppColors.gold : AppColors.textInverseSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              arrow(tooltip: isHindi ? 'अगली राशि' : 'Next sign', icon: Icons.chevron_right_rounded, onPressed: onNext),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
-            onPressed: () {
-              final newIndex = selectedIndex == 12 ? 1 : selectedIndex + 1;
-              ref.read(selectedRashiIndexProvider.notifier).state = newIndex;
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSymbolText(String symbol) {
-    return Center(
-      child: Text(
-        symbol,
-        style: const TextStyle(fontSize: 22, color: AppColors.premiumAccent),
-      ),
-    );
-  }
-
-  Widget _buildDateHeaderBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.primary),
-          SizedBox(width: 6),
-          Text(
-            '18 August 2026, Monday',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPredictionContent(RashiBhavishyaModel model) {
-    final pred = model.prediction;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // TODAY'S OVERALL SUMMARY CARD
-        AstroCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Today\'s Outlook',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                pred.summary,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.lightTextSecondary,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              const SizedBox(height: 16),
-              // SCORE METRIC RATINGS
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMetricRating('Overall', '85%'),
-                  _buildMetricRating('Love', '80%'),
-                  _buildMetricRating('Career', '90%'),
-                  _buildMetricRating('Health', '75%'),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        const Text(
-          'Category Guidance',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // CATEGORY INSIGHTS
-        _buildCategoryCard('General', pred.categories.general, Icons.grid_view_rounded),
-        _buildCategoryCard('Career', pred.categories.career, Icons.business_center_rounded),
-        _buildCategoryCard('Love & Relationships', pred.categories.love, Icons.favorite_rounded),
-        _buildCategoryCard('Health', pred.categories.health, Icons.fitness_center_rounded),
-        _buildCategoryCard('Finance', pred.categories.finance, Icons.account_balance_wallet_rounded),
-
-        const SizedBox(height: 12),
-
-        // LUCKY DETAILS CARD
-        AstroCard(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.star_rounded, color: AppColors.premiumAccent, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Lucky Number: ${pred.luckyNumber}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  ),
-                ],
-              ),
-              Container(height: 20, width: 1, color: AppColors.lightBorder),
-              Row(
-                children: [
-                  const Icon(Icons.palette_rounded, color: AppColors.secondary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Lucky Color: ${pred.luckyColor}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetricRating(String label, String score) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          score,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryCard(String title, String content, IconData icon) {
-    if (content.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
-      child: AstroCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.06),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 16, color: AppColors.primary),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              content,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.lightTextSecondary,
-                height: 1.4,
+          if (showResetToMine) ...[
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: AstroSecondaryButton(
+                onPressed: onReset,
+                variant: AstroSecondaryVariant.onDark,
+                icon: Icons.person_pin_circle_rounded,
+                label: isHindi ? 'मेरी चंद्र राशि दिखाएँ' : 'Show my Moon sign',
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
 
-  RashiBhavishyaModel _getMockPrediction(Map<String, dynamic> rashi) {
-    return RashiBhavishyaModel(
-      date: '18 August 2026',
-      rashi: RashiInfoModel(
-        index: rashi['index'] as int,
-        sanskritName: rashi['sanskrit'] as String,
-        englishName: rashi['english'] as String,
-        element: 'Fire',
-        ruler: 'Mars',
+/// Shown when no Moon sign is known yet: the user chooses one (there is no default sign).
+class _SignPicker extends StatelessWidget {
+  final bool isHindi;
+  final ValueChanged<int> onPick;
+  const _SignPicker({required this.isHindi, required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AstroIconSquare(icon: Icons.nightlight_round, tint: AstroTint.violet, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    isHindi ? 'अपनी चंद्र राशि चुनें' : 'Choose your Moon sign',
+                    style: _kCardTitle.copyWith(fontSize: 20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isHindi
+                ? 'राशि भविष्य चंद्र राशि से पढ़ा जाता है। जन्म विवरण जोड़ने पर आपकी राशि अपने आप चुनी जाएगी।'
+                : 'Rashi Bhavishya is read from the Moon sign. Add your birth details and your sign is chosen automatically.',
+            style: const TextStyle(fontSize: 15, color: AppColors.lightTextSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final r in _rashis)
+                AstroPill(
+                  label: isHindi ? r.hindi : '${r.english} · ${r.sanskrit}',
+                  selected: false,
+                  onTap: () => onPick(r.index),
+                ),
+            ],
+          ),
+        ],
       ),
-      prediction: const RashiBhavishyaPredictionModel(
-        summary:
-            'A positive day for new beginnings. Your confidence will attract good opportunities. Stay focused and avoid unnecessary distractions. Financial matters look stable.',
-        categories: RashiBhavishyaCategoryModel(
-          general: 'The day brings positivity and helps you make progress on important tasks.',
-          health: 'Take care of your energy levels and follow a balanced routine.',
-          love: 'You may spend quality time with your partner. Communication will improve.',
-          career: 'New opportunities may come your way. Your hard work will be recognized.',
-          finance: 'Good financial management yields peace of mind today.',
+    );
+  }
+}
+
+class _RashiContent extends StatelessWidget {
+  final RashiBhavishyaModel model;
+  final _RashiMeta rashi;
+  final bool isHindi;
+  const _RashiContent({required this.model, required this.rashi, required this.isHindi});
+
+  String _planet(RashiPlanetTransit p) => isHindi ? (_planetHindi[p.planet] ?? p.name) : p.name;
+
+  String _signName(RashiSignRef s) => isHindi ? _rashis[s.index - 1].hindi : s.englishName;
+
+  String _house(int h) => isHindi ? 'भाव $h' : '${_ordinal(h)} house';
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = model.facts;
+    final sunrise = RashiBhavishyaScreen.istClock(facts.sunriseIso);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DateBadge(
+          date: RashiBhavishyaScreen.formatPredictionDate(model.date),
+          note: isHindi
+              ? 'सूर्योदय $sunrise IST (${facts.referenceLocation}) पर ग्रह स्थिति'
+              : 'Planet positions at sunrise, $sunrise IST (${facts.referenceLocation})',
         ),
-        luckyNumber: 9,
-        luckyColor: 'Red',
+        const SizedBox(height: 14),
+        AstroSurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _CardHeading(
+                icon: Icons.wb_twilight_rounded,
+                tint: AstroTint.amber,
+                title: isHindi ? 'आज का सार' : 'Today\'s outlook',
+              ),
+              const SizedBox(height: 12),
+              Text(
+                model.prediction.summary,
+                style: const TextStyle(fontSize: 16, color: AppColors.lightTextPrimary, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              _MoonLine(moon: facts.moon, rashi: rashi, isHindi: isHindi, planetLabel: _planet, signLabel: _signName, houseLabel: _house),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        for (final s in model.prediction.sections) ...[
+          _SectionCard(section: s, hideLead: s.lead.trim() == model.prediction.summary.trim()),
+          const SizedBox(height: 12),
+        ],
+        if (isHindi && model.prediction.language != 'hi')
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              'विस्तृत विवरण अभी केवल अंग्रेज़ी में उपलब्ध है।',
+              style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+            ),
+          ),
+        _TransitTable(
+          facts: facts,
+          rashi: rashi,
+          isHindi: isHindi,
+          planetLabel: _planet,
+          signLabel: _signName,
+        ),
+        const SizedBox(height: 12),
+        _PanchangCard(panchang: facts.panchang, isHindi: isHindi),
+        if (facts.events.where((e) => e.planet != 'MOON').isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _EventsCard(events: facts.events.where((e) => e.planet != 'MOON').toList(), isHindi: isHindi),
+        ],
+        const SizedBox(height: 12),
+        _MethodCard(method: model.method, tally: facts.tally, isHindi: isHindi),
+      ],
+    );
+  }
+}
+
+class _DateBadge extends StatelessWidget {
+  final String date;
+  final String note;
+  const _DateBadge({required this.date, required this.note});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AstroTint.amber.background,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.goldBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.goldDark),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  date,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(note, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary)),
+      ],
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final bool favourable;
+  final bool isHindi;
+  const _StatusChip({required this.favourable, required this.isHindi});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = favourable ? (isHindi ? 'अनुकूल' : 'Favourable') : (isHindi ? 'सावधानी' : 'Demanding');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: favourable ? AppColors.successBg : AppColors.warningBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: favourable ? AppColors.successBorder : AppColors.warningBorder),
       ),
-      source: 'AstroSushil Reference Content Fixtures',
-      isDevelopmentFixture: true,
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: favourable ? _favourableText : _demandingText),
+      ),
+    );
+  }
+}
+
+class _MoonLine extends StatelessWidget {
+  final RashiPlanetTransit moon;
+  final _RashiMeta rashi;
+  final bool isHindi;
+  final String Function(RashiPlanetTransit) planetLabel;
+  final String Function(RashiSignRef) signLabel;
+  final String Function(int) houseLabel;
+
+  const _MoonLine({
+    required this.moon,
+    required this.rashi,
+    required this.isHindi,
+    required this.planetLabel,
+    required this.signLabel,
+    required this.houseLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final change = moon.changesTo;
+    final from = isHindi ? rashi.hindi : rashi.english;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.canvasSecondary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.nightlight_round, size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isHindi
+                      ? 'चंद्र ${signLabel(moon.sign)} में · $from से ${houseLabel(moon.house)}'
+                      : 'Moon in ${moon.sign.englishName} · ${houseLabel(moon.house)} from $from',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _StatusChip(favourable: moon.isFavourable, isHindi: isHindi),
+            ],
+          ),
+          if (moon.houseTheme.isNotEmpty && !isHindi) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 26),
+              child: Text(
+                'This house is about ${moon.houseTheme}.',
+                style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.35),
+              ),
+            ),
+          ],
+          if (change != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 26),
+              child: Text(
+                isHindi
+                    ? '${change.timeIst} IST (${RashiBhavishyaScreen._shortDate(change.dateIst)}) से चंद्र ${signLabel(change.sign)} में — ${houseLabel(change.house)}, ${change.classification == 'favourable' ? 'अनुकूल' : 'सावधानी'}'
+                    : 'From ${change.timeIst} IST (${RashiBhavishyaScreen._shortDate(change.dateIst)}): Moon in ${change.sign.englishName}, ${houseLabel(change.house)} — ${change.classification}',
+                style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.35),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final RashiNarrativeSection section;
+  final bool hideLead;
+  const _SectionCard({required this.section, required this.hideLead});
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(header: true, child: Text(section.title, style: _kCardTitle)),
+          if (!hideLead && section.lead.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(section.lead, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary, height: 1.4)),
+          ],
+          for (final p in section.paragraphs) ...[
+            const SizedBox(height: 8),
+            Text(p, style: const TextStyle(fontSize: 16, color: AppColors.lightTextSecondary, height: 1.5)),
+          ],
+          if (section.bullets.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final b in section.bullets)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, right: 8),
+                      child: Icon(Icons.circle, size: 6, color: AppColors.primary),
+                    ),
+                    Expanded(child: Text(b, style: const TextStyle(fontSize: 16, color: AppColors.lightTextSecondary, height: 1.45))),
+                  ],
+                ),
+              ),
+          ],
+          if (section.takeaway != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AstroTint.amber.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.goldBorder),
+              ),
+              child: Text(
+                section.takeaway!,
+                style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: AppColors.lightTextPrimary, height: 1.4),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TransitTable extends StatelessWidget {
+  final RashiFactsModel facts;
+  final _RashiMeta rashi;
+  final bool isHindi;
+  final String Function(RashiPlanetTransit) planetLabel;
+  final String Function(RashiSignRef) signLabel;
+
+  const _TransitTable({
+    required this.facts,
+    required this.rashi,
+    required this.isHindi,
+    required this.planetLabel,
+    required this.signLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = facts.tally;
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeading(
+            icon: Icons.public_rounded,
+            tint: AstroTint.sky,
+            title: isHindi ? 'चंद्र राशि से ग्रह गोचर' : 'Planets from your Moon sign',
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isHindi
+                ? '${t.total} में से ${t.favourable} ग्रह अनुकूल भावों में, ${t.demanding} सावधानी वाले भावों में (साधारण गिनती, कोई अंक नहीं)।'
+                : '${t.favourable} of ${t.total} planets are in favourable houses and ${t.demanding} in demanding ones — a plain count, not a score.',
+            style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.35),
+          ),
+          const SizedBox(height: 8),
+          for (final p in facts.planets)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.separator, width: 0.5))),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 82,
+                    child: Text(
+                      planetLabel(p) + (p.isRetrograde && !p.isNode ? ' (R)' : ''),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primary),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      isHindi ? '${signLabel(p.sign)} · भाव ${p.house}' : '${p.sign.englishName} · ${_ordinal(p.house)}',
+                      style: const TextStyle(fontSize: 15, color: AppColors.lightTextPrimary),
+                    ),
+                  ),
+                  _StatusChip(favourable: p.isFavourable, isHindi: isHindi),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            isHindi
+                ? '(R) = वक्री। राहु-केतु सदा उल्टी चाल चलते हैं।'
+                : '(R) = retrograde. Rahu and Ketu always move backwards.',
+            style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PanchangCard extends StatelessWidget {
+  final RashiPanchangModel panchang;
+  final bool isHindi;
+  const _PanchangCard({required this.panchang, required this.isHindi});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget row(String label, String value) => Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 92, child: Text(label, style: const TextStyle(fontSize: 15, color: AppColors.lightTextSecondary))),
+              Expanded(child: Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary))),
+            ],
+          ),
+        );
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeading(
+            icon: Icons.calendar_month_rounded,
+            tint: AstroTint.coral,
+            title: isHindi ? 'आज का पंचांग (सूर्योदय)' : 'Panchang at sunrise',
+          ),
+          const SizedBox(height: 6),
+          row(isHindi ? 'वार' : 'Vara', '${panchang.varaName} (${panchang.varaEnglish})'),
+          row(isHindi ? 'तिथि' : 'Tithi', panchang.tithi),
+          row(isHindi ? 'नक्षत्र' : 'Nakshatra', panchang.nakshatraPada > 0 ? '${panchang.nakshatra} (pada ${panchang.nakshatraPada})' : panchang.nakshatra),
+          row(isHindi ? 'योग' : 'Yoga', panchang.yoga),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventsCard extends StatelessWidget {
+  final List<RashiSkyEvent> events;
+  final bool isHindi;
+  const _EventsCard({required this.events, required this.isHindi});
+
+  String _describe(RashiSkyEvent e) {
+    if (e.type == 'SIGN_INGRESS' && e.fromSign != null && e.toSign != null) {
+      return isHindi
+          ? '${_planetHindi[e.planet] ?? e.planetName}: ${_rashis[e.fromSign!.index - 1].hindi} से ${_rashis[e.toSign!.index - 1].hindi} में'
+          : '${e.planetName} moves from ${e.fromSign!.englishName} into ${e.toSign!.englishName}';
+    }
+    final where = e.sign?.englishName ?? '';
+    if (e.type == 'RETROGRADE_STATION') return isHindi ? '${_planetHindi[e.planet] ?? e.planetName} वक्री' : '${e.planetName} turns retrograde in $where';
+    return isHindi ? '${_planetHindi[e.planet] ?? e.planetName} मार्गी' : '${e.planetName} turns direct in $where';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeading(
+            icon: Icons.swap_horiz_rounded,
+            tint: AstroTint.indigo,
+            title: isHindi ? 'आज और इस सप्ताह' : 'Today and this week',
+          ),
+          const SizedBox(height: 4),
+          for (final e in events)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2, right: 8),
+                    child: Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primary),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${_describe(e)} · ${RashiBhavishyaScreen._shortDate(e.dateIst)}, ${e.timeIst} IST',
+                      style: const TextStyle(fontSize: 15, color: AppColors.lightTextPrimary, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MethodCard extends StatelessWidget {
+  final RashiMethodModel method;
+  final RashiTallyModel tally;
+  final bool isHindi;
+  const _MethodCard({required this.method, required this.tally, required this.isHindi});
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSurfaceCard(
+      color: AppColors.cardSurfaceWarm,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeading(
+            icon: Icons.verified_outlined,
+            tint: AstroTint.slate,
+            title: isHindi ? 'यह कैसे तैयार होता है' : 'How this is prepared',
+          ),
+          const SizedBox(height: 10),
+          Text(method.summary, style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.45)),
+          if (method.sources.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${isHindi ? 'आधार' : 'Sources'}: ${method.sources.join('; ')}',
+              style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.45),
+            ),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            isHindi
+                ? 'ऊपर का विवरण एक AI मॉडल ने केवल इन गणना किए गए तथ्यों से लिखा है और इसे उन्हीं तथ्यों से स्वतः जाँचा गया है। यह हर उस व्यक्ति के लिए समान है जिसकी यह चंद्र राशि है।'
+                : 'The text above is written by an AI model only from these calculated facts and is checked automatically against them. It is the same for everyone with this Moon sign; it is not a personal birth-chart reading.',
+            style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.45),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Serif card title used across this screen.
+const TextStyle _kCardTitle = TextStyle(
+  fontFamily: AppTypography.headingFamily,
+  fontFamilyFallback: AppTypography.headingFontFamilies,
+  fontSize: 18,
+  fontWeight: FontWeight.w700,
+  color: AppColors.textPrimary,
+  height: 1.25,
+);
+
+/// Tinted icon square + serif title, the heading of each content card.
+class _CardHeading extends StatelessWidget {
+  final IconData icon;
+  final AstroTint tint;
+  final String title;
+  const _CardHeading({required this.icon, required this.tint, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        AstroIconSquare(icon: icon, tint: tint),
+        const SizedBox(width: 12),
+        Expanded(child: Semantics(header: true, child: Text(title, style: _kCardTitle))),
+      ],
     );
   }
 }

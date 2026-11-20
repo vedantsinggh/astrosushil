@@ -436,4 +436,34 @@ describe('PostgreSQL Queue and Worker Integration Tests (Phase 2)', () => {
     careerReportWorker.stopStaleRecoveryLoop();
     expect(true).toBe(true);
   });
+  it('17. Scheduled retry: rescheduleJob returns the report to QUEUED with retryAfter, hides the error and keeps fencing', async () => {
+    const rep = await createTestReport();
+    const claim = await postgresQueueService.claimJobById(rep.id, 60);
+    expect(claim).not.toBeNull();
+
+    const retryAt = new Date(Date.now() + 15 * 60 * 1000);
+    // A stale claim version cannot reschedule
+    expect(await postgresQueueService.rescheduleJob(rep.id, claim!.claimToken, claim!.claimVersion - 1, retryAt, 'GENERATION_INCOMPLETE', 'x')).toBe(false);
+    expect(await postgresQueueService.rescheduleJob(rep.id, claim!.claimToken, claim!.claimVersion, retryAt, 'GENERATION_INCOMPLETE', 'topic failed')).toBe(true);
+
+    const after = await prisma.report.findUnique({ where: { id: rep.id } });
+    expect(after!.status).toBe(ReportStatus.QUEUED);
+    expect(after!.claimToken).toBeNull();
+    expect(after!.errorCode).toBeNull();
+    expect(after!.errorMessage).toBeNull();
+    expect(after!.generationFailures).toBe(1);
+    expect(after!.lastAttemptErrorCode).toBe('GENERATION_INCOMPLETE');
+    expect(after!.retryAfter!.getTime()).toBe(retryAt.getTime());
+
+    // Not claimable before retryAfter, and a plain enqueue keeps the schedule
+    expect(await postgresQueueService.claimJobById(rep.id, 60)).toBeNull();
+    await postgresQueueService.enqueueJob(rep.id);
+    const kept = await prisma.report.findUnique({ where: { id: rep.id } });
+    expect(kept!.retryAfter!.getTime()).toBe(retryAt.getTime());
+
+    await prisma.$executeRaw`UPDATE "reports" SET "retryAfter" = clock_timestamp() - INTERVAL '1 second' WHERE id = ${rep.id}`;
+    const reclaimed = await postgresQueueService.claimJobById(rep.id, 60);
+    expect(reclaimed).not.toBeNull();
+    expect(reclaimed!.claimVersion).toBe(claim!.claimVersion + 1);
+  });
 });

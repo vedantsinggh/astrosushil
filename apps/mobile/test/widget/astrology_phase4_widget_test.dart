@@ -335,6 +335,13 @@ void main() {
       expect(find.text('H-6'), findsWidgets); // Lagna relationship & house
       expect(find.text('Transit Intelligence & Kaksha'), findsOneWidget);
       expect(find.text('Current Planetary Positions'), findsOneWidget);
+
+      // Full positions list is collapsed under "Current Planetary Positions"
+      await tester.ensureVisible(find.text('Current Planetary Positions'));
+      await tester.tap(find.text('Current Planetary Positions'));
+      await tester.pumpAndSettle();
+      expect(find.text('MOON'), findsWidgets);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('Handles API calculation error and displays retry button', (tester) async {
@@ -485,12 +492,19 @@ void main() {
       expect(find.text('SUN Shadbala'), findsOneWidget);
       expect(find.text('435.5 Virupas'), findsOneWidget);
       expect(find.text('7.26 Rupas'), findsOneWidget);
-      expect(find.text('STRONG (≥1.0)'), findsOneWidget);
+      expect(find.text('Strong (≥1.0)'), findsOneWidget);
       expect(find.text('Six-Fold Strength Components'), findsOneWidget);
       expect(find.text('1. Sthana Bala (Positional)'), findsOneWidget);
       expect(find.text('2. Dig Bala (Directional)'), findsOneWidget);
       expect(find.text('3. Kala Bala (Temporal)'), findsOneWidget);
       expect(find.text('Shadbala Planetary Ranking'), findsOneWidget);
+
+      // Ranking list is collapsed; expand it and check a row renders
+      await tester.ensureVisible(find.text('Shadbala Planetary Ranking'));
+      await tester.tap(find.text('Shadbala Planetary Ranking'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('#1  '), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('Handles API calculation error and displays retry button', (tester) async {
@@ -562,6 +576,13 @@ void main() {
       expect(find.text('Bhava Strength Breakdown'), findsOneWidget);
       expect(find.text('1. Bhavadhipati Bala (Lord MARS)'), findsOneWidget);
       expect(find.text('12 Houses Potency Summary'), findsOneWidget);
+
+      // Potency list is collapsed; expand it and check a house row renders
+      await tester.ensureVisible(find.text('12 Houses Potency Summary'));
+      await tester.tap(find.text('12 Houses Potency Summary'));
+      await tester.pumpAndSettle();
+      expect(find.text('H-1'), findsNWidgets(2)); // selector chip + summary row
+      expect(tester.takeException(), isNull);
 
       // Select House 2
       await tester.tap(find.text('H-2').first);

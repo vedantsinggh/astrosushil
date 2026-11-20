@@ -1,0 +1,28 @@
+name: astro_desktop
+description: Astro Sushil Desktop - offline Vedic astrology workstation (Windows, macOS, Linux).
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  intl: any
+  pdf: ^3.10.8
+  printing: ^5.13.1
+  file_selector: ^1.0.3
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/geo/cities.tsv

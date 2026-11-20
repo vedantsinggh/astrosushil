@@ -145,12 +145,14 @@ class HeroAstrologyCard extends StatelessWidget {
                               color: AppColors.gold,
                             ),
                             const SizedBox(width: 5),
-                            Text(
-                              hasBirthProfile ? l10n.toolBirthChart : l10n.createProfileButton,
-                              style: AppTypography.labelSmall.copyWith(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.6,
-                                color: AppColors.gold,
+                            Flexible(
+                              child: Text(
+                                hasBirthProfile ? l10n.toolBirthChart : l10n.createProfileButton,
+                                style: AppTypography.labelSmall.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.6,
+                                  color: AppColors.gold,
+                                ),
                               ),
                             ),
                           ],
@@ -189,11 +191,13 @@ class HeroAstrologyCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 5),
-                            Text(
-                              'AI Mentor',
-                              style: AppTypography.caption.copyWith(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                'AI Mentor',
+                                style: AppTypography.caption.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],
@@ -251,7 +255,9 @@ class HeroAstrologyCard extends StatelessWidget {
                       onTap: onChangeProfileTap ?? onViewChartTap,
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        // Symmetric inset so the leading badge and the trailing CTA sit the
+                        // same distance from the card edges.
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
@@ -259,78 +265,85 @@ class HeroAstrologyCard extends StatelessWidget {
                             width: 1.0,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            // Circular Vedic icon badge
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: AppColors.tintVioletBg,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.tintVioletBorder,
-                                  width: 1,
+                        child: LayoutBuilder(
+                          builder: (context, rowConstraints) => Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Circular Vedic icon badge
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: AppColors.tintVioletBg,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.tintVioletBorder,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: AppColors.tintVioletText,
+                                  size: 15,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.auto_awesome_rounded,
-                                color: AppColors.tintVioletText,
-                                size: 15,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Profile name and switcher indicator
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    l10n.myBirthProfile.toUpperCase(),
-                                    style: AppTypography.caption.copyWith(
-                                      fontSize: 9.0,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                      color: AppColors.secondary,
+                              const SizedBox(width: 8),
+                              // Profile name and switcher indicator
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      l10n.myBirthProfile.toUpperCase(),
+                                      style: AppTypography.caption.copyWith(
+                                        fontSize: 9.0,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                        color: AppColors.secondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          hasBirthProfile && profileDisplayName != null
-                                              ? profileDisplayName
-                                              : l10n.noProfileSelected,
-                                          style: AppTypography.titleSmall.copyWith(
-                                            fontWeight: FontWeight.bold,
+                                    const SizedBox(height: 1),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            hasBirthProfile && profileDisplayName != null
+                                                ? profileDisplayName
+                                                : l10n.noProfileSelected,
+                                            style: AppTypography.titleSmall.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (onChangeProfileTap != null) ...[
+                                          const SizedBox(width: 2),
+                                          const Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            size: 16,
                                             color: AppColors.primary,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (onChangeProfileTap != null) ...[
-                                        const SizedBox(width: 2),
-                                        const Icon(
-                                          Icons.keyboard_arrow_down_rounded,
-                                          size: 16,
-                                          color: AppColors.primary,
-                                        ),
+                                        ],
                                       ],
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            // View Chart or Create Profile CTA Button (>= 48dp touch bounds)
-                            Flexible(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(minHeight: AppTouchTargets.minTouchTarget),
+                              const SizedBox(width: 8),
+                              // View Chart or Create Profile CTA Button (>= 48dp touch bounds).
+                              // Sized to its content and pinned flush to the trailing edge; the cap
+                              // keeps it from crowding the profile name on narrow cards or at large
+                              // text scales (the label then scales down via FittedBox).
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: AppTouchTargets.minTouchTarget,
+                                  maxWidth: rowConstraints.maxWidth * 0.4,
+                                ),
                                 child: ElevatedButton(
                                   onPressed: onViewChartTap,
                                   style: ElevatedButton.styleFrom(
@@ -365,8 +378,8 @@ class HeroAstrologyCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

@@ -1,0 +1,172 @@
+/**
+ * Baby Name report: extend step, evidence and deterministic blocks.
+ *
+ * Candidate names are an optional input (`candidateNames` on the subject JSON,
+ * see BAB-005). They are evaluated locally; only their numbers reach the
+ * evidence registry, referenced by position (candidate 1, 2, …), never by name.
+ */
+import { AddEvidence, EvidenceRegistry, planetName } from '../../evidence/evidence-registry';
+import { ExtendContext } from '../../module';
+import { BlockContext, BlockOutput } from '../../render/blocks';
+import { tex } from '../../render/latex';
+import { HARMONY_LABEL, NUMBER_PLANET, numberHarmony } from '../_numerology-shared/associations';
+import { grid, kv, PLANES_METHOD, planesTable } from '../_numerology-shared/blocks';
+import { computeNumerologyExt } from '../_numerology-shared/evidence';
+import { NAME_PLANE_ORDER } from '../_numerology-shared/numerology';
+import { computeNameGuidance, FIT_LABEL, MATCH_LABEL, NAKSHATRA_NAMES, NameGuidance } from './calc/name-guidance';
+
+export interface BabySubjectExtras {
+  /** Names the parents are considering (optional, up to 5 are evaluated). */
+  candidateNames?: string[];
+}
+
+export async function babyExtend(ctx: ExtendContext): Promise<Record<string, unknown>> {
+  const s = ctx.snapshot;
+  const numerology = computeNumerologyExt(s, { useName: false });
+  const moon = s.natal.planets.find((p) => planetName(p.name) === 'Moon')!;
+  const extras = s.subject as typeof s.subject & BabySubjectExtras;
+  const guidance = computeNameGuidance({
+    moonNakshatraIndex: moon.nakshatraIndex, moonPada: moon.pada, moonSignIndex: moon.rashiIndex,
+    mulank: numerology.profile.mulank, bhagyank: numerology.profile.bhagyank,
+    candidateNames: Array.isArray(extras.candidateNames) ? extras.candidateNames.filter((n) => typeof n === 'string') : [],
+  });
+  guidance.janma.nakshatra = moon.nakshatra; // keep the engine's spelling, as in planet.moon.d1.nakshatra
+  return { numerology, guidance };
+}
+
+export const guidanceOf = (ext: Record<string, unknown>): NameGuidance => {
+  const g = ext.guidance as NameGuidance | undefined;
+  if (!g) throw new Error('BLOCK_DATA_MISSING: guidance');
+  return g;
+};
+
+const SRC = 'platform.baby-name';
+
+export function addBabyEvidence(add: AddEvidence, g: NameGuidance, gender: string | undefined): void {
+  add('baby.gender', 'baby-name', `The child is ${gender === 'male' ? 'a boy' : gender === 'female' ? 'a girl' : 'of unspecified gender'}`, gender === 'male' ? 'boy' : gender === 'female' ? 'girl' : 'unspecified', SRC);
+  add('baby.janma-pada', 'baby-name', `Janma nakshatra ${g.janma.nakshatra}, pada ${g.janma.pada}`, g.janma.nakshatra, SRC);
+  add('baby.syllable.primary', 'baby-name', `The traditional first syllable (namakshara) for this birth pada is ${g.primary.latin} (${g.primary.devanagari})`, g.primary.latin, SRC);
+  add('baby.syllables.nakshatra', 'baby-name', `Syllables of the four padas of ${g.janma.nakshatra}: ${g.nakshatraSyllables.map((s) => s.latin).join(', ')}`, g.nakshatraSyllables.map((s) => s.latin), SRC);
+  add('baby.syllables.rashi', 'baby-name', `Syllables of the Moon sign ${g.janma.moonSign}: ${g.rashiSyllables.map((s) => s.latin).join(', ')}`, g.rashiSyllables.map((s) => s.latin), SRC);
+  const by = (f: string) => Object.entries(g.fits).filter(([, v]) => v === f).map(([k]) => k);
+  add('baby.numbers.supportive', 'baby-name', by('supportive').length ? `Name numbers supportive for both Mulank and Bhagyank: ${by('supportive').join(', ')}` : 'No name number is supportive for both Mulank and Bhagyank', by('supportive'), SRC);
+  add('baby.numbers.workable', 'baby-name', by('workable').length ? `Workable name numbers: ${by('workable').join(', ')}` : 'No name number is in the workable group', by('workable'), SRC);
+  add('baby.numbers.care', 'baby-name', by('needs-care').length ? `Name numbers that need care: ${by('needs-care').join(', ')}` : 'No name number needs special care', by('needs-care'), SRC);
+  add('baby.candidates.count', 'baby-name', `${g.candidates.length} candidate name${g.candidates.length === 1 ? ' was' : 's were'} provided by the family`, g.candidates.length, SRC);
+  for (const c of g.candidates) {
+    const b = `baby.candidate.${c.index}`;
+    add(`${b}.number`, 'baby-name', `Candidate ${c.index} has Chaldean name number ${c.number.value} (compound ${c.number.compound}), fit: ${FIT_LABEL[c.fit].toLowerCase()}`, c.number.value, SRC);
+    add(`${b}.syllable`, 'baby-name', `Candidate ${c.index}: ${MATCH_LABEL[c.match].toLowerCase()}`, MATCH_LABEL[c.match].toLowerCase(), SRC);
+    add(`${b}.soul-urge`, 'baby-name', `Candidate ${c.index} soul urge number is ${c.soulUrge.value}`, c.soulUrge.value, SRC);
+    add(`${b}.personality`, 'baby-name', `Candidate ${c.index} personality number is ${c.personality.value}`, c.personality.value, SRC);
+    for (const pl of NAME_PLANE_ORDER) {
+      add(`${b}.plane.${pl}`, 'baby-name', `Candidate ${c.index} ${pl} plane has ${c.planes.counts[pl]} letter${c.planes.counts[pl] === 1 ? '' : 's'}`, c.planes.counts[pl], SRC);
+    }
+  }
+}
+
+export function babyEvidence(add: AddEvidence, ctx: ExtendContext & { ext: Record<string, unknown>; registry: EvidenceRegistry }): void {
+  addBabyEvidence(add, guidanceOf(ctx.ext), ctx.snapshot.subject.gender);
+}
+
+// ---------------------------------------------------------------------------
+// Blocks
+// ---------------------------------------------------------------------------
+
+export function babyDetails(ctx: BlockContext): BlockOutput {
+  const s = ctx.snapshot.subject;
+  const g = guidanceOf(ctx.ext);
+  const r = ctx.registry;
+  const rows: Array<[string, string]> = [
+    ['Child', s.name],
+    ['Gender', s.gender === 'male' ? 'Boy' : s.gender === 'female' ? 'Girl' : 'Not specified'],
+    ['Date and time of birth', `${s.dateOfBirth}${s.timeOfBirth ? ', ' + s.timeOfBirth : ''}`],
+    ['Place of birth', s.placeName],
+    ['Moon sign (Rashi)', g.janma.moonSign],
+    ['Janma nakshatra and pada', `${g.janma.nakshatra}, pada ${g.janma.pada}`],
+    ['Mulank / Bhagyank', `${r.get('numerology.mulank')!.value} / ${r.get('numerology.bhagyank')!.value}`],
+  ];
+  return { tex: kv('en', rows, ['Detail', 'Value']), evidenceIds: ['planet.moon.d1.sign', 'planet.moon.d1.nakshatra', 'baby.janma-pada', 'numerology.mulank', 'numerology.bhagyank'] };
+}
+
+export function babySyllables(ctx: BlockContext): BlockOutput {
+  const g = guidanceOf(ctx.ext);
+  const hero = `\\begin{center}\\begin{tcolorbox}[enhanced,colback=Tint,colframe=Accent!60,boxrule=0.8pt,arc=2mm,width=0.62\\linewidth,center,halign=center]
+{\\sffamily\\fontsize{7.5}{9}\\selectfont\\bfseries\\color{Accent}TRADITIONAL FIRST SYLLABLE (NAMAKSHARA)}\\par\\vspace{2mm}
+{\\displayfont\\fontsize{34}{40}\\selectfont\\color{Primary}${tex(g.primary.latin)}\\enspace\\textbar\\enspace ${tex(g.primary.devanagari)}\\par}\\vspace{1mm}
+{\\fontsize{9}{12}\\selectfont\\color{Muted}${tex(`${g.janma.nakshatra}, pada ${g.janma.pada}`)}\\par}
+\\end{tcolorbox}\\end{center}`;
+  const nakRows = g.nakshatraSyllables.map((s) => [`Pada ${s.pada}${s.pada === g.janma.pada ? ' (birth pada)' : ''}`, s.latin, s.devanagari]);
+  const rashiRows = g.rashiSyllables.map((s) => [`${s.nakshatraIndex === g.janma.nakshatraIndex ? g.janma.nakshatra : NAKSHATRA_NAMES[s.nakshatraIndex - 1]}, pada ${s.pada}`, s.latin, s.devanagari]);
+  return {
+    tex: [
+      hero,
+      `{\\sffamily\\fontsize{8.5}{10.5}\\selectfont\\bfseries\\color{Primary}${tex(`SYLLABLES OF ${g.janma.nakshatra.toUpperCase()}`)}\\par}`,
+      grid('>{\\raggedright\\arraybackslash}X p{0.2\\linewidth}p{0.2\\linewidth}', ['Pada', 'Latin', 'Devanagari'], nakRows, (i) => i === g.janma.pada - 1),
+      `{\\sffamily\\fontsize{8.5}{10.5}\\selectfont\\bfseries\\color{Primary}${tex(`SYLLABLES OF THE MOON SIGN ${g.janma.moonSign.toUpperCase()}`)}\\par}`,
+      grid('>{\\raggedright\\arraybackslash}X p{0.2\\linewidth}p{0.2\\linewidth}', ['Pada', 'Latin', 'Devanagari'], rashiRows),
+    ].join('\n'),
+    evidenceIds: ['baby.janma-pada', 'baby.syllable.primary', 'baby.syllables.nakshatra', 'baby.syllables.rashi', 'planet.moon.d1.nakshatra', 'planet.moon.d1.sign'],
+    method: 'Classical namakshara (avakahada chakra): each of the 108 nakshatra padas has one syllable; the birth pada is the Moon\'s pada at birth. The Moon-sign list gives the nine padas that fall in the Moon\'s sign. Latin spellings are approximate; the Devanagari form is the reference.',
+  };
+}
+
+export function babyNumberGuide(ctx: BlockContext): BlockOutput {
+  const g = guidanceOf(ctx.ext);
+  const mul = Number(ctx.registry.get('numerology.mulank')!.value);
+  const bha = Number(ctx.registry.get('numerology.bhagyank')!.value);
+  const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [String(n), NUMBER_PLANET[n], HARMONY_LABEL[numberHarmony(mul, n)].en, HARMONY_LABEL[numberHarmony(bha, n)].en, FIT_LABEL[g.fits[n]]]);
+  return {
+    tex: grid('p{0.1\\linewidth}p{0.15\\linewidth}>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X p{0.16\\linewidth}',
+      ['Name number', 'Planet', `With Mulank ${mul}`, `With Bhagyank ${bha}`, 'Overall'], rows, (i) => g.fits[i + 1] === 'supportive'),
+    evidenceIds: ['numerology.mulank', 'numerology.bhagyank', 'baby.numbers.supportive', 'baby.numbers.workable', 'baby.numbers.care'],
+    method: 'Supportive = same as, or in natural friendship with, both the Mulank and the Bhagyank rulers; needs care = mutual natural enmity with either; workable = everything else (BPHS naisargika relationships). Highlighted rows are supportive.',
+  };
+}
+
+export function babyCandidates(ctx: BlockContext): BlockOutput {
+  const g = guidanceOf(ctx.ext);
+  if (!g.candidates.length) {
+    return {
+      tex: `\\begin{asCard}\\CardTitle{No candidate names were provided}{\\fontsize{9.5}{13.5}\\selectfont ${tex('When ordering, families can list up to five names they are considering. Each is then checked here for its syllable and its numbers. Until then, use the worksheet at the end of this report: add the letter values of a name with the Chaldean table and compare the total with the guide above.')}\\par}\\end{asCard}`,
+      evidenceIds: ['baby.candidates.count'],
+    };
+  }
+  const rows = g.candidates.map((c) => [String(c.index), c.name, `${c.number.compound} → ${c.number.value}`, FIT_LABEL[c.fit], MATCH_LABEL[c.match]]);
+  return {
+    tex: grid('p{0.05\\linewidth}p{0.2\\linewidth}p{0.12\\linewidth}p{0.13\\linewidth}>{\\raggedright\\arraybackslash}X', ['#', 'Name', 'Number', 'Number fit', 'Syllable'], rows),
+    evidenceIds: ['baby.candidates.count', ...g.candidates.flatMap((c) => [`baby.candidate.${c.index}.number`, `baby.candidate.${c.index}.syllable`])],
+    method: 'Chaldean name number of the name as written; number fit from the guide above; syllable check compares the start of the Latin spelling with the traditional syllables (long-vowel spellings such as "aa", "ee", "oo" accepted). Please confirm the syllable in Devanagari.',
+  };
+}
+
+export function babyCandidatePlanes(ctx: BlockContext): BlockOutput {
+  const g = guidanceOf(ctx.ext);
+  if (!g.candidates.length) return { tex: '{\\itshape No candidate names were provided.}', evidenceIds: ['baby.candidates.count'] };
+  const parts = g.candidates.map((c) =>
+    `\\needspace{10\\baselineskip}{\\sffamily\\fontsize{8.5}{10.5}\\selectfont\\bfseries\\color{Primary}${tex(`NAME GRID FOR CANDIDATE ${c.index}: ${c.name.toUpperCase()}`)}\\par}\n${planesTable('en', c.name)}\n{\\fontsize{8.8}{12}\\selectfont\\color{Muted}${tex(`Soul urge ${c.soulUrge.value} · personality ${c.personality.value}`)}\\par}\\vspace{2mm}`);
+  return {
+    tex: parts.join('\n'),
+    evidenceIds: g.candidates.flatMap((c) => [...NAME_PLANE_ORDER.map((pl) => `baby.candidate.${c.index}.plane.${pl}`), `baby.candidate.${c.index}.soul-urge`, `baby.candidate.${c.index}.personality`]),
+    method: PLANES_METHOD.en,
+  };
+}
+
+export function babyWorksheet(): BlockOutput {
+  const rows = [['1', 'A I J Q Y'], ['2', 'B K R'], ['3', 'C G L S'], ['4', 'D M T'], ['5', 'E H N X'], ['6', 'U V W'], ['7', 'O Z'], ['8', 'F P']];
+  return {
+    tex: grid('p{0.15\\linewidth}X', ['Value', 'Letters'], rows)
+      + `\n\\begin{asHighlight}\\CardTitle{How to test any name}{\\fontsize{9.5}{13.5}\\selectfont ${tex('1. Write the name as it will be used. 2. Add the value of every letter. 3. Reduce the total by adding its digits until one digit remains (for example 32 → 5). 4. Look the digit up in the name-number guide. 5. Check that the first sound matches one of the syllables listed earlier.')}\\par}\\end{asHighlight}`,
+    evidenceIds: ['baby.numbers.supportive'],
+    method: 'Chaldean letter values (Cheiro); 9 is not assigned to any letter.',
+  };
+}
+
+export const BABY_BLOCKS = {
+  'baby-name-details': babyDetails,
+  'baby-name-syllables': babySyllables,
+  'baby-name-number-guide': babyNumberGuide,
+  'baby-name-candidates': babyCandidates,
+  'baby-name-candidate-planes': babyCandidatePlanes,
+  'baby-name-worksheet': babyWorksheet,
+};

@@ -34,7 +34,7 @@ export class DeterministicPredictionEngine {
 
     // RULE P-CAREER-01: 10th Lord Placement
     const h10 = chart.houses.find((h) => h.number === 10);
-    const h10LordPlanet = chart.planets.find((p) => p.name === h10?.lord);
+    const h10LordPlanet = chart.planets.find((p) => String(p.name).toUpperCase() === String(h10?.lord ?? '').toUpperCase());
     if (h10 && h10LordPlanet) {
       triggeredRules.push('RULE_P_CAREER_01_10TH_LORD');
       predictions.push({

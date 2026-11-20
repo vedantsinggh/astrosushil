@@ -30,7 +30,16 @@ class VarshaphalaPreview extends StatelessWidget {
       );
     }
 
-    final year = DateTime.now().year;
+    // Genuine backend Varshaphala only.
+    final c = chart;
+    if (c == null) {
+      return const PreviewEmptyState(
+        title: 'Varshaphala',
+        message: 'Varshaphala data is not available right now',
+        icon: Icons.wb_sunny_rounded,
+      );
+    }
+    final year = c.solarReturn.targetYear;
 
     return FittedBox(
       fit: BoxFit.scaleDown,
@@ -68,11 +77,11 @@ class VarshaphalaPreview extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildMetricTile('Muntha', 'House 9', const Color(0xFFCA8A04)),
+                  child: _buildMetricTile('Muntha', 'House ${c.muntha.houseInVarshaChart}', const Color(0xFFCA8A04)),
                 ),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: _buildMetricTile('Varsheshwara', 'Jupiter (Ju)', AppColors.secondary),
+                  child: _buildMetricTile('Varsheshwara', c.varshesha.selectedVarshesha, AppColors.secondary),
                 ),
               ],
             ),

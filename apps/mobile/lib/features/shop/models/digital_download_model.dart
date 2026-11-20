@@ -1,3 +1,4 @@
+import '../../../core/utils/app_date_time.dart';
 class BundleAssetModel {
   final String name;
   final String key;
@@ -72,15 +73,9 @@ class DigitalDownloadModel {
       imageUrl: json['imageUrl'] as String?,
       status: json['status'] as String? ?? 'ACTIVE',
       downloadCount: json['downloadCount'] is int ? json['downloadCount'] as int : 0,
-      lastDownloadedAt: json['lastDownloadedAt'] != null
-          ? DateTime.tryParse(json['lastDownloadedAt'].toString())
-          : null,
-      grantedAt: json['grantedAt'] != null
-          ? DateTime.tryParse(json['grantedAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      expiresAt: json['expiresAt'] != null
-          ? DateTime.tryParse(json['expiresAt'].toString())
-          : null,
+      lastDownloadedAt: AppDateTime.parseInstant(json['lastDownloadedAt']),
+      grantedAt: AppDateTime.parseInstant(json['grantedAt']) ?? DateTime.now(),
+      expiresAt: AppDateTime.parseInstant(json['expiresAt']),
       bundleAssets: parsedBundle,
       hasBundleAssets: parsedBundle.isNotEmpty || (json['hasBundleAssets'] == true),
     );

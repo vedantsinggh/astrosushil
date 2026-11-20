@@ -2,71 +2,28 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
+import { emailService } from '../../src/services/email.service';
 
+/**
+ * Legacy email/password auth flow (integration, real test database).
+ *
+ * The register flow requires email verification: POST /register returns
+ * `{ requiresEmailVerification, email, message }` (no tokens) and the session
+ * is only issued by POST /verify-email (or POST /login once verified).
+ * The OTP is captured by spying on the outbound verification email so no
+ * real email transport is used.
+ */
 describe('Auth API Endpoints (Integration)', () => {
   let app: FastifyInstance;
+  const sentOtps: string[] = [];
 
-  // In-memory data store for tests
-  const usersDb = new Map<string, any>();
-  const refreshTokensDb = new Map<string, any>();
+  const runId = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  const testEmail = `auth-it-${runId}@example.com`;
+  const testPassword = 'Password123!';
 
   beforeAll(async () => {
-    // Mock Prisma methods for isolated testing environment
-    (vi.spyOn(prisma.user, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
-      if (where.email) {
-        return Array.from(usersDb.values()).find((u) => u.email === where.email) || null;
-      }
-      if (where.id) {
-        return usersDb.get(where.id) || null;
-      }
-      return null;
-    });
-
-    (vi.spyOn(prisma.user, 'create') as any).mockImplementation(async ({ data }: any) => {
-      const id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const newUser = {
-        id,
-        email: data.email,
-        passwordHash: data.passwordHash,
-        role: data.role || 'USER',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      usersDb.set(id, newUser);
-      return newUser;
-    });
-
-    (vi.spyOn(prisma.refreshToken, 'create') as any).mockImplementation(async ({ data }: any) => {
-      const id = `token-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      const newToken = {
-        id,
-        userId: data.userId,
-        tokenHash: data.tokenHash,
-        expiresAt: data.expiresAt,
-        revokedAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      refreshTokensDb.set(data.tokenHash, newToken);
-      return newToken;
-    });
-
-    (vi.spyOn(prisma.refreshToken, 'findUnique') as any).mockImplementation(async ({ where }: any) => {
-      if (where.tokenHash) {
-        return refreshTokensDb.get(where.tokenHash) || null;
-      }
-      return null;
-    });
-
-    (vi.spyOn(prisma.refreshToken, 'update') as any).mockImplementation(async ({ where, data }: any) => {
-      for (const [key, tokenRecord] of refreshTokensDb.entries()) {
-        if (tokenRecord.id === where.id) {
-          const updated = { ...tokenRecord, ...data };
-          refreshTokensDb.set(key, updated);
-          return updated;
-        }
-      }
-      throw new Error('Token not found');
+    vi.spyOn(emailService, 'sendVerificationEmail').mockImplementation(async (_to: string, otp: string) => {
+      sentOtps.push(otp);
     });
 
     app = buildApp();
@@ -74,14 +31,14 @@ describe('Auth API Endpoints (Integration)', () => {
   });
 
   afterAll(async () => {
+    // OTP records and refresh tokens cascade on user delete.
+    await prisma.user.deleteMany({ where: { email: { in: [testEmail, `weakpass-${runId}@example.com`] } } });
     await app.close();
     vi.restoreAllMocks();
   });
 
   let registeredAccessToken: string;
   let registeredRefreshToken: string;
-  const testEmail = 'testuser@example.com';
-  const testPassword = 'Password123!';
 
   it('POST /api/v1/auth/register should successfully create a user', async () => {
     const response = await app.inject({
@@ -95,8 +52,60 @@ describe('Auth API Endpoints (Integration)', () => {
 
     expect(response.statusCode).toBe(201);
     const body = JSON.parse(response.payload);
+    expect(body.requiresEmailVerification).toBe(true);
+    expect(body.email).toBe(testEmail);
+    expect(body.tokens).toBeUndefined();
+    expect(sentOtps).toHaveLength(1);
+    expect(sentOtps[0]).toMatch(/^\d{6}$/);
+
+    const user = await prisma.user.findFirst({ where: { email: testEmail } });
+    expect(user).not.toBeNull();
+    expect(user!.role).toBe('USER');
+    expect(user!.emailVerifiedAt).toBeNull();
+    expect(user!.passwordHash).not.toBe(testPassword);
+  });
+
+  it('POST /api/v1/auth/login should not issue tokens before email verification', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: testEmail, password: testPassword },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.requiresEmailVerification).toBe(true);
+    expect(body.email).toBe(testEmail);
+    expect(body.tokens).toBeUndefined();
+    expect(body.user).toBeUndefined();
+  });
+
+  it('POST /api/v1/auth/verify-email should reject an incorrect code', async () => {
+    const wrongCode = sentOtps[0] === '000000' ? '111111' : '000000';
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: testEmail, otp: wrongCode },
+    });
+
+    expect(response.statusCode).toBe(401);
+    const body = JSON.parse(response.payload);
+    expect(body.error.code).toBe('AUTHENTICATION_ERROR');
+  });
+
+  it('POST /api/v1/auth/verify-email should verify the user and issue a session', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/verify-email',
+      payload: { email: testEmail, otp: sentOtps[sentOtps.length - 1] },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.payload);
+    expect(body.verified).toBe(true);
     expect(body.user.email).toBe(testEmail);
     expect(body.user.role).toBe('USER');
+    expect(body.user.emailVerifiedAt).not.toBeNull();
     expect(body.tokens.accessToken).toBeDefined();
     expect(body.tokens.refreshToken).toBeDefined();
 
@@ -124,7 +133,7 @@ describe('Auth API Endpoints (Integration)', () => {
       method: 'POST',
       url: '/api/v1/auth/register',
       payload: {
-        email: 'weakpass@example.com',
+        email: `weakpass-${runId}@example.com`,
         password: 'weak',
       },
     });
@@ -148,6 +157,7 @@ describe('Auth API Endpoints (Integration)', () => {
     const body = JSON.parse(response.payload);
     expect(body.user.email).toBe(testEmail);
     expect(body.tokens.accessToken).toBeDefined();
+    expect(body.tokens.refreshToken).toBeDefined();
   });
 
   it('POST /api/v1/auth/login should return 401 for incorrect password', async () => {
@@ -177,6 +187,7 @@ describe('Auth API Endpoints (Integration)', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.payload);
     expect(body.email).toBe(testEmail);
+    expect(body.role).toBe('USER');
   });
 
   it('GET /api/v1/auth/me should return 401 when token is missing', async () => {
@@ -204,6 +215,14 @@ describe('Auth API Endpoints (Integration)', () => {
     expect(body.tokens.accessToken).toBeDefined();
     expect(body.tokens.refreshToken).toBeDefined();
     expect(body.refreshToken).not.toBe(registeredRefreshToken);
+
+    // The rotated-out token must no longer be usable
+    const reuseResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: registeredRefreshToken },
+    });
+    expect(reuseResponse.statusCode).toBe(401);
 
     // Update reference token
     registeredRefreshToken = body.tokens.refreshToken;

@@ -11,6 +11,9 @@ import 'package:astro_mobile/features/consultations/widgets/booking_flow_sheet.d
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
+import 'package:astro_mobile/shared/widgets/astro_controls.dart' show AstroSegmentedControl;
+import 'package:astro_mobile/features/auth/models/user_model.dart';
+import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
 
 class MockConsultationService implements ConsultationService {
   final List<ConsultationOfferingModel> catalog;
@@ -242,6 +245,20 @@ class MockConsultationService implements ConsultationService {
   }
 }
 
+class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier {
+  TestAuthNotifier(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+final testUser = UserModel(
+  id: 'usr-test-01',
+  email: 'seeker@astrosushil.com',
+  role: 'USER',
+  createdAt: DateTime(2026, 1, 1),
+);
+
 class TestBirthProfilesNotifier extends StateNotifier<BirthProfilesState>
     implements BirthProfilesNotifier {
   TestBirthProfilesNotifier(List<BirthProfileModel> profiles)
@@ -277,11 +294,15 @@ void main() {
     ConsultationService? service,
     Locale locale = const Locale('en'),
     List<BirthProfileModel>? profiles,
+    bool signedIn = true,
   }) {
     final mockService = service ?? MockConsultationService();
     return ProviderScope(
       overrides: [
         consultationServiceProvider.overrideWithValue(mockService),
+        authStateProvider.overrideWith(
+          (ref) => TestAuthNotifier(signedIn ? AuthState.authenticated(testUser) : AuthState.unauthenticated()),
+        ),
         birthProfilesListNotifierProvider.overrideWith(
           (ref) => TestBirthProfilesNotifier(profiles ?? [testProfile]),
         ),
@@ -302,81 +323,89 @@ void main() {
     );
   }
 
+  /// Taps a segment of the pinned "Book a session | My bookings" switch.
+  Future<void> openTab(WidgetTester tester, String label) async {
+    await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text(label)));
+    await tester.pumpAndSettle();
+  }
+
   group('Phase 6 Consultations Visual Redesign & Experience Tests', () {
-    testWidgets('Discovery Catalogue renders hero header, steps, and verified consultation tiers',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
+    // Each tab is one scrolling page; a tall viewport keeps every card built.
+    void tall(WidgetTester tester, [double w = 800, double h = 6000]) {
+      tester.view.physicalSize = Size(w, h);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
+    }
 
+    testWidgets('Catalogue shows intro card and server services with mode, duration and price',
+        (tester) async {
+      tall(tester);
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pumpAndSettle();
+      await openTab(tester, 'Book a session');
 
-      // Check Cosmic Header Badges & IST Timezone Notice
-      expect(find.text('1-ON-1 GUIDANCE'), findsOneWidget);
-      expect(find.text('100% CONFIDENTIAL'), findsOneWidget);
-      expect(find.text('Consult Sushil Sir'), findsAtLeastNWidgets(1));
-      expect(find.text('All times are in Indian Standard Time (IST / UTC+05:30)'), findsOneWidget);
+      expect(find.text('Consult Sushil Sir'), findsOneWidget);
+      expect(find.text('Personalized 1-on-1 astrological guidance with Astro Sushil Kumar Singh.'), findsOneWidget);
 
-      // Check How It Works Steps
-      expect(find.text('How Consultation Works'), findsOneWidget);
-      expect(find.text('1. Select Format & Date'), findsOneWidget);
-      expect(find.text('2. Confirm Slot & Queries'), findsOneWidget);
-      expect(find.text('3. Meet Astro Sushil'), findsOneWidget);
-
-      // Check Offerings & Prices
       expect(find.text('Budget Friendly Consultation'), findsOneWidget);
       expect(find.text('General Consultation (Audio)'), findsOneWidget);
+      // The two bookings with the same titles are on the My bookings tab.
       expect(find.text('General Consultation (Video)'), findsOneWidget);
       expect(find.text('Urgent Consultation (Video)'), findsOneWidget);
-      expect(find.text('₹5000'), findsOneWidget);
-      expect(find.text('₹15000'), findsOneWidget);
-      expect(find.text('₹35000'), findsOneWidget);
+      expect(find.text('Face-to-Face Consultation (Delhi / NCR)'), findsOneWidget);
 
-      // Check Badges
-      expect(find.text('18% GST Included'), findsAtLeastNWidgets(1));
-      expect(find.text('15 mins'), findsOneWidget);
-      expect(find.text('30 mins'), findsAtLeastNWidgets(1));
+      // Prices straight from pricePaise, Indian grouping.
+      expect(find.text('₹5,000'), findsOneWidget);
+      expect(find.text('₹15,000'), findsOneWidget);
+      expect(find.text('₹35,000'), findsOneWidget);
+      expect(find.text('₹1,00,000'), findsOneWidget);
+
+      expect(find.text('Phone call · 15 mins'), findsOneWidget);
+      expect(find.text('Video call · 30 mins'), findsNWidgets(3));
+      expect(find.text('In person · 30 mins'), findsOneWidget);
+      expect(find.text('Earliest in 4 days'), findsOneWidget);
+      expect(find.text('18% GST Included'), findsNWidgets(6));
+      expect(find.text('Book Now'), findsNWidgets(6));
+
+      // Old ornate hero / slogans are gone.
+      expect(find.text('1-ON-1 GUIDANCE'), findsNothing);
+      expect(find.text('100% CONFIDENTIAL'), findsNothing);
+
+      await openTab(tester, 'My bookings');
+      expect(find.text('General Consultation (Video)'), findsOneWidget);
+      expect(find.text('Urgent Consultation (Video)'), findsOneWidget);
+      expect(find.text('Budget Friendly Consultation'), findsNothing);
     });
 
-    testWidgets('Category filters isolate Video, Voice, Urgent, and In-Person tiers accurately',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
+    testWidgets('Mode filter shows only matching services', (tester) async {
+      tall(tester);
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pumpAndSettle();
 
-      // Filter by Video
-      await tester.tap(find.text('Video'));
+      await openTab(tester, 'Book a session');
+      Finder service(String sku) => find.byKey(ValueKey('consult_service_$sku'));
+
+      await tester.tap(find.byKey(const ValueKey('consult_filter_VIDEO')));
       await tester.pumpAndSettle();
+      expect(service('consult-general-video'), findsOneWidget);
+      expect(service('consult-urgent-video'), findsOneWidget);
+      expect(service('consult-budget-friendly'), findsNothing);
 
-      expect(find.text('General Consultation (Video)'), findsOneWidget);
-      expect(find.text('Urgent Consultation (Video)'), findsOneWidget);
-      expect(find.text('Budget Friendly Consultation'), findsNothing);
-
-      // Filter by Audio / Voice
-      await tester.tap(find.text('Voice'));
+      await tester.tap(find.byKey(const ValueKey('consult_filter_AUDIO')));
       await tester.pumpAndSettle();
+      expect(service('consult-budget-friendly'), findsOneWidget);
+      expect(service('consult-general-audio'), findsOneWidget);
+      expect(service('consult-general-video'), findsNothing);
 
-      expect(find.text('Budget Friendly Consultation'), findsOneWidget);
-      expect(find.text('General Consultation (Audio)'), findsOneWidget);
-      expect(find.text('General Consultation (Video)'), findsNothing);
-
-      // Filter by Urgent
-      await tester.tap(find.text('Urgent'));
+      await tester.tap(find.byKey(const ValueKey('consult_filter_IN_PERSON')));
       await tester.pumpAndSettle();
+      expect(service('consult-in-person-delhi'), findsOneWidget);
+      expect(service('consult-budget-friendly'), findsNothing);
 
-      expect(find.text('Urgent Consultation (Video)'), findsOneWidget);
-      expect(find.text('Budget Friendly Consultation'), findsNothing);
-
-      // Restore All
-      await tester.tap(find.text('All'));
+      await tester.tap(find.byKey(const ValueKey('consult_filter_ALL')));
       await tester.pumpAndSettle();
-
-      expect(find.text('Budget Friendly Consultation'), findsOneWidget);
-      expect(find.text('General Consultation (Video)'), findsOneWidget);
+      expect(service('consult-budget-friendly'), findsOneWidget);
+      expect(service('consult-general-video'), findsOneWidget);
     });
 
     testWidgets('BookingFlowSheet validates date, slot, profile, and shows 18% inclusive GST breakdown',
@@ -403,25 +432,36 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Check Offering Title & Duration
+      // Check Offering Title & Duration (header stays visible on every step)
       expect(find.text('General Consultation (Video)'), findsOneWidget);
       expect(find.text('30 mins • ONLINE VIDEO'), findsOneWidget);
       expect(find.text('₹15000'), findsOneWidget);
 
-      // Check Profile Chips
-      expect(find.text('Proceed as Self'), findsOneWidget);
-      expect(find.text('Rahul Sharma'), findsOneWidget);
-
-      // Check Date & Timezone notice
+      // Step 1 of 3: Date, timezone notice and slots
+      expect(find.text('Step 1 of 3'), findsOneWidget);
       expect(find.text('Select Date'), findsOneWidget);
       expect(find.text('7 days notice'), findsOneWidget);
       expect(find.text('All times are in Indian Standard Time (IST / UTC+05:30)'), findsOneWidget);
-
-      // Check Slots
       expect(find.text('Select Time Slot'), findsOneWidget);
       expect(find.text('10:00 - 10:30 IST'), findsOneWidget);
 
-      // Check Confidential Reassurance
+      // Next is locked until a slot is chosen
+      final nextBtn = find.byKey(const ValueKey('booking_next'));
+      expect(tester.widget<ElevatedButton>(nextBtn).onPressed, isNull);
+
+      // Slot is available, tap it
+      await tester.tap(find.text('10:00 - 10:30 IST'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<ElevatedButton>(nextBtn).onPressed, isNotNull);
+
+      await tester.tap(nextBtn);
+      await tester.pumpAndSettle();
+
+      // Step 2 of 3: Profile choices and confidential reassurance
+      expect(find.text('Step 2 of 3'), findsOneWidget);
+      expect(find.text('Select Birth Profile'), findsOneWidget);
+      expect(find.text('Proceed as Self'), findsOneWidget);
+      expect(find.text('Rahul Sharma'), findsOneWidget);
       expect(
         find.text(
           'Your birth details and life questions are strictly confidential, shared only with Astro Sushil.',
@@ -429,19 +469,25 @@ void main() {
         findsOneWidget,
       );
 
-      // Check Price & 18% Inclusive GST Breakdown: ₹15,000 Total, ₹12,712 Base, ₹2,288 GST
+      await tester.tap(find.byKey(const ValueKey('booking_next')));
+      await tester.pumpAndSettle();
+
+      // Step 3 of 3: Price & 18% Inclusive GST Breakdown: ₹15,000 Total, ₹12,712 Base, ₹2,288 GST
+      expect(find.text('Step 3 of 3'), findsOneWidget);
       expect(find.text('Base Consultation Fee'), findsOneWidget);
       expect(find.text('₹12,712'), findsOneWidget);
       expect(find.text('GST (18% Included)'), findsOneWidget);
       expect(find.text('₹2,288'), findsOneWidget);
       expect(find.text('Total Amount'), findsOneWidget);
-
-      // Slot is available, tap it
-      await tester.tap(find.text('10:00 - 10:30 IST'));
-      await tester.pumpAndSettle();
+      expect(find.text('₹15,000'), findsOneWidget);
 
       // Action button active
       expect(find.text('Proceed to Pay ₹15000'), findsOneWidget);
+
+      // Back returns to the previous step
+      await tester.tap(find.byKey(const ValueKey('booking_back')));
+      await tester.pumpAndSettle();
+      expect(find.text('Step 2 of 3'), findsOneWidget);
     });
 
     testWidgets('Duplicate submission prevention locks button with active spinner during booking',
@@ -468,8 +514,12 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Pick slot
+      // Pick slot, then step through details to review
       await tester.tap(find.text('10:00 - 10:30 IST'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('booking_next')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('booking_next')));
       await tester.pumpAndSettle();
 
       // Tap Proceed to Pay
@@ -483,163 +533,143 @@ void main() {
       expect(find.text('https://meet.jit.si/astrosushil-BK-CONF-88'), findsOneWidget);
     });
 
-    testWidgets('My Appointments tab displays bookings, status badges, and authorized meeting links',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
 
+    testWidgets('My Appointments shows upcoming bookings with date, time, status and actions',
+        (tester) async {
+      tall(tester);
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pumpAndSettle();
 
-      // Switch to My Appointments Tab
-      await tester.tap(find.text('My Appointments'));
-      await tester.pumpAndSettle();
+      // Opens on My bookings: the user has upcoming bookings.
+      final selected = tester.widget<AstroSegmentedControl<ConsultTab>>(find.byKey(const ValueKey('consult_tabs')));
+      expect(selected.selected, ConsultTab.bookings);
+      expect(find.text('Book Now'), findsNothing);
 
-      // Check status filter chips
-      expect(find.text('All (2)'), findsOneWidget);
-      expect(find.text('Upcoming (1)'), findsOneWidget);
-      expect(find.text('Pending (1)'), findsOneWidget);
-
-      // Check confirmed booking item
-      expect(find.text('BK-TEST-1'), findsOneWidget);
+      // Confirmed booking
+      expect(find.text('Ref: BK-TEST-1'), findsOneWidget);
       expect(find.text('Confirmed'), findsOneWidget);
-      expect(find.text('General Consultation (Video)'), findsOneWidget);
-      expect(find.text('2026-10-26  •  10:00 - 10:30 IST'), findsOneWidget);
-      expect(find.text('Query: Career promotion timing in 2026'), findsOneWidget);
+      expect(find.text('Mon, 26 Oct 2026'), findsOneWidget);
+      expect(find.text('10:00 – 10:30 IST'), findsOneWidget);
+      expect(find.text('Career promotion timing in 2026'), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_join_bk-123')), findsOneWidget);
       expect(find.text('Join Live Session'), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_reschedule_bk-123')), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_cancel_bk-123')), findsOneWidget);
 
-      // Check pending payment booking item
-      expect(find.text('BK-TEST-2'), findsOneWidget);
+      // Pending-payment booking: no Join / Reschedule, but can be cancelled.
+      expect(find.text('Ref: BK-TEST-2'), findsOneWidget);
       expect(find.text('Pending Payment'), findsOneWidget);
+      expect(find.text('Wed, 28 Oct 2026'), findsOneWidget);
+      expect(find.text('Payment is not complete yet.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_join_bk-124')), findsNothing);
+      expect(find.byKey(const ValueKey('consult_reschedule_bk-124')), findsNothing);
+      expect(find.byKey(const ValueKey('consult_cancel_bk-124')), findsOneWidget);
 
-      // Filter by Pending
-      await tester.tap(find.text('Pending (1)'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('BK-TEST-2'), findsOneWidget);
-      expect(find.text('BK-TEST-1'), findsNothing);
+      // No past bookings, so no expander.
+      expect(find.byKey(const ValueKey('consult_past_bookings')), findsNothing);
     });
 
-    testWidgets('Cancellation confirmation dialog triggers properly from booking card',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
+    testWidgets('Cancel asks for confirmation and reports the result', (tester) async {
+      tall(tester);
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pumpAndSettle();
 
-      // Switch to My Appointments Tab
-      await tester.tap(find.text('My Appointments'));
+      await tester.tap(find.byKey(const ValueKey('consult_cancel_bk-123')));
       await tester.pumpAndSettle();
 
-      // Tap Cancel Appointment button on first card
-      expect(find.text('Cancel Appointment'), findsAtLeastNWidgets(1));
-      await tester.tap(find.text('Cancel Appointment').first);
-      await tester.pumpAndSettle();
-
-      // Verify cancellation confirmation modal
-      expect(
-        find.textContaining('Are you sure you want to cancel booking BK-TEST-1?'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Are you sure you want to cancel booking BK-TEST-1?'), findsOneWidget);
       expect(find.text('Keep Appointment'), findsOneWidget);
       expect(find.text('Yes, Cancel'), findsOneWidget);
 
-      // Tap Keep Appointment to dismiss
       await tester.tap(find.text('Keep Appointment'));
       await tester.pumpAndSettle();
-
       expect(find.text('Keep Appointment'), findsNothing);
+
+      // Bug fix: confirming used to give no feedback at all.
+      await tester.tap(find.byKey(const ValueKey('consult_cancel_bk-123')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yes, Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Appointment cancelled.'), findsOneWidget);
     });
 
-    testWidgets('Empty bookings view renders cosmic illustration and direct navigation button',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
+    testWidgets('Empty bookings shows a calm empty message', (tester) async {
+      tall(tester);
       final emptyService = MockConsultationService(myBookings: const []);
-      await tester.pumpWidget(buildAppWrapper(
-        child: const ConsultScreen(),
-        service: emptyService,
-      ));
+      await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen(), service: emptyService));
       await tester.pumpAndSettle();
 
-      // Switch to My Appointments Tab
-      await tester.tap(find.text('My Appointments'));
+      // No upcoming booking: opens on Book a session.
+      expect(find.text('Book Now'), findsNWidgets(6));
+
+      await openTab(tester, 'My bookings');
+      expect(find.text('No bookings yet'), findsOneWidget);
+      // Booking stays one tap away.
+      await tester.tap(find.byKey(const ValueKey('consult_bookings_empty_book')));
       await tester.pumpAndSettle();
-
-      expect(find.text('No consultation appointments found.'), findsOneWidget);
-      expect(find.text('Book Now'), findsOneWidget);
-
-      // Tapping Book Now switches back to Tab 0
-      await tester.tap(find.text('Book Now'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('1-ON-1 GUIDANCE'), findsOneWidget);
+      expect(find.text('Book Now'), findsNWidgets(6));
     });
 
-    testWidgets('Responsive layouts render across 320, 360, 390, and 414 dp viewports without overflow',
+    testWidgets('Responsive layouts render across phone, tablet and landscape without overflow',
         (tester) async {
-      const viewports = [320.0, 360.0, 390.0, 414.0];
+      const sizes = [Size(320, 568), Size(360, 640), Size(390, 844), Size(414, 896), Size(1024, 1366), Size(640, 360)];
 
-      for (final width in viewports) {
-        tester.view.physicalSize = Size(width, 800);
+      for (final size in sizes) {
+        tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1.0;
 
         await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
         await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull,
-            reason: 'RenderFlex overflow detected at ${width}dp viewport');
+        expect(tester.takeException(), isNull, reason: 'Layout exception at $size');
       }
       tester.view.resetPhysicalSize();
     });
 
-    testWidgets('Hindi localization renders properly without overflow across discovery and booking',
-        (tester) async {
+    testWidgets('Content width is capped on tablets', (tester) async {
+      tall(tester, 1280, 2000);
+      await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
+      await tester.pumpAndSettle();
+      await openTab(tester, 'Book a session');
+
+      final card = find.ancestor(of: find.text('Budget Friendly Consultation'), matching: find.byType(Container)).last;
+      expect(tester.getSize(card).width, lessThanOrEqualTo(720));
+    });
+
+    testWidgets('Hindi localization renders properly without overflow', (tester) async {
       tester.view.physicalSize = const Size(414, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(buildAppWrapper(
-        child: const ConsultScreen(),
-        locale: const Locale('hi'),
-      ));
+      await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen(), locale: const Locale('hi')));
       await tester.pumpAndSettle();
+      expect(find.text('मेरी बुकिंग'), findsOneWidget);
+      await openTab(tester, 'मुलाकात बुक करें');
 
-      // Check Hindi texts
-      expect(find.text('सुशील जी से परामर्श'), findsAtLeastNWidgets(1));
-      expect(find.text('परामर्श प्रक्रिया'), findsOneWidget);
+      expect(find.text('सुशील जी से परामर्श'), findsOneWidget);
       expect(find.text('सभी'), findsOneWidget);
-      expect(find.text('वीडियो'), findsOneWidget);
-      expect(find.text('ऑडियो'), findsOneWidget);
+      expect(find.text('वीडियो कॉल'), findsOneWidget);
+      expect(find.text('फ़ोन कॉल'), findsOneWidget);
       expect(find.text('अभी बुक करें'), findsAtLeastNWidgets(1));
-
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Dynamic text scaling (1.5x) renders without overflow', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      await tester.pumpWidget(
-        MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(1.5)),
-          child: buildAppWrapper(child: const ConsultScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final ex = tester.takeException();
-      if (ex != null) {
-        debugPrint('Dynamic scaling exception: $ex');
-      }
-      expect(ex, isNull,
-          reason: 'RenderFlex overflow under 1.5x dynamic text scaling');
-    });
+    for (final scale in [1.3, 2.0]) {
+      testWidgets('Dynamic text scaling (${scale}x) renders without overflow at 320 and 390', (tester) async {
+        for (final w in [320.0, 390.0]) {
+          tester.view.physicalSize = Size(w, 2400);
+          tester.view.devicePixelRatio = 1.0;
+          await tester.pumpWidget(
+            MediaQuery(
+              data: MediaQueryData(size: Size(w, 2400), textScaler: TextScaler.linear(scale)),
+              child: buildAppWrapper(child: const ConsultScreen()),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: 'Overflow at ${w}dp, ${scale}x text');
+        }
+        tester.view.resetPhysicalSize();
+      });
+    }
   });
 }

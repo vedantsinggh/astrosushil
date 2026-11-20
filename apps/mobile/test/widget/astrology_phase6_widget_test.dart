@@ -285,6 +285,10 @@ void main() {
 
       // Moon Comparison Card
       expect(find.text('Moon Placement Comparison'), findsOneWidget);
+      // Moon comparison is collapsed under an expander: open it.
+      await tester.ensureVisible(find.text('Moon Placement Comparison'));
+      await tester.tap(find.text('Moon Placement Comparison'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Aarav Sharma vs Diya Patel'), findsOneWidget);
       expect(find.textContaining('Rohini'), findsOneWidget);
       expect(find.textContaining('Swati'), findsOneWidget);
@@ -365,5 +369,31 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
     });
+
+    testWidgets('profile picker opens as the adaptive sheet and selects a profile (iOS + Android)', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(createTestWidget(personA: testProfileA, personB: null));
+      await tester.pumpAndSettle();
+
+      // Large collapsing title from the shared AstroPage.
+      expect(find.text('Kundli Matchmaking (Guna Milan)'), findsOneWidget);
+
+      await tester.tap(find.text('Select Profile'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select Saved Profile'), findsOneWidget);
+      expect(find.text('Add New Birth Profile'), findsOneWidget);
+
+      // Aarav appears on the page card and in the sheet; tap the sheet row.
+      await tester.tap(find.text('Aarav Sharma').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Select Saved Profile'), findsNothing);
+    }, variant: const TargetPlatformVariant(<TargetPlatform>{TargetPlatform.iOS, TargetPlatform.android}));
   });
 }

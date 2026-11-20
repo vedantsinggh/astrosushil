@@ -61,18 +61,10 @@ class SushilExplanationModel {
 
     return SushilExplanationModel(
       headline: json['headline'] as String? ?? (isHindi ? '$screenTitle विश्लेषण' : '$screenTitle Breakdown'),
-      message: (json['message'] as String? ?? (isHindi ? 'सुशील सर ने आपके चार्ट का विश्लेषण किया है।' : 'Sushil Sir has analyzed your chart placements.')).replaceAll(r'\n', '\n'),
-      keyPoints: keyPoints.isNotEmpty
-          ? keyPoints
-          : (isHindi
-              ? [
-                  'गणना की गई वैदिक कुंडली पर आधारित।',
-                  'इस स्क्रीन के मुख्य ग्रहों के प्रभाव को समझें।',
-                ]
-              : [
-                  'Placements reflect your calculated Vedic chart.',
-                  'Review the core planetary influences on this screen.',
-                ]),
+      // The repository rejects responses without a message; no generic filler is invented here.
+      message: (json['message'] as String? ?? '').replaceAll(r'\n', '\n'),
+      // Only key points produced for this screen are shown; the sheet hides the section when empty.
+      keyPoints: keyPoints,
       disclaimer: json['disclaimer'] as String? ?? (isHindi ? 'गणना किए गए कुंडली डेटा पर आधारित एआई सुशील सर व्याख्या।' : 'AI Sushil Sir interpretation based on calculated chart data.'),
       feature: feature,
       screenTitle: screenTitle,

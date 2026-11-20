@@ -15,8 +15,11 @@ import { calculateCombustion } from '../planets/combustion';
 import { getAspectedSigns } from '../planets/planetary-aspects';
 import { KakshaCalculator } from './kaksha-calculator';
 import { TransitIngressSolver } from './transit-ingress.solver';
+import { evaluateGocharaVedha, getGocharaTable, NodeGocharaModel } from './gochara-vedha';
 import {
   GocharaKakshaDetail,
+  MajorTransitDetail,
+  MajorTransitsSummary,
   TransitAscendant,
   TransitAshtakavargaDetail,
   TransitAspectDetail,
@@ -384,6 +387,42 @@ export class TransitCalculator {
       }
     }
 
+    // 8. Gochara Vedha (Phaladeepika ch. 26) and Jupiter / Saturn summary from the natal Moon
+    const nodeModel: NodeGocharaModel = 'AS_SATURN';
+    const housesFromMoon: Partial<Record<PlanetSymbol, number>> = {};
+    for (const rel of transitToMoon) housesFromMoon[rel.transitPlanet] = rel.houseFromMoon;
+    for (const rel of transitToMoon) {
+      rel.vedha = evaluateGocharaVedha(rel.transitPlanet, housesFromMoon, nodeModel);
+    }
+
+    const majorDetail = (planet: PlanetSymbol): MajorTransitDetail => {
+      const rel = transitToMoon.find((r) => r.transitPlanet === planet)!;
+      const table = getGocharaTable(planet, nodeModel) || {};
+      return {
+        planet,
+        transitSignIndex: rel.transitSignIndex,
+        transitSignName: rel.transitSignName,
+        houseFromMoon: rel.houseFromMoon,
+        favourableHousesFromMoon: Object.keys(table).map(Number).sort((a, b) => a - b),
+        isFavourableHouse: rel.vedha?.isFavourableHouse ?? false,
+        isVedhaObstructed: rel.vedha?.isObstructed ?? false,
+        obstructingPlanets: rel.vedha?.obstructingPlanets ?? [],
+      };
+    };
+    let majorTransits: MajorTransitsSummary | undefined;
+    if (transitToMoon.some((r) => r.transitPlanet === PlanetSymbol.JUPITER) &&
+        transitToMoon.some((r) => r.transitPlanet === PlanetSymbol.SATURN)) {
+      const jupiter = majorDetail(PlanetSymbol.JUPITER);
+      const saturn = majorDetail(PlanetSymbol.SATURN);
+      majorTransits = {
+        rule: 'Phaladeepika ch. 26: favourable houses counted from the natal Moon sign, with Vedha obstruction',
+        jupiter,
+        saturn,
+        isGuruPeyarchiFavorable: jupiter.isFavourableHouse,
+        isGuruPeyarchiFavorableAfterVedha: jupiter.isFavourableHouse && !jupiter.isVedhaObstructed,
+      };
+    }
+
     return {
       calculationVersion: '0.1.0',
       transitChart,
@@ -394,6 +433,7 @@ export class TransitCalculator {
       ashtakavargaTransit,
       gocharaKakshas,
       vargaTransits,
+      majorTransits,
     };
   }
 

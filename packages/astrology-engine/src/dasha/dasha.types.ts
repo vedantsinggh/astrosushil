@@ -243,40 +243,127 @@ export interface IneligibleDashaResult {
   eligibility: DashaEligibilityResult;
 }
 
-export interface CurrentDashaPeriod {
-  mahadasha: any;
-  antardasha?: any;
-  pratyantardasha?: any;
-  sookshma?: any;
-  prana?: any;
-  level?: number;
-  startDateIso?: string;
-  endDateIso?: string;
-  targetDateIso?: string;
-}
-
-export interface SignDashaPeriod {
-  sign?: string;
-  rashiIndex?: number;
-  signIndex?: number;
-  signName?: string;
-  sanskritName?: string;
-  lord?: any;
+/**
+ * Generic period node used by the Yogini, Chara, Narayana and Kalachakra calculators
+ * (see docs/report-system/decisions/engine-extensions.md).
+ *
+ * Date semantics (identical for all four systems):
+ *  - nominalStartDateIso / nominalEndDateIso: the full theoretical period.
+ *  - startDateIso / endDateIso: the nominal dates, except that a period spanning the birth
+ *    instant starts at birth.
+ *  - durationYears: the portion of the period lived after birth (0 for a pre-birth period).
+ *  - isBeforeBirth: true when the whole period elapsed before birth. Such periods are kept
+ *    only so that every parent lists its complete classical sequence of sub-periods.
+ */
+export interface ExtendedDashaPeriodBase {
+  level: number;                  // 1 = Mahadasha, 2 = Antardasha, 3 = Pratyantardasha
+  order: number;                  // 1-indexed order within the parent
+  lord: PlanetSymbol;
   startDateIso: string;
   endDateIso: string;
   durationYears: number;
+  nominalYears: number;
+  nominalStartDateIso: string;
+  nominalEndDateIso: string;
+  isBirthDasha: boolean;
+  isBeforeBirth: boolean;
+  isActive?: boolean;
+}
+
+export interface CurrentDashaPeriodSummary {
+  level: number;
+  lord: PlanetSymbol;
+  label: string;                  // Yogini name or sign name
+  signIndex?: number;
+  signName?: string;
+  startDateIso: string;
+  endDateIso: string;
+  nominalYears: number;
+}
+
+export interface CurrentDashaPeriod {
+  targetDateIso: string;
+  mahadasha: CurrentDashaPeriodSummary;
+  antardasha?: CurrentDashaPeriodSummary;
+  pratyantardasha?: CurrentDashaPeriodSummary;
+  path: string[];
+  description: string;
+}
+
+/** Evidence for how a Jaimini sign-dasha length was obtained (auditable). */
+export interface SignDashaYearsEvidence {
+  lordUsed: PlanetSymbol;
+  coLords: PlanetSymbol[];
+  coLordSelectionReason?: string;
+  lordSignIndex: number;
+  countingDirection: 'FORWARD' | 'REVERSE';
+  countInclusive: number;         // Inclusive count from dasha sign to lord's sign (1..12)
+  baseYears: number;              // countInclusive - 1, or 12 when the lord occupies the sign
+  adjustment: number;             // +1 exalted, -1 debilitated, 0 otherwise
+  adjustmentReason?: string;
+  flooredAtOne?: boolean;         // True when a debilitation adjustment would have produced 0
+  cycle: number;                  // 1 = first cycle; 2 = second cycle (12 - first-cycle years)
+  years: number;
+}
+
+export interface SignDashaPeriod extends ExtendedDashaPeriodBase {
+  signIndex: number;              // 1..12
+  rashiIndex: number;             // alias of signIndex for consistency with Sthira/Shoola
+  signName: string;               // English name
+  sanskritName: string;
+  yearsEvidence?: SignDashaYearsEvidence; // present on Mahadashas only
   subPeriods?: SignDashaPeriod[];
 }
 
+export type SignDashaDirection = 'FORWARD' | 'REVERSE';
+
 export interface CharaDashaTree {
-  system?: string;
-  startingSign?: any;
-  startingSignName?: string;
-  direction?: string;
-  currentPeriod?: any;
-  lagnaRashiIndex?: number;
-  mahadashas?: SignDashaPeriod[];
-  periods?: SignDashaPeriod[];
+  dashaSystem: 'CHARA';
+  system: 'CHARA';
+  method: 'KN_RAO';
+  basis: 'RASHI';
+  lagnaRashiIndex: number;
+  startingSign: number;           // 1..12 (Lagna sign)
+  startingSignName: string;
+  ninthFromLagnaSignIndex: number;
+  direction: SignDashaDirection;
+  directionReason: string;
+  totalCycleYears: number;        // Sum of the generated first-cycle Mahadashas
+  cycles: number;
+  balanceAtBirthYears: number;    // Jaimini sign dashas run full from birth: equals first period
+  periods: SignDashaPeriod[];
+  mahadashas: SignDashaPeriod[];
+  currentPeriod?: CurrentDashaPeriod;
+}
+
+export type NarayanaProgressionType = 'MOVABLE_REGULAR' | 'FIXED_SIXTH' | 'DUAL_TRINE';
+
+export interface NarayanaStartingSignEvidence {
+  lagnaSignIndex: number;
+  seventhSignIndex: number;
+  chosen: 1 | 7;
+  decidingRule: string;
+  lagnaScore: Record<string, number>;
+  seventhScore: Record<string, number>;
+}
+
+export interface NarayanaDashaTree {
+  dashaSystem: 'NARAYANA';
+  system: 'NARAYANA';
+  basis: 'RASHI';
+  lagnaRashiIndex: number;
+  startingSign: number;
+  startingSignName: string;
+  startingSignEvidence: NarayanaStartingSignEvidence;
+  progressionType: NarayanaProgressionType;
+  direction: SignDashaDirection;
+  directionReason: string;
+  totalCycleYears: number;
+  cycles: number;
+  balanceAtBirthYears: number;
+  periods: SignDashaPeriod[];
+  mahadashas: SignDashaPeriod[];
+  currentPeriod?: CurrentDashaPeriod;
 }
 
 export type ConditionalDashaType =
@@ -300,68 +387,73 @@ export interface ConditionalDashaTree {
   mahadashas?: DashaPeriod[];
 }
 
-export interface KalachakraDashaPeriod {
-  sign?: string;
-  rashiIndex?: number;
-  signIndex?: number;
-  signName?: string;
-  sanskritName?: string;
-  navamshaRashiIndex?: number;
+export interface KalachakraSignRef {
+  signIndex: number;
+  signName: string;
+  sanskritName: string;
   lord: PlanetSymbol;
-  startDateIso: string;
-  endDateIso: string;
-  durationYears: number;
-  isDeha?: boolean;
-  isJeeva?: boolean;
-  movementType?: string;
+}
+
+export interface KalachakraDashaPeriod extends ExtendedDashaPeriodBase {
+  signIndex: number;
+  rashiIndex: number;
+  signName: string;
+  sanskritName: string;
+  /** Absolute navamsha-pada index (0..107) whose 9-sign sequence this period belongs to. */
+  sourcePadaIndex: number;
+  sourceNakshatraName: string;
+  sourcePada: number;
+  isDeha: boolean;
+  isJeeva: boolean;
   subPeriods?: KalachakraDashaPeriod[];
 }
 
 export interface KalachakraDashaTree {
-  system?: string;
-  directionType?: string;
-  nakshatraIndex?: number;
-  nakshatraName?: string;
-  pada?: number;
-  totalPadaYears?: number;
-  dehaRashi?: any;
-  jeevaRashi?: any;
-  currentPeriod?: any;
-  moonLongitude?: number;
+  dashaSystem: 'KALACHAKRA';
+  system: 'KALACHAKRA';
+  basis: 'NAKSHATRA_PADA';
+  directionType: 'SAVYA' | 'APASAVYA';
+  moonLongitude: number;
+  nakshatraIndex: number;
+  nakshatraName: string;
+  pada: number;
+  padaIndex: number;              // 0..107
+  padaSequence: KalachakraSignRef[];  // The 9 dasha signs of the birth pada
+  totalPadaYears: number;         // Paramayus of the birth pada (sum of its 9 sign years)
+  dehaRashi: KalachakraSignRef;
+  jeevaRashi: KalachakraSignRef;
+  dehaJeevaConvention: 'APASAVYA_REVERSED' | 'SAME_AS_SAVYA';
+  elapsedInPadaYears: number;
   balanceAtBirthYears: number;
+  totalCycleYears: number;        // Sum of the generated Mahadashas
   mahadashas: KalachakraDashaPeriod[];
+  currentPeriod?: CurrentDashaPeriod;
 }
 
-export interface NarayanaDashaTree {
-  system?: string;
-  startingSign?: any;
-  startingSignName?: string;
-  direction?: string;
-  progressionType?: string;
-  currentPeriod?: any;
-  lagnaRashiIndex?: number;
-  mahadashas?: SignDashaPeriod[];
-  periods?: SignDashaPeriod[];
-}
-
-export interface YoginiDashaPeriod {
+export interface YoginiDashaPeriod extends ExtendedDashaPeriodBase {
   yoginiName: string;
-  lord: PlanetSymbol;
-  startDateIso: string;
-  endDateIso: string;
-  durationYears: number;
+  yoginiNumber: number;           // 1..8 (= nominal years)
   subPeriods?: YoginiDashaPeriod[];
 }
 
 export interface YoginiDashaTree {
-  system?: string;
-  totalCycleYears?: number;
-  startingYogini?: string;
-  startingLord?: any;
-  currentPeriod?: any;
+  dashaSystem: 'YOGINI';
+  system: 'YOGINI';
+  basis: 'NAKSHATRA';
+  totalCycleYears: 36;
+  moonLongitude: number;
   moonNakshatraIndex: number;
+  moonNakshatraName: string;
+  moonPada: number;
+  startingYogini: string;
+  startingYoginiNumber: number;
+  startingLord: PlanetSymbol;
+  nodeLordConvention: 'SANKATA_RAHU';
   balanceAtBirthYears: number;
+  elapsedAtBirthYears: number;
+  cycles: number;
   mahadashas: YoginiDashaPeriod[];
+  currentPeriod?: CurrentDashaPeriod;
 }
 
 export type DashaTree =

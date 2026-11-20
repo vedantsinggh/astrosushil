@@ -2,11 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/astro_button.dart';
-import '../../../shared/widgets/astro_loader/astro_loader.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../providers/career_report_provider.dart';
+import '../widgets/report_ui.dart';
 
 class CareerReportPdfScreen extends ConsumerStatefulWidget {
   final String reportId;
@@ -30,7 +28,10 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPdf();
+    // Load after the first frame so provider updates never happen mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadPdf();
+    });
   }
 
   Future<void> _loadPdf() async {
@@ -39,9 +40,7 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
       _error = null;
     });
 
-    final bytes = await ref
-        .read(careerReportNotifierProvider.notifier)
-        .downloadAndCachePdf(widget.reportId);
+    final bytes = await ref.read(careerReportNotifierProvider.notifier).downloadAndCachePdf(widget.reportId);
 
     if (mounted) {
       if (bytes != null) {
@@ -53,8 +52,7 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
         final state = ref.read(careerReportNotifierProvider);
         setState(() {
           _isLoading = false;
-          _error = state.errorMessage ??
-              'Unable to load PDF report. Please check your internet connection.';
+          _error = state.errorMessage ?? 'Unable to load PDF report. Please check your internet connection.';
         });
       }
     }
@@ -66,70 +64,67 @@ class _CareerReportPdfScreenState extends ConsumerState<CareerReportPdfScreen> {
     final filename = 'astro-sushil-career-report-$sanitizedName.pdf';
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: 'Career Report - ${widget.clientName}',
-        actions: [
-          if (_pdfBytes != null)
-            IconButton(
-              icon: const Icon(Icons.share_rounded, color: AppColors.primary),
-              tooltip: 'Share PDF',
-              onPressed: () {
-                Printing.sharePdf(bytes: _pdfBytes!, filename: filename);
-              },
-            ),
-        ],
+      backgroundColor: AppColors.backgroundMidnight,
+      appBar: const AstroNavBar(
+        title: 'Your report',
+        style: AstroNavBarStyle.hero,
       ),
-      body: _isLoading
-          ? const Center(
-              child: AstroLoader.card(
-                message: 'Opening PDF dossier...',
+      bottomNavigationBar: _pdfBytes != null && !_isLoading && _error == null
+          ? ReportPdfActionBar(
+              onShare: () => Printing.sharePdf(bytes: _pdfBytes!, filename: filename),
+              onPrint: () => Printing.layoutPdf(
+                onLayout: (_) async => _pdfBytes!,
+                name: filename,
               ),
             )
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.wifi_off_rounded,
-                          size: 48,
-                          color: AppColors.lightTextMuted,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.lightTextSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        AstroButton(
-                          label: 'Retry',
-                          variant: AstroButtonVariant.primary,
-                          onPressed: _loadPdf,
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : PdfPreview(
+          : null,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Keep the header to one line when vertical space is short.
+          final compact = constraints.maxHeight < 420;
+          return Column(
+            children: [
+              ReportPdfHeader(
+                title: 'Career Report',
+                clientName: widget.clientName,
+                compact: compact,
+              ),
+              Expanded(child: _buildBody(filename)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody(String filename) {
+    return _isLoading
+        ? const ReportLoading(message: 'Opening your report...', onDark: true)
+        : _error != null
+            ? ReportStatusMessage(
+                onDark: true,
+                icon: Icons.wifi_off_rounded,
+                iconColor: AppColors.secondary,
+                title: 'We couldn\'t open your report',
+                message: _error!,
+                actionLabel: 'Try again',
+                actionIcon: Icons.refresh_rounded,
+                onAction: _loadPdf,
+              )
+            : Theme(
+                data: ThemeData.light(),
+                child: PdfPreview(
                   build: (format) async => _pdfBytes!,
                   dynamicLayout: false,
                   canChangePageFormat: false,
-                  allowPrinting: true,
-                  allowSharing: true,
+                  allowPrinting: false,
+                  allowSharing: false,
+                  useActions: false,
                   canChangeOrientation: false,
                   maxPageWidth: 700,
                   pdfFileName: filename,
-                  loadingWidget: const AstroLoader.card(
-                    message: 'Rendering pages...',
-                  ),
+                  loadingWidget: const ReportLoading(message: 'Loading pages...'),
                 ),
-    );
+              );
   }
 }

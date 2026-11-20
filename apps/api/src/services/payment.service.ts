@@ -21,6 +21,7 @@ export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
   RAHU_KETU_TRANSIT: 0,
   VARSHPHAL: 0,
   FORTUNE_PLUS: 0,
+  BABY_NAME: 0,
 };
 
 export interface RazorpayOrderResult {

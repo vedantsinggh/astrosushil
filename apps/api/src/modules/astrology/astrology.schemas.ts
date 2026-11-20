@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PRASHNA_QUESTION_DOMAINS, PrashnaQuestionDomain } from '@astro/astrology-engine';
 
 export const directBirthDetailsSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -55,6 +56,10 @@ export const DASHA_SYSTEMS_ENUM = [
   'CHATURASEETI_SAMA',
   'DWADASHOTTARI',
   'PANCHOTTARI',
+  'YOGINI',
+  'CHARA',
+  'NARAYANA',
+  'KALACHAKRA',
 ] as const;
 
 export const dashaRequestSchema = z.object({
@@ -68,12 +73,34 @@ export const dashaRequestSchema = z.object({
   message: 'Either birthProfileId or birthDetails must be provided',
 });
 
+// POST /dashas/{yogini|chara|narayana|kalachakra}
+export const ADDITIONAL_DASHA_ROUTES = {
+  yogini: 'YOGINI',
+  chara: 'CHARA',
+  narayana: 'NARAYANA',
+  kalachakra: 'KALACHAKRA',
+} as const;
+
+export const additionalDashaRequestSchema = z.object({
+  birthProfileId: z.string().uuid().optional(),
+  birthDetails: directBirthDetailsSchema.optional(),
+  maxLevel: z.number().int().min(1).max(3).optional(),
+  targetDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'targetDate must be a valid ISO 8601 date-time string',
+  }).optional(),
+  // Yogini: number of 36-year cycles (1-4). Chara / Narayana: 1 or 2 (second cycle = 12 - first). Ignored by Kalachakra.
+  cycles: z.number().int().min(1).max(4).optional(),
+}).refine(data => data.birthProfileId || data.birthDetails, {
+  message: 'Either birthProfileId or birthDetails must be provided',
+});
+
 export const panchangRequestSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dateOfBirth must be YYYY-MM-DD'),
   timeOfBirth: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'timeOfBirth must be HH:mm or HH:mm:ss').optional().default('12:00:00'),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  timezone: z.string().min(1).optional().default('UTC'),
+  // Required: defaulting to UTC would silently shift every Panchang element for non-UTC places.
+  timezone: z.string().min(1, 'timezone is required'),
 });
 
 export const vargasRequestSchema = z.object({
@@ -155,6 +182,7 @@ export const prashnaRequestSchema = z.object({
   questionNumber: z.number().int().min(1).max(249, 'questionNumber must be between 1 and 249').optional(),
   questionNumberSystem: z.enum(['PARASHARI_1_108', 'KP_1_249', 'AUTO']).optional(),
   questionText: z.string().max(1000).optional(),
+  questionDomain: z.enum(PRASHNA_QUESTION_DOMAINS as [PrashnaQuestionDomain, ...PrashnaQuestionDomain[]]).optional(),
 });
 
 export const gocharaLocationSchema = z.object({
@@ -272,6 +300,13 @@ export const vimshopakaRequestSchema = z.object({
   message: 'Either birthProfileId or birthDetails must be provided',
 });
 
+export const planetaryIntelligenceRequestSchema = z.object({
+  birthProfileId: z.string().uuid().optional(),
+  birthDetails: directBirthDetailsSchema.optional(),
+}).refine(data => data.birthProfileId || data.birthDetails, {
+  message: 'Either birthProfileId or birthDetails must be provided',
+});
+
 
 export type DirectBirthDetailsInput = z.infer<typeof directBirthDetailsSchema>;
 export type CalculateChartInput = z.input<typeof calculateChartSchema>;
@@ -285,6 +320,7 @@ export type CompatibilityRequestInput = z.infer<typeof compatibilityRequestSchem
 export type StrengthRequestInput = z.infer<typeof strengthRequestSchema>;
 export type AshtakavargaRequestInput = z.infer<typeof ashtakavargaRequestSchema>;
 export type VarshaphalaRequestInput = z.infer<typeof varshaphalaRequestSchema>;
+export type AdditionalDashaRequestInput = z.infer<typeof additionalDashaRequestSchema>;
 export type PrashnaRequestInput = z.infer<typeof prashnaRequestSchema>;
 export type GocharaRequestInput = z.infer<typeof gocharaRequestSchema>;
 export type GocharaTimelineRequestInput = z.infer<typeof gocharaTimelineRequestSchema>;
@@ -296,3 +332,4 @@ export type SadeSatiRequestInput = z.infer<typeof sadeSatiRequestSchema>;
 export type ChartVariantsRequestInput = z.infer<typeof chartVariantsRequestSchema>;
 export type AvakhadaRequestInput = z.infer<typeof avakhadaRequestSchema>;
 export type VimshopakaRequestInput = z.infer<typeof vimshopakaRequestSchema>;
+export type PlanetaryIntelligenceRequestInput = z.infer<typeof planetaryIntelligenceRequestSchema>;

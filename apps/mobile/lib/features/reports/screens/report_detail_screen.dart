@@ -3,10 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_required_gate.dart';
 import '../../../core/auth/feature_access_service.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/astro_card.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -14,6 +11,7 @@ import '../models/user_report_item_model.dart';
 import '../models/report_purchase_models.dart';
 import '../services/razorpay_checkout_service.dart';
 import '../providers/reports_provider.dart';
+import '../widgets/report_ui.dart';
 import 'report_generation_screen.dart';
 import 'report_pdf_viewer_screen.dart';
 
@@ -73,81 +71,51 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final available = profiles.where((p) => p.id != _selectedProfile.id).toList();
 
     if (available.isEmpty) {
-      showDialog(
+      showAstroConfirm(
         context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.cardSurfaceWarm,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            context.l10n.reportPartnerProfileRequired,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            context.l10n.reportPartnerProfilePrompt,
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondaryDark),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.midnightNavy,
-                foregroundColor: AppColors.cardSurfaceWarm,
-              ),
-              child: const Text('Add Partner Profile'),
-            ),
-          ],
-        ),
-      );
+        title: context.l10n.reportPartnerProfileRequired,
+        message: context.l10n.reportPartnerProfilePrompt,
+        confirmLabel: 'Add Partner Profile',
+      ).then((add) {
+        if (add && mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+          );
+        }
+      });
       return;
     }
 
-    showModalBottomSheet(
+    showAstroSheet<void>(
       context: context,
-      backgroundColor: AppColors.cardSurfaceWarm,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      title: context.l10n.reportPartnerProfileSelect,
+      builder: (sheetCtx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+            child: Text(
+              'Primary Profile: ${_selectedProfile.name}',
+              style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+            ),
+          ),
+          AstroGroupedSection(
             children: [
-              Text(
-                context.l10n.reportPartnerProfileSelect,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Primary Profile: ${_selectedProfile.name}',
-                style: const TextStyle(fontSize: 13, color: AppColors.textMutedDark),
-              ),
-              const Divider(height: 24),
-              ...available.map(
-                (p) => ListTile(
-                  leading: const Icon(Icons.favorite_outline, color: AppColors.accentGold),
-                  title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${p.dateOfBirth} • ${p.placeName}'),
-                  trailing: const Icon(Icons.check_circle_outline, size: 18),
+              for (final p in available)
+                AstroListRow(
+                  icon: Icons.favorite_outline_rounded,
+                  tint: AstroTint.rose,
+                  title: p.name,
+                  subtitle: '${p.dateOfBirth} • ${p.placeName}',
                   onTap: () {
                     setState(() => _selectedPartnerProfile = p);
                     Navigator.of(sheetCtx).pop();
                   },
                 ),
-              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -155,15 +123,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   String _getStepLoadingText(ReportPurchaseStep step) {
     switch (step) {
       case ReportPurchaseStep.creatingOrder:
-        return 'Creating Order...';
+        return 'Starting your order…';
       case ReportPurchaseStep.openingCheckout:
-        return 'Opening Checkout...';
+        return 'Opening payment…';
       case ReportPurchaseStep.verifyingPayment:
-        return 'Verifying Payment...';
+        return 'Checking your payment…';
       case ReportPurchaseStep.generatingReport:
-        return 'Initiating Report...';
+        return 'Starting your report…';
       default:
-        return 'Processing...';
+        return 'Please wait…';
     }
   }
 
@@ -172,16 +140,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     if (_isSubmitting) return;
 
     // 2. Validate input requirements (partner profile for Matchmaking)
-    if (widget.reportType == 'MARRIAGE_COMPATIBILITY' &&
-        _selectedPartnerProfile == null) {
+    if (widget.reportType == 'MARRIAGE_COMPATIBILITY' && _selectedPartnerProfile == null) {
       final profilesState = ref.read(birthProfilesListNotifierProvider);
       _onSelectPartnerProfile(profilesState.profiles);
       return;
     }
 
     // 3. Reject unsupported SKUs client-side
-    if (widget.reportType == 'CHILDBIRTH_FAMILY' ||
-        widget.reportType == 'GUPTA_NADI_DOSSIER') {
+    if (widget.reportType == 'CHILDBIRTH_FAMILY' || widget.reportType == 'GUPTA_NADI_DOSSIER') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('This report edition is coming soon and cannot be purchased yet.'),
@@ -413,9 +379,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     });
 
     try {
-      final reportId = await ref
-          .read(reportGenerationNotifierProvider.notifier)
-          .createReportJob(
+      final reportId = await ref.read(reportGenerationNotifierProvider.notifier).createReportJob(
             birthProfileId: _selectedProfile.id,
             reportType: widget.reportType,
             partnerProfileId: _selectedPartnerProfile?.id,
@@ -442,8 +406,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
             ),
           );
         } else {
-          final err = ref.read(reportGenerationNotifierProvider).errorMessage ??
-              'Failed to start report generation.';
+          final err = ref.read(reportGenerationNotifierProvider).errorMessage ?? 'Failed to start report generation.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Payment verified, but report generation initiation failed: $err'),
@@ -499,545 +462,375 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
     final subtotalPaise = (widget.pricePaise / 1.18).round();
     final gstPaise = widget.pricePaise - subtotalPaise;
+    final isRetry = _purchaseStep == ReportPurchaseStep.orderCreationFailed ||
+        _purchaseStep == ReportPurchaseStep.paymentFailed ||
+        _purchaseStep == ReportPurchaseStep.verificationFailed;
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundCream,
-      appBar: AppBar(
-        title: Text(
-          context.l10n.reportDetailTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        backgroundColor: AppColors.cardSurfaceWarm,
-        foregroundColor: AppColors.textPrimaryDark,
-        elevation: 0,
+    return AstroPage(
+      title: context.l10n.reportDetailTitle,
+      bottomBar: _buildActionBar(isRetry),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSummaryCard(),
+          const SizedBox(height: 16),
+
+          // Existing Completed Report Notice
+          if (existingCompletedReport != null) ...[
+            _buildExistingReportCard(existingCompletedReport!),
+            const SizedBox(height: 16),
+          ],
+
+          const SizedBox(height: 8),
+          const ReportStepHeading(step: 1, total: 3, title: 'Who is this report for?'),
+          _buildProfileCard(profiles),
+
+          const SizedBox(height: 28),
+          ReportStepHeading(step: 2, total: 3, title: context.l10n.reportIncludedSections),
+          _buildIncludedSectionsCard(),
+
+          const SizedBox(height: 28),
+          ReportStepHeading(step: 3, total: 3, title: context.l10n.reportPriceBreakdown),
+          _buildPriceCard(subtotalPaise, gstPaise),
+
+          // Error status notice if any
+          if (_purchaseError != null && !_isSubmitting) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.errorBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.errorBorder),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: kReportErrorText, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _purchaseError!,
+                      style: const TextStyle(fontSize: 15, height: 1.4, color: kReportErrorText),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Cosmic Hero Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.heroCosmic,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppColors.cardBorderGold, width: 1.2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x22121440),
-                        blurRadius: 16,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentGold.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(widget.icon, color: AppColors.accentGold, size: 22),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.tagline,
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                    color: AppColors.accentGold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  widget.title,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.cardSurfaceWarm,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentGold,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              widget.priceText,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.midnightNavy,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        widget.description,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          color: AppColors.parchmentMuted,
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.flash_on_rounded, size: 15, color: AppColors.accentGold),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              context.l10n.reportDeliveryInstant,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.accentGold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+    );
+  }
 
-                const SizedBox(height: 20),
-
-                // Existing Completed Report Notice
-                if (existingCompletedReport != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardSurfaceWarm,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.cardBorderGold, width: 1.2),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                context.l10n.reportExistingCompletedNotice(_selectedProfile.name),
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimaryDark,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => ReportPdfViewerScreen(
-                                        reportId: existingCompletedReport!.id,
-                                        reportTitle: widget.title,
-                                        clientName: _selectedProfile.name,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.midnightNavy,
-                                  side: const BorderSide(color: AppColors.midnightNavy),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                                label: Text(context.l10n.reportViewExisting),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _isSubmitting
-                                    ? null
-                                    : () => _handleGenerateReport(forceRegenerate: true),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.midnightNavy,
-                                  foregroundColor: AppColors.cardSurfaceWarm,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.refresh_rounded, size: 16),
-                                label: Text(context.l10n.reportGenerateNew),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // 2. Profile Selection Card
-                AstroCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Primary Birth Profile',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimaryDark,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (profiles.isNotEmpty) ...[
-                          SizedBox(
-                            height: 38,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: profiles.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 8),
-                              itemBuilder: (context, idx) {
-                                final p = profiles[idx];
-                                final isSelected = p.id == _selectedProfile.id;
-                                return ChoiceChip(
-                                  label: Text(p.name),
-                                  selected: isSelected,
-                                  selectedColor: AppColors.midnightNavy,
-                                  backgroundColor: AppColors.cardSurfaceParchment,
-                                  labelStyle: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? Colors.white : AppColors.textPrimaryDark,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(
-                                      color: isSelected ? AppColors.midnightNavy : AppColors.cardBorder,
-                                    ),
-                                  ),
-                                  onSelected: (_) => setState(() => _selectedProfile = p),
-                                );
-                              },
-                            ),
-                          ),
-                        ] else ...[
-                          const Text(
-                            'No profile found. Please create a birth profile.',
-                            style: TextStyle(fontSize: 13, color: AppColors.textMutedDark),
-                          ),
-                        ],
-
-                        // Matchmaking Partner Selector
-                        if (widget.reportType == 'MARRIAGE_COMPATIBILITY') ...[
-                          const SizedBox(height: 16),
-                          const Divider(height: 1),
-                          const SizedBox(height: 14),
-                          Wrap(
-                            alignment: WrapAlignment.spaceBetween,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              const Text(
-                                'Partner Profile',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimaryDark,
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () => _onSelectPartnerProfile(profiles),
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.midnightNavy),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _selectedPartnerProfile == null ? 'Select Partner' : 'Change',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppColors.midnightNavy,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardSurfaceParchment,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.cardBorder),
-                            ),
-                            child: Text(
-                              _selectedPartnerProfile != null
-                                  ? '${_selectedPartnerProfile!.name} (${_selectedPartnerProfile!.dateOfBirth})'
-                                  : 'Select a partner profile to calculate 36-Guna Milan.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: _selectedPartnerProfile != null
-                                    ? AppColors.textPrimaryDark
-                                    : AppColors.textMutedDark,
-                                fontWeight: _selectedPartnerProfile != null
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 3. Included Astrological Sections
-                AstroCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.reportIncludedSections,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimaryDark,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...widget.includedSections.map(
-                          (sec) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10.0),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(
-                                  Icons.check_circle_outline_rounded,
-                                  size: 17,
-                                  color: AppColors.accentGold,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    sec,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondaryDark,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 4. Pricing & Tax Breakdown Card
-                AstroCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.reportPriceBreakdown,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimaryDark,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Base Price', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryDark)),
-                            Text('₹${(subtotalPaise / 100.0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                context.l10n.reportGstIncluded,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondaryDark),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text('₹${(gstPaise / 100.0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                        const Divider(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Total Amount Payable',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.midnightNavy,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              widget.priceText,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.midnightNavy,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // Error status notice if any
-                if (_purchaseError != null && !_isSubmitting) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _purchaseError!,
-                            style: const TextStyle(fontSize: 12.5, color: AppColors.error),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                // 5. Generate / Purchase Action Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    key: const Key('report_purchase_button'),
-                    onPressed: _isSubmitting ? null : () => _handleGenerateReport(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.midnightNavy,
-                      foregroundColor: AppColors.cardSurfaceWarm,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: _isSubmitting
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.cardSurfaceWarm,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                _getStepLoadingText(_purchaseStep),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            _purchaseStep == ReportPurchaseStep.orderCreationFailed ||
-                                    _purchaseStep == ReportPurchaseStep.paymentFailed ||
-                                    _purchaseStep == ReportPurchaseStep.verificationFailed
-                                ? 'Retry Purchase (${widget.priceText})'
-                                : 'Generate ${widget.title} (${widget.priceText})',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-              ],
+  /// Sticky bottom bar holding the single primary purchase action.
+  Widget _buildActionBar(bool isRetry) {
+    final label = _isSubmitting
+        ? _getStepLoadingText(_purchaseStep)
+        : isRetry
+            ? 'Try again · ${widget.priceText}'
+            : 'Get this report · ${widget.priceText}';
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cardSurfaceWarm,
+        border: Border(top: BorderSide(color: AppColors.cardBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: ReportPrimaryButton(
+                buttonKey: const Key('report_purchase_button'),
+                label: label,
+                icon: isRetry ? Icons.refresh_rounded : Icons.arrow_forward_rounded,
+                isLoading: _isSubmitting,
+                onPressed: _isSubmitting ? null : () => _handleGenerateReport(),
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    return AstroGradientCard(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.45)),
+                ),
+                child: Icon(widget.icon, color: AppColors.gold, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        widget.title,
+                        style: AppTypography.displayMedium.copyWith(fontSize: 22, color: Colors.white, height: 1.25),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.tagline,
+                      style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textInverseSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              Text(
+                widget.priceText,
+                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.gold, height: 1.1),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 3),
+                child: Text('one-time price', style: TextStyle(fontSize: 15, color: AppColors.textInverseSecondary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(Icons.bolt_rounded, size: 20, color: AppColors.gold),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  context.l10n.reportDeliveryInstant,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          if (widget.description.isNotEmpty)
+            ReportLearnMore(
+              label: 'About this report',
+              onDark: true,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Text(
+                  widget.description,
+                  style: const TextStyle(fontSize: 16, height: 1.5, color: AppColors.textInverseSecondary),
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExistingReportCard(UserReportItemModel existing) {
+    return ReportCard(
+      borderColor: AppColors.successBorder,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AstroIconSquare(icon: Icons.check_circle_rounded, tint: AstroTint.sage),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  context.l10n.reportExistingCompletedNotice(_selectedProfile.name),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ReportSecondaryButton(
+            label: context.l10n.reportViewExisting,
+            icon: Icons.picture_as_pdf_rounded,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ReportPdfViewerScreen(
+                    reportId: existing.id,
+                    reportTitle: widget.title,
+                    clientName: _selectedProfile.name,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton.icon(
+              onPressed: _isSubmitting ? null : () => _handleGenerateReport(forceRegenerate: true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                minimumSize: const Size(48, 48),
+                textStyle: const TextStyle(
+                    fontFamily: AppTypography.bodyFamily,
+                    fontFamilyFallback: AppTypography.bodyFontFamilies,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600),
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+              label: Text(context.l10n.reportGenerateNew),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard(List<BirthProfileModel> profiles) {
+    const labelStyle = TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textSecondary);
+    return ReportCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Primary Birth Profile', style: labelStyle),
+          const SizedBox(height: 10),
+          if (profiles.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final p in profiles)
+                  AstroPill(
+                    label: p.name,
+                    selected: p.id == _selectedProfile.id,
+                    onTap: () => setState(() => _selectedProfile = p),
+                  ),
+              ],
+            )
+          else
+            const Text(
+              'No profile found. Please create a birth profile.',
+              style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+            ),
+
+          // Matchmaking Partner Selector
+          if (widget.reportType == 'MARRIAGE_COMPATIBILITY') ...[
+            const SizedBox(height: 18),
+            const Divider(height: 1, color: AppColors.cardBorderSubtle),
+            const SizedBox(height: 16),
+            const Text('Partner Profile', style: labelStyle),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceWarm,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Text(
+                _selectedPartnerProfile != null
+                    ? '${_selectedPartnerProfile!.name} (${_selectedPartnerProfile!.dateOfBirth})'
+                    : 'Select a partner profile to calculate 36-Guna Milan.',
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.4,
+                  color: _selectedPartnerProfile != null ? AppColors.textPrimaryDark : AppColors.textSecondary,
+                  fontWeight: _selectedPartnerProfile != null ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ReportSecondaryButton(
+              label: _selectedPartnerProfile == null ? 'Select Partner' : 'Change',
+              icon: _selectedPartnerProfile == null ? Icons.person_add_alt_1_rounded : Icons.swap_horiz_rounded,
+              onPressed: () => _onSelectPartnerProfile(profiles),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncludedSectionsCard() {
+    const visibleCount = 4;
+    final sections = widget.includedSections;
+    final first = sections.take(visibleCount).toList();
+    final rest = sections.skip(visibleCount).toList();
+    return ReportCard(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final sec in first) ReportBullet(sec),
+          if (rest.isNotEmpty)
+            ReportLearnMore(
+              label: 'Show all ${sections.length} sections',
+              expandedLabel: 'Show fewer',
+              child: Column(children: [for (final sec in rest) ReportBullet(sec)]),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceCard(int subtotalPaise, int gstPaise) {
+    const rowLabel = TextStyle(fontSize: 16, color: AppColors.textSecondary);
+    const rowValue = TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
+    Widget row(String label, String value, {TextStyle l = rowLabel, TextStyle v = rowValue}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(label, style: l)),
+            const SizedBox(width: 12),
+            Text(value, style: v),
+          ],
+        ),
+      );
+    }
+
+    return ReportCard(
+      child: Column(
+        children: [
+          row('Base Price', '₹${(subtotalPaise / 100.0).toStringAsFixed(2)}'),
+          row(context.l10n.reportGstIncluded, '₹${(gstPaise / 100.0).toStringAsFixed(2)}'),
+          const Divider(height: 20, color: AppColors.cardBorderSubtle),
+          row(
+            'Total Amount Payable',
+            widget.priceText,
+            l: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.primary),
+            v: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
+          ),
+        ],
       ),
     );
   }

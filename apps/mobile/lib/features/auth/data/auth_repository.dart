@@ -103,6 +103,18 @@ class AuthRepository {
     return user;
   }
 
+  /// Save the signed-in user's full name (PATCH /auth/me). Phone numbers are
+  /// never set here; they are linked through OTP with [linkPhone].
+  Future<UserModel> updateFullName(String fullName) async {
+    final response = await _apiClient.patch(
+      '/auth/me',
+      data: {'fullName': fullName},
+    );
+    final user = UserModel.fromJson(response);
+    await saveUser(user);
+    return user;
+  }
+
   /// Link Google identity to currently authenticated account
   Future<UserModel> linkGoogle(String idToken) async {
     final response = await _apiClient.post(

@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/varshaphala_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
-import '../widgets/astrology_data_table.dart';
+import '../widgets/adv_widgets.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
 import '../widgets/astrology_explanation_card.dart';
 
@@ -90,483 +85,364 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
     final varshaAsync = ref.watch(activeProfileVarshaphalaProvider);
     final selectedYear = ref.watch(selectedVarshaphalaYearProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: const AstroAppBar(
-        title: 'Varshaphala (Solar Return)',
-      ),
-      body: SubtleCelestialBackground(
-        child: Column(
-          children: [
-            const ActiveBirthProfileSelector(isDark: false),
-            _buildYearSelector(selectedYear),
-            AstrologyTabBar(
-              isScrollable: true,
-              selectedIndex: _selectedTabIndex,
-              onTabSelected: (idx) {
-                setState(() => _selectedTabIndex = idx);
-              },
-              tabs: _tabs,
-            ),
-            if (varshaAsync.valueOrNull != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: SushilExplainerButton(
-                  contextBuilder: () => _buildExplanationContext(
-                    varshaAsync.valueOrNull!,
-                    selectedYear,
+    return AstroPage(
+      title: 'Varshaphala (Solar Return)',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ActiveBirthProfileSelector(isDark: false),
+          const SizedBox(height: kAdvGap),
+          _buildYearSelector(selectedYear),
+          const SizedBox(height: kAdvGap),
+          ...varshaAsync.when(
+            loading: () => const [
+              AstrologyLoadingState(
+                message: 'Calculating exact Solar Return and Tajika Chart...',
+              ),
+            ],
+            error: (err, stack) => [
+              AstrologyErrorState(
+                error: err,
+                onRetry: () => ref.invalidate(activeProfileVarshaphalaProvider),
+              ),
+            ],
+            data: (chart) {
+              if (chart == null) {
+                return const [
+                  AstrologyEmptyState(
+                    title: 'No Profile Selected',
+                    message: 'Select a birth profile to calculate Varshaphala.',
                   ),
+                ];
+              }
+              return [
+                _buildSummary(chart),
+                const SizedBox(height: kAdvGap),
+                SushilExplainerButton(
+                  contextBuilder: () => _buildExplanationContext(chart, selectedYear),
                   poseAsset: AppAssets.sushilExplaining,
                 ),
-              ),
-            const SizedBox(height: 6),
-            Expanded(
-              child: varshaAsync.when(
-                loading: () => const AstrologyLoadingState(
-                  message: 'Calculating exact Solar Return and Tajika Chart...',
+                const SizedBox(height: kAdvGap + 4),
+                AstrologyTabBar(
+                  isScrollable: true,
+                  selectedIndex: _selectedTabIndex,
+                  onTabSelected: (idx) {
+                    setState(() => _selectedTabIndex = idx);
+                  },
+                  tabs: _tabs,
                 ),
-                error: (err, stack) => AstrologyErrorState(
-                  error: err,
-                  onRetry: () => ref.invalidate(activeProfileVarshaphalaProvider),
+                const SizedBox(height: kAdvGap + 4),
+                ..._buildTab(chart),
+                const SizedBox(height: kAdvGap + 4),
+                AstrologyExplanationCard(
+                  title: context.l10n.explainVarshaphalaTitle,
+                  whatIs: context.l10n.explainVarshaphalaWhatIs,
+                  howToRead: context.l10n.explainVarshaphalaHowToRead,
                 ),
-                data: (chart) {
-                  if (chart == null) {
-                    return const AstrologyEmptyState(
-                      title: 'No Profile Selected',
-                      message: 'Select a birth profile to calculate Varshaphala.',
-                    );
-                  }
-                  switch (_selectedTabIndex) {
-                    case 0:
-                      return _buildReturnOverviewTab(chart);
-                    case 1:
-                      return _buildMunthaAndVarsheshaTab(chart);
-                    case 2:
-                      return _buildHarshaBalaTab(chart);
-                    case 3:
-                      return _buildTajikaYogasTab(chart);
-                    case 4:
-                    default:
-                      return _buildSahamsTab(chart);
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildYearSelector(int selectedYear) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            icon: const Icon(Icons.chevron_left, color: AppColors.primary),
-            onPressed: () {
-              ref.read(selectedVarshaphalaYearProvider.notifier).state =
-                  selectedYear - 1;
+              ];
             },
-            tooltip: 'Previous Year',
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  'Solar Return: Year $selectedYear',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppColors.primary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const Text(
-                  'Annual Kundli Assessment',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.secondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            icon: const Icon(Icons.chevron_right, color: AppColors.primary),
-            onPressed: () {
-              ref.read(selectedVarshaphalaYearProvider.notifier).state =
-                  selectedYear + 1;
-            },
-            tooltip: 'Next Year',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReturnOverviewTab(VarshaphalaChartModel chart) {
-    final ret = chart.solarReturnDetails;
-    final lagna = chart.varshaLagna;
+  List<Widget> _buildTab(VarshaphalaChartModel chart) {
+    switch (_selectedTabIndex) {
+      case 0:
+        return _buildReturnOverviewTab(chart);
+      case 1:
+        return _buildMunthaAndVarsheshaTab(chart);
+      case 2:
+        return _buildHarshaBalaTab(chart);
+      case 3:
+        return _buildTajikaYogasTab(chart);
+      case 4:
+      default:
+        return _buildSahamsTab(chart);
+    }
+  }
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
+  Widget _buildYearSelector(int selectedYear) {
+    final buttonStyle = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.accent,
+      backgroundColor: AppColors.accentFill,
+      minimumSize: const Size.fromHeight(48),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AstroMetrics.buttonRadius)),
+      textStyle: AppTypography.button.copyWith(fontSize: 16, fontWeight: FontWeight.w600),
+    );
+    return AdvCard(
       padding: const EdgeInsets.all(16),
-      children: [
-        AstrologyExplanationCard(
-          title: context.l10n.explainVarshaphalaTitle,
-          whatIs: context.l10n.explainVarshaphalaWhatIs,
-          howToRead: context.l10n.explainVarshaphalaHowToRead,
-        ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: AppGradients.heroCosmic,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Solar Return: Year $selectedYear',
+            style: kAdvTitle,
+            textAlign: TextAlign.center,
           ),
-          child: Row(
+          const SizedBox(height: 2),
+          const Text(
+            'Annual Kundli Assessment',
+            style: kAdvSecondary,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+          Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.accentGold.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.wb_sunny_rounded, color: AppColors.accentGold, size: 28),
-              ),
-              const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Target Year ${chart.targetYear} (Age ${chart.completedAge})',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Exact Return: ${ret.returnTimestamp}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.cardSurfaceParchment,
-                      ),
-                    ),
-                  ],
+                child: Tooltip(
+                  message: 'Previous Year',
+                  child: OutlinedButton.icon(
+                    style: buttonStyle,
+                    icon: const Icon(Icons.chevron_left, size: 24),
+                    label: Text('${selectedYear - 1}'),
+                    onPressed: () {
+                      ref.read(selectedVarshaphalaYearProvider.notifier).state = selectedYear - 1;
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Tooltip(
+                  message: 'Next Year',
+                  child: OutlinedButton.icon(
+                    style: buttonStyle,
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.chevron_right, size: 24),
+                    label: Text('${selectedYear + 1}'),
+                    onPressed: () {
+                      ref.read(selectedVarshaphalaYearProvider.notifier).state = selectedYear + 1;
+                    },
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        AstrologySectionCard(
-          title: 'Solar Return Astronomical Snapshot',
-          subtitle: 'Precise moment Sun reaches identical natal sidereal longitude',
-          icon: Icons.timer_rounded,
-          child: Column(
-            children: [
-              AstrologyInfoRow(
-                label: 'Natal Sun Longitude',
-                value: ret.natalSunDegreeFormatted,
-              ),
-              AstrologyInfoRow(
-                label: 'Return Sun Longitude',
-                value: ret.returnSunDegreeFormatted,
-              ),
-              AstrologyInfoRow(
-                label: 'Return Weekday (Vara)',
-                value: ret.returnWeekday,
-              ),
-              AstrologyInfoRow(
-                label: 'Day / Night Return',
-                value: ret.isDayReturn ? 'Day Return (Diurnal)' : 'Night Return (Nocturnal)',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        AstrologySectionCard(
-          title: 'Varsha Lagna (Annual Ascendant)',
-          subtitle: 'Rising sign at the precise solar return moment',
-          icon: Icons.explore_rounded,
-          child: Column(
-            children: [
-              AstrologyInfoRow(
-                label: 'Varsha Ascendant Sign',
-                value: lagna.rashiName,
-              ),
-              AstrologyInfoRow(
-                label: 'Ascendant Degree',
-                value: lagna.formattedDegree,
-              ),
-              AstrologyInfoRow(
-                label: 'Ascendant Lord (Lagnesha)',
-                value: lagna.lord,
-              ),
-              AstrologyInfoRow(
-                label: 'Nakshatra & Pada',
-                value: '${lagna.nakshatraName} (P${lagna.pada})',
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildMunthaAndVarsheshaTab(VarshaphalaChartModel chart) {
+  Widget _buildSummary(VarshaphalaChartModel chart) {
+    final ret = chart.solarReturnDetails;
+    return AdvSummaryCard(
+      label: 'At a glance',
+      icon: Icons.wb_sunny_rounded,
+      title: 'Target Year ${chart.targetYear} (Age ${chart.completedAge})',
+      subtitle: 'Exact Return: ${ret.returnTimestamp}',
+      child: AdvStatGrid(
+        onDark: true,
+        stats: [
+          AdvStat(label: 'Lord of the year', value: chart.varshesha.planet, accent: AppColors.gold),
+          AdvStat(label: 'Annual ascendant', value: chart.varshaLagna.rashiName),
+          AdvStat(
+            label: 'Muntha',
+            value: chart.muntha.rashiName,
+            caption: 'House ${chart.muntha.houseInVarshaLagna}',
+          ),
+          AdvStat(label: 'Return', value: ret.isDayReturn ? 'Day' : 'Night'),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildReturnOverviewTab(VarshaphalaChartModel chart) {
+    final ret = chart.solarReturnDetails;
+    final lagna = chart.varshaLagna;
+
+    return [
+      AdvSection(
+        title: 'Varsha Lagna (Annual Ascendant)',
+        subtitle: 'Rising sign at the precise solar return moment',
+        icon: Icons.explore_rounded,
+        tint: AstroTint.indigo,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdvInfoRow(label: 'Varsha Ascendant Sign', value: lagna.rashiName),
+            AdvInfoRow(label: 'Ascendant Degree', value: lagna.formattedDegree),
+            AdvInfoRow(label: 'Ascendant Lord (Lagnesha)', value: lagna.lord),
+            AdvInfoRow(
+              label: 'Nakshatra & Pada',
+              value: '${lagna.nakshatraName} (P${lagna.pada})',
+              showDivider: false,
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: kAdvGap),
+      AdvSection(
+        title: 'Solar Return Astronomical Snapshot',
+        subtitle: 'The moment the Sun returns to its birth position.',
+        icon: Icons.timer_rounded,
+        tint: AstroTint.amber,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdvInfoRow(label: 'Natal Sun Longitude', value: ret.natalSunDegreeFormatted),
+            AdvInfoRow(label: 'Return Sun Longitude', value: ret.returnSunDegreeFormatted),
+            AdvInfoRow(label: 'Return Weekday (Vara)', value: ret.returnWeekday),
+            AdvInfoRow(
+              label: 'Day / Night Return',
+              value: ret.isDayReturn ? 'Day Return (Diurnal)' : 'Night Return (Nocturnal)',
+              showDivider: false,
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildMunthaAndVarsheshaTab(VarshaphalaChartModel chart) {
     final muntha = chart.muntha;
     final varshesha = chart.varshesha;
     final pancha = chart.panchadhikari;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      children: [
-        AstrologySectionCard(
-          title: 'Muntha Progression',
-          subtitle: 'Annual progressed point (1 sign per year of life)',
-          icon: Icons.track_changes_rounded,
-          child: Column(
-            children: [
-              AstrologyInfoRow(
-                label: 'Muntha Sign',
-                value: muntha.rashiName,
-              ),
-              AstrologyInfoRow(
-                label: 'Muntha Lord (Munthesha)',
-                value: muntha.lord,
-              ),
-              AstrologyInfoRow(
-                label: 'House in Varsha Kundli',
-                value: 'House ${muntha.houseInVarshaLagna}',
-              ),
-              AstrologyInfoRow(
-                label: 'Auspiciousness Tier',
-                value: muntha.isAuspicious ? 'Auspicious (Shubha)' : 'Challenging (Ashubha)',
-              ),
-            ],
-          ),
+    return [
+      AdvSection(
+        title: 'Varshesha (Lord of the Year)',
+        subtitle: 'Ruling planet chosen through Tajika evaluation criteria',
+        icon: Icons.military_tech_rounded,
+        tint: AstroTint.violet,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              varshesha.planet,
+              style: kAdvBody.copyWith(fontSize: 22, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(varshesha.selectionRationale, style: kAdvBody),
+          ],
         ),
-        const SizedBox(height: 16),
-        AstrologySectionCard(
-          title: 'Varshesha (Lord of the Year)',
-          subtitle: 'Ruling planet chosen through Tajika evaluation criteria',
-          icon: Icons.military_tech_rounded,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      varshesha.planet,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        varshesha.selectionRationale,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+      ),
+      const SizedBox(height: kAdvGap),
+      AdvSection(
+        title: 'Muntha Progression',
+        subtitle: 'Annual progressed point (1 sign per year of life)',
+        icon: Icons.track_changes_rounded,
+        tint: AstroTint.sky,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdvInfoRow(label: 'Muntha Sign', value: muntha.rashiName),
+            AdvInfoRow(label: 'Muntha Lord (Munthesha)', value: muntha.lord),
+            AdvInfoRow(label: 'House in Varsha Kundli', value: 'House ${muntha.houseInVarshaLagna}'),
+            AdvInfoRow(
+              label: 'Auspiciousness Tier',
+              value: muntha.isAuspicious ? 'Auspicious (Shubha)' : 'Challenging (Ashubha)',
+              valueColor: muntha.isAuspicious ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+              showDivider: false,
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        AstrologySectionCard(
-          title: 'Panchadhikari (5 Office Bearers)',
-          subtitle: 'Five classical candidates evaluated for Varshesha status',
-          icon: Icons.groups_rounded,
-          child: Column(
-            children: [
-              AstrologyInfoRow(
-                label: '1. Munthesha (Muntha Lord)',
-                value: pancha.munthesha,
-              ),
-              AstrologyInfoRow(
-                label: '2. Janma Lagnesha (Natal Asc Lord)',
-                value: pancha.janmaLagnesha,
-              ),
-              AstrologyInfoRow(
-                label: '3. Varsha Lagnesha (Annual Asc Lord)',
-                value: pancha.varshaLagnesha,
-              ),
-              AstrologyInfoRow(
-                label: '4. Tri-Rashi Pati (Triplicity Lord)',
-                value: pancha.triRashiPati,
-              ),
-              AstrologyInfoRow(
-                label: '5. Din-Ratri Pati (Day/Night Lord)',
-                value: pancha.dinRatriPati,
-              ),
-            ],
-          ),
+      ),
+      const SizedBox(height: kAdvGap),
+      AdvDetailsExpander(
+        title: 'Panchadhikari (5 Office Bearers)',
+        subtitle: 'Five classical candidates evaluated for Varshesha status',
+        icon: Icons.groups_rounded,
+        initiallyExpanded: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdvInfoRow(label: '1. Munthesha (Muntha Lord)', value: pancha.munthesha),
+            AdvInfoRow(label: '2. Janma Lagnesha (Natal Asc Lord)', value: pancha.janmaLagnesha),
+            AdvInfoRow(label: '3. Varsha Lagnesha (Annual Asc Lord)', value: pancha.varshaLagnesha),
+            AdvInfoRow(label: '4. Tri-Rashi Pati (Triplicity Lord)', value: pancha.triRashiPati),
+            AdvInfoRow(
+              label: '5. Din-Ratri Pati (Day/Night Lord)',
+              value: pancha.dinRatriPati,
+              showDivider: false,
+            ),
+          ],
         ),
-      ],
-    );
+      ),
+    ];
   }
 
-  Widget _buildHarshaBalaTab(VarshaphalaChartModel chart) {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      children: [
-        AstrologySectionCard(
-          title: 'Tajika Harsha Bala (Annual Planetary Strengths)',
-          subtitle: 'Calculated across 4 sources: Sthana, Uccha, Hadda, and Strilinga/Day-Night',
-          icon: Icons.fitness_center_rounded,
-          child: Column(
-            children: [
-              AstrologyDataTable(
-                columns: const [
-                  AstrologyTableColumn(header: 'Planet', flex: 2),
-                  AstrologyTableColumn(header: 'Sthana', flex: 1),
-                  AstrologyTableColumn(header: 'Uccha', flex: 1),
-                  AstrologyTableColumn(header: 'Hadda', flex: 1),
-                  AstrologyTableColumn(header: 'Total', flex: 1),
-                  AstrologyTableColumn(header: 'Tier', flex: 2),
-                ],
-                rows: chart.harshaBala.values.map((b) {
-                  return [
-                    b.planet,
-                    b.sthanaBala.toString(),
-                    b.uchchaBala.toString(),
-                    b.haddaBala.toString(),
-                    b.totalBala.toString(),
-                    b.tier,
-                  ];
-                }).toList(),
-              ),
-            ],
-          ),
+  List<Widget> _buildHarshaBalaTab(VarshaphalaChartModel chart) {
+    return [
+      AdvSection(
+        title: 'Tajika Harsha Bala (Annual Planetary Strengths)',
+        subtitle: 'Strength of each planet this year, from 4 sources.',
+        icon: Icons.fitness_center_rounded,
+        tint: AstroTint.sage,
+        inCard: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: chart.harshaBala.values.map((b) {
+            return AdvRowCard(
+              title: b.planet,
+              subtitle: 'Total ${b.totalBala}',
+              badge: AdvBadge(b.tier),
+              facts: [
+                MapEntry('Sthana', b.sthanaBala.toString()),
+                MapEntry('Uccha', b.uchchaBala.toString()),
+                MapEntry('Hadda', b.haddaBala.toString()),
+              ],
+            );
+          }).toList(),
         ),
-      ],
-    );
+      ),
+    ];
   }
 
-  Widget _buildTajikaYogasTab(VarshaphalaChartModel chart) {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      children: [
-        AstrologySectionCard(
-          title: 'Tajika Planetary Aspects & Yogas',
-          subtitle: 'Ithasala (Mutual Applying), Isarpha (Separating), Nakta, Yamaya',
-          icon: Icons.auto_awesome_rounded,
-          child: chart.tajikaYogas.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text('No major Tajika yogas formed in this solar return.'),
-                )
-              : Column(
-                  children: chart.tajikaYogas.map((yoga) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+  List<Widget> _buildTajikaYogasTab(VarshaphalaChartModel chart) {
+    return [
+      AdvSection(
+        title: 'Tajika Planetary Aspects & Yogas',
+        subtitle: 'Ithasala (Mutual Applying), Isarpha (Separating), Nakta, Yamaya',
+        icon: Icons.auto_awesome_rounded,
+        tint: AstroTint.violet,
+        inCard: chart.tajikaYogas.isEmpty,
+        child: chart.tajikaYogas.isEmpty
+            ? const Text('No major Tajika yogas formed in this solar return.', style: kAdvBody)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: chart.tajikaYogas.map((yoga) {
+                  final color = _getYogaColor(yoga.yogaType);
+                  return AdvCard(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  yoga.yogaName,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: _getYogaColor(yoga.yogaType),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _getYogaColor(yoga.yogaType).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    yoga.yogaType,
-                                    style: TextStyle(
-                                      color: _getYogaColor(yoga.yogaType),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
                             Text(
-                              'Involved: ${yoga.participatingPlanets.join(" & ")}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
+                              yoga.yogaName,
+                              style: kAdvBody.copyWith(fontWeight: FontWeight.w700, color: color),
                             ),
-                            Text(
-                              yoga.description,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.secondary,
-                              ),
-                            ),
+                            AdvBadge(yoga.yogaType, color: color),
                           ],
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-        ),
-      ],
-    );
+                        const SizedBox(height: 6),
+                        Text(
+                          'Involved: ${yoga.participatingPlanets.join(" & ")}',
+                          style: kAdvSecondary.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(yoga.description, style: kAdvSecondary),
+                      ],
+                    ),
+                  );
+                }).expand((w) => [w, const SizedBox(height: 10)]).toList(),
+              ),
+      ),
+    ];
   }
 
-  Widget _buildSahamsTab(VarshaphalaChartModel chart) {
+  List<Widget> _buildSahamsTab(VarshaphalaChartModel chart) {
     final filteredSahams = chart.sahams.where((s) {
       if (_sahamSearchQuery.isEmpty) return true;
       return s.sahamName.toLowerCase().contains(_sahamSearchQuery.toLowerCase()) ||
@@ -574,132 +450,85 @@ class _VarshaphalaScreenState extends ConsumerState<VarshaphalaScreen> {
           s.lord.toLowerCase().contains(_sahamSearchQuery.toLowerCase());
     }).toList();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
-            controller: _sahamSearchController,
-            decoration: InputDecoration(
-              hintText: 'Search 36 Tajika Sahams (e.g. Punya, Vidya)...',
-              hintStyle: const TextStyle(fontSize: 12),
-              prefixIcon: const Icon(Icons.search, size: 20),
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.2)),
-              ),
-              suffixIcon: _sahamSearchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        setState(() {
-                          _sahamSearchController.clear();
-                          _sahamSearchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-            ),
-            onChanged: (val) {
-              setState(() {
-                _sahamSearchQuery = val;
-              });
-            },
+    return [
+      TextField(
+        controller: _sahamSearchController,
+        style: kAdvBody,
+        decoration: InputDecoration(
+          labelText: 'Search Sahams',
+          hintText: 'e.g. Punya, Vidya',
+          hintStyle: kAdvSecondary,
+          prefixIcon: const Icon(Icons.search, size: 22),
+          filled: true,
+          fillColor: AppColors.cardSurface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.cardBorder),
           ),
-        ),
-        Expanded(
-          child: ListView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              AstrologySectionCard(
-                title: 'Tajika Sahams (${filteredSahams.length} of ${chart.sahams.length})',
-                subtitle: 'Mathematical sensitive points for specific areas of life',
-                icon: Icons.list_rounded,
-                child: filteredSahams.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: Text('No Sahams match your search.')),
-                      )
-                    : Column(
-                        children: filteredSahams.map((s) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AppColors.border.withValues(alpha: 0.12)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          s.sahamName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        Text(
-                                          'House ${s.houseInVarshaChart} • Lord: ${s.lord}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppColors.secondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        s.rashiName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      Text(
-                                        s.formattedDegree,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.secondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
-            ],
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.cardBorder),
           ),
+          suffixIcon: _sahamSearchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 22),
+                  tooltip: 'Clear search',
+                  onPressed: () {
+                    setState(() {
+                      _sahamSearchController.clear();
+                      _sahamSearchQuery = '';
+                    });
+                  },
+                )
+              : null,
         ),
-      ],
-    );
+        onChanged: (val) {
+          setState(() {
+            _sahamSearchQuery = val;
+          });
+        },
+      ),
+      const SizedBox(height: kAdvGap),
+      AdvSection(
+        title: 'Tajika Sahams (${filteredSahams.length} of ${chart.sahams.length})',
+        subtitle: 'Sensitive points for specific areas of life.',
+        icon: Icons.list_rounded,
+        tint: AstroTint.amber,
+        inCard: filteredSahams.isEmpty,
+        child: filteredSahams.isEmpty
+            ? const Text('No Sahams match your search.', style: kAdvBody)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: filteredSahams.map((s) {
+                  return AdvRowCard(
+                    title: s.sahamName,
+                    subtitle: 'House ${s.houseInVarshaChart} • Lord: ${s.lord}',
+                    badge: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(s.rashiName, style: kAdvBody.copyWith(fontWeight: FontWeight.w700)),
+                        Text(s.formattedDegree, style: kAdvSecondary),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+      ),
+    ];
   }
 
   Color _getYogaColor(String type) {
     switch (type.toUpperCase()) {
       case 'ITHASALA':
-        return Colors.green[700]!;
+        return Colors.green[800]!;
       case 'ISARPHA':
-        return Colors.orange[800]!;
+        return Colors.orange[900]!;
       case 'NAKTA':
         return Colors.purple[700]!;
       case 'YAMAYA':
-        return Colors.blue[700]!;
+        return Colors.blue[800]!;
       default:
         return AppColors.primary;
     }

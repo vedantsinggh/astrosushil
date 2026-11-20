@@ -1,6 +1,5 @@
 import { prisma } from '../../services/prisma.service';
-import { NotFoundError } from '../../errors/app-error';
-import { astrologyService } from '../astrology/astrology.service';
+import { AppError, NotFoundError } from '../../errors/app-error';
 import { EvaluateGuptaNadiInput } from './gupta-nadi.schemas';
 
 export interface NadiRuleEvaluationResult {
@@ -25,6 +24,21 @@ export interface NadiRuleEvaluationResult {
   };
 }
 
+/**
+ * Raised while the Brihaspati Nandi Nadi (BNN) rule engine has not been implemented from the
+ * client-approved specification. Previously this module returned stub rules that fired for every
+ * chart (and a fabricated "15 rules evaluated" audit count); those were not genuine evaluations.
+ */
+export class GuptaNadiEngineUnavailableError extends AppError {
+  constructor() {
+    super(
+      'Gupta Nadi (BNN) rule evaluation is not available yet.',
+      501,
+      'GUPTA_NADI_ENGINE_NOT_IMPLEMENTED'
+    );
+  }
+}
+
 export class GuptaNadiService {
   public async evaluateForProfile(
     input: EvaluateGuptaNadiInput,
@@ -40,92 +54,16 @@ export class GuptaNadiService {
       throw new NotFoundError('Birth profile not found');
     }
 
-    // 2. Fetch chart details via AstrologyService
-    const chartResponse = await astrologyService.calculateChartForProfile(
-      input.birthProfileId,
-      requestingUser
-    );
-
-    const gender = input.gender || 'MALE';
-    const jivaKaraka = gender === 'MALE' ? 'JUPITER' : 'VENUS';
-
-    // 3. Evaluate deterministic BNN rules against planetary positions
-    const planets = chartResponse.chart.planets;
-    const activeRules: NadiRuleEvaluationResult['activeRules'] = [];
-
-    // Rule NADI-CAR-001: Saturn + Mercury/Venus trine combination (Career & Commerce)
-    const saturn = planets.find((p) => p.planet === 'SATURN');
-    const mercury = planets.find((p) => p.planet === 'MERCURY');
-    const venus = planets.find((p) => p.planet === 'VENUS');
-
-    if (saturn && (mercury || venus)) {
-      activeRules.push({
-        ruleId: 'NADI-CAR-001',
-        domain: 'CAREER' as const,
-        title: 'Karma Lord Directional Harmony',
-        priority: 85,
-        description:
-          'Saturn aligned with Mercury/Venus indicates commercial acumen, intellectual profession, and steady financial growth.',
-        planetaryCombination: ['SATURN', mercury ? 'MERCURY' : 'VENUS'],
-        isExceptionOverridden: false,
-      });
-    }
-
-    // Rule NADI-JIV-001: Jiva Karaka alignment
-    const jivaPlanet = planets.find((p) => p.planet === jivaKaraka);
-    const jup = planets.find((p) => p.planet === 'JUPITER');
-    if (jivaPlanet && jup) {
-      activeRules.push({
-        ruleId: 'NADI-JIV-001',
-        domain: 'GENERAL' as const,
-        title: 'Jiva & Jupiter Planetary Resonance',
-        priority: 90,
-        description:
-          'Alignment of Jiva Karaka with Jupiter bestows divine protection, wisdom, and strong vitality.',
-        planetaryCombination: [jivaKaraka, 'JUPITER'],
-        isExceptionOverridden: false,
-      });
-    }
-
-    return {
-      birthProfileId: input.birthProfileId,
-      gender,
-      jivaKaraka,
-      evaluatedAt: new Date().toISOString(),
-      transitDate: input.transitDate || new Date().toISOString().split('T')[0],
-      activeRules,
-      auditTrail: {
-        totalRulesEvaluated: 15,
-        triggeredRuleCount: activeRules.length,
-        engineVersion: '0.1.0-bnn',
-      },
-    };
+    // 2. No genuine BNN rule set is implemented yet (see docs/gupta-nadi-spec.md).
+    //    Never return placeholder rules as if they were evaluated against the chart.
+    throw new GuptaNadiEngineUnavailableError();
   }
 
-  public getAvailableRules() {
-    return [
-      {
-        ruleId: 'NADI-CAR-001',
-        domain: 'CAREER',
-        title: 'Karma Lord Directional Harmony',
-        priority: 85,
-        jivaKaraka: 'ALL',
-      },
-      {
-        ruleId: 'NADI-JIV-001',
-        domain: 'GENERAL',
-        title: 'Jiva & Jupiter Planetary Resonance',
-        priority: 90,
-        jivaKaraka: 'ALL',
-      },
-      {
-        ruleId: 'NADI-MAR-002',
-        domain: 'MARRIAGE',
-        title: 'Venus-Mars Relationship Aspect',
-        priority: 80,
-        jivaKaraka: 'ALL',
-      },
-    ];
+  /**
+   * Lists rule definitions that are actually implemented and evaluated. None are yet.
+   */
+  public getAvailableRules(): Array<{ ruleId: string; domain: string; title: string; priority: number; jivaKaraka: string }> {
+    return [];
   }
 }
 

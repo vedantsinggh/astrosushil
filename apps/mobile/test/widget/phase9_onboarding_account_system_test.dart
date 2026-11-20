@@ -260,7 +260,7 @@ void main() {
 
       expect(find.text('My Birth Profiles'), findsOneWidget);
       expect(find.text('Rahul Sharma'), findsOneWidget);
-      expect(find.text('ACTIVE'), findsOneWidget);
+      expect(find.text('Active'), findsOneWidget);
       expect(find.text('New Profile'), findsOneWidget);
     });
 
@@ -284,7 +284,10 @@ void main() {
       expect(find.text('Set as Active Profile'), findsOneWidget);
       expect(find.text('Delete Profile'), findsOneWidget);
 
-      // Tap Delete Profile to verify confirmation dialog
+      // Tap Delete Profile to verify confirmation dialog (centre it first:
+      // the pinned large-title bar covers the top edge).
+      await Scrollable.ensureVisible(tester.element(find.text('Delete Profile')), alignment: 0.5);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Delete Profile'));
       await tester.pumpAndSettle();
 
@@ -330,7 +333,8 @@ void main() {
       expect(find.text('Delete Account & Personal Data'), findsOneWidget);
 
       // Verify Clear Local Cache dialog
-      await tester.ensureVisible(find.text('Clear Local Cache'));
+      await Scrollable.ensureVisible(tester.element(find.text('Clear Local Cache')), alignment: 0.5);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Clear Local Cache'));
       await tester.pumpAndSettle();
 
@@ -339,7 +343,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Sign Out confirmation dialog
-      await tester.ensureVisible(find.text('Sign Out'));
+      await Scrollable.ensureVisible(tester.element(find.text('Sign Out')), alignment: 0.5);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Sign Out'));
       await tester.pumpAndSettle();
 

@@ -1,39 +1,45 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { randomUUID } from 'crypto';
-import { prisma } from './prisma.service';
 import { ReportStatus, FulfillmentStatus, OrderStatus, FulfillmentUnitStatus } from '@prisma/client';
+import { reportPlatform } from '@astro/report-engine';
+import { prisma } from './prisma.service';
 import { storageService } from './storage.service';
-import { astrologyService } from '../modules/astrology/astrology.service';
 import { notificationService } from '../modules/notifications/notification.service';
 import { logger } from '../utils/logger';
-import {
-  careerEvidenceEngine,
-  OpenRouterCareerAnalysisProvider,
-  MockCareerAnalysisProvider,
-  CareerAnalysisProvider,
-  getOpenRouterCareerConfig,
-} from '@astro/prediction-engine';
-import {
-  careerReportService,
-  latexCompiler,
-  generateKundliReport,
-  generatePlanetaryReport,
-  generateProHoroscopeReport,
-  generateMatchmakingReport,
-  generateCareerReport,
-  generateFinanceReport,
-  generateLoveReport,
-  generateFortuneReport,
-  generateFortunePlusReport,
-  generateSaturnReport,
-  generateJupiterReport,
-  generateRahuKetuReport,
-  generateVarshphalReport,
-  validateAstrologyDataForReport,
-  DeterministicInterpretationProvider,
-  reportPdfService,
-} from '@astro/report-engine';
+import { postgresQueueService, ClaimedReportJob } from './postgres-queue.service';
+import { fulfillmentService } from '../modules/fulfillment/fulfillment.service';
+import { distributedLockService } from './distributed-lock.service';
+import { isPlatformReportType, platformReportTypes, runPlatformReport, PlatformInputError, PlatformRunInput } from './platform-report.runner';
+import { ATTEMPT_TIMEOUT_MS, decideRetry, deliveryDeadline, finalFailureMessage } from './report-retry.policy';
+import { verifyDatabaseSessionTimeZone } from './prisma.service';
+import { progressFromEvent, ThrottledProgressWriter } from './report-progress';
+
+/**
+ * Whether a report is generated inside the API process as soon as it is enqueued
+ * (development / debug). REPORT_INSTANT_EXECUTION=false leaves every job to the
+ * worker process (one report at a time), e.g. on a small VM.
+ */
+export function isInstantExecutionEnabled(): boolean {
+  return (
+    (process.env.NODE_ENV !== 'production' ||
+      process.env.DEBUG === 'true' ||
+      process.env.AUTO_DELIVER_WHEN_READY === 'true') &&
+    process.env.REPORT_INSTANT_EXECUTION !== 'false'
+  );
+}
+
+/** How long shutdown waits for in-flight reports before releasing their claims. */
+export function shutdownGraceMs(): number {
+  const fromEnv = Number(process.env.REPORT_SHUTDOWN_GRACE_MS);
+  return Number.isFinite(fromEnv) && fromEnv >= 0 ? fromEnv : 2000;
+}
+
+/** A report pipeline currently running in this process. */
+interface InFlightJob {
+  claimToken: string;
+  claimVersion: number;
+  /** Stops the pipeline from writing anything further (ownership given up). */
+  relinquish: () => void;
+  done: Promise<void>;
+}
 
 export type ReportJobStage =
   | 'QUEUED'
@@ -45,47 +51,179 @@ export type ReportJobStage =
   | 'COMPLETED'
   | 'FAILED';
 
-import { postgresQueueService, ClaimedReportJob } from './postgres-queue.service';
-import { fulfillmentService } from '../modules/fulfillment/fulfillment.service';
-import { distributedLockService } from './distributed-lock.service';
-
 export interface ReportJobProgress {
   stage: ReportJobStage;
   progress: number;
   message?: string;
 }
 
+/** The claimed attempt a failure belongs to (fencing + retry bookkeeping). */
+export interface AttemptContext {
+  reportId: string;
+  claimToken?: string;
+  claimVersion?: number;
+  /** Transient failures recorded before this attempt. */
+  failedAttempts: number;
+  deadline: Date;
+}
+
+export class AttemptTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`ATTEMPT_TIMEOUT: generation attempt exceeded ${Math.round(timeoutMs / 1000)} s`);
+  }
+}
+
+/** Per-attempt wall-clock limit; REPORT_ATTEMPT_TIMEOUT_MS may only shorten it. */
+export function attemptTimeoutMs(): number {
+  const fromEnv = Number(process.env.REPORT_ATTEMPT_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? Math.min(fromEnv, ATTEMPT_TIMEOUT_MS) : ATTEMPT_TIMEOUT_MS;
+}
+
+/** Minimum gap between in-attempt progress writes (REPORT_PROGRESS_WRITE_INTERVAL_MS, default 4s). */
+function progressWriteIntervalMs(): number {
+  const fromEnv = Number(process.env.REPORT_PROGRESS_WRITE_INTERVAL_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 4000;
+}
+
+type PlatformManifest = reportPlatform.ReportManifest;
+
+/**
+ * Why a generated report could not be delivered.
+ * - A deterministic data topic failed or required chart evidence is missing →
+ *   permanent (the same input always gives the same result).
+ * - No PDF (compile failure) → transient.
+ * - Narrative topics failed validation or PDF QA failed → transient; the retry
+ *   regenerates only the missing topics (the rest come from the cache).
+ */
+export function classifyIncompleteManifest(manifest: PlatformManifest, hasPdf: boolean): { code: string; detail: string; userMessage?: string } {
+  const failedTopics = manifest.topics.filter((t) => t.status === 'failed' || t.status === 'skipped-missing-evidence');
+  const dataGaps = failedTopics.filter((t) => t.status === 'skipped-missing-evidence' || t.provenance !== 'llm');
+  const summary = `status=${manifest.status}; failed topics: ${failedTopics.map((t) => t.topicId).join(', ') || 'none'}; QA passed: ${manifest.pdf?.qaPassed ?? false}`;
+  if (dataGaps.length) {
+    return {
+      code: 'REPORT_DATA_UNAVAILABLE',
+      detail: `Report not delivered: ${summary}. Chart data missing for: ${dataGaps.map((t) => t.topicId).join(', ')}.`,
+      userMessage: 'This report cannot be prepared because part of the required chart data is not available for the birth details on file. Our team has been alerted.',
+    };
+  }
+  if (!hasPdf) return { code: 'PDF_RENDER_FAILED', detail: `Report not delivered: ${summary}.` };
+  return { code: 'GENERATION_INCOMPLETE', detail: `Report not delivered: ${summary}. A retry regenerates only the missing parts.` };
+}
+
 export class CareerReportWorker {
-  public static readonly SUPPORTED_REPORT_TYPES = [
-    'CAREER',
-    'KUNDLI',
-    'PLANETARY_SUMMARY',
-    'CAREER_PROSITY',
-    'MARRIAGE_COMPATIBILITY',
-    'HOROSCOPE',
-    'FINANCE',
-    'LOVE',
-    'FORTUNE',
-    'FORTUNE_PLUS',
-    'SATURN',
-    'JUPITER_TRANSIT',
-    'RAHU_KETU_TRANSIT',
-    'VARSHPHAL',
-  ] as const;
+  /** ReportTypes with a genuine generator (the platform registry is the single source). */
+  public static get SUPPORTED_REPORT_TYPES(): string[] {
+    return platformReportTypes();
+  }
 
   private isProcessing = false;
   private isRecovering = false;
   private recoveryTimer: NodeJS.Timeout | null = null;
   private readonly jobQueue: string[] = [];
+  private draining = false;
+  private readonly inFlight = new Map<string, InFlightJob>();
+  private dispatcherTimer: NodeJS.Timeout | null = null;
+  private isDispatching = false;
 
-  constructor() {
-    const cfg = getOpenRouterCareerConfig();
-    const provider = (process.env.LLM_PROVIDER || 'openrouter').toLowerCase();
-    console.log('[LLM CONFIG]', {
-      provider,
-      model: cfg.model,
-      fallbackModels: cfg.fallbackModels,
-    });
+  /** True once shutdown() started: no new jobs are claimed by this process. */
+  public isDraining(): boolean {
+    return this.draining;
+  }
+
+  /** Report ids currently being generated in this process. */
+  public inFlightReportIds(): string[] {
+    return [...this.inFlight.keys()];
+  }
+
+  /**
+   * Start-up recovery, run before the process claims anything:
+   *  1. checks the DB session time zone is UTC (logs an error otherwise);
+   *  2. requeues reports still claimed by a previous (dead) boot of this process;
+   *  3. runs one stale-lease recovery pass (expired / implausible leases).
+   */
+  public async recoverOnStartup(): Promise<{ releasedFromPreviousBoot: string[]; staleRecovered: number }> {
+    await verifyDatabaseSessionTimeZone();
+    const releasedFromPreviousBoot = await postgresQueueService.releaseClaimsOfPreviousBoots();
+    const stale = await this.recoverStaleJobs();
+    logger.info(
+      { releasedFromPreviousBoot: releasedFromPreviousBoot.length, staleRecovered: stale.recoveredReports },
+      '[CareerReportWorker] Start-up report recovery completed'
+    );
+    return { releasedFromPreviousBoot, staleRecovered: stale.recoveredReports };
+  }
+
+  /**
+   * In-process dispatcher for the API when instant execution is on (development):
+   * periodically claims and runs queued / recovered / retry-due reports, one at a
+   * time, so they do not depend on a separate worker process being started.
+   * Safe next to a real worker (claims use FOR UPDATE SKIP LOCKED).
+   */
+  public startInProcessDispatcher(intervalMs?: number): void {
+    if (this.dispatcherTimer) return;
+    const interval = intervalMs ?? parseInt(process.env.REPORT_DISPATCH_INTERVAL_MS || '15000', 10);
+    logger.info({ intervalMs: interval }, '[CareerReportWorker] Starting in-process report dispatcher (instant execution mode)');
+    const tick = () => {
+      this.runDispatchCycle().catch((err) => {
+        logger.error({ err: err?.message || err }, '[CareerReportWorker] Dispatcher cycle error');
+      });
+    };
+    setImmediate(tick);
+    this.dispatcherTimer = setInterval(tick, interval);
+    if (this.dispatcherTimer.unref) this.dispatcherTimer.unref();
+  }
+
+  public stopInProcessDispatcher(): void {
+    if (this.dispatcherTimer) {
+      clearInterval(this.dispatcherTimer);
+      this.dispatcherTimer = null;
+    }
+  }
+
+  /** Claims and runs eligible reports until none is left (or shutdown starts). */
+  public async runDispatchCycle(workerId = 'api-dispatcher'): Promise<number> {
+    if (this.isDispatching || this.draining) return 0;
+    this.isDispatching = true;
+    let ran = 0;
+    try {
+      while (!this.draining) {
+        const claim = await postgresQueueService.claimJob(workerId);
+        if (!claim) break;
+        ran++;
+        await this.executeReportPipeline(claim.id, claim.claimToken, claim.claimVersion);
+      }
+    } finally {
+      this.isDispatching = false;
+    }
+    return ran;
+  }
+
+  /**
+   * Graceful shutdown (SIGTERM / SIGINT: pm2 reload, deploys, tsx watch restarts).
+   * Stops claiming, waits up to graceMs for in-flight reports to finish, then
+   * releases the claims of the rest (back to QUEUED, no retry delay) so the next
+   * process picks them up at once. Finished LLM topics stay in the topic cache,
+   * so the rerun does not pay for them again.
+   */
+  public async shutdown(graceMs = shutdownGraceMs()): Promise<{ finished: number; released: number }> {
+    this.draining = true;
+    this.stopInProcessDispatcher();
+    this.stopStaleRecoveryLoop();
+
+    const startCount = this.inFlight.size;
+    if (startCount > 0 && graceMs > 0) {
+      const all = Promise.all([...this.inFlight.values()].map((j) => j.done));
+      await Promise.race([all, new Promise((resolve) => setTimeout(resolve, graceMs))]);
+    }
+
+    const remaining = [...this.inFlight.entries()];
+    let released = 0;
+    for (const [reportId, job] of remaining) {
+      job.relinquish();
+      const ok = await postgresQueueService.releaseClaim(reportId, job.claimToken, job.claimVersion);
+      if (ok) released++;
+      logger.info({ reportId, released: ok }, '[CareerReportWorker] Shutdown: released in-flight report claim');
+    }
+    return { finished: startCount - remaining.length, released };
   }
 
   /**
@@ -143,13 +281,12 @@ export class CareerReportWorker {
         });
       }
 
-      // In test and debug mode, deliver report as soon as it is ready
-      const isTestOrDebug =
-        process.env.NODE_ENV !== 'production' ||
-        process.env.DEBUG === 'true' ||
-        process.env.AUTO_DELIVER_WHEN_READY === 'true';
+      // In test and debug mode, deliver report as soon as it is ready.
+      // REPORT_INSTANT_EXECUTION=false leaves every job to the worker process
+      // (one report at a time), e.g. on a small development VM.
+      const isTestOrDebug = isInstantExecutionEnabled();
 
-      if (isTestOrDebug && process.env.NODE_ENV !== 'test') {
+      if (isTestOrDebug && process.env.NODE_ENV !== 'test' && !this.draining) {
         setImmediate(async () => {
           try {
             const claim = await postgresQueueService.claimJobById(reportId);
@@ -238,6 +375,10 @@ export class CareerReportWorker {
   private async executeStaleRecovery(): Promise<{ recoveredReports: number; recoveredOrders: number }> {
     try {
       const result = await postgresQueueService.recoverStaleJobs();
+      // Reports failed by recovery exhaustion get the same follow-up as any other FAILED report.
+      for (const failedReportId of result.failedReportIds) {
+        await this.finalizeFailedReport(failedReportId);
+      }
       const orphanedReconciled = await fulfillmentService.reconcileOrphanedCompletedReports();
       const slaResult = await this.monitorReportDeadlines();
 
@@ -388,7 +529,14 @@ export class CareerReportWorker {
   }
 
   /**
-   * Complete End-to-End Async Pipeline Execution
+   * End-to-end generation of one claimed report through the universal report
+   * platform (the only generation path).
+   *
+   * Outcomes:
+   *   - completed            → upload, fenced completion, fulfilment, notification
+   *   - transient failure    → rescheduled (QUEUED + retryAfter) per report-retry.policy;
+   *                            the customer still sees "being prepared"
+   *   - permanent failure, deadline passed or attempts exhausted → FAILED + notification
    */
   public async executeReportPipeline(
     reportId: string,
@@ -413,7 +561,7 @@ export class CareerReportWorker {
     // 2. Fetch DB report record with relations
     const report = await prisma.report.findUnique({
       where: { id: reportId },
-      include: { birthProfile: true, user: true },
+      include: { birthProfile: true, order: true },
     });
 
     if (!report) {
@@ -421,15 +569,26 @@ export class CareerReportWorker {
       return;
     }
 
-    const supportedReportTypes = ['CAREER', 'KUNDLI', 'PLANETARY_SUMMARY', 'CAREER_PROSITY', 'MARRIAGE_COMPATIBILITY', 'HOROSCOPE', 'FINANCE', 'LOVE', 'FORTUNE'];
-    if (!supportedReportTypes.includes(report.reportType)) {
-      await this.failJob(
-        reportId,
-        'REPORT_TYPE_NOT_SUPPORTED',
-        `Report type ${report.reportType} is not supported. Dedicated generator is not available.`,
-        claimToken,
-        claimVersion
+    const attempt: AttemptContext = {
+      reportId,
+      claimToken,
+      claimVersion,
+      failedAttempts: report.generationFailures ?? 0,
+      deadline: deliveryDeadline({ expectedDeliveryAt: report.expectedDeliveryAt, bookedAt: report.order?.paidAt ?? report.createdAt }),
+    };
+
+    if (!isPlatformReportType(report.reportType)) {
+      await this.handleAttemptFailure(
+        attempt,
+        'REPORT_TYPE_NOT_AVAILABLE',
+        `The ${report.reportType} report is not available: there is no genuine generator for it.`
       );
+      return;
+    }
+
+    if (this.draining) {
+      // Shutting down: give the fresh claim back instead of starting work that would be cut off.
+      await postgresQueueService.releaseClaim(reportId, claimToken, claimVersion);
       return;
     }
 
@@ -438,23 +597,27 @@ export class CareerReportWorker {
     let heartbeatTimer: NodeJS.Timeout | null = null;
     let isHeartbeating = false;
     let lostOwnership = false;
+    let activeController: AbortController | undefined;
+    let markDone: () => void = () => undefined;
+    const done = new Promise<void>((resolve) => { markDone = resolve; });
+
+    const stopHeartbeat = () => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    };
 
     const startHeartbeat = () => {
       heartbeatTimer = setInterval(async () => {
         if (isHeartbeating || lostOwnership) return;
         isHeartbeating = true;
         try {
-          const alive = await postgresQueueService.touchHeartbeat(
-            reportId,
-            claimToken!,
-            claimVersion!,
-            claimLeaseTtlSeconds
-          );
+          const alive = await postgresQueueService.touchHeartbeat(reportId, claimToken!, claimVersion!, claimLeaseTtlSeconds);
           if (!alive) {
             lostOwnership = true;
             logger.warn({ reportId, claimToken, claimVersion }, '[CareerReportWorker] Lost DB ownership during heartbeat touch. Halting execution.');
             stopHeartbeat();
-            return;
           }
         } catch (hbErr: any) {
           logger.warn({ reportId, err: hbErr?.message }, '[CareerReportWorker] Heartbeat error');
@@ -468,26 +631,12 @@ export class CareerReportWorker {
       }
     };
 
-    const stopHeartbeat = () => {
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-    };
-
     const setStage = async (status: ReportStatus, progress: number, stage: string): Promise<boolean> => {
       if (lostOwnership) {
         logger.warn({ reportId, claimToken, stage }, '[CareerReportWorker] Aborting setStage because ownership was previously lost.');
         return false;
       }
-      const ok = await postgresQueueService.updateJobStatus(
-        reportId,
-        claimToken!,
-        claimVersion!,
-        status,
-        stage,
-        progress
-      );
+      const ok = await postgresQueueService.updateJobStatus(reportId, claimToken!, claimVersion!, status, stage, progress);
       if (!ok) {
         lostOwnership = true;
         logger.warn({ reportId, claimToken, stage }, '[CareerReportWorker] Lost ownership during stage update. Aborting execution.');
@@ -496,557 +645,208 @@ export class CareerReportWorker {
       return ok;
     };
 
+    this.inFlight.set(reportId, {
+      claimToken: claimToken!,
+      claimVersion: claimVersion!,
+      relinquish: () => {
+        lostOwnership = true;
+        stopHeartbeat();
+        activeController?.abort();
+      },
+      done,
+    });
+
     try {
       startHeartbeat();
 
-      if (report.reportType === 'CAREER' || report.reportType === 'CAREER_PROSITY') {
+      const platformMeta = ((report as any).metadata || {}) as Record<string, any>;
+      if (!(await setStage('CALCULATING', 15, 'CALCULATING'))) return;
 
-        const normalizedChart = await astrologyService.calculateNormalizedChart(
-          { birthProfileId: report.birthProfileId },
-          { id: report.userId, role: 'USER' }
-        );
+      // Per-topic progress during the long LLM phase (15% → 80%, stage ANALYZING), then
+      // COMPILING (85%). Throttled, monotonic and fenced to this claim; cosmetic only.
+      const progressWriter = new ThrottledProgressWriter({
+        isOwner: () => !lostOwnership,
+        minIntervalMs: progressWriteIntervalMs(),
+        write: (p) => postgresQueueService.updateJobProgress(reportId, claimToken!, claimVersion!, p.status, p.stage, p.progress, p.detail),
+      });
 
-        if (!normalizedChart || !normalizedChart.ascendant || !normalizedChart.ascendant.sign) {
-          await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Ascendant data is missing from chart calculation.', claimToken);
-          return;
-        }
-        if (!Array.isArray(normalizedChart.planets) || normalizedChart.planets.length < 9) {
-          await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Incomplete planetary positions from chart calculation.', claimToken);
-          return;
-        }
-        if (!Array.isArray(normalizedChart.houses) || normalizedChart.houses.length < 12) {
-          await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', 'Incomplete house positions from chart calculation.', claimToken);
-          return;
-        }
+      // 3. Generate within the hard per-attempt wall-clock limit.
+      const timeoutMs = attemptTimeoutMs();
+      const controller = new AbortController();
+      activeController = controller;
+      let timer: NodeJS.Timeout | undefined;
+      const timedOut = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new AttemptTimeoutError(timeoutMs));
+        }, timeoutMs);
+        if (timer.unref) timer.unref();
+      });
+      const generation = this.generatePlatformReport({
+        reportId,
+        reportType: report.reportType,
+        userId: report.userId,
+        profile: report.birthProfile,
+        partnerProfileId: platformMeta.partnerProfileId,
+        regenerateTopics: Array.isArray(platformMeta.regenerateTopics) ? platformMeta.regenerateTopics : undefined,
+        candidateNames: platformMeta.candidateNames,
+        // The business (IST) calendar date the order was placed, not its UTC date.
+        asOf: report.createdAt ? reportPlatform.businessAsOfDate(new Date(report.createdAt)) : undefined,
+        signal: controller.signal,
+        onProgress: (event) => progressWriter.update(progressFromEvent(event)),
+      });
+      // A timed-out generation may still settle later; its result is ignored (finished topics stay cached).
+      generation.catch(() => undefined);
 
-        // --- STAGE 3: ANALYZING (35%) ---
-        if (!(await setStage('ANALYZING', 35, 'ANALYZING'))) return;
+      let result: Awaited<ReturnType<typeof runPlatformReport>>;
+      try {
+        result = await Promise.race([generation, timedOut]);
+      } catch (platformErr: any) {
+        if (lostOwnership) return;
+        const code = platformErr instanceof PlatformInputError
+          ? platformErr.code
+          : platformErr instanceof AttemptTimeoutError || platformErr instanceof reportPlatform.ReportGenerationAbortedError
+            ? 'ATTEMPT_TIMEOUT'
+            : 'GENERATION_ERROR';
+        logger.error({ reportId, code, err: platformErr?.message }, '[ReportPlatform] Generation attempt failed');
+        await this.handleAttemptFailure(attempt, code, platformErr?.message || 'Report generation failed.', platformErr instanceof PlatformInputError ? platformErr.message : undefined);
+        return;
+      } finally {
+        if (timer) clearTimeout(timer);
+        // No progress writes after the attempt settles (a timed-out run may keep emitting).
+        progressWriter.stop();
+        await progressWriter.idle();
+      }
+      if (lostOwnership) return;
 
-        // Select LLM Provider: Check LLM_PROVIDER env var first, fallback to OpenRouter if API key present
-        const isProduction = process.env.NODE_ENV === 'production';
-        const llmProviderEnv = (process.env.LLM_PROVIDER || '').toLowerCase().trim();
-        const openrouterConfig = getOpenRouterCareerConfig();
-        const isApiKeyAvailable = Boolean(
-          openrouterConfig.apiKey &&
-          openrouterConfig.apiKey.trim().length > 0 &&
-          openrouterConfig.apiKey !== 'mock-key-dev'
-        );
+      // Persist the manifest (no birth details or narrative text) for audit and admin visibility.
+      await prisma.report.update({
+        where: { id: reportId },
+        data: { metadata: { ...platformMeta, regenerateTopics: undefined, progressDetail: undefined, platformManifest: result.manifest as any } },
+      });
 
-        if (isProduction) {
-          if (llmProviderEnv === 'mock') {
-            logger.error({ reportId }, '[CareerReportWorker] Mock AI provider is strictly prohibited in production');
-            await this.failJob(reportId, 'AI_PROVIDER_ERROR', 'Mock AI provider is strictly prohibited in production environment.', claimToken);
-            return;
-          }
-          if (!isApiKeyAvailable) {
-            logger.error({ reportId }, '[CareerReportWorker] OpenRouter API key missing in production');
-            await this.failJob(reportId, 'AI_CREDENTIALS_MISSING', 'OpenRouter API key is required in production environment.', claimToken);
-            return;
-          }
-        }
+      // 4. Deliver only a fully generated, validated and QA-passed report. Never a partial substitute.
+      if (result.manifest.status !== 'completed' || !result.pdf) {
+        const outcome = classifyIncompleteManifest(result.manifest, Boolean(result.pdf));
+        await this.handleAttemptFailure(attempt, outcome.code, outcome.detail, outcome.userMessage);
+        return;
+      }
 
-        const useMock = !isProduction && (llmProviderEnv === 'mock' || (!isApiKeyAvailable && llmProviderEnv !== 'openrouter'));
-        const provider: CareerAnalysisProvider = useMock
-          ? new MockCareerAnalysisProvider()
-          : new OpenRouterCareerAnalysisProvider();
+      if (!(await setStage('UPLOADING', 95, 'UPLOADING'))) return;
+      const storageKey = `reports/${report.userId}/${reportId}.pdf`;
+      const prefix = report.reportType.toLowerCase().replace(/_/g, '-');
+      const fileName = `${prefix}-${report.birthProfile.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
+      let uploadResult;
+      try {
+        uploadResult = await storageService.upload({
+          key: storageKey,
+          body: result.pdf,
+          contentType: 'application/pdf',
+          metadata: { userId: report.userId, reportId, birthProfileId: report.birthProfileId, reportType: report.reportType },
+        });
+      } catch (uploadErr: any) {
+        await this.handleAttemptFailure(attempt, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr?.message || 'Object storage upload failed.');
+        return;
+      }
+      if (lostOwnership) return;
 
-        logger.info(
-          { reportId, provider: useMock ? 'MOCK' : 'OPENROUTER', model: openrouterConfig.model },
-          '[CareerReportWorker] Initiating career analysis synthesis'
-        );
-
-        let pipelineResult;
+      const completed = await postgresQueueService.completeJob(
+        reportId, claimToken!, claimVersion!, storageKey, fileName, uploadResult.fileSize,
+        result.manifest.pdf!.pageCount // measured from the PDF, not hard-coded
+      );
+      if (!completed) {
+        logger.warn({ reportId, claimToken }, '[ReportPlatform] Completion skipped: claim no longer owned');
+        try { await storageService.delete(storageKey); } catch (_) {}
+        return;
+      }
+      if (report.orderId && report.fulfillmentUnitId) {
         try {
-          pipelineResult = await careerReportService.generateCareerReportData(normalizedChart, {
-            provider,
-            clientProfile: {
-              clientName: report.birthProfile.name,
-              dateOfBirth: report.birthProfile.dateOfBirth,
-              timeOfBirth: report.birthProfile.timeOfBirth,
-              birthPlace: report.birthProfile.placeName || undefined,
-              timeZone: report.birthProfile.timezone,
-              latitude: report.birthProfile.latitude,
-              longitude: report.birthProfile.longitude,
-            },
-          });
-        } catch (analysisErr: any) {
-          logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Career analysis failed');
-          await this.failJob(reportId, 'CAREER_ANALYSIS_FAILED', analysisErr.message || 'LLM Career Analysis failed.', claimToken);
-          return;
+          await fulfillmentService.reconcileFulfillmentUnit(report.orderId, report.fulfillmentUnitId);
+        } catch (ordErr: any) {
+          logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[ReportPlatform] Failed to reconcile fulfillment unit');
         }
-
-        // --- STAGE 4: RENDERING (60%) ---
-        if (!(await setStage('RENDERING', 60, 'RENDERING'))) return;
-        const reportDataTex = pipelineResult.reportDataTex;
-
-        // --- STAGE 5: COMPILING (75%) ---
-        if (!(await setStage('COMPILING', 75, 'COMPILING'))) return;
-
-        let compilationResult: any;
+      } else if (report.orderId) {
         try {
-          compilationResult = await latexCompiler.compileReport({
-            reportId,
-            reportDataTex,
-            careerReportData: pipelineResult.reportData,
-            timeoutMs: 180000,
-          });
-        } catch (compileErr: any) {
-          logger.warn({ reportId, err: compileErr.message }, '[CareerReportWorker] LaTeX compilation unavailable or failed; gracefully falling back to vector PDF pipeline');
-          try {
-            const tier = report.reportType === 'CAREER_PROSITY' ? 'PRO' : 'BASIC';
-            const profileInput = {
-              name: report.birthProfile.name,
-              dateOfBirth: report.birthProfile.dateOfBirth,
-              timeOfBirth: report.birthProfile.timeOfBirth,
-              placeName: report.birthProfile.placeName,
-              timezone: report.birthProfile.timezone,
-              latitude: report.birthProfile.latitude,
-              longitude: report.birthProfile.longitude,
-            };
-            const chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, { id: report.userId, role: 'USER' });
-            const structuredReport = await generateCareerReport(profileInput, chartResponse, new DeterministicInterpretationProvider(), { tier });
-            const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
-            const pageCount = tier === 'PRO' ? 13 : 7;
-            compilationResult = {
-              pdfBuffer,
-              pageCount,
-              fileSize: pdfBuffer.length,
-            };
-          } catch (fallbackErr: any) {
-            const cleanMsg = compileErr?.message ? compileErr.message.split('\n')[0] : 'LaTeX PDF compilation failed.';
-            await this.failJob(reportId, 'LATEX_COMPILE_FAILED', cleanMsg, claimToken);
-            return;
-          }
+          await prisma.order.updateMany({ where: { id: report.orderId }, data: { fulfillmentStatus: FulfillmentStatus.FULFILLED } });
+        } catch (ordErr: any) {
+          logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[ReportPlatform] Failed to update order to FULFILLED');
         }
-
-        // --- STAGE 5.5: VALIDATING / QA (85%) ---
-        if (!(await setStage('COMPILING', 85, 'VALIDATING'))) return;
-        const isQaEnabled = process.env.REPORT_PDF_QA_ENABLED?.toLowerCase().trim() !== 'false';
-
-        const validation = validateReportPdf(
-          compilationResult.pdfBuffer,
-          compilationResult.pageCount,
-          reportDataTex
-        );
-
-        if (isQaEnabled) {
-          if (!validation.valid) {
-            logger.error({ reportId, reason: validation.reason }, '[CareerReportWorker] PDF Validation QA failed');
-            await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', validation.reason || 'PDF failed quality verification.', claimToken);
-            return;
-          }
-        } else {
-          logger.info(
-            { reportId, pageCount: compilationResult.pageCount, valid: validation.valid, reason: validation.reason },
-            '[CareerReportWorker] PDF QA: SKIPPED (REPORT_PDF_QA_ENABLED=false)'
-          );
-        }
-
-        // --- STAGE 6: UPLOADING (95%) ---
-        if (!(await setStage('UPLOADING', 95, 'UPLOADING'))) return;
-
-        // Fencing check: verify worker still owns the claim before external side effect (S3 upload)
-        if (lostOwnership) {
-          logger.warn({ reportId, claimToken }, '[CareerReportWorker] Lost ownership before S3 upload. Aborting execution.');
-          return;
-        }
-
-        const storageKey = `reports/${report.userId}/${reportId}.pdf`;
-        const fileName = `career-report-${report.birthProfile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
-
-        let uploadResult;
-        try {
-          uploadResult = await storageService.upload({
-            key: storageKey,
-            body: compilationResult.pdfBuffer,
-            contentType: 'application/pdf',
-            metadata: {
-              userId: report.userId,
-              reportId,
-              birthProfileId: report.birthProfileId,
-            },
-          });
-        } catch (uploadErr: any) {
-          logger.error({ reportId, err: uploadErr.message }, '[CareerReportWorker] Object storage upload failed');
-          await this.failJob(reportId, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr.message || 'Object storage upload failed.', claimToken);
-          return;
-        }
-
-        // Fencing check: verify worker still owns the claim before DB completion and order fulfillment
-        if (lostOwnership) {
-          logger.warn({ reportId, claimToken }, '[CareerReportWorker] Lost ownership before DB completion. Aborting execution.');
-          return;
-        }
-
-        // --- STAGE 7: COMPLETED (100%) ---
-        const completedRes = await postgresQueueService.completeJob(
-          reportId,
-          claimToken!,
-          claimVersion!,
-          storageKey,
-          fileName,
-          uploadResult.fileSize,
-          compilationResult.pageCount
-        );
-
-        if (!completedRes) {
-          logger.warn(
-            { reportId, claimToken },
-            '[CareerReportWorker] Career report completion skipped because report is no longer in active state or claimToken mismatch'
-          );
-          try {
-            await storageService.delete(storageKey);
-          } catch (_) {}
-          return;
-        }
-
-        // Fulfill associated paid order or reconcile fulfillment unit
-        if (report.orderId && report.fulfillmentUnitId) {
-          try {
-            await fulfillmentService.reconcileFulfillmentUnit(report.orderId, report.fulfillmentUnitId);
-            logger.info({ orderId: report.orderId, fulfillmentUnitId: report.fulfillmentUnitId, reportId }, '[CareerReportWorker] FulfillmentUnit reconciled');
-          } catch (ordErr: any) {
-            logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[CareerReportWorker] Failed to reconcile fulfillment unit');
-          }
-        } else if (report.orderId) {
-          try {
-            await prisma.order.updateMany({
-              where: { id: report.orderId },
-              data: { fulfillmentStatus: FulfillmentStatus.FULFILLED },
-            });
-            logger.info({ orderId: report.orderId, reportId }, '[CareerReportWorker] Order marked FULFILLED');
-          } catch (ordErr: any) {
-            logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[CareerReportWorker] Failed to update order to FULFILLED');
-          }
-        }
-
-        const durationMs = Date.now() - startTime;
-        logger.info(
-          { reportId, durationMs, pageCount: compilationResult.pageCount, fileSize: compilationResult.fileSize },
-          '[CareerReportWorker] Career report completed successfully'
-        );
-
-        // Async notification dispatch (non-blocking)
-        try {
-          await notificationService.sendNotification({
-            userId: report.userId,
-            type: 'REPORT_READY',
-            entityId: report.id,
-            idempotencyKey: `report_ready:${report.id}`,
-            route: 'OPEN_REPORT',
-            templateData: {
-              reportName: 'Career Intelligence Report',
-              reportId: report.id,
-            },
-          });
-        } catch (notifErr) {
-          logger.error({ reportId, notifErr }, '[CareerReportWorker] Failed to dispatch report completion notification');
-        }
-      } else {
-        // --- STAGE 2: CALCULATING (15%) is already set by acquireWorkerClaim
-        const metadata = ((report as any).metadata || {}) as Record<string, any>;
-        const userCtx = { id: report.userId, role: 'USER' };
-        const interpretationProvider = new DeterministicInterpretationProvider();
-
-        const profileInput = {
-          name: report.birthProfile.name,
-          dateOfBirth: report.birthProfile.dateOfBirth,
-          timeOfBirth: report.birthProfile.timeOfBirth,
-          placeName: report.birthProfile.placeName,
-          timezone: report.birthProfile.timezone,
-          latitude: report.birthProfile.latitude,
-          longitude: report.birthProfile.longitude,
-        };
-
-        let structuredReport: any;
-
-        if (report.reportType === 'MARRIAGE_COMPATIBILITY') {
-          const partnerProfileId = metadata.partnerProfileId;
-          if (!partnerProfileId) {
-            await this.failJob(
-              reportId,
-              'MISSING_PARTNER_PROFILE',
-              'Partner birth profile ID is required for marriage compatibility report.',
-              claimToken
-            );
-            return;
-          }
-
-          const partnerProfile = await prisma.birthProfile.findUnique({
-            where: { id: partnerProfileId },
-          });
-
-          if (!partnerProfile) {
-            await this.failJob(reportId, 'PARTNER_PROFILE_NOT_FOUND', 'Partner birth profile not found.', claimToken);
-            return;
-          }
-
-          let chart1: any;
-          let chart2: any;
-          try {
-            chart1 = await astrologyService.calculateChartForProfile(report.birthProfileId, userCtx);
-            chart2 = await astrologyService.calculateChartForProfile(partnerProfileId, userCtx);
-            validateAstrologyDataForReport(chart1);
-            validateAstrologyDataForReport(chart2);
-          } catch (chartErr: any) {
-            await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', chartErr.message || 'Error calculating partner charts.', claimToken);
-            return;
-          }
-
-          // --- STAGE 3: ANALYZING (35%) ---
-          if (!(await setStage('ANALYZING', 35, 'ANALYZING'))) return;
-
-          const profile2Input = {
-            name: partnerProfile.name,
-            dateOfBirth: partnerProfile.dateOfBirth,
-            timeOfBirth: partnerProfile.timeOfBirth,
-            placeName: partnerProfile.placeName,
-            timezone: partnerProfile.timezone,
-            latitude: partnerProfile.latitude,
-            longitude: partnerProfile.longitude,
-          };
-
-          try {
-            structuredReport = await generateMatchmakingReport(
-              profileInput,
-              profile2Input,
-              chart1,
-              chart2,
-              interpretationProvider
-            );
-          } catch (analysisErr: any) {
-            logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Matchmaking analysis failed');
-            await this.failJob(reportId, 'MATCHMAKING_ANALYSIS_FAILED', analysisErr.message || 'Matchmaking analysis failed.', claimToken);
-            return;
-          }
-        } else {
-          let chartResponse: any;
-          try {
-            chartResponse = await astrologyService.calculateChartForProfile(report.birthProfileId, userCtx);
-            validateAstrologyDataForReport(chartResponse);
-          } catch (chartErr: any) {
-            await this.failJob(reportId, 'CHART_DATA_INCOMPLETE', chartErr.message || 'Incomplete chart data.', claimToken);
-            return;
-          }
-
-          // --- STAGE 3: ANALYZING (35%) ---
-          if (!(await setStage('ANALYZING', 35, 'ANALYZING'))) return;
-
-          try {
-            if (report.reportType === 'KUNDLI') {
-              structuredReport = await generateKundliReport(profileInput, chartResponse, interpretationProvider);
-            } else if (report.reportType === 'PLANETARY_SUMMARY') {
-              structuredReport = await generatePlanetaryReport(profileInput, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'HOROSCOPE' || (report.reportType as string) === 'RASHI_BHAVISHYA') {
-              structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'CAREER' || (report.reportType as string) === 'CAREER_PROSITY') {
-              const tier = (report.reportType as string) === 'CAREER_PROSITY' ? 'PRO' : 'BASIC';
-              structuredReport = await generateCareerReport(profileInput, chartResponse, interpretationProvider, { tier });
-            } else if ((report.reportType as string) === 'FINANCE') {
-              structuredReport = await generateFinanceReport(profileInput, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'LOVE') {
-              structuredReport = await generateLoveReport(profileInput, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'FORTUNE') {
-              structuredReport = await generateFortuneReport(profileInput, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'FORTUNE_PLUS') {
-              structuredReport = await generateFortunePlusReport(profileInput, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'SATURN') {
-              structuredReport = await generateSaturnReport(profileInput, {
-                zodiacType: 'SIDEREAL',
-                ayanamsa: 'LAHIRI',
-                houseSystem: 'WHOLE_SIGN',
-                nodeCalculation: 'MEAN_NODE',
-              }, chartResponse, interpretationProvider);
-            } else if ((report.reportType as string) === 'JUPITER_TRANSIT') {
-              const referenceDate = metadata.referenceDate || report.createdAt || new Date();
-              const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
-              if (!metadata.referenceDate) {
-                metadata.referenceDate = referenceDateIso;
-                await prisma.report.update({
-                  where: { id: reportId },
-                  data: { metadata: { ...metadata, referenceDate: referenceDateIso } },
-                });
-              }
-              structuredReport = await generateJupiterReport(profileInput, {
-                zodiacType: 'SIDEREAL',
-                ayanamsa: 'LAHIRI',
-                houseSystem: 'WHOLE_SIGN',
-                nodeCalculation: 'MEAN_NODE',
-              }, chartResponse, interpretationProvider, { referenceDate: referenceDateIso });
-            } else if ((report.reportType as string) === 'RAHU_KETU_TRANSIT') {
-              const referenceDate = metadata.referenceDate || report.createdAt || new Date();
-              const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
-              if (!metadata.referenceDate) {
-                metadata.referenceDate = referenceDateIso;
-                await prisma.report.update({
-                  where: { id: reportId },
-                  data: { metadata: { ...metadata, referenceDate: referenceDateIso } },
-                });
-              }
-              structuredReport = await generateRahuKetuReport(profileInput, {
-                zodiacType: 'SIDEREAL',
-                ayanamsa: 'LAHIRI',
-                houseSystem: 'WHOLE_SIGN',
-                nodeCalculation: 'MEAN_NODE',
-              }, chartResponse, interpretationProvider, { referenceDate: referenceDateIso });
-            } else if ((report.reportType as string) === 'VARSHPHAL') {
-              const targetYear = metadata.targetYear || metadata.year || (report.createdAt ? new Date(report.createdAt).getFullYear() : new Date().getFullYear());
-              if (!metadata.targetYear) {
-                metadata.targetYear = targetYear;
-                await prisma.report.update({
-                  where: { id: reportId },
-                  data: { metadata: { ...metadata, targetYear } },
-                });
-              }
-              structuredReport = await generateVarshphalReport(profileInput, {
-                zodiacType: 'SIDEREAL',
-                ayanamsa: 'LAHIRI',
-                houseSystem: 'WHOLE_SIGN',
-                nodeCalculation: 'MEAN_NODE',
-              }, chartResponse, interpretationProvider, { targetYear });
-            } else {
-              await this.failJob(reportId, 'REPORT_TYPE_NOT_SUPPORTED', `Report type ${report.reportType} is not supported. Dedicated generator is not available.`, claimToken);
-              return;
-            }
-          } catch (analysisErr: any) {
-            logger.error({ reportId, err: analysisErr.message }, '[CareerReportWorker] Report analysis failed');
-            await this.failJob(reportId, 'ANALYSIS_FAILED', analysisErr.message || 'Report analysis failed.', claimToken);
-            return;
-          }
-        }
-
-        // --- STAGE 4: RENDERING (60%) ---
-        if (!(await setStage('RENDERING', 60, 'RENDERING'))) return;
-
-        // --- STAGE 5: COMPILING (75%) ---
-        if (!(await setStage('COMPILING', 75, 'COMPILING'))) return;
-
-        let pdfBuffer: Buffer;
-        try {
-          pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
-        } catch (renderErr: any) {
-          logger.error({ reportId, err: renderErr.message }, '[CareerReportWorker] PDF rendering failed');
-          await this.failJob(reportId, 'PDF_RENDER_FAILED', renderErr.message || 'PDF rendering failed.', claimToken);
-          return;
-        }
-
-        // --- STAGE 5.5: VALIDATING (85%) ---
-        if (!(await setStage('COMPILING', 85, 'VALIDATING'))) return;
-        if (!pdfBuffer || pdfBuffer.length < 1000 || !pdfBuffer.slice(0, 5).toString('utf-8').startsWith('%PDF-')) {
-          await this.failJob(reportId, 'PDF_QA_VALIDATION_FAILED', 'PDF binary verification failed (invalid %PDF header).', claimToken);
-          return;
-        }
-
-        // --- STAGE 6: UPLOADING (95%) ---
-        if (!(await setStage('UPLOADING', 95, 'UPLOADING'))) return;
-
-        // Fencing check: verify worker still owns the claim before external side effect (S3 upload)
-        if (lostOwnership) {
-          logger.warn({ reportId, claimToken }, '[ConsumerReportWorker] Lost ownership before S3 upload. Aborting execution.');
-          return;
-        }
-
-        const storageKey = `reports/${report.userId}/${reportId}.pdf`;
-        const prefix = report.reportType.toLowerCase().replace(/_/g, '-');
-        const fileName = `${prefix}-${report.birthProfile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
-
-        let uploadResult;
-        try {
-          uploadResult = await storageService.upload({
-            key: storageKey,
-            body: pdfBuffer,
-            contentType: 'application/pdf',
-            metadata: {
-              userId: report.userId,
-              reportId,
-              birthProfileId: report.birthProfileId,
-              reportType: report.reportType,
-            },
-          });
-        } catch (uploadErr: any) {
-          logger.error({ reportId, err: uploadErr.message }, '[CareerReportWorker] Object storage upload failed');
-          await this.failJob(reportId, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr.message || 'Object storage upload failed.', claimToken);
-          return;
-        }
-
-        // Fencing check: verify worker still owns the claim before DB completion and order fulfillment
-        if (lostOwnership) {
-          logger.warn({ reportId, claimToken }, '[ConsumerReportWorker] Lost ownership before DB completion. Aborting execution.');
-          return;
-        }
-
-        // --- STAGE 7: COMPLETED (100%) ---
-        const pageCount = (report.reportType as string) === 'FORTUNE_PLUS' ? 35 : ((report.reportType as string) === 'FORTUNE' ? 27 : ((report.reportType as string) === 'LOVE' ? 23 : ((report.reportType as string) === 'VARSHPHAL' ? 16 : ((report.reportType as string) === 'FINANCE' ? 12 : ((report.reportType as string) === 'RAHU_KETU_TRANSIT' ? 12 : ((report.reportType as string) === 'JUPITER_TRANSIT' ? 11 : ((report.reportType as string) === 'SATURN' ? 10 : (report.reportType === 'MARRIAGE_COMPATIBILITY' || report.reportType === 'HOROSCOPE') ? 11 : 3)))))));
-        const completedRes = await postgresQueueService.completeJob(
-          reportId,
-          claimToken!,
-          claimVersion!,
-          storageKey,
-          fileName,
-          uploadResult.fileSize,
-          pageCount
-        );
-
-        if (!completedRes) {
-          logger.warn(
-            { reportId, claimToken },
-            '[ConsumerReportWorker] Report completion skipped because report is no longer in active state or claimToken mismatch'
-          );
-          try {
-            await storageService.delete(storageKey);
-          } catch (_) {}
-          return;
-        }
-
-        // Fulfill associated paid order or reconcile fulfillment unit
-        if (report.orderId && report.fulfillmentUnitId) {
-          try {
-            await fulfillmentService.reconcileFulfillmentUnit(report.orderId, report.fulfillmentUnitId);
-            logger.info({ orderId: report.orderId, fulfillmentUnitId: report.fulfillmentUnitId, reportId }, '[ConsumerReportWorker] FulfillmentUnit reconciled');
-          } catch (ordErr: any) {
-            logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[ConsumerReportWorker] Failed to reconcile fulfillment unit');
-          }
-        } else if (report.orderId) {
-          try {
-            await prisma.order.updateMany({
-              where: { id: report.orderId },
-              data: { fulfillmentStatus: FulfillmentStatus.FULFILLED },
-            });
-            logger.info({ orderId: report.orderId, reportId }, '[ConsumerReportWorker] Order marked FULFILLED');
-          } catch (ordErr: any) {
-            logger.warn({ orderId: report.orderId, err: ordErr?.message }, '[ConsumerReportWorker] Failed to update order to FULFILLED');
-          }
-        }
-
-        const durationMs = Date.now() - startTime;
-        logger.info(
-          { reportId, durationMs, pageCount, fileSize: uploadResult.fileSize, reportType: report.reportType },
-          '[CareerReportWorker] Report completed successfully'
-        );
-
-        // Async notification dispatch (non-blocking)
-        try {
-          await notificationService.sendNotification({
-            userId: report.userId,
-            type: 'REPORT_READY',
-            entityId: report.id,
-            idempotencyKey: `report_ready:${report.id}`,
-            route: 'OPEN_REPORT',
-            templateData: {
-              reportName: report.reportType,
-              reportId: report.id,
-            },
-          });
-        } catch (notifErr) {
-          logger.error({ reportId, notifErr }, '[CareerReportWorker] Failed to dispatch report completion notification');
-        }
+      }
+      logger.info(
+        { reportId, durationMs: Date.now() - startTime, pageCount: result.manifest.pdf!.pageCount, failedAttemptsBefore: attempt.failedAttempts },
+        '[ReportPlatform] Report completed'
+      );
+      try {
+        await notificationService.sendNotification({
+          userId: report.userId,
+          type: 'REPORT_READY',
+          entityId: report.id,
+          idempotencyKey: `report_ready:${report.id}`,
+          route: 'OPEN_REPORT',
+          templateData: { reportName: report.reportType, reportId: report.id },
+        });
+      } catch (notifErr) {
+        logger.error({ reportId, notifErr }, '[ReportPlatform] Failed to dispatch report completion notification');
       }
     } catch (err: any) {
       logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Pipeline error occurred');
-      await this.failJob(reportId, 'PIPELINE_ERROR', err?.message || 'An unexpected worker error occurred.', claimToken, claimVersion);
+      if (!lostOwnership) {
+        await this.handleAttemptFailure(attempt, 'PIPELINE_ERROR', err?.message || 'An unexpected worker error occurred.');
+      }
     } finally {
       stopHeartbeat();
+      if (this.inFlight.get(reportId)?.done === done) this.inFlight.delete(reportId);
+      markDone();
     }
+  }
+
+  /** One platform generation run (a seam so tests can substitute the generation without a paid LLM). */
+  public generatePlatformReport(input: PlatformRunInput): ReturnType<typeof runPlatformReport> {
+    return runPlatformReport(input);
+  }
+
+  /**
+   * Applies the retry policy to a failed attempt: reschedule (transient, before
+   * the deadline and under the attempt cap) or mark FAILED with a clear message.
+   */
+  public async handleAttemptFailure(
+    attempt: AttemptContext,
+    errorCode: string,
+    detail: string,
+    userMessage?: string,
+    now: Date = new Date()
+  ): Promise<'rescheduled' | 'failed' | 'skipped'> {
+    const failedAttempts = attempt.failedAttempts + 1;
+    const decision = decideRetry({ errorCode, failedAttempts, now, deadline: attempt.deadline });
+
+    if (decision.action === 'retry') {
+      const ok = await postgresQueueService.rescheduleJob(
+        attempt.reportId, attempt.claimToken!, attempt.claimVersion!, decision.retryAt, errorCode, detail
+      );
+      if (!ok) {
+        logger.warn({ reportId: attempt.reportId, errorCode }, '[ReportRetry] Reschedule skipped: claim no longer owned');
+        return 'skipped';
+      }
+      logger.warn(
+        { reportId: attempt.reportId, errorCode, failedAttempts, retryAt: decision.retryAt.toISOString(), deadline: attempt.deadline.toISOString() },
+        '[ReportRetry] Transient generation failure; retry scheduled (customer still sees the report as being prepared)'
+      );
+      return 'rescheduled';
+    }
+
+    const message = finalFailureMessage(decision, errorCode, failedAttempts, userMessage);
+    logger.error(
+      { reportId: attempt.reportId, errorCode, reason: decision.reason, failedAttempts, deadline: attempt.deadline.toISOString(), detail: detail.slice(0, 500) },
+      '[REPORT_ALERT] Report generation stopped; marking FAILED'
+    );
+    try {
+      await prisma.report.updateMany({
+        where: { id: attempt.reportId, claimToken: attempt.claimToken },
+        data: { lastAttemptAt: now, lastAttemptErrorCode: errorCode, lastAttemptErrorMessage: detail.slice(0, 2000) },
+      });
+    } catch (_) {}
+    const failed = await this.failJob(attempt.reportId, errorCode, message, attempt.claimToken, attempt.claimVersion);
+    return failed ? 'failed' : 'skipped';
   }
 
   /**
@@ -1080,6 +880,9 @@ export class CareerReportWorker {
           claimExpiresAt: null,
           recoveryAttempts: 0,
           retryAfter: null,
+          generationFailures: 0,
+          lastAttemptErrorCode: null,
+          lastAttemptErrorMessage: null,
           updatedAt: new Date(),
         } as any,
       });
@@ -1330,6 +1133,25 @@ export class CareerReportWorker {
 
       logger.warn({ reportId, errorCode, errorMessage }, '[CareerReportWorker] Job marked as FAILED');
 
+      await this.finalizeFailedReport(reportId);
+
+      return true;
+    } catch (dbErr: any) {
+      logger.error(
+        { reportId, errorCode, errorMessage, dbErr: dbErr?.message },
+        '[CareerReportWorker] Critical double-fault: Failed to record FAILED report state to database.'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Follow-up after a report reached FAILED: notify the user and move the order
+   * (or its fulfilment unit) to a recoverable FAILED state. Never marks an order
+   * FAILED when one of its reports is COMPLETED.
+   */
+  private async finalizeFailedReport(reportId: string): Promise<void> {
+    try {
       const failedReport = await prisma.report.findUnique({
         where: { id: reportId },
         select: { userId: true, reportType: true, orderId: true, fulfillmentUnitId: true },
@@ -1383,58 +1205,10 @@ export class CareerReportWorker {
           );
         }
       }
-
-      return true;
-    } catch (dbErr: any) {
-      logger.error(
-        { reportId, errorCode, errorMessage, dbErr: dbErr?.message },
-        '[CareerReportWorker] Critical double-fault: Failed to record FAILED report state to database.'
-      );
-      return false;
+    } catch (err: any) {
+      logger.error({ reportId, err: err?.message || err }, '[CareerReportWorker] Failed to finalize FAILED report');
     }
   }
-}
-
-export function validateReportPdf(
-  pdfBuffer: Buffer,
-  pageCount: number,
-  textContent: string
-): { valid: boolean; reason?: string } {
-  if (!pdfBuffer || pdfBuffer.length < 1000) {
-    return { valid: false, reason: 'PDF buffer is missing or suspiciously small (<1KB).' };
-  }
-
-  const header = pdfBuffer.slice(0, 10).toString('utf-8');
-  if (!header.startsWith('%PDF-1.')) {
-    return { valid: false, reason: 'PDF binary header validation failed (invalid %PDF header).' };
-  }
-
-  const footer = pdfBuffer.slice(Math.max(0, pdfBuffer.length - 200)).toString('utf-8');
-  if (!footer.includes('%%EOF')) {
-    return { valid: false, reason: 'PDF binary footer validation failed (missing %%EOF marker).' };
-  }
-
-  if (pageCount < 1) {
-    return { valid: false, reason: 'PDF has invalid page count (less than 1 page).' };
-  }
-
-  const forbiddenPlaceholders = [
-    'Valued Client',
-    'Not supplied',
-    'TODO',
-    'Lorem ipsum',
-    'Personalized interpretation unavailable',
-    'undefined',
-    'null',
-  ];
-
-  for (const placeholder of forbiddenPlaceholders) {
-    if (textContent.includes(placeholder)) {
-      return { valid: false, reason: `PDF content failed QA: detected unrendered placeholder "${placeholder}".` };
-    }
-  }
-
-  return { valid: true };
 }
 
 export const careerReportWorker = new CareerReportWorker();

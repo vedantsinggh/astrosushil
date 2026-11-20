@@ -25,6 +25,14 @@ class BirthProfileRepository {
     return await _guestService!.getGuestProfile();
   }
 
+  /// Guest-created profile on this device that is not yet on the account,
+  /// or null when there is nothing to offer. See
+  /// [LocalGuestBirthProfileService.getPendingGuestProfile].
+  Future<BirthProfileModel?> getPendingGuestProfile(List<BirthProfileModel> accountProfiles) async {
+    if (_guestService == null) return null;
+    return await _guestService!.getPendingGuestProfile(accountProfiles);
+  }
+
   /// Save local guest birth profile
   Future<BirthProfileModel> saveGuestProfile(CreateBirthProfileDto dto) async {
     if (_guestService == null) {

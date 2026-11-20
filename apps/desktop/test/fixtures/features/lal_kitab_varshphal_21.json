@@ -1,0 +1,375 @@
+{
+ "system": "LAL_KITAB_VARSHPHAL",
+ "provisional": true,
+ "source": "Lal Kitab (Pt. Roop Chand Joshi, 1952 ed.) Varshphal table, ages 1–120, as reproduced in \"Varshphal sequence of movement of planets as per Lalkitab\" (Astrostudents Collections) and R. N. Bhandari, \"Varshphal Annual Transition Chart Part 2\", Saptarishis Astrology (saptarishisastrology.com/?p=10498); 114/120 rows identical in both, 6 single-cell typos reconciled.",
+ "conventionNotes": [
+  "Age is the running year of life: year 1 runs from birth to the first birthday; a target calendar year selects the running year that begins on the birthday in that year.",
+  "All planets of one natal house move together to the same annual house."
+ ],
+ "age": 21,
+ "startsInYear": 2010,
+ "tableRowReconciled": false,
+ "houseMapping": [
+  {
+   "natalHouse": 1,
+   "annualHouse": 12
+  },
+  {
+   "natalHouse": 2,
+   "annualHouse": 2
+  },
+  {
+   "natalHouse": 3,
+   "annualHouse": 8
+  },
+  {
+   "natalHouse": 4,
+   "annualHouse": 5
+  },
+  {
+   "natalHouse": 5,
+   "annualHouse": 10
+  },
+  {
+   "natalHouse": 6,
+   "annualHouse": 3
+  },
+  {
+   "natalHouse": 7,
+   "annualHouse": 9
+  },
+  {
+   "natalHouse": 8,
+   "annualHouse": 4
+  },
+  {
+   "natalHouse": 9,
+   "annualHouse": 1
+  },
+  {
+   "natalHouse": 10,
+   "annualHouse": 11
+  },
+  {
+   "natalHouse": 11,
+   "annualHouse": 7
+  },
+  {
+   "natalHouse": 12,
+   "annualHouse": 6
+  }
+ ],
+ "planets": [
+  {
+   "planet": "SUN",
+   "natalHouse": 9,
+   "annualHouse": 1
+  },
+  {
+   "planet": "MOON",
+   "natalHouse": 5,
+   "annualHouse": 10
+  },
+  {
+   "planet": "MARS",
+   "natalHouse": 6,
+   "annualHouse": 3
+  },
+  {
+   "planet": "MERCURY",
+   "natalHouse": 8,
+   "annualHouse": 4
+  },
+  {
+   "planet": "JUPITER",
+   "natalHouse": 10,
+   "annualHouse": 11
+  },
+  {
+   "planet": "VENUS",
+   "natalHouse": 7,
+   "annualHouse": 9
+  },
+  {
+   "planet": "SATURN",
+   "natalHouse": 5,
+   "annualHouse": 10
+  },
+  {
+   "planet": "RAHU",
+   "natalHouse": 5,
+   "annualHouse": 10
+  },
+  {
+   "planet": "KETU",
+   "natalHouse": 11,
+   "annualHouse": 7
+  }
+ ],
+ "houses": [
+  {
+   "house": 1,
+   "fixedRashiIndex": 1,
+   "fixedRashiName": "Mesha",
+   "planets": [
+    "SUN"
+   ]
+  },
+  {
+   "house": 2,
+   "fixedRashiIndex": 2,
+   "fixedRashiName": "Vrishabha",
+   "planets": []
+  },
+  {
+   "house": 3,
+   "fixedRashiIndex": 3,
+   "fixedRashiName": "Mithuna",
+   "planets": [
+    "MARS"
+   ]
+  },
+  {
+   "house": 4,
+   "fixedRashiIndex": 4,
+   "fixedRashiName": "Karka",
+   "planets": [
+    "MERCURY"
+   ]
+  },
+  {
+   "house": 5,
+   "fixedRashiIndex": 5,
+   "fixedRashiName": "Simha",
+   "planets": []
+  },
+  {
+   "house": 6,
+   "fixedRashiIndex": 6,
+   "fixedRashiName": "Kanya",
+   "planets": []
+  },
+  {
+   "house": 7,
+   "fixedRashiIndex": 7,
+   "fixedRashiName": "Tula",
+   "planets": [
+    "KETU"
+   ]
+  },
+  {
+   "house": 8,
+   "fixedRashiIndex": 8,
+   "fixedRashiName": "Vrischika",
+   "planets": []
+  },
+  {
+   "house": 9,
+   "fixedRashiIndex": 9,
+   "fixedRashiName": "Dhanu",
+   "planets": [
+    "VENUS"
+   ]
+  },
+  {
+   "house": 10,
+   "fixedRashiIndex": 10,
+   "fixedRashiName": "Makara",
+   "planets": [
+    "MOON",
+    "SATURN",
+    "RAHU"
+   ]
+  },
+  {
+   "house": 11,
+   "fixedRashiIndex": 11,
+   "fixedRashiName": "Kumbha",
+   "planets": [
+    "JUPITER"
+   ]
+  },
+  {
+   "house": 12,
+   "fixedRashiIndex": 12,
+   "fixedRashiName": "Meena",
+   "planets": []
+  }
+ ],
+ "natal": {
+  "system": "LAL_KITAB",
+  "provisional": true,
+  "source": "Lal Kitab (Pt. Roop Chand Joshi, 1952 ed.): fixed Kalpurush teva — house 1 = Mesha (Aries) always; a planet in the Nth house from the natal lagna is placed in house N of the fixed chart.",
+  "conventionNotes": [
+   "Houses are sign-based (whole-sign) from the natal lagna, as Lal Kitab counts houses; the configured house system is not used for this chart.",
+   "Lal Kitab places planets only by house; degrees and natal signs are listed for reference and are not used.",
+   "Pakka Ghar, sleeping (soya) planets/houses and Lal Kitab dignity houses are not computed: published secondary tables conflict and no primary text was available."
+  ],
+  "natalLagnaRashiIndex": 6,
+  "natalLagnaRashiName": "Kanya",
+  "planets": [
+   {
+    "planet": "SUN",
+    "house": 9,
+    "natalRashiIndex": 2,
+    "natalRashiName": "Vrishabha",
+    "longitude": 30.55977528193318,
+    "isRetrograde": false
+   },
+   {
+    "planet": "MOON",
+    "house": 5,
+    "natalRashiIndex": 10,
+    "natalRashiName": "Makara",
+    "longitude": 271.9040489960244,
+    "isRetrograde": false
+   },
+   {
+    "planet": "MARS",
+    "house": 6,
+    "natalRashiIndex": 11,
+    "natalRashiName": "Kumbha",
+    "longitude": 324.5256864226512,
+    "isRetrograde": false
+   },
+   {
+    "planet": "MERCURY",
+    "house": 8,
+    "natalRashiIndex": 1,
+    "natalRashiName": "Mesha",
+    "longitude": 14.312159300363074,
+    "isRetrograde": true
+   },
+   {
+    "planet": "JUPITER",
+    "house": 10,
+    "natalRashiIndex": 3,
+    "natalRashiName": "Mithuna",
+    "longitude": 75.80264164420402,
+    "isRetrograde": false
+   },
+   {
+    "planet": "VENUS",
+    "house": 7,
+    "natalRashiIndex": 12,
+    "natalRashiName": "Meena",
+    "longitude": 348.9602882016883,
+    "isRetrograde": false
+   },
+   {
+    "planet": "SATURN",
+    "house": 5,
+    "natalRashiIndex": 10,
+    "natalRashiName": "Makara",
+    "longitude": 271.53595568611155,
+    "isRetrograde": true
+   },
+   {
+    "planet": "RAHU",
+    "house": 5,
+    "natalRashiIndex": 10,
+    "natalRashiName": "Makara",
+    "longitude": 287.626967293327,
+    "isRetrograde": true
+   },
+   {
+    "planet": "KETU",
+    "house": 11,
+    "natalRashiIndex": 4,
+    "natalRashiName": "Karka",
+    "longitude": 107.62696729332703,
+    "isRetrograde": true
+   }
+  ],
+  "houses": [
+   {
+    "house": 1,
+    "fixedRashiIndex": 1,
+    "fixedRashiName": "Mesha",
+    "planets": []
+   },
+   {
+    "house": 2,
+    "fixedRashiIndex": 2,
+    "fixedRashiName": "Vrishabha",
+    "planets": []
+   },
+   {
+    "house": 3,
+    "fixedRashiIndex": 3,
+    "fixedRashiName": "Mithuna",
+    "planets": []
+   },
+   {
+    "house": 4,
+    "fixedRashiIndex": 4,
+    "fixedRashiName": "Karka",
+    "planets": []
+   },
+   {
+    "house": 5,
+    "fixedRashiIndex": 5,
+    "fixedRashiName": "Simha",
+    "planets": [
+     "MOON",
+     "SATURN",
+     "RAHU"
+    ]
+   },
+   {
+    "house": 6,
+    "fixedRashiIndex": 6,
+    "fixedRashiName": "Kanya",
+    "planets": [
+     "MARS"
+    ]
+   },
+   {
+    "house": 7,
+    "fixedRashiIndex": 7,
+    "fixedRashiName": "Tula",
+    "planets": [
+     "VENUS"
+    ]
+   },
+   {
+    "house": 8,
+    "fixedRashiIndex": 8,
+    "fixedRashiName": "Vrischika",
+    "planets": [
+     "MERCURY"
+    ]
+   },
+   {
+    "house": 9,
+    "fixedRashiIndex": 9,
+    "fixedRashiName": "Dhanu",
+    "planets": [
+     "SUN"
+    ]
+   },
+   {
+    "house": 10,
+    "fixedRashiIndex": 10,
+    "fixedRashiName": "Makara",
+    "planets": [
+     "JUPITER"
+    ]
+   },
+   {
+    "house": 11,
+    "fixedRashiIndex": 11,
+    "fixedRashiName": "Kumbha",
+    "planets": [
+     "KETU"
+    ]
+   },
+   {
+    "house": 12,
+    "fixedRashiIndex": 12,
+    "fixedRashiName": "Meena",
+    "planets": []
+   }
+  ]
+ }
+}

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -34,8 +32,6 @@ class AstrologyHubScreen extends ConsumerStatefulWidget {
 }
 
 class _AstrologyHubScreenState extends ConsumerState<AstrologyHubScreen> {
-  int _selectedFilterIndex = 0; // 0 = All, 1 = Charts, 2 = Timing, 3 = Strength, 4 = Advanced
-
   void _navigateToKundli(BuildContext context, BirthProfileModel profile) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -159,417 +155,350 @@ class _AstrologyHubScreenState extends ConsumerState<AstrologyHubScreen> {
   @override
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
+    // The birth chart is the featured (hero) tool; the rest form the grid.
+    final chartItems = activeProfile == null ? const <AstrologyToolItem>[] : _chartItems(context, activeProfile);
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: 'Astrology',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
-            tooltip: 'About Vedic Astrology Engine',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('All calculations are 100% deterministic using Astronomy Engine (VSOP87/ELP2000-82) & Lahiri Ayanamsa.'),
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: activeProfile == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: AstrologyEmptyState(
-                      title: 'No Birth Profile Available',
-                      message: 'Add your birth details to unlock complete Kundli, Dasha, Strength, and Planetary calculations.',
-                      actionLabel: 'Add Birth Profile',
-                      onAction: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                        );
-                      },
-                    ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. ACTIVE BIRTH PROFILE SELECTOR
-                      const ActiveBirthProfileSelector(isDark: false),
-
-                      const SizedBox(height: 16),
-
-                      // 2. CATEGORY FILTER SEGMENTED CONTROLS
-                      AstrologyTabBar(
-                        isScrollable: true,
-                        selectedIndex: _selectedFilterIndex,
-                        onTabSelected: (idx) {
-                          setState(() => _selectedFilterIndex = idx);
+    return AstroPage(
+      title: 'Astrology',
+      subtitle: activeProfile == null ? null : 'Choose a tool to explore your chart.',
+      style: AstroNavBarStyle.hero,
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Vedic Astrology Engine',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'All calculations are 100% deterministic using Astronomy Engine (VSOP87/ELP2000-82) & Lahiri Ayanamsa.'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          },
+        ),
+      ],
+      slivers: [
+        AstroSliverContent(
+          top: 20,
+          maxWidth: 960,
+          sliver: SliverToBoxAdapter(
+            child: activeProfile == null
+                ? Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: AstrologyEmptyState(
+                        title: 'No Birth Profile Available',
+                        message: 'Add your birth details to see your chart and all astrology tools.',
+                        actionLabel: 'Add Birth Profile',
+                        onAction: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                          );
                         },
-                        tabs: const [
-                          AstrologyTabItem(label: 'All Systems', icon: Icons.all_inclusive_rounded),
-                          AstrologyTabItem(label: 'Charts & Kundli', icon: Icons.grid_view_rounded),
-                          AstrologyTabItem(label: 'Timing & Dashas', icon: Icons.schedule_rounded),
-                          AstrologyTabItem(label: 'Strengths', icon: Icons.bar_chart_rounded),
-                          AstrologyTabItem(label: 'Advanced', icon: Icons.psychology_rounded),
-                          AstrologyTabItem(label: 'Matchmaking', icon: Icons.favorite_rounded),
-                        ],
                       ),
-
-                      const SizedBox(height: 20),
-
-                      // 3. PROGRESSIVE HIERARCHICAL SECTIONS
-                      if (_selectedFilterIndex == 0 || _selectedFilterIndex == 1)
-                        _buildChartsSection(context, activeProfile),
-
-                      if (_selectedFilterIndex == 0 || _selectedFilterIndex == 2)
-                        _buildTimingSection(context, activeProfile),
-
-                      if (_selectedFilterIndex == 0 || _selectedFilterIndex == 3)
-                        _buildStrengthSection(context, activeProfile),
-
-                      if (_selectedFilterIndex == 0 || _selectedFilterIndex == 4)
-                        _buildAdvancedSection(context, activeProfile),
-
-                      if (_selectedFilterIndex == 0 || _selectedFilterIndex == 5)
-                        _buildMatchmakingSection(context, activeProfile),
-
-                      const SizedBox(height: 32),
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const ActiveBirthProfileSelector(isDark: false),
+                      const SizedBox(height: 16),
+                      _FeaturedToolCard(item: chartItems.first),
+                      _HubSection(
+                        title: 'Charts & Kundli',
+                        subtitle: 'Your birth chart, planets and houses',
+                        items: chartItems.skip(1).toList(),
+                      ),
+                      _HubSection(
+                        title: 'Timing & Periods',
+                        subtitle: 'When things are likely to unfold',
+                        items: _timingItems(context, activeProfile),
+                      ),
+                      _HubSection(
+                        title: 'Strength',
+                        subtitle: 'How strong each planet and house is',
+                        items: _strengthItems(context, activeProfile),
+                      ),
+                      _HubSection(
+                        title: 'Advanced Tools',
+                        subtitle: 'Classical systems for deeper study',
+                        items: _advancedItems(context, activeProfile),
+                      ),
+                      _HubSection(
+                        title: 'Matchmaking',
+                        items: _matchmakingItems(context),
+                      ),
                     ],
                   ),
-                ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
   // ==========================================
   // SECTION 1: CHARTS & KUNDLI
   // ==========================================
-  Widget _buildChartsSection(BuildContext context, BirthProfileModel profile) {
-    return AstrologySectionCard(
-      title: 'Charts & Kundli',
-      subtitle: 'Natal Lagna chart, planetary degrees, and divisional vargas',
-      icon: Icons.grid_view_rounded,
-      badgeText: 'CORE',
-      badgeColor: AppColors.secondary,
-      child: Column(
-        children: [
-          AstrologyFeatureTile(
-            title: 'Birth Chart (Kundli)',
-            subtitle: 'D-1 Rashi natal chart with houses, Lagna & planets',
-            icon: Icons.auto_awesome_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToKundli(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Planetary Placements',
-            subtitle: 'Exact degrees, Nakshatras, Padas & retrograde state',
-            icon: Icons.public_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToPlanets(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: '12 Houses (Bhavas)',
-            subtitle: 'Comprehensive 12 life sector breakdown from Lagna to Vyaya',
-            icon: Icons.home_work_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => BirthChartScreen(profile: profile, initialTabIndex: 2)),
-            ),
-          ),
-          AstrologyFeatureTile(
-            title: 'Nakshatra Profile',
-            subtitle: 'Janma Nakshatra, Pada, ruling lord & lunar mansions',
-            icon: Icons.auto_awesome_mosaic_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => BirthChartScreen(profile: profile, initialTabIndex: 3)),
-            ),
-          ),
-          AstrologyFeatureTile(
-            title: 'Divisional Charts (Vargas)',
-            subtitle: 'D-1 to D-60 Shodashvarga harmonic charts (Navamsha, Dashamsha, etc.)',
-            icon: Icons.pie_chart_outline_rounded,
-            tag: 'D1–D60',
-            tagColor: AppColors.success,
-            onTap: () => _navigateToDivisionalCharts(context, profile),
-          ),
-        ],
+  List<AstrologyToolItem> _chartItems(BuildContext context, BirthProfileModel profile) {
+    return [
+      AstrologyToolItem(
+        title: 'Birth Chart (Kundli)',
+        subtitle: 'Your main birth chart',
+        icon: Icons.auto_awesome_rounded,
+        color: AppColors.tintVioletText,
+        tint: AstroTint.violet,
+        onTap: () => _navigateToKundli(context, profile),
       ),
-    );
+      AstrologyToolItem(
+        title: 'Planetary Placements',
+        subtitle: 'Where each planet was at birth',
+        icon: Icons.public_rounded,
+        color: AppColors.tintVioletText,
+        tint: AstroTint.violet,
+        onTap: () => _navigateToPlanets(context, profile),
+      ),
+      AstrologyToolItem(
+        title: '12 Houses (Bhavas)',
+        subtitle: 'The 12 areas of life',
+        icon: Icons.home_work_rounded,
+        color: AppColors.tintVioletText,
+        tint: AstroTint.violet,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => BirthChartScreen(profile: profile, initialTabIndex: 2)),
+        ),
+      ),
+      AstrologyToolItem(
+        title: 'Nakshatra Profile',
+        subtitle: 'Your birth star',
+        icon: Icons.auto_awesome_mosaic_rounded,
+        color: AppColors.tintVioletText,
+        tint: AstroTint.violet,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => BirthChartScreen(profile: profile, initialTabIndex: 3)),
+        ),
+      ),
+      AstrologyToolItem(
+        title: 'Divisional Charts (Vargas)',
+        subtitle: 'Detailed charts, D1 to D60',
+        icon: Icons.pie_chart_outline_rounded,
+        color: AppColors.tintVioletText,
+        tint: AstroTint.violet,
+        onTap: () => _navigateToDivisionalCharts(context, profile),
+      ),
+    ];
   }
 
   // ==========================================
   // SECTION 2: TIMING & DASHAS
   // ==========================================
-  Widget _buildTimingSection(BuildContext context, BirthProfileModel profile) {
-    return AstrologySectionCard(
-      title: 'Timing & Periods',
-      subtitle: 'Planetary time cycles, transits, and daily astronomical panchang',
-      icon: Icons.schedule_rounded,
-      child: Column(
-        children: [
-          AstrologyFeatureTile(
-            title: 'Vimshottari Dasha',
-            subtitle: '120-year Parashari multi-tier planetary timeline',
-            icon: Icons.timeline_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToVimshottariDasha(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Transits (Gochara)',
-            subtitle: 'Live planetary transits, house ingress, and timeline events',
-            icon: Icons.swap_horiz_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToGochara(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Panchanga',
-            subtitle: 'Daily Tithi, Vara, Nakshatra, Yoga, and Karana elements',
-            icon: Icons.wb_twilight_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToPanchanga(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Vedic Yogas',
-            subtitle: 'Pancha Mahapurusha, Raja, Dhana, and planetary combinations',
-            icon: Icons.stars_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            onTap: () => _navigateToYogas(context, profile),
-          ),
-        ],
+  List<AstrologyToolItem> _timingItems(BuildContext context, BirthProfileModel profile) {
+    return [
+      AstrologyToolItem(
+        title: 'Vimshottari Dasha',
+        subtitle: 'Your planet periods over time',
+        icon: Icons.timeline_rounded,
+        color: AppColors.tintSkyText,
+        tint: AstroTint.sky,
+        onTap: () => _navigateToVimshottariDasha(context, profile),
       ),
-    );
+      AstrologyToolItem(
+        title: 'Transits (Gochara)',
+        subtitle: 'Where the planets are now',
+        icon: Icons.swap_horiz_rounded,
+        color: AppColors.tintSkyText,
+        tint: AstroTint.sky,
+        onTap: () => _navigateToGochara(context, profile),
+      ),
+      AstrologyToolItem(
+        title: 'Panchanga',
+        subtitle: 'Daily Hindu calendar',
+        icon: Icons.wb_twilight_rounded,
+        color: AppColors.tintSkyText,
+        tint: AstroTint.sky,
+        onTap: () => _navigateToPanchanga(context, profile),
+      ),
+      AstrologyToolItem(
+        title: 'Vedic Yogas',
+        subtitle: 'Special planet combinations',
+        icon: Icons.stars_rounded,
+        color: AppColors.tintSkyText,
+        tint: AstroTint.sky,
+        onTap: () => _navigateToYogas(context, profile),
+      ),
+    ];
   }
 
   // ==========================================
   // SECTION 3: STRENGTH & BALA
   // ==========================================
-  Widget _buildStrengthSection(BuildContext context, BirthProfileModel profile) {
-    return ExpandableAstrologyCard(
-      title: 'Planetary & House Strength',
-      subtitle: 'Shadbala sixfold metrics, Bhava Bala, and Ashtakavarga matrices',
-      icon: Icons.bar_chart_rounded,
-      badgeText: 'BALA',
-      badgeColor: AppColors.supportingAccent,
-      initiallyExpanded: _selectedFilterIndex == 3,
-      summaryWidget: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.shield_outlined, size: 14, color: AppColors.secondary),
-                  SizedBox(width: 6),
-                  Text('Shadbala • 6 Strengths', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.grid_3x3_rounded, size: 14, color: AppColors.secondary),
-                  SizedBox(width: 6),
-                  Text('Ashtakavarga • SAV/BAV', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-        ],
+  List<AstrologyToolItem> _strengthItems(BuildContext context, BirthProfileModel profile) {
+    return [
+      AstrologyToolItem(
+        title: 'Shadbala (षड्बल)',
+        subtitle: 'How strong each planet is',
+        icon: Icons.shield_rounded,
+        color: AppColors.tintSageText,
+        tint: AstroTint.sage,
+        onTap: () => _navigateToShadbala(context, profile),
       ),
-      expandedChild: Column(
-        children: [
-          AstrologyFeatureTile(
-            title: 'Shadbala (षड्बल)',
-            subtitle: 'Positional, directional, temporal, motional, natural and aspectual strengths',
-            icon: Icons.shield_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToShadbala(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Bhava Bala (भावबल)',
-            subtitle: '12-house potency, lord strengths, cusp directions, and occupants',
-            icon: Icons.home_work_outlined,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToBhavaBala(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Ashtakavarga Matrix',
-            subtitle: 'Sarvashtakavarga (SAV), Bhinnashtakavarga (BAV) & Shodhya Pindas',
-            icon: Icons.grid_3x3_rounded,
-            tag: 'SAV/BAV',
-            tagColor: AppColors.success,
-            onTap: () => _navigateToAshtakavarga(context, profile),
-          ),
-        ],
+      AstrologyToolItem(
+        title: 'Bhava Bala (भावबल)',
+        subtitle: 'How strong each house is',
+        icon: Icons.home_work_outlined,
+        color: AppColors.tintSageText,
+        tint: AstroTint.sage,
+        onTap: () => _navigateToBhavaBala(context, profile),
       ),
-    );
+      AstrologyToolItem(
+        title: 'Ashtakavarga Matrix',
+        subtitle: 'Point scores for each sign',
+        icon: Icons.grid_3x3_rounded,
+        color: AppColors.tintSageText,
+        tint: AstroTint.sage,
+        onTap: () => _navigateToAshtakavarga(context, profile),
+      ),
+    ];
   }
 
   // ==========================================
   // SECTION 4: ADVANCED SYSTEMS
   // ==========================================
-  Widget _buildAdvancedSection(BuildContext context, BirthProfileModel profile) {
-    return ExpandableAstrologyCard(
-      title: 'Advanced Astrological Systems',
-      subtitle: 'Jaimini Sutras, KP Krishnamurti Padhdhati, and Special Points',
-      icon: Icons.psychology_rounded,
-      badgeText: 'ADVANCED',
-      badgeColor: AppColors.primary,
-      initiallyExpanded: _selectedFilterIndex == 4,
-      summaryWidget: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.hub_outlined, size: 14, color: AppColors.secondary),
-                  SizedBox(width: 6),
-                  Text('Jaimini Karakas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.layers_outlined, size: 14, color: AppColors.secondary),
-                  SizedBox(width: 6),
-                  Text('KP Sub-Lords', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-        ],
+  List<AstrologyToolItem> _advancedItems(BuildContext context, BirthProfileModel profile) {
+    return [
+      AstrologyToolItem(
+        title: 'Jaimini Astrology',
+        subtitle: 'Karakas and Arudha Padas',
+        icon: Icons.hub_rounded,
+        color: AppColors.secondary,
+        tint: AstroTint.indigo,
+        onTap: () => _navigateToJaimini(context, profile),
       ),
-      expandedChild: Column(
-        children: [
-          AstrologyFeatureTile(
-            title: 'Jaimini Astrology',
-            subtitle: '7/8 Chara Karakas (Atmakaraka, Amatyakaraka), Arudha Padas, & Argala',
-            icon: Icons.hub_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToJaimini(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'KP System (Krishnamurti Padhdhati)',
-            subtitle: 'Placidus cusps, 4-tier sub-lords (Sign/Star/Sub/Sub-Sub), & Ruling Planets',
-            icon: Icons.layers_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToKP(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Varshaphala (Solar Return)',
-            subtitle: 'Annual solar return horoscope, Muntha, Varshesha, Harsha Bala, & 36 Sahams',
-            icon: Icons.wb_sunny_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToVarshaphala(context, profile),
-          ),
-          AstrologyFeatureTile(
-            title: 'Prashna (Horary Astrology)',
-            subtitle: 'Instantaneous query casting, Prashna Lagna, Chandra mind, Sphutas, & Panchanga',
-            icon: Icons.help_outline_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            showDivider: true,
-            onTap: () => _navigateToPrashna(context),
-          ),
-          AstrologyFeatureTile(
-            title: 'Special Lagnas & Upagrahas',
-            subtitle: 'Hora, Ghatika, Indu Lagna, Gulika, Mandi, & 5 mathematical Upagrahas',
-            icon: Icons.flare_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            onTap: () => _navigateToSpecialPoints(context, profile),
-          ),
-        ],
+      AstrologyToolItem(
+        title: 'KP System (Krishnamurti Padhdhati)',
+        subtitle: 'House cusps and sub-lords',
+        icon: Icons.layers_rounded,
+        color: AppColors.secondary,
+        tint: AstroTint.indigo,
+        onTap: () => _navigateToKP(context, profile),
       ),
-    );
+      AstrologyToolItem(
+        title: 'Varshaphala (Solar Return)',
+        subtitle: 'Your chart for the year',
+        icon: Icons.wb_sunny_rounded,
+        color: AppColors.secondary,
+        tint: AstroTint.indigo,
+        onTap: () => _navigateToVarshaphala(context, profile),
+      ),
+      AstrologyToolItem(
+        title: 'Prashna (Horary Astrology)',
+        subtitle: 'Ask a question, get a chart',
+        icon: Icons.help_outline_rounded,
+        color: AppColors.secondary,
+        tint: AstroTint.indigo,
+        onTap: () => _navigateToPrashna(context),
+      ),
+      AstrologyToolItem(
+        title: 'Special Lagnas & Upagrahas',
+        subtitle: 'Extra sensitive points',
+        icon: Icons.flare_rounded,
+        color: AppColors.secondary,
+        tint: AstroTint.indigo,
+        onTap: () => _navigateToSpecialPoints(context, profile),
+      ),
+    ];
   }
 
   // ==========================================
   // SECTION 5: MATCHMAKING & COMPATIBILITY
   // ==========================================
-  Widget _buildMatchmakingSection(BuildContext context, BirthProfileModel profile) {
-    return AstrologySectionCard(
-      title: 'Matchmaking & Compatibility',
-      subtitle: '36-point Ashtakoota Guna Milan and Manglik compatibility',
-      icon: Icons.favorite_rounded,
+  List<AstrologyToolItem> _matchmakingItems(BuildContext context) {
+    return [
+      AstrologyToolItem(
+        title: 'Kundli Matchmaking (Guna Milan)',
+        subtitle: 'Check how well two charts match',
+        icon: Icons.favorite_rounded,
+        color: AppColors.tintRoseText,
+        tint: AstroTint.rose,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MatchmakingScreen()),
+          );
+        },
+      ),
+    ];
+  }
+}
+
+/// A titled group of hub tiles: serif heading, quiet subtitle, tinted tiles.
+class _HubSection extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final List<AstrologyToolItem> items;
+
+  const _HubSection({required this.title, this.subtitle, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AstrologyFeatureTile(
-            title: 'Kundli Matchmaking (Guna Milan)',
-            subtitle: '8 Kootas: Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi',
-            icon: Icons.favorite_rounded,
-            tag: 'Live',
-            tagColor: AppColors.success,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MatchmakingScreen()),
-              );
-            },
-          ),
+          AstroSectionHeading(title, subtitle: subtitle, padding: const EdgeInsets.only(left: 2, bottom: 12)),
+          AstrologyToolGrid(items: items),
         ],
+      ),
+    );
+  }
+}
+
+/// The one hero on the hub: a gradient invitation to open the birth chart.
+class _FeaturedToolCard extends StatelessWidget {
+  final AstrologyToolItem item;
+
+  const _FeaturedToolCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: AstroGradientCard(
+        onTap: item.onTap,
+        padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: AppTypography.headlineLarge.copyWith(fontSize: 22, color: Colors.white, height: 1.2),
+                  ),
+                  const SizedBox(height: 6),
+                  if (item.subtitle != null)
+                    Text(
+                      item.subtitle!,
+                      style: AppTypography.rowSubtitle.copyWith(color: AppColors.textInverseSecondary),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
+                border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+              ),
+              child: Icon(item.icon, color: AppColors.gold, size: 28),
+            ),
+            const SizedBox(width: 4),
+            Icon(AstroIcons.chevron(context), color: Colors.white.withValues(alpha: 0.7)),
+          ],
+        ),
       ),
     );
   }

@@ -98,6 +98,10 @@ class PlanetModel {
   final String nakshatraLord;
   final String? dignity;
 
+  /// House (bhava) number 1..12 as computed by the backend astrology engine.
+  /// The app displays this value and never derives houses itself.
+  final int? house;
+
   const PlanetModel({
     required this.planet,
     required this.longitude,
@@ -112,6 +116,7 @@ class PlanetModel {
     required this.pada,
     required this.nakshatraLord,
     this.dignity,
+    this.house,
   });
 
   factory PlanetModel.fromJson(Map<String, dynamic> json) {
@@ -214,6 +219,7 @@ class PlanetModel {
       pada: _parseInt(json['pada'], 1),
       nakshatraLord: effectiveNakshatraLord,
       dignity: json['dignity'] as String?,
+      house: _parseHouse(json['house'] ?? json['houseNumber'] ?? json['house_number']),
     );
   }
 
@@ -232,7 +238,15 @@ class PlanetModel {
       'pada': pada,
       'nakshatraLord': nakshatraLord,
       if (dignity != null) 'dignity': dignity,
+      if (house != null) 'house': house,
     };
+  }
+
+  /// Backend house number (1..12); null when missing or out of range.
+  static int? _parseHouse(dynamic value) {
+    final parsed = value is int ? value : int.tryParse(value?.toString() ?? '');
+    if (parsed == null || parsed < 1 || parsed > 12) return null;
+    return parsed;
   }
 
   /// Format dignity to clean label (e.g. 'Exalted', 'Debilitated', 'Own Sign')

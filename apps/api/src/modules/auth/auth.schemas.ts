@@ -37,6 +37,17 @@ export const linkGoogleSchema = z.object({
   idToken: z.string().min(1, 'Google ID token is required'),
 });
 
+// Profile completion (name only; phone numbers are linked via OTP)
+export const updateProfileSchema = z
+  .object({
+    fullName: z
+      .string()
+      .trim()
+      .min(1, 'Enter your full name.')
+      .max(100, 'Full name must not exceed 100 characters'),
+  })
+  .strict();
+
 // Legacy Email Auth Schemas (Preserved for compatibility)
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address format').toLowerCase().trim(),
@@ -95,6 +106,7 @@ export type PhoneVerifyOtpInput = z.infer<typeof phoneVerifyOtpSchema>;
 export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
 export type LinkPhoneInput = z.infer<typeof linkPhoneSchema>;
 export type LinkGoogleInput = z.infer<typeof linkGoogleSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../models/jyoti_message.dart';
 
@@ -40,7 +41,9 @@ class JyotiApiRepository {
 
     final response = await _apiClient.post(
       '/jyoti/chat',
-      timeout: const Duration(seconds: 45),
+      // The backend bounds its LLM retries to ~50s and always answers before this,
+      // with either the reply or a clean AI_SERVICE_UNAVAILABLE error.
+      timeout: const Duration(seconds: 60),
       data: {
         'message': message,
         'conversation': historyPayload,
@@ -56,7 +59,12 @@ class JyotiApiRepository {
     }
 
     final data = response['data'] as Map<String, dynamic>? ?? response;
-    String cleanText = data['message'] as String? ?? "I'm here to help with your astrology query.";
+    final rawMessage = data['message'];
+    if (rawMessage is! String || rawMessage.trim().isEmpty) {
+      // Never substitute a canned reply for a missing backend answer.
+      throw const ServerException('Jyoti did not return a response. Please try again.', code: 'JYOTI_EMPTY_RESPONSE');
+    }
+    String cleanText = rawMessage;
 
     // Un-escape any literal '\n' string representations
     cleanText = cleanText.replaceAll(r'\n', '\n');
@@ -84,7 +92,9 @@ class JyotiApiRepository {
     if (rawActions != null && rawActions.isNotEmpty) {
       for (int i = 0; i < rawActions.length; i++) {
         final act = rawActions[i] as Map<String, dynamic>;
-        final typeStr = act['type'] as String? ?? 'OPEN_BIRTH_CHART';
+        final typeStr = act['type'] as String?;
+        // Skip actions without an explicit type instead of guessing one.
+        if (typeStr == null || typeStr.isEmpty) continue;
         final actionType = JyotiActionTypeExtension.fromString(typeStr);
 
         results.add(

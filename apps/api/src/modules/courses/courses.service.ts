@@ -1,3 +1,4 @@
+import { getRazorpayPublicKeyId } from '../payments/razorpay-public-key';
 import { prisma } from '../../services/prisma.service';
 import { COMMERCE_CATALOG } from '../commerce/commerce.catalog';
 import { commerceService } from '../commerce/commerce.service';
@@ -1063,6 +1064,9 @@ export class CoursesService {
       throw new ConflictError('You are already enrolled in this course.');
     }
 
+    // Fail fast before creating an order if checkout cannot be configured (no placeholder key).
+    const razorpayKeyId = getRazorpayPublicKeyId();
+
     // Create Order using unified CommerceService with catalogId = course.sku
     const order = await commerceService.createOrder(
       {
@@ -1103,10 +1107,10 @@ export class CoursesService {
         razorpayOrderId: order.razorpayOrderId,
         amount: order.amount,
         currency: order.currency,
-        key: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
+        key: razorpayKeyId,
       },
       razorpayConfig: {
-        key: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
+        key: razorpayKeyId,
         orderId: order.razorpayOrderId,
         amount: order.amount,
         currency: order.currency,

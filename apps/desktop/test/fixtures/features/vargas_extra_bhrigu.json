@@ -1,0 +1,20 @@
+{
+ "longitude": 99.76550814467572,
+ "rashiIndex": 4,
+ "rashiName": "Karka",
+ "degreeInSign": 9.76550814467572,
+ "nakshatra": "Pushya",
+ "nakshatraIndex": 8,
+ "pada": 2,
+ "moonLongitude": 271.9040489960244,
+ "rahuLongitude": 287.626967293327,
+ "arcRahuToMoon": 344.2770817026974,
+ "shorterArcLongitude": 279.7655081446757,
+ "provisional": true,
+ "provisionalLabel": "provisional – pending client review",
+ "source": "Bhrigu Bindu = midpoint of Moon and Rahu, arc taken from Rahu to Moon in zodiacal order: (Moon + Rahu)/2 with Moon taken as Moon + 360 when Moon < Rahu; as popularised in The Astrological Magazine and implemented in Jagannatha Hora (P.V.R. Narasimha Rao)",
+ "conventionNotes": [
+  "Arc from Rahu to Moon (zodiacal) is used. Alternative: midpoint of the shorter arc between Moon and Rahu; it differs by exactly 180 degrees whenever the Rahu-to-Moon arc exceeds 180 degrees (shorterArcLongitude is given for reference).",
+  "Rahu longitude follows the configured node method (mean/true)."
+ ]
+}

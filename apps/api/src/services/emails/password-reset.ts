@@ -1,3 +1,5 @@
+import { istYearOf } from '../../utils/business-time';
+
 export function getPasswordResetEmailTemplate(otp: string, expiresMinutes: number = 10): { subject: string; text: string; html: string } {
   const subject = 'Reset your Astro Sushil password';
   const text = `A password reset was requested for your Astro Sushil account.\n\nYour reset code is: ${otp}\n\nThis code will expire in ${expiresMinutes} minutes.\n\nIf you did not request a password reset, please ignore this email and your password will remain unchanged.`;
@@ -23,7 +25,7 @@ export function getPasswordResetEmailTemplate(otp: string, expiresMinutes: numbe
         </p>
         <hr style="border: none; border-top: 1px solid #E2E8F0; margin-bottom: 20px;" />
         <p style="font-size: 11px; color: #A0AEC0; text-align: center; margin: 0;">
-          © ${new Date().getFullYear()} Astro Sushil. All rights reserved.
+          © ${istYearOf()} Astro Sushil. All rights reserved.
         </p>
       </div>
     </div>

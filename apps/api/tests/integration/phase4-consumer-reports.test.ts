@@ -5,6 +5,9 @@ import { prisma } from '../../src/services/prisma.service';
 import { reportsService } from '../../src/modules/reports/reports.service';
 import { careerReportWorker } from '../../src/services/report-worker.service';
 import { featureAccessService } from '../../src/services/feature-access.service';
+import { postgresQueueService } from '../../src/services/postgres-queue.service';
+import { stubPlatformGeneration } from '../helpers/platform-report-stub';
+import { fulfillmentService } from '../../src/modules/fulfillment/fulfillment.service';
 
 describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite', () => {
   let app: FastifyInstance;
@@ -69,9 +72,9 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
   const reportsStore = new Map<string, any>();
   const profilesStore = new Map<string, any>();
   const ordersStore = new Map<string, any>();
+  const unitsStore = new Map<string, any>();
 
   beforeAll(async () => {
-    process.env.LLM_PROVIDER = 'mock';
 
     profilesStore.set(groomProfile.id, { ...groomProfile });
     profilesStore.set(brideProfile.id, { ...brideProfile });
@@ -166,6 +169,24 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
       return { count };
     });
 
+    // Fulfillment units are created/reconciled with row-locking raw SQL against real order rows;
+    // this in-memory suite substitutes one REPORT unit per in-memory order.
+    vi.spyOn(prisma.fulfillmentUnit, 'findMany').mockImplementation(async ({ where }: any) => {
+      return Array.from(unitsStore.values())
+        .filter((u) => (!where?.orderId || u.orderId === where.orderId) && (!where?.obligationType || u.obligationType === where.obligationType))
+        .map((u) => ({ ...u, report: Array.from(reportsStore.values()).find((r) => r.fulfillmentUnitId === u.id) || null })) as any;
+    });
+    vi.spyOn(fulfillmentService, 'createFulfillmentUnitsForOrder').mockImplementation(async (orderId: string) => {
+      const order = ordersStore.get(orderId);
+      if (!order) throw new Error(`Order ${orderId} not found`);
+      const unit = { id: `unit-${orderId}`, orderId, orderItemId: null, obligationType: 'REPORT', unitIndex: 0, status: 'PENDING', report: null };
+      unitsStore.set(unit.id, unit);
+      return [unit] as any;
+    });
+    // The durable queue UPDATE targets real rows; report it as enqueued so the worker runs only when the test calls it.
+    vi.spyOn(postgresQueueService, 'enqueueJob').mockResolvedValue(true);
+    vi.spyOn(fulfillmentService, 'reconcileFulfillmentUnit').mockImplementation(async () => undefined);
+
     app = buildApp();
     await app.ready();
 
@@ -181,6 +202,7 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
   beforeEach(() => {
     reportsStore.clear();
     ordersStore.clear();
+    unitsStore.clear();
 
     ordersStore.set('order-prosity-user1', {
       id: 'order-prosity-user1',
@@ -207,8 +229,8 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
     });
   });
 
-  // --- 1. PRO HOROSCOPE (CAREER_PROSITY) GENERATION & VECTOR PDF ---
-  it('1. Generates Pro Horoscope (CAREER_PROSITY) with Shodashvargas, Shadbala, and Bhava Bala', async () => {
+  // --- 1. CAREER_PROSITY IS QUEUED FOR THE PLATFORM (NO IN-REQUEST GENERATION) ---
+  it('1. Queues CAREER_PROSITY for the report worker instead of generating inside the request', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -222,29 +244,17 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);
     expect(body.id).toBeDefined();
-    expect(body.reportType).toBe('CAREER_PROSITY');
-    expect(body.status).toBe('COMPLETED');
-    expect(body.report.title).toBe('Pro Horoscope & Multi-Divisional Shodashvarga Dossier');
-    expect(body.report.vargas).toBeDefined();
-    expect(body.report.vargas.length).toBeGreaterThanOrEqual(4); // D1, D9, D10, D7, D12
-    expect(body.report.shadbala).toBeDefined();
-    expect(body.report.bhavaBala).toBeDefined();
-    expect(body.report.remedies).toBeDefined();
+    expect(body.status).toBe('QUEUED');
+    expect(body.report).toBeUndefined();
+    expect(reportsStore.get(body.id).reportType).toBe('CAREER_PROSITY');
 
-    // Download PDF
+    // Not downloadable until the worker has generated and delivered it.
     const pdfRes = await app.inject({
       method: 'GET',
       url: `/api/v1/reports/${body.id}/download-file`,
       headers: { authorization: `Bearer ${token1}` },
     });
-
-    expect(pdfRes.statusCode).toBe(200);
-    expect(pdfRes.headers['content-type']).toBe('application/pdf');
-    const pdf = pdfRes.rawPayload.toString('utf-8');
-    expect(pdf.startsWith('%PDF-1.4')).toBe(true);
-    expect(pdf.includes('%%EOF')).toBe(true);
-    expect(pdf.includes('PRO HOROSCOPE')).toBe(true);
-    expect(pdf.includes('SHODASHVARGA')).toBe(true);
+    expect(pdfRes.statusCode).toBe(400);
   });
 
   // --- 2. MATCHMAKING REPORT (MARRIAGE_COMPATIBILITY) DUAL PROFILE VALIDATION ---
@@ -279,8 +289,8 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
     expect(dupBody.error.message).toContain('Partner birth profile must be distinct');
   });
 
-  // --- 3. MATCHMAKING REPORT GENERATION & 36-POINT ASHTAKOOTA MILAN ---
-  it('3. Generates Matchmaking Report with 36-point Guna Milan & Manglik comparative evaluation', async () => {
+  // --- 3. MATCHMAKING REPORT IS QUEUED WITH ITS PARTNER PROFILE ---
+  it('3. Queues the Matchmaking report with the partner profile recorded for the worker', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -295,31 +305,14 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.payload);
     expect(body.id).toBeDefined();
-    expect(body.reportType).toBe('MARRIAGE_COMPATIBILITY');
-    expect(body.report.title).toBe('Marriage & Relationship Compatibility Report');
-    expect(body.report.gunaMilan).toBeDefined();
-    expect(body.report.gunaMilan.totalScore).toBeGreaterThanOrEqual(0);
-    expect(body.report.gunaMilan.maxScore).toBe(36);
-    expect(body.report.manglikComparison).toBeDefined();
-    expect(body.report.profile1).toBeDefined();
-    expect(body.report.profile2).toBeDefined();
-
-    // Verify PDF download
-    const pdfRes = await app.inject({
-      method: 'GET',
-      url: `/api/v1/reports/${body.id}/download-file`,
-      headers: { authorization: `Bearer ${token1}` },
-    });
-
-    expect(pdfRes.statusCode).toBe(200);
-    const pdf = pdfRes.rawPayload.toString('utf-8');
-    expect(pdf.startsWith('%PDF-1.4')).toBe(true);
-    expect(pdf.includes('VEDIC KUNDLI MILAN')).toBe(true);
-    expect(pdf.includes('ASHTAKOOTA')).toBe(true);
+    expect(body.status).toBe('QUEUED');
+    const stored = reportsStore.get(body.id);
+    expect(stored.reportType).toBe('MARRIAGE_COMPATIBILITY');
+    expect(stored.metadata.partnerProfileId).toBe(brideProfile.id);
   });
 
   // --- 4. ASYNC WORKER PIPELINE EXECUTION FOR ALL TIERS ---
-  it('4. Asynchronously processes Pro Horoscope and Matchmaking jobs through worker pipeline', async () => {
+  it('4. Worker delivers a queued Matchmaking job generated by the platform', async () => {
     // Enqueue async Matchmaking job
     const asyncRes = await app.inject({
       method: 'POST',
@@ -339,8 +332,35 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
     expect(asyncBody.status).toBe('QUEUED');
     expect(asyncBody.stage).toBe('QUEUED');
 
-    // Execute worker pipeline
-    await careerReportWorker.executeReportPipeline(asyncBody.reportId);
+    // Execute worker pipeline (queue SQL and the paid LLM generation are substituted in this in-memory suite)
+    const generation = stubPlatformGeneration('completed');
+    const claimSpy = vi.spyOn(postgresQueueService, 'claimJobById').mockImplementation(async (id: string) => {
+      const r = reportsStore.get(id);
+      r.claimToken = 'claim-test';
+      r.claimVersion = (r.claimVersion ?? 0) + 1;
+      r.status = 'CALCULATING';
+      return { id, claimToken: 'claim-test', claimVersion: r.claimVersion, claimExpiresAt: new Date(Date.now() + 60000), executionAttempts: 1, recoveryAttempts: 0, reportType: r.reportType, orderId: null, userId: r.userId, birthProfileId: r.birthProfileId, fulfillmentUnitId: null };
+    });
+    const stageSpy = vi.spyOn(postgresQueueService, 'updateJobStatus').mockImplementation(async (id: string, _t: string, _v: number, status: any, stage: string, progress: number) => {
+      Object.assign(reportsStore.get(id), { status, stage, progress });
+      return true;
+    });
+    const completeSpy = vi.spyOn(postgresQueueService, 'completeJob').mockImplementation(async (id: string, _t: string, _v: number, storageKey: string, fileName: string, fileSize: number, pageCount: number) => {
+      Object.assign(reportsStore.get(id), { status: 'COMPLETED', stage: 'COMPLETED', progress: 100, storageKey, fileName, fileSize, pageCount, completedAt: new Date(), claimToken: null });
+      return true;
+    });
+    let generationCalls = 0;
+    try {
+      await careerReportWorker.executeReportPipeline(asyncBody.reportId);
+      // Read before mockRestore(), which also clears the recorded calls.
+      generationCalls = generation.mock.calls.length;
+    } finally {
+      generation.mockRestore();
+      claimSpy.mockRestore();
+      stageSpy.mockRestore();
+      completeSpy.mockRestore();
+    }
+    expect(generationCalls).toBe(1);
 
     // Verify DB record reaches COMPLETED with storageKey
     const record = reportsStore.get(asyncBody.reportId);
@@ -349,6 +369,7 @@ describe('Phase 4: Consumer Reports Multi-Tier & Matchmaking Integration Suite',
     expect(record.progress).toBe(100);
     expect(record.storageKey).toBe(`reports/${user1.id}/${asyncBody.reportId}.pdf`);
     expect(record.fileSize).toBeGreaterThan(1000);
+    expect(record.pageCount).toBe(12); // measured value reported by the platform result
     expect(record.completedAt).toBeDefined();
 
     // Verify access URL

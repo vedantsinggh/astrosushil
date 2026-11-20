@@ -30,11 +30,30 @@ class JaiminiPreview extends StatelessWidget {
       );
     }
 
-    final karakas = [
-      {'role': 'AK', 'title': 'Atmakaraka', 'planet': 'Saturn (Sa)', 'deg': '28°14\'', 'color': const Color(0xFF7C3AED)},
-      {'role': 'AmK', 'title': 'Amatyakaraka', 'planet': 'Jupiter (Ju)', 'deg': '24°50\'', 'color': const Color(0xFFD97706)},
-      {'role': 'BK', 'title': 'Bhratrikaraka', 'planet': 'Mars (Ma)', 'deg': '21°32\'', 'color': const Color(0xFFE11D48)},
-    ];
+    // Genuine backend Chara Karakas only (top 3 by rank).
+    const palette = [Color(0xFF7C3AED), Color(0xFFD97706), Color(0xFFE11D48)];
+    final ranked = [...(report?.charaKarakas ?? const <CharaKarakaDetailModel>[])]
+      ..sort((a, b) => a.rank.compareTo(b.rank));
+    if (ranked.isEmpty) {
+      return const PreviewEmptyState(
+        title: 'Jaimini Sutras',
+        message: 'Chara Karaka data is not available right now',
+        icon: Icons.hub_rounded,
+      );
+    }
+    final karakas = ranked.take(3).toList().asMap().entries.map((e) {
+      final k = e.value;
+      final deg = k.degreeInSign;
+      final whole = deg.floor();
+      final minutes = ((deg - whole) * 60).floor();
+      return {
+        'role': k.code,
+        'title': k.name,
+        'planet': k.planet,
+        'deg': "$whole°${minutes.toString().padLeft(2, '0')}'",
+        'color': palette[e.key % palette.length],
+      };
+    }).toList();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,

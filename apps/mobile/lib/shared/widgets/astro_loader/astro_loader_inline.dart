@@ -19,7 +19,7 @@ class AstroLoaderInline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color textColor = isDark ? AppColors.textPrimary : AppColors.lightTextPrimary;
+    final Color textColor = isDark ? AppColors.textInversePrimary : AppColors.lightTextPrimary;
 
     Widget loaderWidget = AstroSolarSystemAnimation(
       size: size,

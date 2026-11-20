@@ -1,3 +1,4 @@
+import { AppError } from '../../errors/app-error';
 import { LocationSearchResult } from '@astro/shared';
 import { logger } from '../../utils/logger';
 
@@ -7,8 +8,8 @@ interface CacheEntry {
 }
 
 /**
- * Built-in fallback catalog of major world cities to ensure seamless offline,
- * resilient, and high-performance search responses even under provider downtime.
+ * Built-in catalog of real major world cities (verified coordinates and IANA timezones),
+ * searched when the geocoding provider is unavailable or returns no match.
  */
 const MAJOR_CITIES_CATALOG: LocationSearchResult[] = [
   {
@@ -256,6 +257,7 @@ export class LocationService {
     }
 
     // 2. Fetch from Geocoding Provider (Open-Meteo Geocoding API)
+    let providerFailed = false;
     try {
       const results = await this.fetchFromProvider(trimmed, limit);
       if (results && results.length > 0) {
@@ -265,16 +267,27 @@ export class LocationService {
     } catch (err) {
       logger.warn(
         { query: trimmed, error: err instanceof Error ? err.message : String(err) },
-        '[LocationService] Geocoding provider request failed, falling back to local catalog'
+        '[LocationService] Geocoding provider request failed, searching verified local catalog'
       );
+      providerFailed = true;
     }
 
-    // 3. Fallback to local catalog
-    const fallbackResults = this.searchCatalog(trimmed, limit);
-    if (fallbackResults.length > 0) {
-      this.setCache(normalizedKey, fallbackResults);
+    // 3. Verified local catalog of real cities (genuine coordinates and IANA zones)
+    const catalogResults = this.searchCatalog(trimmed, limit);
+    if (catalogResults.length > 0) {
+      this.setCache(normalizedKey, catalogResults);
+      return catalogResults;
     }
-    return fallbackResults;
+
+    // Do not present a provider outage as "no places found".
+    if (providerFailed) {
+      throw new AppError(
+        'Place search is temporarily unavailable. Please try again in a moment.',
+        503,
+        'GEOCODING_UNAVAILABLE'
+      );
+    }
+    return catalogResults;
   }
 
   /**
@@ -331,10 +344,14 @@ export class LocationService {
         if (country && country !== name && country !== state) parts.push(country);
         const displayName = parts.join(', ');
 
-        // Ensure IANA timezone validity
-        let timezone = item.timezone ? String(item.timezone).trim() : 'UTC';
-        if (!this.isValidIanaTimezone(timezone)) {
+        // Ensure IANA timezone validity. A guessed timezone would silently corrupt every
+        // chart calculated from this place, so results without a verifiable zone are dropped.
+        let timezone: string | null = item.timezone ? String(item.timezone).trim() : null;
+        if (!timezone || !this.isValidIanaTimezone(timezone)) {
           timezone = this.resolveTimezoneFallback(item.latitude, item.longitude, countryCode);
+        }
+        if (!timezone) {
+          continue;
         }
 
         results.push({
@@ -384,21 +401,18 @@ export class LocationService {
   }
 
   /**
-   * Fallback timezone resolver for common geographic regions.
+   * Resolves a timezone only for countries that use exactly one IANA zone.
+   * Returns null when the zone cannot be determined with certainty (never guesses, never 'UTC').
    */
-  public resolveTimezoneFallback(lat: number, lon: number, countryCode?: string): string {
-    if (countryCode === 'IN') return 'Asia/Kolkata';
-    if (countryCode === 'GB') return 'Europe/London';
-    if (countryCode === 'AE') return 'Asia/Dubai';
-    if (countryCode === 'SG') return 'Asia/Singapore';
-    if (countryCode === 'JP') return 'Asia/Tokyo';
-
-    // India bounding box approx
-    if (lat >= 6 && lat <= 38 && lon >= 68 && lon <= 98) {
-      return 'Asia/Kolkata';
-    }
-
-    return 'UTC';
+  public resolveTimezoneFallback(_lat: number, _lon: number, countryCode?: string): string | null {
+    const SINGLE_ZONE_COUNTRIES: Record<string, string> = {
+      IN: 'Asia/Kolkata',
+      GB: 'Europe/London',
+      AE: 'Asia/Dubai',
+      SG: 'Asia/Singapore',
+      JP: 'Asia/Tokyo',
+    };
+    return (countryCode && SINGLE_ZONE_COUNTRIES[countryCode]) || null;
   }
 
   private setCache(key: string, data: LocationSearchResult[]): void {

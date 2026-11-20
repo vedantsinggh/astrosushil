@@ -80,7 +80,7 @@ class MatchmakingPreview extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      hasScore ? '${totalScore.toStringAsFixed(1)}/36' : '36 PTS',
+                      hasScore ? '${totalScore.toStringAsFixed(1)}/36' : '—/36',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,

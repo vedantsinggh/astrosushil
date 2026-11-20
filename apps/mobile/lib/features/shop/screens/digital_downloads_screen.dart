@@ -3,17 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_theme.dart';
-import '../../../shared/widgets/loading_indicator.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../models/digital_download_model.dart';
 import '../providers/shop_provider.dart';
+import '../widgets/shop_ui.dart';
 import 'shop_catalog_screen.dart';
 
-/// Redesigned Digital Downloads Screen for Astro Sushil
-/// Following the shared design system: Cosmic hero security banner,
-/// warm ivory entitlement cards, bundled asset drawers, and 15-minute expiring signed tokens.
+/// Digital library: one card per purchase with a large Download button
+/// (one per file for bundles). The security explanation sits behind
+/// a "Learn more" expander.
 class DigitalDownloadsScreen extends ConsumerWidget {
   const DigitalDownloadsScreen({super.key});
 
@@ -47,37 +45,34 @@ class DigitalDownloadsScreen extends ConsumerWidget {
   }
 
   void _showLinkDialog(BuildContext context, String title, String url) {
-    showDialog(
+    showAstroSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardSurfaceWarm,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your secure 15-minute expiring download link is ready:',
-              style: TextStyle(fontSize: 13, color: AppColors.lightTextPrimary),
+      title: title,
+      builder: (ctx) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Your secure 15-minute expiring download link is ready:',
+            style: TextStyle(fontSize: 16, color: AppColors.textPrimary, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.cardSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.cardSurfaceParchment,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: SelectableText(
-                url,
-                style: const TextStyle(fontSize: 11, color: AppColors.primary),
-              ),
+            child: SelectableText(
+              url,
+              style: const TextStyle(fontSize: 14, color: AppColors.accent),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
+          ),
+          const SizedBox(height: 16),
+          AstroPrimaryButton(
+            label: 'Copy Link',
+            icon: Icons.copy_rounded,
             onPressed: () {
               Clipboard.setData(ClipboardData(text: url));
               Navigator.of(ctx).pop();
@@ -85,12 +80,6 @@ class DigitalDownloadsScreen extends ConsumerWidget {
                 const SnackBar(content: Text('Download link copied to clipboard')),
               );
             },
-            child: const Text('Copy Link', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Close'),
           ),
         ],
       ),
@@ -104,340 +93,248 @@ class DigitalDownloadsScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final downloadsAsync = ref.watch(digitalDownloadsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.midnightNavy,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          l10n.myDigitalLibraryTitle,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-      ),
-      body: SubtleCelestialBackground(
-        child: Column(
-          children: [
-            // Cosmic Security Hero Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                gradient: AppGradients.heroCosmic,
+    final securityNote = AstroSurfaceCard(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AstroIconSquare(icon: Icons.shield_outlined, tint: AstroTint.sage),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isHindi ? 'सुरक्षित 15-मिनट डिजिटल डाउनलोड्स' : 'Secure 15-Minute Signed Downloads',
+                  style: AppTypography.rowTitle.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.shield_outlined, color: AppColors.gold, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isHindi ? 'सुरक्षित 15-मिनट डिजिटल डाउनलोड्स' : 'Secure 15-Minute Signed Downloads',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          isHindi
-                              ? 'आपके खरीदे गए वॉलपेपर, कला एवं गुप्त मंत्र सुरक्षित निजी स्टोरेज से वितरित किए जाते हैं।'
-                              : 'Purchased wallpapers, 4K art, and mantras are delivered via expiring HMAC signed security tokens.',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11.5, height: 1.3),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          AstroExpander(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                isHindi
+                    ? 'आपके खरीदे गए वॉलपेपर, कला एवं गुप्त मंत्र सुरक्षित निजी स्टोरेज से वितरित किए जाते हैं।'
+                    : 'Purchased wallpapers, 4K art, and mantras are delivered via expiring HMAC signed security tokens.',
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, height: 1.4),
               ),
             ),
+          ),
+        ],
+      ),
+    );
 
-            // Downloads List
-            Expanded(
-              child: downloadsAsync.when(
-                loading: () => const LoadingIndicator(message: 'Loading digital library...'),
-                error: (err, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text(
-                          isHindi ? 'लाइब्रेरी लोड नहीं हो सकी' : 'Failed to load digital library',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          err.toString(),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 12),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => ref.refresh(digitalDownloadsProvider),
-                          icon: const Icon(Icons.refresh, size: 16),
-                          label: Text(isHindi ? 'पुनः प्रयास करें' : 'Retry'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(120, AppTouchTargets.minTouchTarget),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                data: (downloads) {
-                  if (downloads.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: AppColors.cardSurfaceParchment,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.cardBorder),
-                              ),
-                              child: const Icon(
-                                Icons.folder_open_outlined,
-                                size: 56,
-                                color: AppColors.gold,
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              isHindi ? 'कोई डिजिटल उत्पाद नहीं मिला' : 'No digital purchases yet',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              isHindi
-                                  ? 'आपके द्वारा खरीदे गए वॉलपेपर, पवित्र कला और मंत्र किट यहाँ डाउनलोड हेतु उपलब्ध रहेंगे।'
-                                  : 'Your purchased wallpapers, sacred art, and mantra audio will appear here for secure download.',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13, height: 1.4),
-                            ),
-                            const SizedBox(height: 22),
-                            SizedBox(
-                              height: AppTouchTargets.minTouchTarget,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(builder: (_) => const ShopCatalogScreen()),
-                                  );
-                                },
-                                icon: const Icon(Icons.storefront_outlined, size: 18),
-                                label: Text(
-                                  isHindi ? 'शॉप देखें' : 'Explore Shop Offerings',
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
+    Widget fill(Widget child) => SliverFillRemaining(hasScrollBody: false, child: child);
 
-                  return RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: () async {
-                      ref.invalidate(digitalDownloadsProvider);
-                    },
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: downloads.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
-                      itemBuilder: (ctx, idx) {
-                        final download = downloads[idx];
-                        final bundledAsset = AppAssets.getProductAsset(download.productId);
-
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.cardSurfaceWarm,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.cardBorder),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.02),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Container(
-                                      width: 64,
-                                      height: 64,
-                                      color: AppColors.cardSurfaceParchment,
-                                      child: bundledAsset != null
-                                          ? Image.asset(
-                                              bundledAsset,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 28, color: AppColors.gold),
-                                            )
-                                          : const Icon(Icons.image, size: 28, color: AppColors.gold),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          download.displayTitle(locale.languageCode),
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5, color: AppColors.primary),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.gold.withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                download.status,
-                                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 10),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Downloads: ${download.downloadCount}',
-                                              style: const TextStyle(fontSize: 11, color: AppColors.lightTextSecondary),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // If Bundle with multiple assets (Dhan Varsha Kit)
-                              if (download.hasBundleAssets && download.bundleAssets.isNotEmpty) ...[
-                                const Divider(height: 20, color: AppColors.cardBorder),
-                                Text(
-                                  isHindi ? 'सम्मिलित डिजिटल फ़ाइलें:' : 'Included Digital Assets:',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppColors.primary),
-                                ),
-                                const SizedBox(height: 8),
-                                ...List.generate(download.bundleAssets.length, (assetIdx) {
-                                  final asset = download.bundleAssets[assetIdx];
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.cardSurfaceParchment,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: AppColors.cardBorder),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          asset.type == 'AUDIO' ? Icons.audiotrack : Icons.image,
-                                          size: 18,
-                                          color: AppColors.primary,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            asset.name,
-                                            style: const TextStyle(fontSize: 12.5, color: AppColors.primary, fontWeight: FontWeight.w500),
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          height: 36,
-                                          child: ElevatedButton.icon(
-                                            onPressed: () => _handleDownload(
-                                              context,
-                                              ref,
-                                              download,
-                                              assetIndex: assetIdx,
-                                              assetName: asset.name,
-                                            ),
-                                            icon: const Icon(Icons.download, size: 14),
-                                            label: Text(isHindi ? 'डाउनलोड' : 'Download', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.primary,
-                                              foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              ] else ...[
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: AppTouchTargets.minTouchTarget,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _handleDownload(context, ref, download),
-                                    icon: const Icon(Icons.download_rounded, size: 18),
-                                    label: Text(
-                                      isHindi ? 'सुरक्षित फ़ाइल डाउनलोड करें' : 'Download High-Res Asset',
-                                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+    return AstroPage(
+      title: l10n.myDigitalLibraryTitle,
+      onRefresh: () async => ref.invalidate(digitalDownloadsProvider),
+      slivers: [
+        downloadsAsync.when(
+          loading: () => fill(
+              AstroStateView.loading(message: isHindi ? 'लाइब्रेरी लोड हो रही है...' : 'Loading digital library...')),
+          error: (err, _) => fill(ShopStateView(
+            icon: Icons.cloud_off_outlined,
+            isError: true,
+            title: isHindi ? 'लाइब्रेरी लोड नहीं हो सकी' : 'Failed to load digital library',
+            message: isHindi ? 'कृपया अपना इंटरनेट जांचें।' : 'Please check your internet connection.',
+            actionLabel: context.l10n.commonTryAgain,
+            actionIcon: Icons.refresh,
+            onAction: () => ref.invalidate(digitalDownloadsProvider),
+          )),
+          data: (downloads) {
+            if (downloads.isEmpty) {
+              return fill(ShopStateView(
+                icon: Icons.folder_open_outlined,
+                title: isHindi ? 'कोई डिजिटल उत्पाद नहीं मिला' : 'No digital purchases yet',
+                message: isHindi
+                    ? 'आपके द्वारा खरीदे गए वॉलपेपर, पवित्र कला और मंत्र किट यहाँ डाउनलोड हेतु उपलब्ध रहेंगे।'
+                    : 'Your purchased wallpapers, sacred art, and mantra audio will appear here for secure download.',
+                actionLabel: isHindi ? 'शॉप देखें' : 'Explore Shop Offerings',
+                actionIcon: Icons.storefront_outlined,
+                onAction: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const ShopCatalogScreen()),
                   );
                 },
+              ));
+            }
+
+            return AstroSliverContent(
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    securityNote,
+                    const SizedBox(height: 16),
+                    for (final download in downloads) ...[
+                      _DownloadCard(
+                        download: download,
+                        languageCode: locale.languageCode,
+                        isHindi: isHindi,
+                        onDownload: ({int? assetIndex, String? assetName}) => _handleDownload(
+                          context,
+                          ref,
+                          download,
+                          assetIndex: assetIndex,
+                          assetName: assetName,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                  ],
+                ),
               ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+typedef _DownloadCallback = void Function({int? assetIndex, String? assetName});
+
+class _DownloadCard extends StatelessWidget {
+  final DigitalDownloadModel download;
+  final String languageCode;
+  final bool isHindi;
+  final _DownloadCallback onDownload;
+
+  const _DownloadCard({
+    required this.download,
+    required this.languageCode,
+    required this.isHindi,
+    required this.onDownload,
+  });
+
+  String get _statusLabel {
+    final s = download.status.replaceAll('_', ' ').toLowerCase();
+    return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: ShopProductImage(assetKey: download.productId, iconSize: 28),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      download.displayTitle(languageCode),
+                      style: AppTypography.headlineMedium.copyWith(fontSize: 17, height: 1.3),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        ShopTag(
+                          label: _statusLabel,
+                          background: download.isActive ? AppColors.successBg : AppColors.cardSurfaceParchment,
+                          foreground: download.isActive ? AppColors.tintSageText : AppColors.primary,
+                        ),
+                        Text(
+                          'Downloads: ${download.downloadCount}',
+                          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Bundle with several files (e.g. Dhan Varsha Kit)
+          if (download.hasBundleAssets && download.bundleAssets.isNotEmpty) ...[
+            const Divider(height: 28, color: AppColors.cardBorder),
+            Text(
+              isHindi ? 'सम्मिलित डिजिटल फ़ाइलें:' : 'Included Digital Assets:',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+            ),
+            const SizedBox(height: 8),
+            for (var assetIdx = 0; assetIdx < download.bundleAssets.length; assetIdx++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          download.bundleAssets[assetIdx].type == 'AUDIO' ? Icons.audiotrack : Icons.image_outlined,
+                          size: 22,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            download.bundleAssets[assetIdx].name,
+                            style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                    _DownloadButton(
+                      label: isHindi ? 'डाउनलोड' : 'Download',
+                      onPressed: () => onDownload(
+                        assetIndex: assetIdx,
+                        assetName: download.bundleAssets[assetIdx].name,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ] else ...[
+            const SizedBox(height: 14),
+            _DownloadButton(
+              label: isHindi ? 'सुरक्षित फ़ाइल डाउनलोड करें' : 'Download High-Res Asset',
+              expand: true,
+              onPressed: () => onDownload(),
             ),
           ],
-        ),
+        ],
       ),
+    );
+  }
+}
+
+class _DownloadButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final bool expand;
+
+  const _DownloadButton({required this.label, required this.onPressed, this.expand = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSecondaryButton(
+      label: label,
+      icon: Icons.download_rounded,
+      expand: expand,
+      onPressed: onPressed,
     );
   }
 }

@@ -467,13 +467,15 @@ export class FulfillmentService {
                 errorCode = 'INVALID_STORAGE_KEY';
               }
             } else if (r.status === 'FAILED') {
-              if (r.recoveryAttempts >= 3 || r.executionAttempts >= 3) {
-                computedStatus = FulfillmentUnitStatus.FAILED;
-                failureReason = 'Compilation exhausted retry budget';
-                errorCode = r.errorCode || 'RECOVERY_EXHAUSTED';
-              } else {
-                computedStatus = FulfillmentUnitStatus.PROCESSING; // Active retry backoff
-              }
+              // Under the retry-later policy (services/report-retry.policy.ts) transient
+              // failures are rescheduled back to QUEUED; a FAILED report is final
+              // (permanent error, deadline passed, or retry budget exhausted).
+              computedStatus = FulfillmentUnitStatus.FAILED;
+              failureReason =
+                r.recoveryAttempts >= 3 || r.executionAttempts >= 3
+                  ? 'Compilation exhausted retry budget'
+                  : 'Report generation failed permanently';
+              errorCode = r.errorCode || 'RECOVERY_EXHAUSTED';
             } else {
               computedStatus = FulfillmentUnitStatus.PROCESSING;
             }

@@ -20,11 +20,20 @@ class PanchangaPreview extends StatelessWidget {
       return const Center(child: PreviewSkeleton(height: 70, width: 140));
     }
 
-    final tithi = panchang?.tithi.name ?? 'Shukla Dashami';
-    final vara = panchang?.vara.name ?? 'Somavara';
-    final nak = panchang?.nakshatra.name ?? 'Rohini';
-    final yoga = panchang?.yoga.name ?? 'Siddhi';
-    final karana = panchang?.karana.name ?? 'Taitila';
+    // Genuine backend Panchang only: no invented tithi/nakshatra values.
+    final p = panchang;
+    if (p == null) {
+      return const PreviewEmptyState(
+        title: 'Panchanga',
+        message: 'Panchang data is not available right now',
+        icon: Icons.wb_sunny_outlined,
+      );
+    }
+    final tithi = p.tithi.name;
+    final vara = p.vara.name;
+    final nak = p.nakshatra.name;
+    final yoga = p.yoga.name;
+    final karana = p.karana.name;
 
     return FittedBox(
       fit: BoxFit.scaleDown,

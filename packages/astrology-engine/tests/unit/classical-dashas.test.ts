@@ -407,16 +407,17 @@ describe('Phase 2R: Classical Dasha Systems Test Suite', () => {
     });
 
     it('exposes implemented systems list and pending systems list', () => {
+      // Yogini, Chara, Narayana and Kalachakra were implemented on 2026-11-18 (engine-extensions.md).
       const implemented = DashaRegistry.getImplementedSystems();
-      expect(implemented.length).toBe(9);
+      expect(implemented.length).toBe(13);
+      const implementedNames = implemented.map((p) => p.name);
+      expect(implementedNames).toContain('Yogini Dasha');
+      expect(implementedNames).toContain('Chara Dasha');
+      expect(implementedNames).toContain('Narayana Dasha');
+      expect(implementedNames).toContain('Kalachakra Dasha');
 
       const pending = DashaRegistry.getPendingSystems();
-      expect(pending.length).toBeGreaterThanOrEqual(4);
-      const pendingNames = pending.map((p) => p.name);
-      expect(pendingNames).toContain('Yogini Dasha');
-      expect(pendingNames).toContain('Chara Dasha');
-      expect(pendingNames).toContain('Narayana Dasha');
-      expect(pendingNames).toContain('Kalachakra Dasha');
+      expect(pending).toHaveLength(0);
     });
 
     it('handles conditional dispatch: returns IneligibleDashaResult when chart is ineligible', () => {

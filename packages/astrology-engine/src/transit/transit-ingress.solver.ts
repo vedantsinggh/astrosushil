@@ -1,4 +1,5 @@
 import { EphemerisProvider } from '../ephemeris/ephemeris.interface';
+import { getMeanAyanamsa, getTrueAyanamsa } from '../ayanamsa/ayanamsa';
 import { AstronomyEngineAdapter } from '../ephemeris/astronomy-engine.adapter';
 import { PlanetSymbol } from '../planets/planet.types';
 import { normalizeDegree } from '../coordinates/angular-math';
@@ -37,10 +38,10 @@ export class TransitIngressSolver {
   ): Promise<PlanetaryTransitState> {
     const raw = await this.ephemerisProvider.getPlanetaryPosition(planet, julianDayUT);
 
-    // Lahiri Ayanamsa approximation relative to J2000
-    const yearsFromJ2000 = (julianDayUT - 2451545.0) / 365.25;
-    const ayanamsaOffset = 23.85 + 0.01396 * yearsFromJ2000;
-    const siderealLon = normalizeDegree(raw.longitude - ayanamsaOffset);
+    // Engine default ayanamsa: true Chitrapaksha Lahiri (ADR-017). Nodes are mean-equinox values.
+    const isNode = planet === PlanetSymbol.RAHU || planet === PlanetSymbol.KETU;
+    const ayanamsa = isNode ? getMeanAyanamsa(julianDayUT) : getTrueAyanamsa(julianDayUT);
+    const siderealLon = normalizeDegree(raw.longitude - ayanamsa);
 
     const rashiIndex = getRashiIndex(siderealLon);
     const nakshatraIndex = getNakshatraIndex(siderealLon);

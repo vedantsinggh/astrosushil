@@ -173,6 +173,26 @@ class ApiClient {
     }
   }
 
+  /// Perform HTTP PATCH request
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        cancelToken: cancelToken,
+      );
+      return response.data ?? {};
+    } catch (e) {
+      throw ApiExceptionHandler.handle(e);
+    }
+  }
+
   /// Perform HTTP DELETE request
   Future<Map<String, dynamic>> delete(
     String path, {

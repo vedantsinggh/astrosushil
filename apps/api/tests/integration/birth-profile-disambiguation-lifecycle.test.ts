@@ -6,6 +6,8 @@ import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 import { astrologyService } from '../../src/modules/astrology/astrology.service';
 import * as timezoneSolver from '@astro/astrology-engine';
+import { featureAccessService } from '../../src/services/feature-access.service';
+import { careerReportWorker } from '../../src/services/report-worker.service';
 
 describe('Phase 2A.4: Real-Service Birth-Time Disambiguation, Authoritative UTC Propagation & Lifecycle Tests', () => {
   let app: FastifyInstance;
@@ -281,10 +283,12 @@ describe('Phase 2A.4: Real-Service Birth-Time Disambiguation, Authoritative UTC 
     expect(chartRes.chart.ascendant.longitude).toBe(earlierCalculatedChart.chart.ascendant.longitude);
   });
 
-  // TEST E: Real Report Generation Pipeline
+  // TEST E: Report generation pipeline with the saved ambiguous profile.
+  // Report generation is entitlement-gated and always runs asynchronously in the report worker
+  // (the legacy synchronous in-request PDF generators were removed with the universal report platform).
   it('Test E: Exercise real report generation pipeline with saved ambiguous profile', async () => {
-    // 1. Create a KUNDLI report referencing the ambiguous profile
-    const reportCreateRes = await app.inject({
+    // 1. Without payment or an entitlement grant, KUNDLI report creation is refused
+    const deniedRes = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
       headers: { authorization: `Bearer ${userToken}` },
@@ -293,24 +297,60 @@ describe('Phase 2A.4: Real-Service Birth-Time Disambiguation, Authoritative UTC 
         reportType: 'KUNDLI',
       },
     });
+    expect(deniedRes.statusCode).toBe(403);
+    expect(JSON.parse(deniedRes.body).error.code).toBe('AUTHORIZATION_ERROR');
+    expect(reportsDb.size).toBe(0);
 
-    expect(reportCreateRes.statusCode).toBe(201);
-    const reportBody = JSON.parse(reportCreateRes.body);
-    const reportId = reportBody.id;
-    expect(reportId).toBeDefined();
+    // 2. With an active support entitlement grant, the report is created and queued for the worker
+    const accessSpy = vi.spyOn(featureAccessService, 'evaluateFeatureAccess').mockResolvedValue({
+      feature: 'KUNDLI_REPORT',
+      featureName: 'Full Kundli Analysis Report',
+      allowed: true,
+      reason: 'MANUAL_GRANT_ACTIVE',
+      source: 'SUPPORT_ENTITLEMENT_GRANT',
+    } as Awaited<ReturnType<typeof featureAccessService.evaluateFeatureAccess>>);
+    const enqueueSpy = vi.spyOn(careerReportWorker, 'enqueueReportJob').mockResolvedValue(true);
 
-    // 2. Download generated PDF through real service pipeline
-    const pdfRes = await app.inject({
-      method: 'GET',
-      url: `/api/v1/reports/${reportId}/pdf`,
-      headers: { authorization: `Bearer ${userToken}` },
-    });
+    try {
+      const reportCreateRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/reports',
+        headers: { authorization: `Bearer ${userToken}` },
+        payload: {
+          birthProfileId: sequenceAProfileId,
+          reportType: 'KUNDLI',
+        },
+      });
 
-    expect(pdfRes.statusCode).toBe(200);
-    expect(pdfRes.headers['content-type']).toBe('application/pdf');
-    expect(pdfRes.payload.startsWith('%PDF-1.4')).toBe(true);
+      expect(reportCreateRes.statusCode).toBe(201);
+      const reportBody = JSON.parse(reportCreateRes.body);
+      const reportId = reportBody.id;
+      expect(reportId).toBeDefined();
+      expect(reportBody.status).toBe('QUEUED');
+      expect(reportBody.reused).toBe(false);
+      expect(enqueueSpy).toHaveBeenCalledWith(reportId);
 
-    // 3. Verify report generation calculated chart using the exact authoritative UTC instant
+      const persisted = reportsDb.get(reportId);
+      expect(persisted).toBeDefined();
+      expect(persisted.userId).toBe(userId);
+      expect(persisted.birthProfileId).toBe(sequenceAProfileId);
+      expect(persisted.reportType).toBe('KUNDLI');
+      expect(persisted.status).toBe('QUEUED');
+
+      // 3. The PDF is not downloadable until the worker has completed the report
+      const pdfRes = await app.inject({
+        method: 'GET',
+        url: `/api/v1/reports/${reportId}/pdf`,
+        headers: { authorization: `Bearer ${userToken}` },
+      });
+      expect(pdfRes.statusCode).toBe(400);
+      expect(JSON.parse(pdfRes.body).error.code).toBe('REPORT_NOT_READY');
+    } finally {
+      accessSpy.mockRestore();
+      enqueueSpy.mockRestore();
+    }
+
+    // 4. The profile the worker will read still carries the exact authoritative UTC instant
     const profileInDb = profilesDb.get(sequenceAProfileId);
     expect(profileInDb.utcDateTime.toISOString()).toBe('2020-11-01T05:30:00.000Z');
   });

@@ -5,9 +5,37 @@ import { prisma } from '../../services/prisma.service';
 import { ActionRegistry } from './actions/action.registry';
 import { AstrologyContextBuilder } from './context/astrology-context.builder';
 import { JyotiChatRequestDto, JyotiExplainRequestDto, SushilExplanationPayload } from './jyoti.schemas';
-import { OpenRouterProvider } from './providers/openrouter.provider';
+import { OpenRouterProvider, AiServiceUnavailableError, AiResponseInvalidError } from './providers/openrouter.provider';
 import { LLMProvider, LLMResponse } from './providers/llm.provider';
 import { SUSHIL_EXPLAINER_SYSTEM_PROMPT } from './prompts/sushil-explainer.prompt';
+
+const JYOTI_CHAT_MAX_TOKENS = 4000;
+const EXPLAINER_MAX_TOKENS = 6000;
+export const JYOTI_UNAVAILABLE_MESSAGE = 'Jyoti is unavailable right now. Please try again in a moment.';
+export const SUSHIL_UNAVAILABLE_MESSAGE = 'Sushil Sir is unavailable right now. Please try again in a moment.';
+
+function redactLlmError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const apiKey = config.OPENROUTER_API_KEY || '';
+  return apiKey ? raw.replaceAll(apiKey, '[REDACTED]') : raw;
+}
+
+/**
+ * Maps any provider failure to a friendly, feature-specific error while keeping the
+ * machine-readable code/status (AI_SERVICE_UNAVAILABLE 503, AI_RESPONSE_INVALID 502).
+ */
+function toUserFacingAiError(err: unknown, message: string): AppError {
+  if (err instanceof AiResponseInvalidError) return new AiResponseInvalidError(message);
+  if (err instanceof AppError && err.code !== 'AI_SERVICE_UNAVAILABLE') return err;
+  return new AiServiceUnavailableError(message);
+}
+
+const PERSONAL_KEYS = new Set(['id', 'name', 'fullname', 'firstname', 'lastname', 'email', 'phone', 'phonenumber', 'mobile', 'address', 'userid']);
+
+function redactProfileContext(ctx: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!ctx) return ctx;
+  return Object.fromEntries(Object.entries(ctx).filter(([key]) => !PERSONAL_KEYS.has(key.toLowerCase())));
+}
 
 export class JyotiService {
   private readonly llmProvider: LLMProvider;
@@ -89,15 +117,16 @@ ${payload.message}
     // 4. Invoke LLM Provider with error protection
     let rawResponse: LLMResponse;
     try {
-      rawResponse = await this.llmProvider.generateResponse(fullPrompt);
+      rawResponse = await this.llmProvider.generateResponse(fullPrompt, {
+        maxOutputTokens: JYOTI_CHAT_MAX_TOKENS,
+      });
     } catch (err: any) {
-      const apiKey = config.OPENROUTER_API_KEY || '';
-      const sanitizedErr = apiKey ? (err?.message || String(err)).replaceAll(apiKey, '[REDACTED]') : (err?.message || String(err));
-      logger.error({ err: sanitizedErr }, '[JyotiService] Exception invoking LLM Provider. Returning controlled fallback response.');
-      rawResponse = {
-        message: "Jyoti is currently experiencing connection difficulty. Please try asking again in a moment.",
-        actions: [],
-      };
+      logger.error({ err: redactLlmError(err) }, '[JyotiService] Exception invoking LLM Provider.');
+      throw toUserFacingAiError(err, JYOTI_UNAVAILABLE_MESSAGE);
+    }
+
+    if (!rawResponse?.message || !rawResponse.message.trim()) {
+      throw new AiResponseInvalidError(JYOTI_UNAVAILABLE_MESSAGE);
     }
 
     // 5. Validate & sanitize action allowlist
@@ -176,8 +205,10 @@ ${payload.message}
     }
 
     // 4. Assemble prompt context
-    const profileText = userProfileContext && Object.keys(userProfileContext).length > 0
-      ? `USER PROFILE CONTEXT:\n${JSON.stringify(userProfileContext, null, 2)}`
+    // Strip personal identifiers before anything is sent to the third-party LLM (docs/jyoti.md).
+    const safeProfileContext = redactProfileContext(userProfileContext);
+    const profileText = safeProfileContext && Object.keys(safeProfileContext).length > 0
+      ? `USER PROFILE CONTEXT:\n${JSON.stringify(safeProfileContext, null, 2)}`
       : 'USER PROFILE CONTEXT: Default Profile';
 
     const highlightsText = importantValues && Object.keys(importantValues).length > 0
@@ -213,52 +244,24 @@ Return valid JSON with headline, message, keyPoints, and disclaimer.
       rawResponse = await this.llmProvider.generateResponse(prompt, {
         systemInstruction: SUSHIL_EXPLAINER_SYSTEM_PROMPT,
         temperature: 0.25,
-        maxOutputTokens: 1000,
+        // Hindi (Devanagari) output and reasoning models both need a generous token budget;
+        // 1000 tokens was fully consumed by hidden reasoning, leaving an empty answer.
+        maxOutputTokens: EXPLAINER_MAX_TOKENS,
       });
     } catch (err: any) {
-      const apiKey = config.OPENROUTER_API_KEY || '';
-      const sanitizedErr = apiKey ? (err?.message || String(err)).replaceAll(apiKey, '[REDACTED]') : (err?.message || String(err));
-      logger.error({ err: sanitizedErr }, '[JyotiService] Exception invoking LLM Provider for explainer. Returning controlled fallback response.');
-      if (language === 'hi') {
-        return {
-          headline: `${screenTitle} विश्लेषण`,
-          message: "अस्थायी कनेक्शन विलंब के कारण सुशील सर अभी पूरा विवरण नहीं समझा सके। आपका चार्ट डेटा आपकी स्क्रीन पर सुरक्षित है।",
-          keyPoints: [
-            "आपकी कुंडली गणना पूरी तरह सुरक्षित है।",
-            "विस्तृत व्याख्या के लिए कृपया कुछ क्षणों में पुनः प्रयास करें।",
-          ],
-          disclaimer: "एआई सुशील सर व्याख्या।",
-          mode,
-          language,
-        };
-      }
-      return {
-        headline: `${screenTitle} Insights`,
-        message: "Sushil Sir couldn't complete the full explanation right now due to a temporary connection delay. Your chart data remains safely calculated on your screen.",
-        keyPoints: [
-          "Your chart placements are calculated deterministically.",
-          "Please tap 'Try Again' in a moment for a full breakdown.",
-        ],
-        disclaimer: "AI Sushil Sir interpretation.",
-        mode,
-        language,
-      };
+      logger.error({ err: redactLlmError(err) }, '[JyotiService] Exception invoking LLM Provider for explainer.');
+      throw toUserFacingAiError(err, SUSHIL_UNAVAILABLE_MESSAGE);
     }
 
     // 6. Structure and validate response
     const headline = rawResponse.headline || `${screenTitle} Breakdown`;
-    let message = rawResponse.message;
-
-    if (message.includes("I'm having a little trouble understanding") && rawResponse.rawJson?.message) {
-      message = String(rawResponse.rawJson.message);
+    const message = rawResponse?.message;
+    if (!message || !message.trim()) {
+      throw new AiResponseInvalidError(SUSHIL_UNAVAILABLE_MESSAGE);
     }
 
-    const keyPoints = Array.isArray(rawResponse.keyPoints) && rawResponse.keyPoints.length > 0
-      ? rawResponse.keyPoints
-      : [
-          language === 'hi' ? "आपकी गणना की गई वैदिक कुंडली पर आधारित।" : "Placements reflect your calculated Vedic chart.",
-          language === 'hi' ? "इस स्क्रीन पर मुख्य ग्रहों के प्रभाव को समझें।" : "Review the core planetary influences on this screen.",
-        ];
+    // Only genuine model-produced key points are returned; no generic filler is injected.
+    const keyPoints = Array.isArray(rawResponse.keyPoints) ? rawResponse.keyPoints : [];
 
     return {
       headline,

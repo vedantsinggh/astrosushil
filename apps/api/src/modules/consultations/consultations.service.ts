@@ -1,9 +1,11 @@
+import { getRazorpayPublicKeyId } from '../payments/razorpay-public-key';
 import { prisma } from '../../services/prisma.service';
 import { COMMERCE_CATALOG, CatalogItem } from '../commerce/commerce.catalog';
 import { commerceService } from '../commerce/commerce.service';
 import { paymentService } from '../../services/payment.service';
 import { notificationService } from '../notifications/notification.service';
 import { liveSessionService, AdminUser } from '../admin/live-session.service';
+import { calendarDaysBetween, isCalendarDate, istDateOf } from '../../utils/business-time';
 import {
   NotFoundError,
   ValidationError,
@@ -118,15 +120,13 @@ export class ConsultationsService {
   }> {
     const tier = this.getConsultationById(options.consultationId);
     const dateStr = options.date;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
-    if (isNaN(targetDate.getTime())) {
+    if (!isCalendarDate(dateStr)) {
       throw new ValidationError('Invalid date format. Expected YYYY-MM-DD');
     }
-
-    const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    // Slot dates are IST calendar dates (business timezone). Count notice days
+    // from today's IST date, not from the server's local midnight.
+    const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
+    const diffDays = calendarDaysBetween(istDateOf(new Date()), dateStr);
 
     // Notice window check: target date must be at least responseDays in future
     if (diffDays < tier.responseDays) {
@@ -217,6 +217,8 @@ export class ConsultationsService {
     userId: string,
     input: BookConsultationInput
   ) {
+    // Fail fast before reserving a slot or creating an order if checkout cannot be configured.
+    const razorpayKeyId = getRazorpayPublicKeyId();
     const tier = this.getConsultationById(input.consultationId);
     const dateStr = input.date;
     const duration = tier.durationMinutes;
@@ -397,7 +399,7 @@ export class ConsultationsService {
           booking: updatedBooking,
           order,
           razorpayConfig: {
-            key: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
+            key: razorpayKeyId,
             orderId: order.razorpayOrderId,
             amount: order.amount,
             currency: order.currency,

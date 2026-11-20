@@ -26,175 +26,233 @@ describe('Phase 2X Advanced Astrological Subsystems Integration Tests', () => {
     await app.close();
   });
 
-  it('POST /api/v1/astrology/chart-variants returns valid variant and special lagnas', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/chart-variants',
-      payload: {
-        birthDetails: validBirthDetails,
-        variantType: 'SUN_CHART',
-      },
-    });
-
+  // All endpoints below return their engine report under the standard `{ data }` envelope.
+  const post = async (url: string, payload: Record<string, unknown>) => {
+    const response = await app.inject({ method: 'POST', url, payload });
     expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.variant).toBeDefined();
-    expect(body.variant.variantType).toBe('SUN_CHART');
-    expect(body.specialLagnas.BHAVA_LAGNA).toBeDefined();
-    expect(body.specialLagnas.HORA_LAGNA).toBeDefined();
-    expect(body.specialLagnas.GHATIKA_LAGNA).toBeDefined();
-    expect(body.specialLagnas.INDU_LAGNA).toBeDefined();
+    return JSON.parse(response.payload).data;
+  };
+
+  it('POST /api/v1/astrology/chart-variants returns all derived variant charts', async () => {
+    const data = await post('/api/v1/astrology/chart-variants', { birthDetails: validBirthDetails });
+
+    expect(data.sunChart.variantType).toBe('SUN_CHART');
+    expect(data.moonChart.variantType).toBe('MOON_CHART');
+    expect(data.karakamshaChart.variantType).toBe('KARAKAMSHA_CHART');
+    expect(data.rashi.variantType).toBe('RASHI');
+    for (const key of ['rashi', 'sunChart', 'moonChart', 'karakamshaChart', 'sunriseChart', 'bhavaEqual', 'bhavaSripati']) {
+      expect(data[key].referenceSignIndex).toBeGreaterThanOrEqual(1);
+      expect(data[key].referenceSignIndex).toBeLessThanOrEqual(12);
+      expect(data[key].chart.planets).toBeDefined();
+    }
   });
 
-  it('POST /api/v1/astrology/jaimini returns Chara Karakas, Arudhas, and Rashi Drishti', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/jaimini',
-      payload: {
-        birthDetails: validBirthDetails,
-      },
-    });
+  it('POST /api/v1/astrology/special-points returns Bhava, Hora, Ghatika and Indu special lagnas', async () => {
+    const data = await post('/api/v1/astrology/special-points', { birthDetails: validBirthDetails });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.jaimini.charaKarakas7.length).toBe(7);
-    expect(body.jaimini.charaKarakas8.length).toBe(8);
-    expect(body.jaimini.atmakaraka).toBeDefined();
-    expect(body.jaimini.darakaraka).toBeDefined();
-    expect(body.jaimini.arudhaPadas.length).toBe(12);
-    expect(body.jaimini.rashiDrishti.length).toBe(12);
+    for (const key of ['bhavaLagna', 'horaLagna', 'ghatikaLagna', 'induLagna']) {
+      const lagna = data.specialLagnas[key];
+      expect(lagna).toBeDefined();
+      expect(lagna.category).toBe('SPECIAL_LAGNA');
+      expect(lagna.longitude).toBeGreaterThanOrEqual(0);
+      expect(lagna.longitude).toBeLessThan(360);
+    }
+  });
+
+  it('POST /api/v1/astrology/jaimini returns Chara Karakas, Arudhas, Rashi Drishti, and Argala', async () => {
+    const data = await post('/api/v1/astrology/jaimini', { birthDetails: validBirthDetails });
+    const data8 = await post('/api/v1/astrology/jaimini', { birthDetails: validBirthDetails, scheme: 'EIGHT_KARAKA' });
+
+    expect(data.scheme).toBe('SEVEN_KARAKA');
+    expect(data.charaKarakas.length).toBe(7);
+    expect(data8.scheme).toBe('EIGHT_KARAKA');
+    expect(data8.charaKarakas.length).toBe(8);
+
+    const atmakaraka = data.charaKarakas.find((k: any) => k.code === 'AK');
+    const darakaraka = data.charaKarakas.find((k: any) => k.code === 'DK');
+    expect(atmakaraka).toBeDefined();
+    expect(atmakaraka.rank).toBe(1);
+    expect(darakaraka).toBeDefined();
+    expect(darakaraka.rank).toBe(7);
+    expect(data.karakamsha.atmakarakaPlanet).toBe(atmakaraka.planet);
+
+    expect(data.arudhaPadas.length).toBe(12);
+    expect(data.rashiDrishtis.length).toBe(12);
+    expect(data.argalas.length).toBe(12);
+    for (const argala of data.argalas) {
+      expect(argala.houseNumber).toBeGreaterThanOrEqual(1);
+      expect(argala.houseNumber).toBeLessThanOrEqual(12);
+      expect(typeof argala.netArgalaScore).toBe('number');
+    }
   });
 
   it('POST /api/v1/astrology/kp returns Star/Sub/Sub-sub lords, 4-Level Significators, and Ruling planets', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/kp',
-      payload: {
-        birthDetails: validBirthDetails,
-      },
-    });
+    const data = await post('/api/v1/astrology/kp', { birthDetails: validBirthDetails });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.kp.planets.SUN.subLord).toBeDefined();
-    expect(body.kp.cusps.length).toBe(12);
-    expect(body.kp.significators.length).toBe(12);
-    expect(body.kp.rulingPlanets.dayLord).toBeDefined();
+    expect(data.planets.SUN.starLord).toBeDefined();
+    expect(data.planets.SUN.subLord).toBeDefined();
+    expect(data.planets.SUN.subSubLord).toBeDefined();
+    expect(data.cusps.length).toBe(12);
+    expect(data.houseSignificators.length).toBe(12);
+    for (const sig of data.houseSignificators) {
+      expect(Array.isArray(sig.levelA_StarOfOccupants)).toBe(true);
+      expect(Array.isArray(sig.levelB_Occupants)).toBe(true);
+      expect(Array.isArray(sig.levelC_StarOfLord)).toBe(true);
+      expect(Array.isArray(sig.levelD_Lord)).toBe(true);
+    }
+    expect(data.rulingPlanets.dayLord).toBeDefined();
   });
 
   it('POST /api/v1/astrology/varshaphala returns Muntha, Varshesha, and Panchadhikari', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/varshaphala',
-      payload: {
-        birthDetails: validBirthDetails,
-        targetYear: 2026,
-      },
-    });
+    const data = await post('/api/v1/astrology/varshaphala', { birthDetails: validBirthDetails, targetYear: 2026 });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.varshaphala.targetYear).toBe(2026);
-    expect(body.varshaphala.munthaRashiIndex).toBeGreaterThanOrEqual(1);
-    expect(body.varshaphala.munthaRashiIndex).toBeLessThanOrEqual(12);
-    expect(body.varshaphala.panchadhikari.munthaLord).toBeDefined();
-    expect(body.varshaphala.varshesha).toBeDefined();
+    expect(data.solarReturn.targetYear).toBe(2026);
+    expect(data.muntha.rashiIndex).toBeGreaterThanOrEqual(1);
+    expect(data.muntha.rashiIndex).toBeLessThanOrEqual(12);
+    const munthesha = data.panchadhikari.candidates.find((c: any) => c.role === 'MUNTHESHA');
+    expect(munthesha).toBeDefined();
+    expect(munthesha.planet).toBe(data.muntha.lord);
+    expect(data.varshesha.selectedVarshesha).toBeDefined();
+    expect(data.panchadhikari.candidates.map((c: any) => c.planet)).toContain(data.varshesha.selectedVarshesha);
   });
 
-  it('POST /api/v1/astrology/prashna returns horary chart, Karya Lord, and Tajika aspects', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/prashna',
-      payload: {
-        birthDetails: validBirthDetails,
-        questionDomain: 'CAREER',
-      },
+  it('POST /api/v1/astrology/prashna returns horary chart, Lagna, Moon and Panchanga', async () => {
+    const data = await post('/api/v1/astrology/prashna', {
+      questionTimestamp: '2026-09-24T10:00:00',
+      timezone: 'Asia/Kolkata',
+      location: { latitude: 19.076, longitude: 72.8777, timezone: 'Asia/Kolkata', placeName: 'Mumbai, India' },
+      questionText: 'Will my career improve?',
     });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.prashna.questionDomain).toBe('CAREER');
-    expect(body.prashna.karyaHouseNumber).toBe(10);
-    expect(body.prashna.lagnaLord).toBeDefined();
-    expect(body.prashna.karyaLord).toBeDefined();
+    expect(data.prashnaLagna).toBeDefined();
+    expect(data.prashnaLagna.rashiIndex).toBeGreaterThanOrEqual(1);
+    expect(data.prashnaLagna.rashiIndex).toBeLessThanOrEqual(12);
+    expect(data.houses.length).toBe(12);
+    expect(data.planets.SUN).toBeDefined();
+    expect(data.moon).toBeDefined();
+    expect(data.panchanga.tithi).toBeDefined();
+    expect(typeof data.isRahuKala).toBe('boolean');
+    expect(data.questionText).toBe('Will my career improve?');
   });
 
-  it('POST /api/v1/astrology/planetary-intelligence returns Avasthas, Argala, Rays, and Sensitive points', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/planetary-intelligence',
-      payload: {
-        birthDetails: validBirthDetails,
-      },
+  it('POST /api/v1/astrology/prashna returns Karya Lord and Tajika aspects for a question domain', async () => {
+    // NOT IMPLEMENTED in packages/astrology-engine (PrashnaCalculator has no question-domain /
+    // Karya-house / Karya-lord / Tajika-aspect logic). Left failing intentionally pending spec/engine work.
+    const data = await post('/api/v1/astrology/prashna', {
+      questionTimestamp: '2026-09-24T10:00:00',
+      timezone: 'Asia/Kolkata',
+      location: { latitude: 19.076, longitude: 72.8777, timezone: 'Asia/Kolkata', placeName: 'Mumbai, India' },
+      questionDomain: 'CAREER',
     });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.planetaryIntelligence.avasthas.SUN.baladiAvastha).toBeDefined();
-    expect(body.planetaryIntelligence.argalaList.length).toBeGreaterThan(0);
-    expect(body.planetaryIntelligence.totalRays).toBeGreaterThan(0);
-    expect(body.planetaryIntelligence.mrityuBhagaList.length).toBeGreaterThan(0);
-    expect(body.planetaryIntelligence.sensitivePoints.sixtyFourthNavamsha).toBeDefined();
-    expect(body.planetaryIntelligence.sensitivePoints.twentySecondDrekkana).toBeDefined();
+    expect(data.questionDomain).toBe('CAREER');
+    expect(data.karyaHouseNumber).toBe(10);
+    expect(data.lagnaLord).toBeDefined();
+    expect(data.karyaLord).toBeDefined();
   });
 
-  it('POST /api/v1/astrology/chakras returns 9 Navataras, Avakhada, Ghat, Rahu Kala, and Sade Sati', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/chakras',
-      payload: {
-        birthDetails: validBirthDetails,
-        transitSaturnRashiIndex: 11,
-      },
-    });
+  it('POST /api/v1/astrology/planetary-intelligence returns Avasthas, dignities, Chara Karakas and aspects', async () => {
+    const data = await post('/api/v1/astrology/planetary-intelligence', { birthDetails: validBirthDetails });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.chakras.taraChakra.length).toBe(27);
-    expect(body.chakras.avakhadaChakra.varna).toBeDefined();
-    expect(body.chakras.ghatChakra.ghatakRashi).toBeDefined();
-    expect(body.chakras.rahuKala.startLocalTime).toBeDefined();
-    expect(body.chakras.sadeSati.status).toBeDefined();
+    for (const p of ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN']) {
+      const pi = data.planets[p];
+      expect(pi).toBeDefined();
+      expect(pi.planet).toBe(p);
+      expect(['BALA', 'KUMARA', 'YUVA', 'VRIDDHA', 'MRITA']).toContain(pi.avastha.baladi);
+      expect(['JAGRATA', 'SWAPNA', 'SUSHUPTI']).toContain(pi.avastha.jagratadi);
+      expect(pi.dignity).toBeDefined();
+      expect(typeof pi.combustion.isCombust).toBe('boolean');
+      expect(Array.isArray(pi.aspectsCast)).toBe(true);
+    }
+    expect(data.charaKarakas.length).toBeGreaterThanOrEqual(7);
+    expect(Array.isArray(data.planetaryWars)).toBe(true);
+    expect(Array.isArray(data.conjunctions)).toBe(true);
   });
 
-  it('POST /api/v1/astrology/special-points returns Aprakash Grahas, Upagrahas, Yogi/Avyogi, and Outer Planets', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/astrology/special-points',
-      payload: {
-        birthDetails: validBirthDetails,
-        dayOfWeek: 4, // Thursday
-        isDaytime: true,
-      },
-    });
+  it('POST /api/v1/astrology/vimshopaka returns Planetary Rays (Rashmis)', async () => {
+    const data = await post('/api/v1/astrology/vimshopaka', { birthDetails: validBirthDetails });
 
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.specialPoints.aprakashGrahas.dhuma.name).toBe('Dhuma');
-    expect(body.specialPoints.aprakashGrahas.vyatipata.name).toBe('Vyatipata');
-    expect(body.specialPoints.aprakashGrahas.parivesha.name).toBe('Parivesha');
-    expect(body.specialPoints.aprakashGrahas.indrachapa.name).toBe('Indrachapa');
-    expect(body.specialPoints.aprakashGrahas.upaketu.name).toBe('Upaketu');
-
-    expect(body.specialPoints.upagrahas.gulika.name).toBe('Gulika');
-    expect(body.specialPoints.upagrahas.mandi.name).toBe('Mandi');
-    expect(body.specialPoints.yogiAvyogi.yogiLongitude).toBeGreaterThanOrEqual(0);
-    expect(body.specialPoints.yogiAvyogi.avyogiLongitude).toBeGreaterThanOrEqual(0);
+    let totalRays = 0;
+    for (const p of ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN']) {
+      expect(data.rashmis[p].planet).toBe(p);
+      expect(data.rashmis[p].netRays).toBeGreaterThanOrEqual(0);
+      totalRays += data.rashmis[p].netRays;
+    }
+    expect(totalRays).toBeGreaterThan(0);
   });
 
-  it('POST /api/v1/astrology/vimshopaka-bala returns 4 classical schemes', async () => {
+  it('POST /api/v1/astrology/special-points returns Mrityu Bhaga and 64th Navamsha / 22nd Drekkana sensitive points', async () => {
+    const data = await post('/api/v1/astrology/special-points', { birthDetails: validBirthDetails });
+
+    expect(data.mrityuBhaga.points.length).toBeGreaterThan(0);
+    expect(typeof data.mrityuBhaga.hasAnyAfflicted).toBe('boolean');
+    expect(data.arishtaPoints.sixtyFourthNavamshaMoon).toBeDefined();
+    expect(data.arishtaPoints.sixtyFourthNavamshaAscendant).toBeDefined();
+    expect(data.arishtaPoints.twentySecondDrekkanaAscendant).toBeDefined();
+    expect(data.arishtaPoints.twentySecondDrekkanaMoon).toBeDefined();
+  });
+
+  it('POST /api/v1/astrology/avakhada returns 27-Tara Chakra, Avakhada and Ghat Chakra; Rahu Kala via /panchang', async () => {
+    const data = await post('/api/v1/astrology/avakhada', { birthDetails: validBirthDetails });
+
+    expect(data.tara.taras.length).toBe(27);
+    expect(data.avakhada.varna).toBeDefined();
+    expect(data.ghat.moonRashiIndex).toBeGreaterThanOrEqual(1);
+    expect(data.ghat.moonRashiIndex).toBeLessThanOrEqual(12);
+    expect(data.ghat.ghatLagna).toBeDefined();
+
+    const panchang = await post('/api/v1/astrology/panchang', {
+      dateOfBirth: validBirthDetails.dateOfBirth,
+      timeOfBirth: validBirthDetails.timeOfBirth,
+      latitude: validBirthDetails.latitude,
+      longitude: validBirthDetails.longitude,
+      timezone: validBirthDetails.timezone,
+    });
+    expect(panchang.rahuKala.startIso).toBeDefined();
+    expect(Date.parse(panchang.rahuKala.endIso)).toBeGreaterThan(Date.parse(panchang.rahuKala.startIso));
+  });
+
+  it('POST /api/v1/astrology/sade-sati is decommissioned (editorial policy)', async () => {
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/astrology/vimshopaka-bala',
-      payload: {
-        birthDetails: validBirthDetails,
-      },
+      url: '/api/v1/astrology/sade-sati',
+      payload: { birthDetails: validBirthDetails, transitSaturnRashiIndex: 11 },
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(410);
     const body = JSON.parse(response.payload);
-    expect(body.vimshopakaBala.SUN.scores.shodashvarga).toBeGreaterThanOrEqual(0);
-    expect(body.vimshopakaBala.SUN.scores.shodashvarga).toBeLessThanOrEqual(20);
+    expect(body.error.code).toBe('ENDPOINT_DECOMMISSIONED');
+    expect(body.error.requestId).toBeDefined();
+  });
+
+  it('POST /api/v1/astrology/special-points returns Upagrahas (Aprakash Grahas, Gulika, Mandi) and Yogi/Avyogi', async () => {
+    const data = await post('/api/v1/astrology/special-points', { birthDetails: validBirthDetails });
+
+    expect(data.upagrahas.dhooma.name).toBe('Dhooma');
+    expect(data.upagrahas.vyatipata.name).toBe('Vyatipata');
+    expect(data.upagrahas.parivesha.name).toBe('Parivesha');
+    expect(data.upagrahas.indrachapa.name).toBe('Indrachapa');
+    expect(data.upagrahas.upaketu.name).toBe('Upaketu');
+
+    expect(data.upagrahas.gulika.name).toBe('Gulika');
+    expect(data.upagrahas.mandi.name).toBe('Mandi');
+    expect(data.yogiPoints.yogiPoint.longitude).toBeGreaterThanOrEqual(0);
+    expect(data.yogiPoints.avyogiPoint.longitude).toBeGreaterThanOrEqual(0);
+    expect(data.yogiPoints.yogiPlanet).toBeDefined();
+    expect(data.yogiPoints.avyogiPlanet).toBeDefined();
+  });
+
+  it('POST /api/v1/astrology/vimshopaka returns 4 classical schemes', async () => {
+    const data = await post('/api/v1/astrology/vimshopaka', { birthDetails: validBirthDetails });
+
+    for (const p of ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN']) {
+      const scores = data.planets[p];
+      for (const key of ['shadvargaScore', 'saptavargaScore', 'dashavargaScore', 'shodashavargaScore']) {
+        expect(scores[key]).toBeGreaterThanOrEqual(0);
+        expect(scores[key]).toBeLessThanOrEqual(20);
+      }
+      expect(scores.shodashavargaPlacements).toHaveLength(16);
+    }
   });
 
   it('GET /api/v1/astrology/conventions returns central metadata registry', async () => {
@@ -204,12 +262,15 @@ describe('Phase 2X Advanced Astrological Subsystems Integration Tests', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-    expect(body.conventions.canonicalChart.tradition).toBeDefined();
-    expect(body.conventions.vargaEngine.tradition).toBeDefined();
-    expect(body.conventions.jaiminiEngine.tradition).toBeDefined();
-    expect(body.conventions.kpEngine.tradition).toBeDefined();
-    expect(body.conventions.varshaphalaPrashna.tradition).toBeDefined();
+    const body = JSON.parse(response.payload).data;
+    // PARASHARA covers the canonical chart and the 16-Varga engine.
+    expect(body.conventions.PARASHARA.tradition).toBeDefined();
+    expect(body.conventions.PARASHARA.description).toContain('16 Vargas');
+    expect(body.conventions.JAIMINI.tradition).toBeDefined();
+    expect(body.conventions.KP.tradition).toBeDefined();
+    expect(body.conventions.KP.houseSystem).toBe('PLACIDUS');
+    expect(body.conventions.VARSHAPHALA.tradition).toBeDefined();
+    expect(body.conventions.PRASHNA.tradition).toBeDefined();
   });
 
   it('Serialization & Determinism Audit: no NaN, no null keys, 100% deterministic identical outputs', async () => {

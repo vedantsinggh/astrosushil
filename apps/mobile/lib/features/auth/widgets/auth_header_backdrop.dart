@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../shared/assets/app_assets.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/theme/app_theme_tokens.dart';
+import '../../../shared/theme/app_typography.dart';
 import '../../../shared/widgets/astro_image.dart';
 
 /// Premium Cosmic Header for Astro Sushil Authentication Screens.
@@ -18,101 +21,95 @@ class AuthHeaderBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: height,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.background,
-            AppColors.primary,
-            AppColors.tertiary,
-          ],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Background celestial starfield / overlay image
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.25,
-              child: AstroImage(
-                assetPath: AppAssets.zodiacWheelOverlay,
-                fit: BoxFit.cover,
-                fallback: AstroImageFallback.celestial,
-                semanticLabel: 'Zodiac overlay',
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent),
+      child: Container(
+        width: double.infinity,
+        // Grows with large text instead of overflowing.
+        constraints: BoxConstraints(minHeight: height),
+        decoration: const BoxDecoration(gradient: AppGradients.heroNavy),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Faint gold chart wheel, centred behind the logo.
+            Positioned.fill(
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: 0.18,
+                  child: ShaderMask(
+                    blendMode: BlendMode.dstIn,
+                    shaderCallback: (rect) => const RadialGradient(
+                      radius: 0.75,
+                      colors: [Colors.white, Colors.transparent],
+                    ).createShader(rect),
+                    child: AstroImage(
+                      assetPath: AppAssets.homeHero,
+                      fit: BoxFit.cover,
+                      fallback: AstroImageFallback.celestial,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          // Custom painted orbital rings and star points
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _HeaderCelestialPainter(),
-            ),
-          ),
-          // Center Content: Logo + Tagline
-          SafeArea(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo Container with soft glow
-                  Container(
-                    width: 72,
-                    height: 72,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primary.withOpacity(0.6),
-                      border: Border.all(
-                        color: AppColors.premiumAccent.withOpacity(0.6),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.premiumAccent.withOpacity(0.2),
-                          blurRadius: 20,
-                          spreadRadius: 2,
+            Positioned.fill(child: CustomPaint(painter: _HeaderCelestialPainter())),
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                // Leave room for the form sheet that overlaps the bottom edge.
+                padding: const EdgeInsets.fromLTRB(0, 20, 0, 28 + 20),
+                child: Center(
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.3,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 78,
+                          height: 78,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.96),
+                            border: Border.all(color: AppColors.gold.withValues(alpha: 0.9), width: 1.5),
+                          ),
+                          child: AstroImage(
+                            assetPath: AppAssets.logoAs,
+                            fit: BoxFit.contain,
+                            fallback: AstroImageFallback.icon,
+                            semanticLabel: 'Astro Sushil Logo',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Astro Sushil',
+                          style: AppTypography.largeTitle.copyWith(
+                            fontSize: 28,
+                            letterSpacing: -0.3,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            tagline,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.2,
+                              color: Color(0xFFE9C766),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    child: AstroImage(
-                      assetPath: AppAssets.logoAs,
-                      fit: BoxFit.contain,
-                      fallback: AstroImageFallback.icon,
-                      semanticLabel: 'Astro Sushil Logo',
-                    ),
                   ),
-                  const SizedBox(height: 12),
-                  // App Title
-                  const Text(
-                    'Astro Sushil',
-                    style: TextStyle(
-                      fontFamily: 'serif',
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                      color: AppColors.premiumAccent,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Tagline
-                  Text(
-                    tagline,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.5,
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -124,7 +121,7 @@ class _HeaderCelestialPainter extends CustomPainter {
     final center = Offset(size.width * 0.5, size.height * 0.4);
 
     final linePaint = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.12)
+      ..color = AppColors.gold.withValues(alpha: 0.12)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -134,7 +131,7 @@ class _HeaderCelestialPainter extends CustomPainter {
 
     // Star dots
     final starPaint = Paint()
-      ..color = Colors.white.withOpacity(0.4)
+      ..color = Colors.white.withValues(alpha: 0.4)
       ..style = PaintingStyle.fill;
 
     final stars = [

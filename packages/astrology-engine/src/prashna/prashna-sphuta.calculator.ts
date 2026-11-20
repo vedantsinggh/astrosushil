@@ -3,37 +3,23 @@ import { RASHIS, getRashiByLongitude, getDegreeInRashi } from '../zodiac/rashi';
 import { getNakshatraByLongitude, getPada } from '../nakshatra/nakshatra';
 import { normalizeDegree } from '../coordinates/angular-math';
 import { SphutaPoint, PrashnaSphutas } from './prashna.types';
+import { calculateHouseAngles } from '../houses/house-cusps';
+import { getMeanAyanamsa, SupportedAyanamsaSystem, DEFAULT_AYANAMSA_SYSTEM } from '../ayanamsa/ayanamsa';
 
 export class PrashnaSphutaCalculator {
   /**
    * Computes the sidereal Ascendant for any given Julian Day UT and geographic coordinates
-   * using standard astronomical equations with Lahiri Ayanamsa.
+   * using standard astronomical equations (GMST, mean obliquity) and the engine ayanamsa
+   * (default true Chitrapaksha Lahiri, ADR-017; mean value because the ascendant is mean-equinox).
    */
   public static calculateSiderealAscendant(
     julianDayUT: number,
     latitude: number,
-    longitude: number
+    longitude: number,
+    ayanamsaSystem: SupportedAyanamsaSystem = DEFAULT_AYANAMSA_SYSTEM
   ): number {
-    const T = (julianDayUT - 2451545.0) / 36525.0;
-    let gmst = 280.46061837 + 360.98564736629 * (julianDayUT - 2451545.0) + 0.000387933 * T * T - (T * T * T) / 38710000;
-    gmst = ((gmst % 360) + 360) % 360;
-
-    const lst = ((gmst + ((longitude % 360) + 360) % 360) + 360) % 360;
-    const eps = 23.4392911 - 0.0130042 * T - 0.00000016 * T * T + 0.0005036 * T * T * T;
-
-    const lstRad = (lst * Math.PI) / 180;
-    const latRad = (latitude * Math.PI) / 180;
-    const epsRad = (eps * Math.PI) / 180;
-
-    const y = Math.cos(lstRad);
-    const x = -Math.sin(lstRad) * Math.cos(epsRad) - Math.tan(latRad) * Math.sin(epsRad);
-
-    let ascTropical = (Math.atan2(y, x) * 180) / Math.PI;
-    ascTropical = ((ascTropical % 360) + 360) % 360;
-
-    const yearsFromJ2000 = (julianDayUT - 2451545.0) / 365.25;
-    const ayanamsaOffset = 23.85 + 0.01396 * yearsFromJ2000;
-    return normalizeDegree(ascTropical - ayanamsaOffset);
+    const angles = calculateHouseAngles(julianDayUT, latitude, longitude);
+    return normalizeDegree(angles.ascendantTropical - getMeanAyanamsa(julianDayUT, ayanamsaSystem));
   }
 
   /**
