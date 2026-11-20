@@ -145,6 +145,24 @@ export function businessAsOfDate(instant: Date = new Date()): Date {
   return new Date(`${istDate}T00:00:00.000Z`);
 }
 
+/**
+ * The IST (business timezone) calendar date of an instant, as YYYY-MM-DD (audit F24).
+ * A bare YYYY-MM-DD input is already a calendar date and is returned unchanged.
+ * Example: a dasha boundary at 2026-11-19T21:10Z is 2026-11-20 in IST.
+ */
+export function businessDateIso(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  return new Date(Date.parse(iso) + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Human-readable IST calendar date, "20 Nov 2026": the one date format for career dasha and
+ * transit labels and tables (audit F24). Same style as render/latex `formatDate`.
+ */
+export function formatBusinessDate(iso: string): string {
+  return new Date(`${businessDateIso(iso)}T00:00:00Z`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
 export interface BuildSnapshotOptions {
   /**
    * Evaluation date for current dasha/transits and the cover's "Generated on"

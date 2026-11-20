@@ -1,6 +1,12 @@
 import { PlanetSymbol } from '../../planets/planet.types';
 import { YogaChartContext, YogaResult, YogaCondition, YogaRelationshipEvidence } from '../yoga.types';
 import { YogaPredicates } from '../yoga-predicates';
+import { buildAssessment, occupantVariant } from '../yoga-assessment';
+
+const GAJAKESARI_SOURCE =
+  'Phaladeepika ch. 6 and Raman, Three Hundred Important Combinations: Jupiter in a kendra from the Moon. ' +
+  'BPHS ch. 36 qualifiers (Santhanam numbering; verify verses) reported as flags, not applied';
+const LUNAR_SOURCE = 'Classical Parashari (BPHS ch. 37, Santhanam numbering)';
 
 const ELIGIBLE_LUNAR_PLANETS = [
   PlanetSymbol.MARS,
@@ -49,13 +55,55 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected: isKendraFromMoon,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 36)',
+      convention: GAJAKESARI_SOURCE,
       evidence: {
         conditions,
         involvedPlanets: [moon, jupiter],
         involvedHouses: [ctx.houses[moon.house], ctx.houses[jupiter.house]],
         relationships,
       },
+      assessment: buildAssessment(ctx, {
+        formed: isKendraFromMoon,
+        keyPlanets: [PlanetSymbol.MOON, PlanetSymbol.JUPITER],
+        cancellations: [
+          {
+            id: 'BPHS_JUPITER_DEBILITATED',
+            description: 'Jupiter debilitated (BPHS qualifier: the yoga requires Jupiter not debilitated)',
+            satisfied: jupiter.dignity === 'DEBILITATED',
+            observed: jupiter.dignity,
+            source: 'BPHS ch. 36 (Santhanam numbering; verify verse)',
+            provisional: true,
+          },
+          {
+            id: 'BPHS_JUPITER_COMBUST',
+            description: 'Jupiter combust (BPHS qualifier: the yoga requires Jupiter not combust)',
+            satisfied: jupiter.isCombust,
+            observed: jupiter.isCombust ? 'combust' : 'not combust',
+            source: 'BPHS ch. 36 (Santhanam numbering; verify verse)',
+            provisional: true,
+          },
+          {
+            id: 'BPHS_JUPITER_ENEMY_SIGN',
+            description: "Jupiter in an enemy's sign (BPHS qualifier: the yoga requires Jupiter not in an enemy sign); compound relationship with the sign lord",
+            satisfied: jupiter.dignity === 'ENEMY' || jupiter.dignity === 'GREAT_ENEMY',
+            observed: jupiter.dignity,
+            source: 'BPHS ch. 36 (Santhanam numbering; verify verse)',
+            provisional: true,
+          },
+          {
+            id: 'BPHS_KENDRA_FROM_LAGNA',
+            description: 'Jupiter also in a kendra from the Lagna (BPHS form allows Lagna or Moon as reference)',
+            satisfied: YogaPredicates.isPlanetInKendra(PlanetSymbol.JUPITER, ctx),
+            observed: `Jupiter in house ${jupiter.house} from the Lagna`,
+            source: 'BPHS ch. 36 (Santhanam numbering; verify verse)',
+            provisional: true,
+          },
+        ],
+        notes: [
+          'The three BPHS qualifiers are disqualifying conditions when satisfied; they are reported, not applied to isDetected (pending client choice of the BPHS or Phaladeepika form).',
+        ],
+        source: GAJAKESARI_SOURCE,
+      }),
     });
   }
 
@@ -86,7 +134,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected: isSunapha,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 37)',
+      convention: LUNAR_SOURCE,
       evidence: {
         conditions: [
           {
@@ -108,6 +156,13 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
         involvedHouses: [ctx.houses[moon.house]],
         relationships: [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: isSunapha,
+        keyPlanets: [PlanetSymbol.MOON, ...planetsIn2nd],
+        variant: occupantVariant(planetsIn2nd),
+        notes: ['variant: natural benefics Jupiter, Venus, Mercury vs malefics Mars, Saturn among the occupants (BPHS ch. 37; Saravali, verify)'],
+        source: LUNAR_SOURCE,
+      }),
     });
 
     // Anapha
@@ -118,7 +173,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected: isAnapha,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 37)',
+      convention: LUNAR_SOURCE,
       evidence: {
         conditions: [
           {
@@ -140,6 +195,13 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
         involvedHouses: [ctx.houses[moon.house]],
         relationships: [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: isAnapha,
+        keyPlanets: [PlanetSymbol.MOON, ...planetsIn12th],
+        variant: occupantVariant(planetsIn12th),
+        notes: ['variant: natural benefics Jupiter, Venus, Mercury vs malefics Mars, Saturn among the occupants (BPHS ch. 37; Saravali, verify)'],
+        source: LUNAR_SOURCE,
+      }),
     });
 
     // Durudhara
@@ -150,7 +212,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected: isDurudhara,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 37)',
+      convention: LUNAR_SOURCE,
       evidence: {
         conditions: [
           {
@@ -165,6 +227,13 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
         involvedHouses: [ctx.houses[moon.house]],
         relationships: [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: isDurudhara,
+        keyPlanets: [PlanetSymbol.MOON, ...[...planetsIn2nd, ...planetsIn12th]],
+        variant: occupantVariant([...planetsIn2nd, ...planetsIn12th]),
+        notes: ['variant: natural benefics Jupiter, Venus, Mercury vs malefics Mars, Saturn among the occupants (BPHS ch. 37; Saravali, verify)'],
+        source: LUNAR_SOURCE,
+      }),
     });
   }
 
@@ -211,9 +280,9 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       },
       {
         id: 'KEMADRUMA_CANCELLATION',
-        description: 'Cancellation occurs if planets occupy Kendra from Lagna or Kendra from Moon',
+        description: 'Kemadruma Bhanga (cancellation): a planet occupies a kendra from the Lagna or from the Moon. satisfied = cancellation holds',
         satisfied: isCancelled,
-        expected: 'No planets in Kendra from Lagna or Kendra from Moon',
+        expected: 'At least one planet (Mars..Saturn) in a kendra from the Lagna or from the Moon',
         observed: isCancelled
           ? `Cancelled by: Lagna Kendras [${planetsInLagnaKendra.join(', ')}], Moon Kendras [${planetsInMoonKendra.join(', ')}]`
           : 'No cancellation',
@@ -227,7 +296,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 37) with Kemadruma Bhanga cancellation',
+      convention: 'Classical Parashari (BPHS ch. 37, Santhanam numbering) with Kemadruma Bhanga (Phaladeepika ch. 6)',
       evidence: {
         conditions,
         involvedPlanets: [moon],
@@ -235,6 +304,33 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
         relationships: [],
         strengthFactors: isCancelled ? ['Kemadruma is cancelled (Kemadruma Bhanga).'] : [],
       },
+      assessment: buildAssessment(ctx, {
+        formed: baseConditionSatisfied,
+        cancelled: baseConditionSatisfied && isCancelled,
+        keyPlanets: [PlanetSymbol.MOON],
+        cancellations: [
+          {
+            id: 'KEMADRUMA_BHANGA_KENDRA_FROM_LAGNA',
+            description: 'A planet (Mars..Saturn) in a kendra from the Lagna',
+            satisfied: planetsInLagnaKendra.length > 0,
+            observed: planetsInLagnaKendra.join(', ') || 'None',
+            source: 'Phaladeepika ch. 6; BPHS ch. 37 (Santhanam numbering; verify verse)',
+            provisional: true,
+          },
+          {
+            id: 'KEMADRUMA_BHANGA_KENDRA_FROM_MOON',
+            description: 'A planet (Mars..Saturn) in a kendra from the Moon',
+            satisfied: planetsInMoonKendra.length > 0,
+            observed: planetsInMoonKendra.join(', ') || 'None',
+            source: 'Phaladeepika ch. 6; BPHS ch. 37 (Santhanam numbering; verify verse)',
+            provisional: true,
+          },
+        ],
+        notes: [
+          'isDetected is false when the yoga is cancelled; a formed-but-cancelled Kemadruma is listed in YogaEvaluationReport.formedButCancelledYogas.',
+        ],
+        source: LUNAR_SOURCE,
+      }),
     });
   }
 
@@ -259,7 +355,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 36)',
+      convention: 'Phaladeepika ch. 6 and Raman, Three Hundred Important Combinations; BPHS ch. 37 (verify). Threshold of 2+ benefics is a provisional convention',
       evidence: {
         conditions: [
           {
@@ -287,7 +383,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected: isConjunctMars,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 36)',
+      convention: 'Raman, Three Hundred Important Combinations (Chandra-Mangala: Moon conjoined with Mars)',
       evidence: {
         conditions: [
           {
@@ -334,7 +430,7 @@ export function evaluateChandraYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'CHANDRA',
       isDetected,
       varga: ctx.varga,
-      convention: 'Classical Parashari (BPHS Ch. 36)',
+      convention: 'Phaladeepika ch. 6; BPHS ch. 36 (Santhanam numbering; verify verse)',
       evidence: {
         conditions: [
           {

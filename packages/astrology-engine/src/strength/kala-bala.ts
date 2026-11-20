@@ -3,41 +3,33 @@ import { KalaBalaBreakdown, ShadbalaPlanet } from './strength.types';
 import { normalizeDegree } from '../coordinates/angular-math';
 import { AstroChart } from '../chart/astro-chart.types';
 import { calculatePlanetaryWars } from '../planets/planetary-war';
-
-const WEEKDAY_LORDS = [
-  PlanetSymbol.SUN,     // 0 = Sunday
-  PlanetSymbol.MOON,    // 1 = Monday
-  PlanetSymbol.MARS,    // 2 = Tuesday
-  PlanetSymbol.MERCURY, // 3 = Wednesday
-  PlanetSymbol.JUPITER, // 4 = Thursday
-  PlanetSymbol.VENUS,   // 5 = Friday
-  PlanetSymbol.SATURN,  // 6 = Saturday
-];
-
-// Chaldean hora sequence (descending geocentric order of speed/distance)
-const HORA_SEQUENCE = [
-  PlanetSymbol.SUN,
-  PlanetSymbol.VENUS,
-  PlanetSymbol.MERCURY,
-  PlanetSymbol.MOON,
-  PlanetSymbol.SATURN,
-  PlanetSymbol.JUPITER,
-  PlanetSymbol.MARS,
-];
+import { KalaTimeContext, resolveKalaTimeContext, WEEKDAY_LORDS, HORA_SEQUENCE } from './kala-time-context';
 
 /**
- * 1. Nathonnatha Bala (Diurnal / Nocturnal Strength)
- * - Diurnal planets (Sun, Jupiter, Venus) get 60 during day, 0 during night.
- * - Nocturnal planets (Moon, Mars, Saturn) get 60 during night, 0 during day.
- * - Mercury gets 60 always.
+ * 1. Nathonnatha Bala (Diurnal / Nocturnal Strength), BPHS ch. 27; Raman, "Graha and Bhava Balas".
+ * - Unnata = time from apparent midnight (0..12 h = 0..30 ghatis).
+ *   Sun, Jupiter, Venus (Divabala) = 60 × unnata / 12 h (= 2 × unnata in ghatis).
+ *   Moon, Mars, Saturn = 60 − Divabala. Mercury gets 60 always.
+ * - When `unnataHours` is omitted, the legacy binary approximation is used
+ *   (60 / 0 by day or night); kept for backward compatibility only.
  */
-export function calculateNathonnathaBala(planet: ShadbalaPlanet, isDayBirth: boolean): number {
+export function calculateNathonnathaBala(
+  planet: ShadbalaPlanet,
+  isDayBirth: boolean,
+  unnataHours?: number
+): number {
   if (planet === PlanetSymbol.MERCURY) {
     return 60.0;
   }
 
   const diurnalPlanets = [PlanetSymbol.SUN, PlanetSymbol.JUPITER, PlanetSymbol.VENUS];
   const nocturnalPlanets = [PlanetSymbol.MOON, PlanetSymbol.MARS, PlanetSymbol.SATURN];
+
+  if (typeof unnataHours === 'number' && Number.isFinite(unnataHours)) {
+    const u = Math.max(0, Math.min(12, unnataHours));
+    const diva = (u / 12) * 60.0;
+    return Number((diurnalPlanets.includes(planet) ? diva : 60.0 - diva).toFixed(4));
+  }
 
   if (isDayBirth) {
     return diurnalPlanets.includes(planet) ? 60.0 : 0.0;
@@ -90,10 +82,18 @@ export function calculatePakshaBala(
 export function calculateTribhagaBala(
   planet: ShadbalaPlanet,
   isDayBirth: boolean,
-  localHour: number // 0 to 24
+  localHour: number, // 0 to 24 (legacy 06:00/18:00 approximation)
+  tribhagaPart?: number // 0..2 from real sunrise/sunset (kala-time-context); takes precedence
 ): number {
   if (planet === PlanetSymbol.JUPITER) {
     return 60.0;
+  }
+
+  if (typeof tribhagaPart === 'number') {
+    const owners = isDayBirth
+      ? [PlanetSymbol.MERCURY, PlanetSymbol.SUN, PlanetSymbol.SATURN]
+      : [PlanetSymbol.MOON, PlanetSymbol.VENUS, PlanetSymbol.MARS];
+    return owners[Math.max(0, Math.min(2, Math.floor(tribhagaPart)))] === planet ? 60.0 : 0.0;
   }
 
   // Determine which part of 3
@@ -146,16 +146,43 @@ export function calculateHoraBala(
   return planet === horaLord ? 60.0 : 0.0;
 }
 
+/** Hora Bala from a resolved hora lord (kala-time-context, real sunrise/sunset). */
+export function calculateHoraBalaForLord(planet: ShadbalaPlanet, horaLord: PlanetSymbol): number {
+  return planet === horaLord ? 60.0 : 0.0;
+}
+
 /**
- * 6. Ayana Bala (Equinoctial / Declination Strength)
- * Uses ecliptic declination:
+ * Abda Bala: 15 virupas to the lord of the (360-day) year. Masa Bala: 30 virupas to the lord of the
+ * (30-day) month. BPHS ch. 27; Raman, "Graha and Bhava Balas" (Ahargana method).
+ * Provisional – pending client review (see kala-time-context.ts).
+ */
+export function calculateAbdaBala(planet: ShadbalaPlanet, abdaLord: PlanetSymbol): number {
+  return planet === abdaLord ? 15.0 : 0.0;
+}
+
+export function calculateMasaBala(planet: ShadbalaPlanet, masaLord: PlanetSymbol): number {
+  return planet === masaLord ? 30.0 : 0.0;
+}
+
+/**
+ * 6. Ayana Bala (Equinoctial / Declination Strength), BPHS ch. 27.
+ * Kranti (declination) is taken from the SAYANA (tropical) longitude = sidereal longitude + ayanamsa
+ * (BPHS ch. 27; Raman, "Graha and Bhava Balas": "add the ayanamsa to the nirayana longitude").
  * - Sun, Mars, Jupiter, Venus, Mercury are strong with North declination.
  * - Moon, Saturn are strong with South declination.
+ *
+ * @param longitude sidereal longitude (as stored on the chart)
+ * @param ayanamsaDegrees ayanamsa to add; defaults to 0 for backward compatibility (callers inside
+ *   the engine always pass the chart's ayanamsa).
  */
-export function calculateAyanaBala(planet: ShadbalaPlanet, longitude: number): number {
-  // Approximate declination: sin(delta) = sin(23.44°) * sin(longitude)
+export function calculateAyanaBala(
+  planet: ShadbalaPlanet,
+  longitude: number,
+  ayanamsaDegrees: number = 0
+): number {
+  // Declination from the ecliptic: sin(delta) = sin(23.44°) * sin(sayana longitude)
   const epsRad = (23.44 * Math.PI) / 180;
-  const lonRad = (longitude * Math.PI) / 180;
+  const lonRad = (normalizeDegree(longitude + ayanamsaDegrees) * Math.PI) / 180;
   const sinDecl = Math.sin(epsRad) * Math.sin(lonRad);
   const declDeg = (Math.asin(sinDecl) * 180) / Math.PI;
 
@@ -215,9 +242,17 @@ export function calculateYuddhaBala(planet: ShadbalaPlanet, chart: AstroChart): 
 }
 
 /**
- * Calculates complete Kala Bala and its 7 subcomponents.
+ * Calculates complete Kala Bala: Nathonnata, Paksha, Tribhaga, Abda, Masa, Vara, Hora, Ayana, Yuddha
+ * (BPHS ch. 27). Sunrise-based quantities come from `resolveKalaTimeContext` (real local sunrise and
+ * sunset). Pass a precomputed `timeContext` to avoid recomputing it per planet.
+ * Combustion is NOT part of Shadbala (classically separate); see PlanetShadbala.combustion.
  */
-export function calculateKalaBala(planet: ShadbalaPlanet, chart: AstroChart): KalaBalaBreakdown {
+export function calculateKalaBala(
+  planet: ShadbalaPlanet,
+  chart: AstroChart,
+  timeContext?: KalaTimeContext
+): KalaBalaBreakdown {
+  const ctx = timeContext ?? resolveKalaTimeContext(chart);
   const sunPos = chart.planets[PlanetSymbol.SUN];
   const moonPos = chart.planets[PlanetSymbol.MOON];
   const planetPos = chart.planets[planet];
@@ -226,30 +261,22 @@ export function calculateKalaBala(planet: ShadbalaPlanet, chart: AstroChart): Ka
   const moonLong = moonPos ? moonPos.longitude : 0;
   const planetLong = planetPos ? planetPos.longitude : 0;
 
-  const ascRashi = chart.ascendant?.rashiIndex || 1;
-  const sunHouse = sunPos ? (((sunPos.rashiIndex - ascRashi + 12) % 12) + 1) : 1;
-  const isDayBirth = sunHouse >= 7 && sunHouse <= 12;
-
-  const birthDateUtc = chart.metadata?.normalizedTime?.utcIsoString
-    ? new Date(chart.metadata.normalizedTime.utcIsoString)
-    : new Date();
-  const dayOfWeek = birthDateUtc.getUTCDay();
-
-  const localTime = chart.birthDetails?.time || { hour: 12, minute: 0, second: 0 };
-  const localHour = localTime.hour + (localTime.minute || 0) / 60;
-
-  const nathonnathaBala = calculateNathonnathaBala(planet, isDayBirth);
+  const nathonnathaBala = calculateNathonnathaBala(planet, ctx.isDayBirth, ctx.unnataHours);
   const pakshaBala = calculatePakshaBala(planet, sunLong, moonLong);
-  const tribhagaBala = calculateTribhagaBala(planet, isDayBirth, localHour);
-  const varaBala = calculateVaraBala(planet, dayOfWeek);
-  const horaBala = calculateHoraBala(planet, dayOfWeek, localHour);
-  const ayanaBala = calculateAyanaBala(planet, planetLong);
+  const tribhagaBala = calculateTribhagaBala(planet, ctx.isDayBirth, 0, ctx.tribhagaPart);
+  const abdaBala = calculateAbdaBala(planet, ctx.abdaLord);
+  const masaBala = calculateMasaBala(planet, ctx.masaLord);
+  const varaBala = calculateVaraBala(planet, ctx.vedicWeekday);
+  const horaBala = calculateHoraBalaForLord(planet, ctx.horaLord);
+  const ayanaBala = calculateAyanaBala(planet, planetLong, ctx.ayanamsaDegrees);
   const yuddhaBala = calculateYuddhaBala(planet, chart);
 
   const total =
     nathonnathaBala +
     pakshaBala +
     tribhagaBala +
+    abdaBala +
+    masaBala +
     varaBala +
     horaBala +
     ayanaBala +
@@ -263,6 +290,8 @@ export function calculateKalaBala(planet: ShadbalaPlanet, chart: AstroChart): Ka
     horaBala,
     ayanaBala,
     yuddhaBala,
+    abdaBala,
+    masaBala,
     total: Number(total.toFixed(4)),
   };
 }

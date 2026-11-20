@@ -61,6 +61,6 @@ A feature or task is considered **DONE** only when all the following criteria ar
    - New business logic, astrology formulas, or BNN rules have unit tests.
    - All unit tests pass locally and in CI runner.
 4. **No Regression**: Existing tests remain green.
-5. **Documentation Updated**: Relevant spec docs in `/docs` or execution logs in `docs/agent-execution-log.md` are updated.
+5. **Documentation Updated**: Relevant spec docs in `/docs` are updated.
 6. **Code Review Approval**: Minimum of 1 approving review from team lead / reviewer.
 7. **No Unapproved Dependencies**: No new external npm / pub packages added without documented justification.

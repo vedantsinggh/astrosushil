@@ -18,6 +18,12 @@ export interface AiGenerationOptions {
    * on free-tier development endpoints while strictly preserving astrological coordinates.
    */
   anonymizeClient?: boolean;
+  /**
+   * Reasoning effort for models that "think" before answering. Thinking tokens are
+   * billed as output tokens, so lower levels cut cost substantially for writing tasks.
+   * Omitted = the provider/model default. Providers without the concept ignore it.
+   */
+  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high';
 }
 
 export interface AiTokenUsage {

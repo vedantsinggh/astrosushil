@@ -79,13 +79,38 @@ export interface CoLordSelection {
  * (JSD-004). Single-lord signs return their lord.
  */
 export function selectSignLord(chart: AstroChart, signIndex: number): CoLordSelection {
+  const signs: Partial<Record<PlanetSymbol, number>> = {};
+  const degrees: Partial<Record<PlanetSymbol, number>> = {};
+  for (const p of MANDATORY_VEDIC_PLANETS) {
+    const s = planetSignIndex(chart, p);
+    if (s !== undefined) signs[p] = s;
+    degrees[p] = planetDegree(chart, p);
+  }
+  return selectSignLordFromPositions(signIndex, signs, degrees);
+}
+
+/**
+ * Position-based form of {@link selectSignLord} (same rule order, JSD-004):
+ * 1. a co-lord occupying the sign itself yields to the other co-lord (both inside: own sign);
+ * 2. the co-lord conjoined with more planets;
+ * 3. the exalted co-lord;
+ * 4. the co-lord in the sign of greater natural strength (dual > fixed > movable);
+ * 5. the co-lord more advanced in its sign (`advancement`: degree, or 30 − degree for nodes).
+ * Provisional – pending client review (K.N. Rao / Jaimini Sutras 1.2 stronger-lord rules).
+ * `advancement` may be omitted; rule 5 is then skipped and the primary lord is used.
+ */
+export function selectSignLordFromPositions(
+  signIndex: number,
+  planetSigns: Partial<Record<PlanetSymbol, number>>,
+  advancement: Partial<Record<PlanetSymbol, number>> = {}
+): CoLordSelection {
   const lords = getJaiminiSignLords(signIndex);
   if (lords.length === 1) {
-    return { lord: lords[0], lordInOwnSign: planetSignIndex(chart, lords[0]) === signIndex };
+    return { lord: lords[0], lordInOwnSign: planetSigns[lords[0]] === signIndex };
   }
   const [a, b] = lords;
-  const signA = planetSignIndex(chart, a);
-  const signB = planetSignIndex(chart, b);
+  const signA = planetSigns[a];
+  const signB = planetSigns[b];
   const aIn = signA === signIndex;
   const bIn = signB === signIndex;
 
@@ -93,7 +118,8 @@ export function selectSignLord(chart: AstroChart, signIndex: number): CoLordSele
   if (aIn) return { lord: b, lordInOwnSign: false, reason: `${a} occupies the sign itself, so the other lord ${b} is used.` };
   if (bIn) return { lord: a, lordInOwnSign: false, reason: `${b} occupies the sign itself, so the other lord ${a} is used.` };
 
-  const conj = (p: PlanetSymbol, s?: number) => (s ? occupantsOf(chart, s).filter((x) => x !== p).length : 0);
+  const occupants = (s: number) => MANDATORY_VEDIC_PLANETS.filter((x) => planetSigns[x] === s);
+  const conj = (p: PlanetSymbol, s?: number) => (s ? occupants(s).filter((x) => x !== p).length : 0);
   const ca = conj(a, signA);
   const cb = conj(b, signB);
   if (ca !== cb) {
@@ -112,9 +138,9 @@ export function selectSignLord(chart: AstroChart, signIndex: number): CoLordSele
     const w = ma > mb ? a : b;
     return { lord: w, lordInOwnSign: false, reason: `${w} occupies a sign of greater natural strength (dual > fixed > movable).` };
   }
-  const da = planetDegree(chart, a);
-  const db = planetDegree(chart, b);
-  if (da !== db) {
+  const da = advancement[a];
+  const db = advancement[b];
+  if (da !== undefined && db !== undefined && da !== db) {
     const w = da > db ? a : b;
     return { lord: w, lordInOwnSign: false, reason: `${w} is more advanced in its sign.` };
   }

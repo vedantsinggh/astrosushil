@@ -11,6 +11,17 @@ import {
 import { ArudhaCalculator } from './arudha-calculator';
 import { ArgalaCalculator } from './argala-calculator';
 import { VargaCalculator } from '../varga/varga-calculator';
+import { rankCharaKarakas } from '../planets/planetary-karakas';
+
+const CHARA_KARAKA_INPUT_PLANETS: readonly PlanetSymbol[] = [
+  PlanetSymbol.SUN,
+  PlanetSymbol.MOON,
+  PlanetSymbol.MARS,
+  PlanetSymbol.MERCURY,
+  PlanetSymbol.JUPITER,
+  PlanetSymbol.VENUS,
+  PlanetSymbol.SATURN,
+];
 
 export class JaiminiCalculator {
   private vargaCalculator: VargaCalculator;
@@ -26,41 +37,13 @@ export class JaiminiCalculator {
     planets: Record<string, { degreeInRashi: number }>,
     scheme: CharaKarakaScheme = 'SEVEN_KARAKA'
   ): CharaKarakaDetail[] {
-    const eligiblePlanets: { planet: PlanetSymbol; effectiveDegree: number }[] = [];
-
-    const SEVEN_PLANETS = [
-      PlanetSymbol.SUN,
-      PlanetSymbol.MOON,
-      PlanetSymbol.MARS,
-      PlanetSymbol.MERCURY,
-      PlanetSymbol.JUPITER,
-      PlanetSymbol.VENUS,
-      PlanetSymbol.SATURN,
-    ];
-
-    for (const sym of SEVEN_PLANETS) {
+    // Single shared ranking (planets/planetary-karakas.ts): explicit tie handling, Rahu = 30 − deg.
+    const degrees: Partial<Record<PlanetSymbol, number>> = {};
+    for (const sym of [...CHARA_KARAKA_INPUT_PLANETS, PlanetSymbol.RAHU]) {
       const pos = planets[sym];
-      if (pos && typeof pos.degreeInRashi === 'number') {
-        eligiblePlanets.push({
-          planet: sym,
-          effectiveDegree: pos.degreeInRashi,
-        });
-      }
+      if (pos && typeof pos.degreeInRashi === 'number') degrees[sym] = pos.degreeInRashi;
     }
-
-    if (scheme === 'EIGHT_KARAKA') {
-      const rahuPos = planets[PlanetSymbol.RAHU];
-      if (rahuPos && typeof rahuPos.degreeInRashi === 'number') {
-        // Rahu counts backwards in degrees (30° - degree)
-        eligiblePlanets.push({
-          planet: PlanetSymbol.RAHU,
-          effectiveDegree: 30 - rahuPos.degreeInRashi,
-        });
-      }
-    }
-
-    // Sort descending by effective degrees
-    eligiblePlanets.sort((a, b) => b.effectiveDegree - a.effectiveDegree);
+    const eligiblePlanets = rankCharaKarakas(degrees, scheme);
 
     const SEVEN_CODES: { code: CharaKarakaDetail['code']; name: string; sanskritName: string; significance: string }[] = [
       { code: 'AK', name: 'Atmakaraka', sanskritName: 'Atmakaraka', significance: 'Soul, self, core destiny' },
@@ -95,6 +78,7 @@ export class JaiminiCalculator {
         significance: def.significance,
         rank: idx + 1,
         degreeInSign: Number(ep.effectiveDegree.toFixed(4)),
+        ...(ep.tieResolvedByPriority ? { tieResolvedByPriority: true } : {}),
       };
     });
   }
@@ -228,7 +212,12 @@ export class JaiminiCalculator {
     }
 
     const charaKarakas = this.calculateCharaKarakas(planetDegrees, scheme);
-    const arudhaPadas = ArudhaCalculator.calculateAllArudhas(ascRashi, planetSigns);
+    const planetAdvancement: Partial<Record<PlanetSymbol, number>> = {};
+    for (const [sym, d] of Object.entries(planetDegrees)) {
+      const p = sym as PlanetSymbol;
+      planetAdvancement[p] = p === PlanetSymbol.RAHU || p === PlanetSymbol.KETU ? 30 - d.degreeInRashi : d.degreeInRashi;
+    }
+    const arudhaPadas = ArudhaCalculator.calculateAllArudhas(ascRashi, planetSigns, { planetAdvancement });
     const arudhaLagna = arudhaPadas.find((p) => p.houseNumber === 1)!;
     const upapadaLagna = arudhaPadas.find((p) => p.houseNumber === 12)!;
     const darapada = arudhaPadas.find((p) => p.houseNumber === 7)!;

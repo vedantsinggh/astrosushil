@@ -551,9 +551,12 @@ export class JupiterCalculator {
       bindus: bavTable.prastara[c],
     }));
 
+    // Factual summary only (AGENTS §1.4: no interpretive prose in the engine). The previous text
+    // called the Cancer score "potent" and claimed "high productive momentum" regardless of the
+    // values (audit 03 §A9); it was neutralised in the 2026-11 engine fixes.
     const interpretation =
-      `Jupiter contributes strictly 56 benefic bindus across the 12 signs in Parashari Bhinnashtakavarga. ` +
-      `Your transit through Gemini carries ${currentGeminiPoints} bindus, while the upcoming exaltation in Cancer commands a potent ${cancerPoints} bindus, indicating high productive momentum.`;
+      `Jupiter's Bhinnashtakavarga totals 56 bindus across the 12 signs. ` +
+      `Natal bindus in Gemini: ${currentGeminiPoints}; in Cancer: ${cancerPoints}; in Jupiter's natal sign: ${natalHousePoints}.`;
 
     return {
       bindus,

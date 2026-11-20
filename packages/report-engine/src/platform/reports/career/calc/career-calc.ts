@@ -24,7 +24,8 @@ import {
   RASHIS,
   TransitIngressSolver,
 } from '@astro/astrology-engine';
-import { ordinal, PlanetName, planetName, PLANETS, SIGNS } from '../../../evidence/evidence-registry';
+import { ordinal, PlanetName, planetName, PLANETS, SIGNS, yogaConditionText } from '../../../evidence/evidence-registry';
+import { ageAtIso } from '../../../interpretation/facts';
 import { ChartSnapshot } from '../../../snapshot/chart-snapshot';
 import { msToJd } from '../../../snapshot/transit-periods';
 
@@ -278,23 +279,31 @@ export interface CareerYoga {
   evidenceId: string;
   name: string;
   category: string;
+  /** Satisfied conditions as observed facts (engine relation/ownership text), never rule templates. */
   conditions: string[];
+  /** In the career-relevant families/ids below (false: detected, shown for table–narrative parity). */
+  relevant: boolean;
 }
 
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-/** Detected yogas that classical texts tie to status, work or earnings. Never adds a yoga the engine did not detect. */
-export function careerYogas(snapshot: ChartSnapshot): CareerYoga[] {
+/** Every yoga the engine detected, flagged by career relevance. Never adds a yoga the engine did not detect. */
+export function detectedYogas(snapshot: ChartSnapshot): CareerYoga[] {
   return snapshot.yogas
     .filter((y) => y.isDetected)
-    .filter((y) => CAREER_YOGA_CATEGORIES.has(y.category) || CAREER_YOGA_IDS.has(y.id))
     .map((y) => ({
       id: y.id,
       evidenceId: `yoga.${slug(y.id.replace(/^YOGA_/, ''))}`,
       name: y.canonicalName,
       category: y.category,
-      conditions: y.evidence.conditions.filter((c) => c.satisfied).map((c) => c.description),
+      conditions: y.evidence.conditions.filter((c) => c.satisfied).map(yogaConditionText),
+      relevant: CAREER_YOGA_CATEGORIES.has(y.category) || CAREER_YOGA_IDS.has(y.id),
     }));
+}
+
+/** Detected yogas that classical texts tie to status, work or earnings. */
+export function careerYogas(snapshot: ChartSnapshot): CareerYoga[] {
+  return detectedYogas(snapshot).filter((y) => y.relevant);
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +362,38 @@ export function currentAntardashas(snapshot: ChartSnapshot): AntardashaRow[] {
     lord: planetName(ad.lord), startIso: ad.startDateIso, endIso: ad.endDateIso,
     active: Date.parse(ad.startDateIso) <= asOf && asOf < Date.parse(ad.endDateIso),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Earning-years window for the "first earnings" topic (audit F1)
+// ---------------------------------------------------------------------------
+
+/**
+ * PRODUCT DEFAULT (not astrology): the life window in which a Mahadasha can be offered as an
+ * earnings season. A Mahadasha qualifies when it starts at or before `maxStartAge` and ends at or
+ * after `minEndAge` (completed years). Change only with product sign-off; documented in
+ * docs/report-system/decisions/interpretation.md.
+ */
+export const EARNINGS_WINDOW = { minEndAge: 16, maxStartAge: 60 } as const;
+
+export interface WindowedDasha {
+  /** Index in `vimshottari.mahadashas` (same numbering as `dasha.md.NN`). */
+  index: number;
+  lord: PlanetName;
+  startIso: string;
+  endIso: string;
+  ageAtStart: number;
+  ageAtEnd: number;
+}
+
+export function earningsWindowDashas(snapshot: ChartSnapshot, window: { minEndAge: number; maxStartAge: number } = EARNINGS_WINDOW): WindowedDasha[] {
+  const dob = snapshot.subject.dateOfBirth;
+  return snapshot.vimshottari.mahadashas
+    .map((md, index) => ({
+      index, lord: planetName(md.lord), startIso: md.startDateIso, endIso: md.endDateIso,
+      ageAtStart: ageAtIso(dob, md.startDateIso), ageAtEnd: ageAtIso(dob, md.endDateIso),
+    }))
+    .filter((d) => d.ageAtStart <= window.maxStartAge && d.ageAtEnd >= window.minEndAge);
 }
 
 // ---------------------------------------------------------------------------
@@ -445,6 +486,8 @@ export interface CareerExt {
   sunSaturn: SunSaturnRelation;
   sunTenth: string[];
   yogas: CareerYoga[];
+  /** Every detected yoga (career-relevant first), for the yoga table. */
+  allYogas: CareerYoga[];
   dashas: DashaRow[];
   antardashas: AntardashaRow[];
   transits: TransitSet[];
@@ -463,6 +506,7 @@ export async function computeCareer(snapshot: ChartSnapshot, solver?: TransitIng
     sunSaturn: sunSaturnRelation(snapshot),
     sunTenth: sunAndTenth(snapshot),
     yogas: careerYogas(snapshot),
+    allYogas: [...detectedYogas(snapshot)].sort((a, b) => Number(b.relevant) - Number(a.relevant)),
     dashas: dashaTimeline(snapshot, d10),
     antardashas: currentAntardashas(snapshot),
     transits: await careerTransits(snapshot, solver),

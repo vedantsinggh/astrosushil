@@ -40,7 +40,7 @@ Data flow today: mobile → `POST /reports` (payment/entitlement) → `Report` r
 
 ## 3. Reference report inventory
 
-13 unique PDFs in `docs/referencerepots/` (`docs/reference repots/` is a byte-identical duplicate — verified by md5).
+13 unique PDFs in `docs/referencerepots/` (a byte-identical duplicate folder, `docs/reference repots/`, was removed on 2026-11-21).
 
 > **Critical context (verified):** every reference PDF is a **third-party product of "Astro Arun Pandit Pvt Ltd"** (remedy upsell via Gemsmantra), produced for one sample native, *Puneet Kumar, 28/12/1983 04:45, Bulandshahr*. They define **information architecture and depth only**. Their prose, artwork, branding, coupons, phone numbers and sales CTAs must not be copied. Astro Sushil output must use Astro Sushil's own assets (`packages/report-engine/templates/assets/`) and original content.
 

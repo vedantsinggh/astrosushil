@@ -5,6 +5,7 @@ import { AstronomyEngineAdapter } from '../ephemeris/astronomy-engine.adapter';
 import { AstrologyConfig, DEFAULT_ASTROLOGY_CONFIG } from '../configuration/astrology-config';
 import { PlanetSymbol, MANDATORY_VEDIC_PLANETS, PlanetPosition } from '../planets/planet.types';
 import { normalizeDegree } from '../coordinates/angular-math';
+import { resolveLocalTimeToUtc } from '../validation/timezone.solver';
 import { getRashiByLongitude, getDegreeInRashi, RASHIS } from '../zodiac/rashi';
 import { getNakshatraByLongitude, getPada } from '../nakshatra/nakshatra';
 import { VargaCalculator } from '../varga/varga-calculator';
@@ -37,6 +38,28 @@ import {
 } from './transit.types';
 import { utcDateToJulianDay } from '../varshaphala/solar-return.solver';
 
+const LOCAL_ISO_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/;
+
+/**
+ * Parses a transit timestamp. An ISO string with `Z` or a UTC offset is an absolute
+ * instant. A local date-time without an offset is wall-clock time in `timezone`
+ * (IANA). It must not be parsed with `new Date()`, which would apply the host
+ * machine's timezone and shift the transit by the server's offset.
+ */
+export function parseTransitInstant(timestampIso: string, timezone: string): Date {
+  const local = LOCAL_ISO_RE.exec(timestampIso);
+  if (local) {
+    const [, y, mo, d, h, mi, sec] = local;
+    const resolved = resolveLocalTimeToUtc(+y, +mo, +d, +h, +mi, sec ? +sec : 0, timezone);
+    return new Date(resolved.utcTimestampMs);
+  }
+  const date = new Date(timestampIso);
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid timestamp string: ${timestampIso}`);
+  }
+  return date;
+}
+
 export class TransitCalculator {
   private readonly ephemerisProvider: EphemerisProvider;
   private readonly chartCalculator: ChartCalculator;
@@ -65,10 +88,7 @@ export class TransitCalculator {
     },
     config: AstrologyConfig = DEFAULT_ASTROLOGY_CONFIG
   ): Promise<TransitChart> {
-    const transitDate = new Date(input.timestampIso);
-    if (isNaN(transitDate.getTime())) {
-      throw new Error(`Invalid timestamp string: ${input.timestampIso}`);
-    }
+    const transitDate = parseTransitInstant(input.timestampIso, input.timezone);
 
     const julianDayUT = utcDateToJulianDay(transitDate);
 

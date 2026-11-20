@@ -29,7 +29,24 @@ export interface KalaBalaBreakdown {
   horaBala: number;          // Planetary hour lord strength [0, 60]
   ayanaBala: number;         // Declination strength [0, 60]
   yuddhaBala: number;        // Planetary war strength (+/-)
-  total: number;
+  /** Lord of the year: 15 virupas (BPHS ch. 27; Raman Ahargana method). Provisional. */
+  abdaBala?: number;
+  /** Lord of the month: 30 virupas (BPHS ch. 27; Raman Ahargana method). Provisional. */
+  masaBala?: number;
+  total: number;             // Sum of all components present, including abda/masa
+}
+
+/**
+ * Combustion (asta) reported alongside Shadbala. It is NOT added to Shadbala: BPHS ch. 27 has no
+ * combustion term; combustion is judged separately. Orbs: Surya Siddhanta kalamsha values
+ * (planets/combustion.ts), provisional – pending client review.
+ */
+export interface ShadbalaCombustionInfo {
+  isCombust: boolean;
+  /** Angular distance from the Sun in degrees. */
+  distanceFromSun: number;
+  /** Orb applied in degrees. */
+  orbDegrees: number;
 }
 
 export interface PlanetShadbala {
@@ -47,11 +64,31 @@ export interface PlanetShadbala {
   ratio: number;             // totalShashtiamsas / minimumRequirement
   isStrong: boolean;         // ratio >= 1.0
   rank: number;              // 1 to 7
+  /** Combustion facts, exposed separately (not part of the Shadbala total). Absent for the Sun. */
+  combustion?: ShadbalaCombustionInfo;
+}
+
+export interface ShadbalaKalaContextSummary {
+  source: 'SOLAR' | 'FALLBACK';
+  isDayBirth: boolean;
+  vedicWeekday: number;
+  sunriseIso: string | null;
+  sunsetIso: string | null;
+  unnataHours: number;
+  tribhagaPart: number;
+  horaLord: PlanetSymbol;
+  abdaLord: PlanetSymbol;
+  masaLord: PlanetSymbol;
+  ahargana: number;
+  ayanamsaDegrees: number;
+  conventionNotes: string[];
 }
 
 export interface ShadbalaReport {
   planets: Partial<Record<PlanetSymbol, PlanetShadbala>>;
   summary: PlanetShadbala[]; // Ranked 1 to 7
+  /** Time basis used for Kala Bala (sunrise/sunset, weekday, hora, year/month lords). */
+  kalaContext?: ShadbalaKalaContextSummary;
 }
 
 export interface HouseBhavaBala {

@@ -27,11 +27,6 @@ export function longTable(cols: string, headers: string[], rows: string[][]): st
   ].join('\n');
 }
 
-export function shortDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
-}
-
 /** Local date of an instant in the subject's timezone. */
 export function localDate(iso: string, timezone: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: timezone });

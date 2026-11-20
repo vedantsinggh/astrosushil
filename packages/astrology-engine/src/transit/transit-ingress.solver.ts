@@ -1,5 +1,12 @@
 import { EphemerisProvider } from '../ephemeris/ephemeris.interface';
-import { getMeanAyanamsa, getTrueAyanamsa } from '../ayanamsa/ayanamsa';
+import { getMeanAyanamsa, getTrueAyanamsa, resolveAyanamsaSystem, SupportedAyanamsaSystem } from '../ayanamsa/ayanamsa';
+import { calculateLunarNodes, LunarNodeType } from '../rahu-ketu/lunar-nodes';
+import {
+  AyanamsaSystem,
+  DEFAULT_ASTROLOGY_CONFIG,
+  NodeCalculationMethod,
+  ZodiacType,
+} from '../configuration/astrology-config';
 import { AstronomyEngineAdapter } from '../ephemeris/astronomy-engine.adapter';
 import { PlanetSymbol } from '../planets/planet.types';
 import { normalizeDegree } from '../coordinates/angular-math';
@@ -22,11 +29,27 @@ export interface PlanetaryTransitState {
   pada: number;
 }
 
+/**
+ * Optional methodology for the solver (ADR-016: calculators take the convention as a parameter).
+ * Defaults reproduce the client defaults (ADR-017): sidereal, true Chitrapaksha Lahiri, mean node.
+ */
+export interface TransitIngressSolverOptions {
+  zodiacType?: ZodiacType;
+  ayanamsa?: AyanamsaSystem;
+  nodeCalculation?: NodeCalculationMethod;
+}
+
 export class TransitIngressSolver {
   private readonly ephemerisProvider: EphemerisProvider;
+  private readonly isSidereal: boolean;
+  private readonly ayanamsaSystem: SupportedAyanamsaSystem;
+  private readonly nodeType: LunarNodeType;
 
-  constructor(ephemerisProvider?: EphemerisProvider) {
+  constructor(ephemerisProvider?: EphemerisProvider, options: TransitIngressSolverOptions = {}) {
     this.ephemerisProvider = ephemerisProvider || new AstronomyEngineAdapter();
+    this.isSidereal = (options.zodiacType ?? DEFAULT_ASTROLOGY_CONFIG.zodiacType) !== 'TROPICAL';
+    this.ayanamsaSystem = resolveAyanamsaSystem(options.ayanamsa ?? DEFAULT_ASTROLOGY_CONFIG.ayanamsa);
+    this.nodeType = (options.nodeCalculation ?? DEFAULT_ASTROLOGY_CONFIG.nodeCalculation) === 'TRUE_NODE' ? 'TRUE_NODE' : 'MEAN_NODE';
   }
 
   /**
@@ -36,11 +59,26 @@ export class TransitIngressSolver {
     planet: PlanetSymbol,
     julianDayUT: number
   ): Promise<PlanetaryTransitState> {
-    const raw = await this.ephemerisProvider.getPlanetaryPosition(planet, julianDayUT);
+    let raw = await this.ephemerisProvider.getPlanetaryPosition(planet, julianDayUT);
 
-    // Engine default ayanamsa: true Chitrapaksha Lahiri (ADR-017). Nodes are mean-equinox values.
+    // Ayanamsa and node type follow the solver options (default: true Chitrapaksha Lahiri, mean
+    // node; ADR-017). As in ChartCalculator, the TRUE ayanamsa is subtracted from apparent
+    // longitudes and the MEAN ayanamsa from mean-equinox quantities (lunar nodes).
     const isNode = planet === PlanetSymbol.RAHU || planet === PlanetSymbol.KETU;
-    const ayanamsa = isNode ? getMeanAyanamsa(julianDayUT) : getTrueAyanamsa(julianDayUT);
+    if (isNode && this.nodeType === 'TRUE_NODE') {
+      const nodes = calculateLunarNodes(julianDayUT, 'TRUE_NODE');
+      raw = {
+        ...raw,
+        longitude: planet === PlanetSymbol.RAHU ? nodes.rahuLongitude : nodes.ketuLongitude,
+        speedLongitude: nodes.speedLongitude,
+        isRetrograde: nodes.speedLongitude < 0,
+      };
+    }
+    const ayanamsa = !this.isSidereal
+      ? 0
+      : isNode
+        ? getMeanAyanamsa(julianDayUT, this.ayanamsaSystem)
+        : getTrueAyanamsa(julianDayUT, this.ayanamsaSystem);
     const siderealLon = normalizeDegree(raw.longitude - ayanamsa);
 
     const rashiIndex = getRashiIndex(siderealLon);

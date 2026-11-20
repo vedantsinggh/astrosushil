@@ -2,6 +2,7 @@ export * from './strength.types';
 export * from './sthana-bala';
 export * from './dig-bala';
 export * from './kala-bala';
+export * from './kala-time-context';
 export * from './cheshta-bala';
 export * from './naisargika-bala';
 export * from './drik-bala';

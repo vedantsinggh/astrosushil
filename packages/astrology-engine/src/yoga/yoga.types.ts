@@ -61,7 +61,11 @@ export type YogaRelationshipType =
   | 'SIGN_EXCHANGE'
   | 'KENDRA_RELATION'
   | 'DISTANCE_FROM_MOON'
-  | 'DISTANCE_FROM_SUN';
+  | 'DISTANCE_FROM_SUN'
+  /** One planet aspects the other but not vice versa (flagged; does not form lord-association yogas). */
+  | 'ONE_WAY_ASPECT'
+  /** A single planet owns both houses (e.g. a Yogakaraka owning a kendra and a trikona). */
+  | 'OWNERSHIP';
 
 export interface YogaRelationshipEvidence {
   relationshipType: YogaRelationshipType;
@@ -78,6 +82,84 @@ export interface YogaEvidence {
   strengthFactors?: string[];
 }
 
+/** Whole-sign house categories (from the Lagna of the evaluated chart). */
+export type YogaHouseCategory =
+  | 'KENDRA'
+  | 'TRIKONA'
+  | 'DUSTHANA'
+  | 'UPACHAYA'
+  | 'PANAPHARA'
+  | 'APOKLIMA'
+  | 'MARAKA';
+
+/**
+ * Structured facts about one planet involved in a yoga. Facts only — no verdicts, no scores.
+ * Graded values appear only where the classics define them (dignity ladder, Shadbala vs the
+ * BPHS ch. 27 required rupas).
+ */
+export interface YogaPlanetFactors {
+  planet: PlanetSymbol;
+  rashiIndex: number;
+  house: number;
+  houseCategories: YogaHouseCategory[];
+  /** D1 compound dignity (exalted … great enemy) from `calculatePlanetaryDignity`. */
+  dignity: string;
+  isRetrograde: boolean;
+  combustion: {
+    isCombust: boolean;
+    /** Angular distance from the Sun in degrees; absent for the Sun and the nodes. */
+    distanceFromSun?: number;
+    /** Combustion orb used (Surya Siddhanta kalamsha values, provisional); absent when n/a. */
+    orbDegrees?: number;
+  };
+  /** Houses owned (from the Lagna). Empty for the nodes. */
+  lordships: number[];
+  /** Lordship-based functional nature (Laghu Parashari ch. 2); D1 only. */
+  functionalNature?: string;
+  /** D9 placement facts (D1 evaluation only). */
+  d9?: { rashiIndex: number; dignity: string; vargottama: boolean };
+  /** Shadbala vs required rupas (BPHS ch. 27), present only when Shadbala was computed/supplied. */
+  shadbala?: { ratio: number; totalRupas?: number; requiredRupas?: number };
+}
+
+/** A classical cancellation / qualifier condition and whether it holds. Facts only. */
+export interface YogaCancellationFlag {
+  id: string;
+  description: string;
+  /** True when the cancelling / disqualifying condition holds in this chart. */
+  satisfied: boolean;
+  observed: string;
+  source: string;
+  provisional: boolean;
+}
+
+/** How two lords are related for lord-association yogas (Raja, Dhana, Dharma-Karmadhipati). */
+export type YogaLordRelation = 'CONJUNCTION' | 'MUTUAL_ASPECT' | 'SIGN_EXCHANGE' | 'OWNERSHIP' | 'ONE_WAY_ASPECT';
+
+/**
+ * Optional, structured assessment inputs attached to a yoga (2026-11 engine fixes). Describes
+ * formation context only; never results or verdicts. Consumers grade it with cited set logic.
+ */
+export interface YogaAssessmentInputs {
+  /** Did the base formation condition hold (independent of cancellation)? */
+  formed: boolean;
+  /** True when formed and a classical cancellation (bhanga) holds. */
+  cancelled: boolean;
+  /** Lord-association yogas: every relation found between the two lords (first = primary). */
+  relations?: YogaLordRelation[];
+  /** Directed aspects between the lords that are not mutual (flagged, not counted as formation). */
+  oneWayAspects?: Array<{ from: PlanetSymbol; to: PlanetSymbol; aspect: string }>;
+  /** Vesi/Vasi/Ubhayachari, Sunapha/Anapha/Durudhara: nature of the occupying planets. */
+  variant?: 'BENEFIC' | 'MALEFIC' | 'MIXED';
+  /** Planets whose condition decides the yoga (subset of the involved planets). */
+  keyPlanets: PlanetSymbol[];
+  planetFactors: YogaPlanetFactors[];
+  cancellations: YogaCancellationFlag[];
+  notes: string[];
+  source: string;
+  provisional: true;
+}
+
 export interface YogaResult {
   id: string;
   canonicalName: string;
@@ -87,6 +169,8 @@ export interface YogaResult {
   varga: VargaType;
   convention: string;
   evidence: YogaEvidence;
+  /** Optional structured assessment inputs (facts only). Added in the 2026-11 engine fixes. */
+  assessment?: YogaAssessmentInputs;
 }
 
 export interface SignExchangeDetail {
@@ -128,9 +212,17 @@ export interface YogaChartContext {
   moonPlanet: YogaPlanetEvidence;
   sunPlanet: YogaPlanetEvidence;
   conjunctions: Map<PlanetSymbol, PlanetSymbol[]>;
+  /**
+   * Mutual graha drishti between the seven grahas (whole-sign, BPHS ch. 26): the 7th for all,
+   * plus Mars 4/8, Jupiter 5/9 and Saturn 3/10 special aspects when the aspect is returned.
+   */
   mutualAspects: Array<{ planetA: PlanetSymbol; planetB: PlanetSymbol; aspectType: string }>;
+  /** Directed graha drishti between the seven grahas (whole-sign). */
+  grahaAspects?: Array<{ from: PlanetSymbol; to: PlanetSymbol; aspectType: string }>;
   signExchanges: SignExchangeDetail[];
   distribution: PlanetaryDistributionSummary;
+  /** Precomputed per-planet factor facts used for `YogaResult.assessment`. */
+  planetFactors?: Partial<Record<PlanetSymbol, YogaPlanetFactors>>;
 }
 
 export interface YogaDefinition {
@@ -149,6 +241,12 @@ export interface YogaEvaluationOptions {
   categories?: YogaCategory[];
   yogaIds?: string[];
   includeUndetected?: boolean;
+  /**
+   * Shadbala ratios (total / BPHS ch. 27 requirement) to attach to planet factors. When omitted
+   * and `computeShadbala` is true (D1 only), the engine's ShadbalaCalculator is run on the chart.
+   */
+  shadbalaRatios?: Partial<Record<PlanetSymbol, number>>;
+  computeShadbala?: boolean;
 }
 
 export interface YogaEvaluationReport {
@@ -158,6 +256,12 @@ export interface YogaEvaluationReport {
   detectedCount: number;
   detectedYogas: YogaResult[];
   undetectedYogas?: YogaResult[];
+  /**
+   * Yogas whose base formation holds but a classical cancellation applies (e.g. Kemadruma with
+   * Kemadruma Bhanga). Listed so consumers can say "formed and cancelled" instead of hiding it.
+   * These are NOT in `detectedYogas` (isDetected stays false).
+   */
+  formedButCancelledYogas?: YogaResult[];
 }
 
 export type YogaEvaluationResponse = YogaEvaluationReport;

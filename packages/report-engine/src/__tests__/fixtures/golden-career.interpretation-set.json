@@ -1,0 +1,4740 @@
+{
+  "schemaVersion": "1.0.0",
+  "rulesetVersion": "1bb2c61477bb",
+  "snapshotId": "08e9ebbc9fdb4bb2c195b9009e5a7479",
+  "results": [
+    {
+      "id": "interp.career.analytical",
+      "topic": "career.analytical",
+      "question": "How do the chart indicators for technical and analytical work read?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Technical and analytical work: the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mercury.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.mercury.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "house.5.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        }
+      ],
+      "ruleIds": [
+        "INT-CAR-004",
+        "INT-S2-001",
+        "INT-S2-003",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.5.d1.lord",
+        "house.5.d1.lord-house",
+        "planet.mars.d1.dignity",
+        "planet.mars.shadbala",
+        "planet.mercury.d1.combust",
+        "planet.mercury.d1.dignity",
+        "planet.mercury.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mercury.shadbala]; Shadbala meets the required rupas [planet.mars.shadbala]. challenging: combust [planet.mercury.d1.combust]; lord in a dusthana [house.5.d1.lord-house].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "LORD_IN_DUSTHANA",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS karakatvas (Mercury: intellect, learning)",
+        "CAR-012 (5th house: buddhi)"
+      ]
+    },
+    {
+      "id": "interp.career.d1-d10.agreement",
+      "topic": "career.d1-d10",
+      "question": "Do the D1 and D10 charts share the lords of the 1st and 10th houses?",
+      "conclusion": {
+        "code": "NO_SAME_LORD",
+        "text": "Different planets rule the 1st and the 10th houses in the D1 and the D10 charts."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-D-003"
+      ],
+      "chartRefs": [
+        "asc.d10.sign",
+        "career.d10.house.10.lord",
+        "house.1.d1.lord",
+        "house.10.d1.lord"
+      ],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed.",
+      "provisional": true,
+      "sources": [
+        "CAR-002 (D1 and D10 read together)"
+      ]
+    },
+    {
+      "id": "interp.career.d1-d10.vargottama",
+      "topic": "career.d1-d10",
+      "question": "Which planets are vargottama (same sign in the D1 and the D9)?",
+      "conclusion": {
+        "code": "VARGOTTAMA_NONE",
+        "text": "No planet is vargottama."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-D-002"
+      ],
+      "chartRefs": [],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed.",
+      "provisional": false,
+      "sources": [
+        "Vargottama: the same sign in the D1 and the D9 (BPHS ch. 6; Phaladeepika ch. 3; verify verses)"
+      ]
+    },
+    {
+      "id": "interp.career.d10.house-1.lord",
+      "topic": "career.d10",
+      "question": "Where is the D10 1st lord, and what is its D10 dignity?",
+      "conclusion": {
+        "code": "D10_LORD_DEBILITATED",
+        "text": "In the D10 chart the 1st lord Venus is in Virgo, D10 house 5, debilitated (sign-based D10 dignity)."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-D-004",
+        "INT-S2-002"
+      ],
+      "chartRefs": [
+        "asc.d10.sign",
+        "career.d10.house.1.lord",
+        "planet.venus.d10.dignity",
+        "planet.venus.d10.house",
+        "planet.venus.d10.sign"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only challenging indicators apply. challenging: debilitated in the D10 [planet.venus.d10.dignity].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 6-7 (Dashamsha)",
+        "CAR-002 (D10 lords of the 1st, 6th, 7th, 10th and 11th; sign-based dignity)"
+      ]
+    },
+    {
+      "id": "interp.career.d10.house-10.lord",
+      "topic": "career.d10",
+      "question": "Where is the D10 10th lord, and what is its D10 dignity?",
+      "conclusion": {
+        "code": "D10_LORD_NO_SIGN_DIGNITY",
+        "text": "In the D10 chart the 10th lord Saturn is in Sagittarius, D10 house 8, with no sign-based D10 dignity (neither exalted, debilitated nor in its own sign)."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-D-004"
+      ],
+      "chartRefs": [
+        "asc.d10.sign",
+        "career.d10.house.10.lord",
+        "planet.saturn.d10.dignity",
+        "planet.saturn.d10.house",
+        "planet.saturn.d10.sign"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 6-7 (Dashamsha)",
+        "CAR-002 (D10 lords of the 1st, 6th, 7th, 10th and 11th; sign-based dignity)"
+      ]
+    },
+    {
+      "id": "interp.career.d10.house-11.lord",
+      "topic": "career.d10",
+      "question": "Where is the D10 11th lord, and what is its D10 dignity?",
+      "conclusion": {
+        "code": "D10_LORD_DEBILITATED",
+        "text": "In the D10 chart the 11th lord Jupiter is in Capricorn, D10 house 9, debilitated (sign-based D10 dignity)."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-D-004",
+        "INT-S2-002"
+      ],
+      "chartRefs": [
+        "asc.d10.sign",
+        "career.d10.house.11.lord",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.d10.house",
+        "planet.jupiter.d10.sign"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only challenging indicators apply. challenging: debilitated in the D10 [planet.jupiter.d10.dignity].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 6-7 (Dashamsha)",
+        "CAR-002 (D10 lords of the 1st, 6th, 7th, 10th and 11th; sign-based dignity)"
+      ]
+    },
+    {
+      "id": "interp.career.d10.house-6.lord",
+      "topic": "career.d10",
+      "question": "Where is the D10 6th lord, and what is its D10 dignity?",
+      "conclusion": {
+        "code": "D10_LORD_DEBILITATED",
+        "text": "In the D10 chart the 6th lord Venus is in Virgo, D10 house 5, debilitated (sign-based D10 dignity)."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-D-004",
+        "INT-S2-002"
+      ],
+      "chartRefs": [
+        "asc.d10.sign",
+        "career.d10.house.6.lord",
+        "planet.venus.d10.dignity",
+        "planet.venus.d10.house",
+        "planet.venus.d10.sign"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only challenging indicators apply. challenging: debilitated in the D10 [planet.venus.d10.dignity].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 6-7 (Dashamsha)",
+        "CAR-002 (D10 lords of the 1st, 6th, 7th, 10th and 11th; sign-based dignity)"
+      ]
+    },
+    {
+      "id": "interp.career.d10.house-7.lord",
+      "topic": "career.d10",
+      "question": "Where is the D10 7th lord, and what is its D10 dignity?",
+      "conclusion": {
+        "code": "D10_LORD_NO_SIGN_DIGNITY",
+        "text": "In the D10 chart the 7th lord Mars is in Aquarius, D10 house 10, with no sign-based D10 dignity (neither exalted, debilitated nor in its own sign)."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-D-004"
+      ],
+      "chartRefs": [
+        "asc.d10.sign",
+        "career.d10.house.7.lord",
+        "planet.mars.d10.dignity",
+        "planet.mars.d10.house",
+        "planet.mars.d10.sign"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 6-7 (Dashamsha)",
+        "CAR-002 (D10 lords of the 1st, 6th, 7th, 10th and 11th; sign-based dignity)"
+      ]
+    },
+    {
+      "id": "interp.career.d10.tenth-lord",
+      "topic": "career.d10",
+      "question": "Where does the D1 10th lord sit in the D10 chart, and with what D10 dignity?",
+      "conclusion": {
+        "code": "IN_D10_KENDRA_UPACHAYA",
+        "text": "The D1 10th lord Mars sits in Aquarius, D10 house 10 (a kendra and an upachaya house of the D10), with no sign-based D10 dignity (neither exalted, debilitated nor in its own sign)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.d10.house",
+          "conditionCode": "D10_LORD_IN_KENDRA",
+          "ruleId": "INT-S5-002"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-D-001",
+        "INT-S5-002"
+      ],
+      "chartRefs": [
+        "house.10.d1.lord",
+        "planet.mars.d1.house",
+        "planet.mars.d10.dignity",
+        "planet.mars.d10.house",
+        "planet.mars.d10.sign"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only supporting indicators apply. supporting: in a D10 kendra [planet.mars.d10.house].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 6-7 (Dashamsha)",
+        "CAR-002 (D10 dignity is sign-based)"
+      ]
+    },
+    {
+      "id": "interp.career.enterprise",
+      "topic": "career.enterprise",
+      "question": "How do the chart indicators for business and independent enterprise read?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Business and enterprise: the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.mercury.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "house.7.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "sav.house.7",
+          "conditionCode": "SAV_BELOW_28",
+          "ruleId": "INT-S3-004"
+        },
+        {
+          "factId": "planet.mercury.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        }
+      ],
+      "ruleIds": [
+        "INT-C-002",
+        "INT-CAR-002",
+        "INT-S2-001",
+        "INT-S2-003",
+        "INT-S2-009",
+        "INT-S3-001",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "career.sav.service-vs-partnership",
+        "house.7.d1.lord",
+        "house.7.d1.lord-house",
+        "planet.mercury.d1.combust",
+        "planet.mercury.d1.dignity",
+        "planet.mercury.shadbala",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.shadbala",
+        "sav.house.6",
+        "sav.house.7"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS",
+        "PRACTITIONER_HEURISTIC"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]; Shadbala meets the required rupas [planet.mercury.shadbala]. challenging: Shadbala below the required rupas [planet.saturn.shadbala]; lord in a dusthana [house.7.d1.lord-house]; Sarvashtakavarga below 28 [sav.house.7]; combust [planet.mercury.d1.combust]. context (practitioner heuristic, CAR-006): the 6th house SAV (33) is higher than the 7th (26); this comparison is one tendency and does not decide the result.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "GREAT_FRIEND_SIGN",
+          "LORD_IN_DUSTHANA",
+          "SAV_BELOW_28",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS karakatvas (Mercury: commerce)",
+        "CAR-002",
+        "CAR-006 (6th vs 7th SAV: a widely used practitioner heuristic, labelled as such)",
+        "Phaladeepika ch. 1 (7th house: trade and partnership; verify verse)"
+      ]
+    },
+    {
+      "id": "interp.career.fields",
+      "topic": "career.fields",
+      "question": "What is the condition of the trine lords (1st, 5th, 9th), which point to fields of opportunity?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Trine lords (1st lord Moon, 5th lord Mars, 9th lord Jupiter): the chart indicators considered for these lords are mixed: some support them and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "house.1.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "house.5.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-F-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.1.d1.lord",
+        "house.1.d1.lord-house",
+        "house.5.d1.lord",
+        "house.5.d1.lord-house",
+        "house.9.d1.lord",
+        "house.9.d1.lord-house",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.shadbala",
+        "planet.mars.d1.dignity",
+        "planet.mars.shadbala",
+        "planet.moon.d1.dignity",
+        "planet.moon.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mars.shadbala]; in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: lord in a dusthana [house.1.d1.lord-house]; in an enemy's sign [planet.moon.d1.dignity]; Shadbala below the required rupas [planet.moon.shadbala]; lord in a dusthana [house.5.d1.lord-house]; debilitated in the D10 [planet.jupiter.d10.dignity].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "ENEMY_SIGN",
+          "GREAT_FRIEND_SIGN",
+          "LORD_IN_DUSTHANA",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "CAR-018 (trikona lords as purpose-giving lords; BPHS)"
+      ]
+    },
+    {
+      "id": "interp.career.financial-growth",
+      "topic": "career.financial-growth",
+      "question": "How do the chart indicators for financial growth through work read?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Financial growth (pace of accumulation, not amounts): the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.d10.dignity",
+          "conditionCode": "D10_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-YF-011"
+        },
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-YF-005"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "sav.house.2",
+          "conditionCode": "SAV_BELOW_28",
+          "ruleId": "INT-S3-004"
+        },
+        {
+          "factId": "sav.house.11",
+          "conditionCode": "SAV_BELOW_28",
+          "ruleId": "INT-S3-004"
+        },
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-YF-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-C-003",
+        "INT-CAR-005",
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-003",
+        "INT-S2-004",
+        "INT-S2-009",
+        "INT-S3-004",
+        "INT-Y-001",
+        "INT-YF-002",
+        "INT-YF-003",
+        "INT-YF-005",
+        "INT-YF-009",
+        "INT-YF-011"
+      ],
+      "chartRefs": [
+        "career.sav.effort-vs-gain",
+        "house.11.d1.lord",
+        "house.2.d1.lord",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.shadbala",
+        "planet.sun.d1.dignity",
+        "planet.sun.d10.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala",
+        "planet.venus.d1.combust",
+        "planet.venus.d1.dignity",
+        "planet.venus.d1.retrograde",
+        "planet.venus.d10.dignity",
+        "planet.venus.shadbala",
+        "sav.house.10",
+        "sav.house.11",
+        "sav.house.2",
+        "yoga.dhana-h2-h11"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS",
+        "PRACTITIONER_HEURISTIC"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in its own sign in the D9 [planet.sun.d9.dignity]; in its own sign in the D10 [planet.sun.d10.dignity]; Shadbala meets the required rupas [planet.sun.shadbala]; in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]; in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]; Shadbala meets the required rupas [planet.sun.shadbala]; in its own sign in the D9 [planet.sun.d9.dignity]; in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]. challenging: in a great enemy's sign [planet.sun.d1.dignity]; debilitated in the D10 [planet.venus.d10.dignity]; combust [planet.venus.d1.combust]; Sarvashtakavarga below 28 [sav.house.2]; Sarvashtakavarga below 28 [sav.house.11]; debilitated in the D10 [planet.jupiter.d10.dignity]; in a great enemy's sign [planet.sun.d1.dignity]; combust [planet.venus.d1.combust]. context (practitioner heuristic, CAR-006): the 11th house SAV (24) is lower than the 10th (34); this comparison is one tendency and does not decide the result.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "D10_DEBILITATED",
+          "D10_OWN_SIGN",
+          "D9_OWN_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "GREAT_FRIEND_SIGN",
+          "OWN_SIGN",
+          "SAV_BELOW_28",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS karakatvas (Jupiter: wealth)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)",
+        "CAR-005 (engine dhana yogas)",
+        "CAR-006 (10th vs 11th SAV: a widely used practitioner heuristic, labelled as such)",
+        "CAR-010 (2nd = dhana, 11th = labha; BPHS)"
+      ]
+    },
+    {
+      "id": "interp.career.house-1.aspects",
+      "topic": "career.house-1",
+      "question": "Which planets aspect the 1st house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_NOT_ASPECTED",
+        "text": "The 1st house receives no graha drishti."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-011",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.1.d1.aspected-by"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 26 (graha drishti)",
+        "BPHS ch. 34 (functional nature)",
+        "CAR-001"
+      ]
+    },
+    {
+      "id": "interp.career.house-1.lord-placement",
+      "topic": "career.house-1",
+      "question": "Where is the 1st lord placed, and in what condition?",
+      "conclusion": {
+        "code": "LORD_IN_DUSTHANA",
+        "text": "The 1st lord Moon is placed in the 8th house, a dusthana."
+      },
+      "supporting": [
+        {
+          "factId": "asc.d1.lord",
+          "conditionCode": "LAGNA_LORD",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.moon.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_FAVOURABLE",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "house.1.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-001",
+        "INT-H-002",
+        "INT-S2-001",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "asc.d1.lord",
+        "house.1.d1.lord",
+        "house.1.d1.lord-house",
+        "planet.moon.d1.dignity",
+        "planet.moon.d1.functional-nature",
+        "planet.moon.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Lagna lord [asc.d1.lord]; functionally favourable [planet.moon.d1.functional-nature]. challenging: lord in a dusthana [house.1.d1.lord-house]; in an enemy's sign [planet.moon.d1.dignity]; Shadbala below the required rupas [planet.moon.shadbala].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "ENEMY_SIGN",
+          "FUNCTIONAL_FAVOURABLE",
+          "LAGNA_LORD",
+          "LORD_IN_DUSTHANA",
+          "SHADBALA_BELOW_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order: exaltation, moolatrikona, own sign, friendly, neutral, enemy, debilitation)",
+        "BPHS ch. 7 and 11 (kendra, trikona, dusthana, upachaya houses; verify verses)",
+        "Laghu Parashari ch. 1"
+      ]
+    },
+    {
+      "id": "interp.career.house-1.occupants",
+      "topic": "career.house-1",
+      "question": "Which planets occupy the 1st house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_EMPTY",
+        "text": "The 1st house is unoccupied; an empty house is read through its lord."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-010",
+        "INT-S3-002"
+      ],
+      "chartRefs": [
+        "house.1.d1.occupants"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 34 (functional nature by lordship from the Lagna; verify verses)",
+        "Laghu Parashari ch. 2"
+      ]
+    },
+    {
+      "id": "interp.career.house-1.sav",
+      "topic": "career.house-1",
+      "question": "How does the 1st house's Sarvashtakavarga compare with the 28-bindu average?",
+      "conclusion": {
+        "code": "SAV_ABOVE_28",
+        "text": "The 1st house has 32 Sarvashtakavarga bindus (a natal tally per sign), above the 28-bindu average."
+      },
+      "supporting": [
+        {
+          "factId": "sav.house.1",
+          "conditionCode": "SAV_ABOVE_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "sav.house.1"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "only supporting indicators apply. supporting: Sarvashtakavarga above 28 [sav.house.1].",
+      "provisional": false,
+      "sources": [
+        "BPHS Ashtakavarga chapters (337 bindus / 12 = 28 per sign on average)",
+        "CAR-006"
+      ]
+    },
+    {
+      "id": "interp.career.house-10.aspects",
+      "topic": "career.house-10",
+      "question": "Which planets aspect the 10th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_ASPECTED",
+        "text": "The 10th house receives graha drishti from Jupiter and Ketu."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-011",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.10.d1.aspected-by"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 26 (graha drishti)",
+        "BPHS ch. 34 (functional nature)",
+        "CAR-001"
+      ]
+    },
+    {
+      "id": "interp.career.house-10.lord-placement",
+      "topic": "career.house-10",
+      "question": "Where is the 10th lord placed, and in what condition?",
+      "conclusion": {
+        "code": "LORD_IN_DUSTHANA",
+        "text": "The 10th lord Mars is placed in the 12th house, a dusthana."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.d1.functional-nature",
+          "conditionCode": "YOGAKARAKA_BY_OWNERSHIP",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.mars.d1.functional-nature",
+          "conditionCode": "OWNS_TRIKONA",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "house.10.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-001",
+        "INT-H-002",
+        "INT-S2-001",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.10.d1.lord",
+        "house.10.d1.lord-house",
+        "planet.mars.d1.dignity",
+        "planet.mars.d1.functional-nature",
+        "planet.mars.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Yogakaraka by ownership [planet.mars.d1.functional-nature]; owns a trikona [planet.mars.d1.functional-nature]; Shadbala meets the required rupas [planet.mars.shadbala]. challenging: lord in a dusthana [house.10.d1.lord-house].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "LORD_IN_DUSTHANA",
+          "OWNS_TRIKONA",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGAKARAKA_BY_OWNERSHIP"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order: exaltation, moolatrikona, own sign, friendly, neutral, enemy, debilitation)",
+        "BPHS ch. 7 and 11 (kendra, trikona, dusthana, upachaya houses; verify verses)",
+        "Laghu Parashari ch. 1"
+      ]
+    },
+    {
+      "id": "interp.career.house-10.occupants",
+      "topic": "career.house-10",
+      "question": "Which planets occupy the 10th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_OCCUPIED",
+        "text": "The 10th house holds Rahu."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-010",
+        "INT-S3-002"
+      ],
+      "chartRefs": [
+        "house.10.d1.occupants"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 34 (functional nature by lordship from the Lagna; verify verses)",
+        "Laghu Parashari ch. 2"
+      ]
+    },
+    {
+      "id": "interp.career.house-10.sav",
+      "topic": "career.house-10",
+      "question": "How does the 10th house's Sarvashtakavarga compare with the 28-bindu average?",
+      "conclusion": {
+        "code": "SAV_ABOVE_28",
+        "text": "The 10th house has 34 Sarvashtakavarga bindus (a natal tally per sign), above the 28-bindu average."
+      },
+      "supporting": [
+        {
+          "factId": "sav.house.10",
+          "conditionCode": "SAV_ABOVE_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "sav.house.10"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "only supporting indicators apply. supporting: Sarvashtakavarga above 28 [sav.house.10].",
+      "provisional": false,
+      "sources": [
+        "BPHS Ashtakavarga chapters (337 bindus / 12 = 28 per sign on average)",
+        "CAR-006"
+      ]
+    },
+    {
+      "id": "interp.career.house-11.aspects",
+      "topic": "career.house-11",
+      "question": "Which planets aspect the 11th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_NOT_ASPECTED",
+        "text": "The 11th house receives no graha drishti."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-011",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.11.d1.aspected-by"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 26 (graha drishti)",
+        "BPHS ch. 34 (functional nature)",
+        "CAR-001"
+      ]
+    },
+    {
+      "id": "interp.career.house-11.lord-placement",
+      "topic": "career.house-11",
+      "question": "Where is the 11th lord placed, and in what condition?",
+      "conclusion": {
+        "code": "LORD_IN_UPACHAYA",
+        "text": "The 11th lord Venus is placed in the 11th house, an upachaya house."
+      },
+      "supporting": [
+        {
+          "factId": "house.11.d1.lord-house",
+          "conditionCode": "LORD_IN_OWN_HOUSE",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "OWNS_11TH",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-001",
+        "INT-H-002",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-003",
+        "INT-S2-004",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.11.d1.lord",
+        "house.11.d1.lord-house",
+        "planet.venus.d1.combust",
+        "planet.venus.d1.dignity",
+        "planet.venus.d1.functional-nature",
+        "planet.venus.d1.retrograde",
+        "planet.venus.d10.dignity",
+        "planet.venus.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: lord in its own house [house.11.d1.lord-house]; in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]. challenging: debilitated in the D10 [planet.venus.d10.dignity]; combust [planet.venus.d1.combust]; functionally challenging [planet.venus.d1.functional-nature]; owns the 11th [planet.venus.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "D10_DEBILITATED",
+          "FUNCTIONAL_CHALLENGING",
+          "LORD_IN_OWN_HOUSE",
+          "OWNS_11TH",
+          "OWN_SIGN",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order: exaltation, moolatrikona, own sign, friendly, neutral, enemy, debilitation)",
+        "BPHS ch. 7 and 11 (kendra, trikona, dusthana, upachaya houses; verify verses)",
+        "Laghu Parashari ch. 1"
+      ]
+    },
+    {
+      "id": "interp.career.house-11.occupants",
+      "topic": "career.house-11",
+      "question": "Which planets occupy the 11th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_OCCUPIED",
+        "text": "The 11th house holds Sun, Mercury and Venus."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "planet.mercury.d1.functional-nature",
+          "conditionCode": "OCCUPANT_FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S3-002"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "OCCUPANT_FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S3-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-010",
+        "INT-S3-002"
+      ],
+      "chartRefs": [
+        "house.11.d1.occupants",
+        "planet.mercury.d1.functional-nature",
+        "planet.venus.d1.functional-nature"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only challenging indicators apply. challenging: functionally challenging occupant [planet.mercury.d1.functional-nature]; functionally challenging occupant [planet.venus.d1.functional-nature].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 34 (functional nature by lordship from the Lagna; verify verses)",
+        "Laghu Parashari ch. 2"
+      ]
+    },
+    {
+      "id": "interp.career.house-11.sav",
+      "topic": "career.house-11",
+      "question": "How does the 11th house's Sarvashtakavarga compare with the 28-bindu average?",
+      "conclusion": {
+        "code": "SAV_BELOW_28",
+        "text": "The 11th house has 24 Sarvashtakavarga bindus (a natal tally per sign), below the 28-bindu average."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "sav.house.11",
+          "conditionCode": "SAV_BELOW_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "sav.house.11"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "only challenging indicators apply. challenging: Sarvashtakavarga below 28 [sav.house.11].",
+      "provisional": false,
+      "sources": [
+        "BPHS Ashtakavarga chapters (337 bindus / 12 = 28 per sign on average)",
+        "CAR-006"
+      ]
+    },
+    {
+      "id": "interp.career.house-2.aspects",
+      "topic": "career.house-2",
+      "question": "Which planets aspect the 2nd house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_ASPECTED",
+        "text": "The 2nd house receives graha drishti from Moon, Saturn and Rahu."
+      },
+      "supporting": [
+        {
+          "factId": "planet.moon.d1.functional-nature",
+          "conditionCode": "ASPECT_FROM_FUNCTIONAL_FAVOURABLE",
+          "ruleId": "INT-S3-003"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "ASPECT_FROM_FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S3-003"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-011",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.2.d1.aspected-by",
+        "planet.moon.d1.functional-nature",
+        "planet.saturn.d1.functional-nature"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: aspect from a functionally favourable planet [planet.moon.d1.functional-nature]. challenging: aspect from a functionally challenging planet [planet.saturn.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "ASPECT_FROM_FUNCTIONAL_CHALLENGING",
+          "ASPECT_FROM_FUNCTIONAL_FAVOURABLE"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 26 (graha drishti)",
+        "BPHS ch. 34 (functional nature)",
+        "CAR-001"
+      ]
+    },
+    {
+      "id": "interp.career.house-2.lord-placement",
+      "topic": "career.house-2",
+      "question": "Where is the 2nd lord placed, and in what condition?",
+      "conclusion": {
+        "code": "LORD_IN_UPACHAYA",
+        "text": "The 2nd lord Sun is placed in the 11th house, an upachaya house."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.d10.dignity",
+          "conditionCode": "D10_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-001",
+        "INT-H-002",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.2.d1.lord",
+        "house.2.d1.lord-house",
+        "planet.sun.d1.dignity",
+        "planet.sun.d1.functional-nature",
+        "planet.sun.d10.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in its own sign in the D9 [planet.sun.d9.dignity]; in its own sign in the D10 [planet.sun.d10.dignity]; Shadbala meets the required rupas [planet.sun.shadbala]. challenging: in a great enemy's sign [planet.sun.d1.dignity].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_OWN_SIGN",
+          "D9_OWN_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order: exaltation, moolatrikona, own sign, friendly, neutral, enemy, debilitation)",
+        "BPHS ch. 7 and 11 (kendra, trikona, dusthana, upachaya houses; verify verses)",
+        "Laghu Parashari ch. 1"
+      ]
+    },
+    {
+      "id": "interp.career.house-2.occupants",
+      "topic": "career.house-2",
+      "question": "Which planets occupy the 2nd house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_OCCUPIED",
+        "text": "The 2nd house holds Jupiter."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-010",
+        "INT-S3-002"
+      ],
+      "chartRefs": [
+        "house.2.d1.occupants"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 34 (functional nature by lordship from the Lagna; verify verses)",
+        "Laghu Parashari ch. 2"
+      ]
+    },
+    {
+      "id": "interp.career.house-2.sav",
+      "topic": "career.house-2",
+      "question": "How does the 2nd house's Sarvashtakavarga compare with the 28-bindu average?",
+      "conclusion": {
+        "code": "SAV_BELOW_28",
+        "text": "The 2nd house has 22 Sarvashtakavarga bindus (a natal tally per sign), below the 28-bindu average."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "sav.house.2",
+          "conditionCode": "SAV_BELOW_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "sav.house.2"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "only challenging indicators apply. challenging: Sarvashtakavarga below 28 [sav.house.2].",
+      "provisional": false,
+      "sources": [
+        "BPHS Ashtakavarga chapters (337 bindus / 12 = 28 per sign on average)",
+        "CAR-006"
+      ]
+    },
+    {
+      "id": "interp.career.house-6.aspects",
+      "topic": "career.house-6",
+      "question": "Which planets aspect the 6th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_ASPECTED",
+        "text": "The 6th house receives graha drishti from Mars, Jupiter, Saturn and Rahu."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.d1.functional-nature",
+          "conditionCode": "ASPECT_FROM_FUNCTIONAL_FAVOURABLE",
+          "ruleId": "INT-S3-003"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "ASPECT_FROM_FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S3-003"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-011",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.6.d1.aspected-by",
+        "planet.mars.d1.functional-nature",
+        "planet.saturn.d1.functional-nature"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: aspect from a functionally favourable planet [planet.mars.d1.functional-nature]. challenging: aspect from a functionally challenging planet [planet.saturn.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "ASPECT_FROM_FUNCTIONAL_CHALLENGING",
+          "ASPECT_FROM_FUNCTIONAL_FAVOURABLE"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 26 (graha drishti)",
+        "BPHS ch. 34 (functional nature)",
+        "CAR-001"
+      ]
+    },
+    {
+      "id": "interp.career.house-6.lord-placement",
+      "topic": "career.house-6",
+      "question": "Where is the 6th lord placed, and in what condition?",
+      "conclusion": {
+        "code": "LORD_IN_OTHER",
+        "text": "The 6th lord Jupiter is placed in the 2nd house, not a kendra, trikona, dusthana or upachaya house."
+      },
+      "supporting": [
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.d1.functional-nature",
+          "conditionCode": "OWNS_TRIKONA",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.jupiter.d1.functional-nature",
+          "conditionCode": "OWNS_6TH",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-001",
+        "INT-H-002",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.6.d1.lord",
+        "house.6.d1.lord-house",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d1.functional-nature",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.jupiter.d1.dignity]; owns a trikona [planet.jupiter.d1.functional-nature]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: debilitated in the D10 [planet.jupiter.d10.dignity]; owns the 6th [planet.jupiter.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "GREAT_FRIEND_SIGN",
+          "OWNS_6TH",
+          "OWNS_TRIKONA",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order: exaltation, moolatrikona, own sign, friendly, neutral, enemy, debilitation)",
+        "BPHS ch. 7 and 11 (kendra, trikona, dusthana, upachaya houses; verify verses)",
+        "Laghu Parashari ch. 1"
+      ]
+    },
+    {
+      "id": "interp.career.house-6.occupants",
+      "topic": "career.house-6",
+      "question": "Which planets occupy the 6th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_EMPTY",
+        "text": "The 6th house is unoccupied; an empty house is read through its lord."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-010",
+        "INT-S3-002"
+      ],
+      "chartRefs": [
+        "house.6.d1.occupants"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 34 (functional nature by lordship from the Lagna; verify verses)",
+        "Laghu Parashari ch. 2"
+      ]
+    },
+    {
+      "id": "interp.career.house-6.sav",
+      "topic": "career.house-6",
+      "question": "How does the 6th house's Sarvashtakavarga compare with the 28-bindu average?",
+      "conclusion": {
+        "code": "SAV_ABOVE_28",
+        "text": "The 6th house has 33 Sarvashtakavarga bindus (a natal tally per sign), above the 28-bindu average."
+      },
+      "supporting": [
+        {
+          "factId": "sav.house.6",
+          "conditionCode": "SAV_ABOVE_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "sav.house.6"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "only supporting indicators apply. supporting: Sarvashtakavarga above 28 [sav.house.6].",
+      "provisional": false,
+      "sources": [
+        "BPHS Ashtakavarga chapters (337 bindus / 12 = 28 per sign on average)",
+        "CAR-006"
+      ]
+    },
+    {
+      "id": "interp.career.house-7.aspects",
+      "topic": "career.house-7",
+      "question": "Which planets aspect the 7th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_ASPECTED",
+        "text": "The 7th house receives graha drishti from Mars."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.d1.functional-nature",
+          "conditionCode": "ASPECT_FROM_FUNCTIONAL_FAVOURABLE",
+          "ruleId": "INT-S3-003"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-011",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.7.d1.aspected-by",
+        "planet.mars.d1.functional-nature"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only supporting indicators apply. supporting: aspect from a functionally favourable planet [planet.mars.d1.functional-nature].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 26 (graha drishti)",
+        "BPHS ch. 34 (functional nature)",
+        "CAR-001"
+      ]
+    },
+    {
+      "id": "interp.career.house-7.lord-placement",
+      "topic": "career.house-7",
+      "question": "Where is the 7th lord placed, and in what condition?",
+      "conclusion": {
+        "code": "LORD_IN_DUSTHANA",
+        "text": "The 7th lord Saturn is placed in the 12th house, a dusthana."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "house.7.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "OWNS_8TH",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-001",
+        "INT-H-002",
+        "INT-S2-001",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-S3-001"
+      ],
+      "chartRefs": [
+        "house.7.d1.lord",
+        "house.7.d1.lord-house",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.functional-nature",
+        "planet.saturn.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]. challenging: lord in a dusthana [house.7.d1.lord-house]; functionally challenging [planet.saturn.d1.functional-nature]; owns the 8th [planet.saturn.d1.functional-nature]; Shadbala below the required rupas [planet.saturn.shadbala].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "FUNCTIONAL_CHALLENGING",
+          "GREAT_FRIEND_SIGN",
+          "LORD_IN_DUSTHANA",
+          "OWNS_8TH",
+          "SHADBALA_BELOW_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order: exaltation, moolatrikona, own sign, friendly, neutral, enemy, debilitation)",
+        "BPHS ch. 7 and 11 (kendra, trikona, dusthana, upachaya houses; verify verses)",
+        "Laghu Parashari ch. 1"
+      ]
+    },
+    {
+      "id": "interp.career.house-7.occupants",
+      "topic": "career.house-7",
+      "question": "Which planets occupy the 7th house, and what is their functional nature?",
+      "conclusion": {
+        "code": "HOUSE_EMPTY",
+        "text": "The 7th house is unoccupied; an empty house is read through its lord."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-H-010",
+        "INT-S3-002"
+      ],
+      "chartRefs": [
+        "house.7.d1.occupants"
+      ],
+      "strengthClass": "neutral",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "no supporting or challenging indicator applies.",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 34 (functional nature by lordship from the Lagna; verify verses)",
+        "Laghu Parashari ch. 2"
+      ]
+    },
+    {
+      "id": "interp.career.house-7.sav",
+      "topic": "career.house-7",
+      "question": "How does the 7th house's Sarvashtakavarga compare with the 28-bindu average?",
+      "conclusion": {
+        "code": "SAV_BELOW_28",
+        "text": "The 7th house has 26 Sarvashtakavarga bindus (a natal tally per sign), below the 28-bindu average."
+      },
+      "supporting": [],
+      "contradicting": [
+        {
+          "factId": "sav.house.7",
+          "conditionCode": "SAV_BELOW_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "ruleIds": [
+        "INT-H-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "sav.house.7"
+      ],
+      "strengthClass": "challenged",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION"
+      ],
+      "explanation": "only challenging indicators apply. challenging: Sarvashtakavarga below 28 [sav.house.7].",
+      "provisional": false,
+      "sources": [
+        "BPHS Ashtakavarga chapters (337 bindus / 12 = 28 per sign on average)",
+        "CAR-006"
+      ]
+    },
+    {
+      "id": "interp.career.leadership",
+      "topic": "career.leadership",
+      "question": "How do the chart indicators for leadership and authority read?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Leadership and authority (style, not rank): the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.d10.dignity",
+          "conditionCode": "D10_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "house.10.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.moon.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        },
+        {
+          "factId": "planet.moon.d1.paksha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-013"
+        },
+        {
+          "factId": "planet.mars.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.mars.d1.avastha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-015"
+        },
+        {
+          "factId": "planet.mars.d1.conjunctions",
+          "conditionCode": "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "ruleId": "INT-YF-302"
+        },
+        {
+          "factId": "planet.saturn.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        },
+        {
+          "factId": "planet.saturn.d1.lordship",
+          "conditionCode": "OWNS_8TH",
+          "ruleId": "INT-YF-301"
+        }
+      ],
+      "ruleIds": [
+        "INT-CAR-003",
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-009",
+        "INT-S3-001",
+        "INT-Y-001",
+        "INT-Y-005",
+        "INT-YF-003",
+        "INT-YF-004",
+        "INT-YF-006",
+        "INT-YF-008",
+        "INT-YF-009",
+        "INT-YF-013",
+        "INT-YF-015",
+        "INT-YF-301",
+        "INT-YF-302"
+      ],
+      "chartRefs": [
+        "asc.d1.lord",
+        "dasha.ad.03.02",
+        "dasha.md.03",
+        "house.10.d1.lord",
+        "house.10.d1.lord-house",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.shadbala",
+        "planet.mars.d1.avastha",
+        "planet.mars.d1.conjunctions",
+        "planet.mars.d1.dignity",
+        "planet.mars.d1.house",
+        "planet.mars.shadbala",
+        "planet.moon.d1.dignity",
+        "planet.moon.d1.house",
+        "planet.moon.d1.paksha",
+        "planet.moon.shadbala",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.house",
+        "planet.saturn.d1.lordship",
+        "planet.saturn.shadbala",
+        "planet.sun.d1.dignity",
+        "planet.sun.d10.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala",
+        "yoga.raja-h1-h9",
+        "yoga.raja-h10-h5",
+        "yoga.raja-h7-h5"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in its own sign in the D9 [planet.sun.d9.dignity]; in its own sign in the D10 [planet.sun.d10.dignity]; Shadbala meets the required rupas [planet.sun.shadbala]; Shadbala meets the required rupas [planet.mars.shadbala]; in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]; Shadbala meets the required rupas [planet.mars.shadbala]; in a great friend's sign [planet.saturn.d1.dignity]. challenging: in a great enemy's sign [planet.sun.d1.dignity]; lord in a dusthana [house.10.d1.lord-house]; in an enemy's sign [planet.moon.d1.dignity]; Shadbala below the required rupas [planet.moon.shadbala]; in an enemy's sign [planet.moon.d1.dignity]; placed in a dusthana [planet.moon.d1.house]; Shadbala below the required rupas [planet.moon.shadbala]; key planet weakened [planet.moon.d1.paksha]; placed in a dusthana [planet.mars.d1.house]; key planet weakened [planet.mars.d1.avastha]; association with a dusthana lord [planet.mars.d1.conjunctions]; placed in a dusthana [planet.saturn.d1.house]; Shadbala below the required rupas [planet.saturn.shadbala]; owns the 8th [planet.saturn.d1.lordship].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_OWN_SIGN",
+          "D9_OWN_SIGN",
+          "ENEMY_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "LORD_IN_DUSTHANA",
+          "OWNS_8TH",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "YOGA_KEY_PLANET_WEAKENED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS (10th house: karma and status; Lagna lord: the self)",
+        "BPHS karakatvas (Sun: authority)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)",
+        "CAR-005 (engine raja yogas)"
+      ]
+    },
+    {
+      "id": "interp.career.obstacles",
+      "topic": "career.obstacles",
+      "question": "Which effort areas do the career significators show?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Effort areas (obstacles): the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "house.10.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-CAR-008",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-009",
+        "INT-S3-001",
+        "INT-S3-002",
+        "INT-S3-003"
+      ],
+      "chartRefs": [
+        "house.10.d1.aspected-by",
+        "house.10.d1.lord",
+        "house.10.d1.lord-house",
+        "house.10.d1.occupants",
+        "planet.mars.d1.dignity",
+        "planet.mars.shadbala",
+        "planet.venus.d10.dignity"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mars.shadbala]. challenging: lord in a dusthana [house.10.d1.lord-house]; debilitated in the D10 [planet.venus.d10.dignity]. challenging indicators are read as effort areas, not afflictions (D-006).",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "LORD_IN_DUSTHANA",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS (6th, 8th, 12th: dusthanas)",
+        "CAR-002 (D10)",
+        "D-006 (effort areas, never afflictions)"
+      ]
+    },
+    {
+      "id": "interp.career.period.ad",
+      "topic": "career.period",
+      "question": "Which career houses does the current Antardasha lord activate, and in what natal condition is it?",
+      "conclusion": {
+        "code": "PERIOD_LORD_NOT_LINKED_TO_CAREER_HOUSES",
+        "text": "The current Antardasha is the Jupiter–Saturn Antardasha (20 Nov 2026 to 02 Jun 2029, ages 22–24); the period lord has no direct link to the 2nd, 6th, 10th or 11th house."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-S2-006"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "OWNS_8TH",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "ruleIds": [
+        "INT-A-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-T-001"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.02",
+        "planet.saturn.d1.aspects-cast",
+        "planet.saturn.d1.combust",
+        "planet.saturn.d1.degree",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.dispositor",
+        "planet.saturn.d1.functional-nature",
+        "planet.saturn.d1.house",
+        "planet.saturn.d1.lordship",
+        "planet.saturn.d1.retrograde",
+        "planet.saturn.d1.sign",
+        "planet.saturn.d10.dignity",
+        "planet.saturn.d10.house",
+        "planet.saturn.d10.sign",
+        "planet.saturn.d9.dignity",
+        "planet.saturn.d9.house",
+        "planet.saturn.d9.sign",
+        "planet.saturn.shadbala",
+        "yoga.raja-h7-h5",
+        "yoga.sarala",
+        "yoga.vesi"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2026-11-19T21:17:38.452Z",
+        "endIso": "2029-06-02T04:02:16.852Z",
+        "activatedBy": [
+          "dasha.ad.03.02",
+          "planet.saturn.d1.aspects-cast",
+          "planet.saturn.d1.combust",
+          "planet.saturn.d1.degree",
+          "planet.saturn.d1.dignity",
+          "planet.saturn.d1.dispositor",
+          "planet.saturn.d1.functional-nature",
+          "planet.saturn.d1.house",
+          "planet.saturn.d1.lordship",
+          "planet.saturn.d1.retrograde",
+          "planet.saturn.d1.sign",
+          "planet.saturn.d10.dignity",
+          "planet.saturn.d10.house",
+          "planet.saturn.d10.sign",
+          "planet.saturn.d9.dignity",
+          "planet.saturn.d9.house",
+          "planet.saturn.d9.sign",
+          "planet.saturn.shadbala",
+          "yoga.raja-h7-h5",
+          "yoga.sarala",
+          "yoga.vesi"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]. challenging: placed in a dusthana [planet.saturn.d1.house]; functionally challenging [planet.saturn.d1.functional-nature]; owns the 8th [planet.saturn.d1.functional-nature]; Shadbala below the required rupas [planet.saturn.shadbala]. the period lord gives the results of the houses it rules, occupies and aspects, read with its natal condition (CAR-015).",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "FUNCTIONAL_CHALLENGING",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "OWNS_8TH",
+          "SHADBALA_BELOW_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "CAR-015 (a period lord gives the results of the houses it rules, occupies and aspects; Parashari dasha reading)"
+      ]
+    },
+    {
+      "id": "interp.career.period.earnings-window",
+      "topic": "career.period",
+      "question": "Which is the earliest working-age period of the 2nd or 11th lord (earnings houses)?",
+      "conclusion": {
+        "code": "EARNINGS_WINDOW_IDENTIFIED",
+        "text": "The earliest period of an earnings-house lord (2nd or 11th) within ages 16–60 is the Jupiter–Venus Antardasha, 14 Aug 2032 to 15 Apr 2035 (ages 28–30)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "OWNS_11TH",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-A-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-003",
+        "INT-S2-004",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-T-003"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.05",
+        "house.11.d1.lord",
+        "house.2.d1.lord",
+        "planet.venus.d1.aspects-cast",
+        "planet.venus.d1.combust",
+        "planet.venus.d1.degree",
+        "planet.venus.d1.dignity",
+        "planet.venus.d1.dispositor",
+        "planet.venus.d1.functional-nature",
+        "planet.venus.d1.house",
+        "planet.venus.d1.lordship",
+        "planet.venus.d1.retrograde",
+        "planet.venus.d1.sign",
+        "planet.venus.d10.dignity",
+        "planet.venus.d10.house",
+        "planet.venus.d10.sign",
+        "planet.venus.d9.dignity",
+        "planet.venus.d9.house",
+        "planet.venus.d9.sign",
+        "planet.venus.shadbala",
+        "yoga.dhana-h2-h11"
+      ],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2032-08-13T22:39:43.252Z",
+        "endIso": "2035-04-14T22:10:55.252Z",
+        "activatedBy": [
+          "dasha.ad.03.05",
+          "planet.venus.d1.aspects-cast",
+          "planet.venus.d1.combust",
+          "planet.venus.d1.degree",
+          "planet.venus.d1.dignity",
+          "planet.venus.d1.dispositor",
+          "planet.venus.d1.functional-nature",
+          "planet.venus.d1.house",
+          "planet.venus.d1.lordship",
+          "planet.venus.d1.retrograde",
+          "planet.venus.d1.sign",
+          "planet.venus.d10.dignity",
+          "planet.venus.d10.house",
+          "planet.venus.d10.sign",
+          "planet.venus.d9.dignity",
+          "planet.venus.d9.house",
+          "planet.venus.d9.sign",
+          "planet.venus.shadbala",
+          "yoga.dhana-h2-h11"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed. supporting: in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]. challenging: debilitated in the D10 [planet.venus.d10.dignity]; combust [planet.venus.d1.combust]; functionally challenging [planet.venus.d1.functional-nature]; owns the 11th [planet.venus.d1.functional-nature]. age window 16–60 (provisional, client question Q-G-3); the native is 22 as of 2026-11-20.",
+      "provisional": true,
+      "sources": [
+        "CAR-010 (2nd lord = dhana, 11th lord = labha; BPHS)",
+        "Working-age window 16–60 years: audit 05 F1 and user decision 2026-11-20 (never after 60); client question Q-G-3"
+      ]
+    },
+    {
+      "id": "interp.career.period.md",
+      "topic": "career.period",
+      "question": "Which career houses does the current Mahadasha lord activate, and in what natal condition is it?",
+      "conclusion": {
+        "code": "PERIOD_LORD_LINKED_TO_CAREER_HOUSES",
+        "text": "The current Mahadasha is the Jupiter Mahadasha (01 Oct 2024 to 01 Oct 2040, ages 20–36); the period lord rules the 6th, occupies the 2nd and aspects the 10th."
+      },
+      "supporting": [
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.d1.functional-nature",
+          "conditionCode": "OWNS_TRIKONA",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.jupiter.d1.functional-nature",
+          "conditionCode": "OWNS_6TH",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-A-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-T-001"
+      ],
+      "chartRefs": [
+        "dasha.md.03",
+        "planet.jupiter.d1.aspects-cast",
+        "planet.jupiter.d1.combust",
+        "planet.jupiter.d1.degree",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d1.dispositor",
+        "planet.jupiter.d1.functional-nature",
+        "planet.jupiter.d1.house",
+        "planet.jupiter.d1.lordship",
+        "planet.jupiter.d1.retrograde",
+        "planet.jupiter.d1.sign",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.d10.house",
+        "planet.jupiter.d10.sign",
+        "planet.jupiter.d9.dignity",
+        "planet.jupiter.d9.house",
+        "planet.jupiter.d9.sign",
+        "planet.jupiter.shadbala",
+        "yoga.gajakesari",
+        "yoga.raja-h1-h9"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2024-10-01T16:52:40.852Z",
+        "endIso": "2040-10-01T13:59:52.852Z",
+        "activatedBy": [
+          "dasha.md.03",
+          "planet.jupiter.d1.aspects-cast",
+          "planet.jupiter.d1.combust",
+          "planet.jupiter.d1.degree",
+          "planet.jupiter.d1.dignity",
+          "planet.jupiter.d1.dispositor",
+          "planet.jupiter.d1.functional-nature",
+          "planet.jupiter.d1.house",
+          "planet.jupiter.d1.lordship",
+          "planet.jupiter.d1.retrograde",
+          "planet.jupiter.d1.sign",
+          "planet.jupiter.d10.dignity",
+          "planet.jupiter.d10.house",
+          "planet.jupiter.d10.sign",
+          "planet.jupiter.d9.dignity",
+          "planet.jupiter.d9.house",
+          "planet.jupiter.d9.sign",
+          "planet.jupiter.shadbala",
+          "yoga.gajakesari",
+          "yoga.raja-h1-h9"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.jupiter.d1.dignity]; owns a trikona [planet.jupiter.d1.functional-nature]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: debilitated in the D10 [planet.jupiter.d10.dignity]; owns the 6th [planet.jupiter.d1.functional-nature]. the period lord gives the results of the houses it rules, occupies and aspects, read with its natal condition (CAR-015).",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "GREAT_FRIEND_SIGN",
+          "OWNS_6TH",
+          "OWNS_TRIKONA",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "CAR-015 (a period lord gives the results of the houses it rules, occupies and aspects; Parashari dasha reading)"
+      ]
+    },
+    {
+      "id": "interp.career.period.md-ad",
+      "topic": "career.period",
+      "question": "How are the current Mahadasha and Antardasha lords placed from each other?",
+      "conclusion": {
+        "code": "AD_LORD_11_FROM_MD_LORD",
+        "text": "Counted by sign, the Antardasha lord Saturn is 11th from the Mahadasha lord Jupiter, and Jupiter is 3rd from Saturn. This is stated as a fact; no favourability is assigned."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-A-002",
+        "INT-T-002"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.02",
+        "planet.jupiter.d1.sign",
+        "planet.saturn.d1.sign"
+      ],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2026-11-19T21:17:38.452Z",
+        "endIso": "2029-06-02T04:02:16.852Z",
+        "activatedBy": [
+          "dasha.ad.03.02",
+          "planet.jupiter.d1.sign",
+          "planet.saturn.d1.sign"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed.",
+      "provisional": true,
+      "sources": [
+        "Sign count from the MD lord to the AD lord (definitional count)"
+      ]
+    },
+    {
+      "id": "interp.career.period.next",
+      "topic": "career.period",
+      "question": "Which career houses does the next Mahadasha lord activate, and in what natal condition is it?",
+      "conclusion": {
+        "code": "PERIOD_LORD_NOT_LINKED_TO_CAREER_HOUSES",
+        "text": "The next Mahadasha is the Saturn Mahadasha (01 Oct 2040 to 02 Oct 2059, ages 36–55); the period lord has no direct link to the 2nd, 6th, 10th or 11th house."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-S2-006"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "OWNS_8TH",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "ruleIds": [
+        "INT-A-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-T-001"
+      ],
+      "chartRefs": [
+        "dasha.md.04",
+        "planet.saturn.d1.aspects-cast",
+        "planet.saturn.d1.combust",
+        "planet.saturn.d1.degree",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.dispositor",
+        "planet.saturn.d1.functional-nature",
+        "planet.saturn.d1.house",
+        "planet.saturn.d1.lordship",
+        "planet.saturn.d1.retrograde",
+        "planet.saturn.d1.sign",
+        "planet.saturn.d10.dignity",
+        "planet.saturn.d10.house",
+        "planet.saturn.d10.sign",
+        "planet.saturn.d9.dignity",
+        "planet.saturn.d9.house",
+        "planet.saturn.d9.sign",
+        "planet.saturn.shadbala",
+        "yoga.raja-h7-h5",
+        "yoga.sarala",
+        "yoga.vesi"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2040-10-01T13:59:52.852Z",
+        "endIso": "2059-10-02T04:34:40.852Z",
+        "activatedBy": [
+          "dasha.md.04",
+          "planet.saturn.d1.aspects-cast",
+          "planet.saturn.d1.combust",
+          "planet.saturn.d1.degree",
+          "planet.saturn.d1.dignity",
+          "planet.saturn.d1.dispositor",
+          "planet.saturn.d1.functional-nature",
+          "planet.saturn.d1.house",
+          "planet.saturn.d1.lordship",
+          "planet.saturn.d1.retrograde",
+          "planet.saturn.d1.sign",
+          "planet.saturn.d10.dignity",
+          "planet.saturn.d10.house",
+          "planet.saturn.d10.sign",
+          "planet.saturn.d9.dignity",
+          "planet.saturn.d9.house",
+          "planet.saturn.d9.sign",
+          "planet.saturn.shadbala",
+          "yoga.raja-h7-h5",
+          "yoga.sarala",
+          "yoga.vesi"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]. challenging: placed in a dusthana [planet.saturn.d1.house]; functionally challenging [planet.saturn.d1.functional-nature]; owns the 8th [planet.saturn.d1.functional-nature]; Shadbala below the required rupas [planet.saturn.shadbala]. the period lord gives the results of the houses it rules, occupies and aspects, read with its natal condition (CAR-015).",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "FUNCTIONAL_CHALLENGING",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "OWNS_8TH",
+          "SHADBALA_BELOW_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "CAR-015 (a period lord gives the results of the houses it rules, occupies and aspects; Parashari dasha reading)"
+      ]
+    },
+    {
+      "id": "interp.career.period.next-ad",
+      "topic": "career.period",
+      "question": "Which career houses does the next Antardasha lord activate, and in what natal condition is it?",
+      "conclusion": {
+        "code": "PERIOD_LORD_LINKED_TO_CAREER_HOUSES",
+        "text": "The next Antardasha is the Jupiter–Mercury Antardasha (02 Jun 2029 to 08 Sep 2031, ages 24–27); the period lord occupies the 11th."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mercury.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.mercury.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "planet.mercury.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.mercury.d1.functional-nature",
+          "conditionCode": "OWNS_3RD",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-A-001",
+        "INT-S2-001",
+        "INT-S2-003",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009",
+        "INT-T-001"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.03",
+        "planet.mercury.d1.aspects-cast",
+        "planet.mercury.d1.combust",
+        "planet.mercury.d1.degree",
+        "planet.mercury.d1.dignity",
+        "planet.mercury.d1.dispositor",
+        "planet.mercury.d1.functional-nature",
+        "planet.mercury.d1.house",
+        "planet.mercury.d1.lordship",
+        "planet.mercury.d1.retrograde",
+        "planet.mercury.d1.sign",
+        "planet.mercury.d10.dignity",
+        "planet.mercury.d10.house",
+        "planet.mercury.d10.sign",
+        "planet.mercury.d9.dignity",
+        "planet.mercury.d9.house",
+        "planet.mercury.d9.sign",
+        "planet.mercury.shadbala",
+        "yoga.budha-aditya"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2029-06-02T04:02:16.852Z",
+        "endIso": "2031-09-08T01:13:48.052Z",
+        "activatedBy": [
+          "dasha.ad.03.03",
+          "planet.mercury.d1.aspects-cast",
+          "planet.mercury.d1.combust",
+          "planet.mercury.d1.degree",
+          "planet.mercury.d1.dignity",
+          "planet.mercury.d1.dispositor",
+          "planet.mercury.d1.functional-nature",
+          "planet.mercury.d1.house",
+          "planet.mercury.d1.lordship",
+          "planet.mercury.d1.retrograde",
+          "planet.mercury.d1.sign",
+          "planet.mercury.d10.dignity",
+          "planet.mercury.d10.house",
+          "planet.mercury.d10.sign",
+          "planet.mercury.d9.dignity",
+          "planet.mercury.d9.house",
+          "planet.mercury.d9.sign",
+          "planet.mercury.shadbala",
+          "yoga.budha-aditya"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mercury.shadbala]. challenging: combust [planet.mercury.d1.combust]; functionally challenging [planet.mercury.d1.functional-nature]; owns the 3rd [planet.mercury.d1.functional-nature]. the period lord gives the results of the houses it rules, occupies and aspects, read with its natal condition (CAR-015).",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "FUNCTIONAL_CHALLENGING",
+          "OWNS_3RD",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "CAR-015 (a period lord gives the results of the houses it rules, occupies and aspects; Parashari dasha reading)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.jupiter",
+      "topic": "career.planet",
+      "question": "What is Jupiter's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_GREAT_FRIEND",
+        "text": "Jupiter is in Leo in the 2nd house, in a great friend's sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.d1.functional-nature",
+          "conditionCode": "OWNS_TRIKONA",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.jupiter.d1.functional-nature",
+          "conditionCode": "OWNS_6TH",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d1.functional-nature",
+        "planet.jupiter.d1.house",
+        "planet.jupiter.d1.sign",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.jupiter.d1.dignity]; owns a trikona [planet.jupiter.d1.functional-nature]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: debilitated in the D10 [planet.jupiter.d10.dignity]; owns the 6th [planet.jupiter.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "GREAT_FRIEND_SIGN",
+          "OWNS_6TH",
+          "OWNS_TRIKONA",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.ketu",
+      "topic": "career.planet",
+      "question": "What is Ketu's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_NEUTRAL",
+        "text": "Ketu is in Libra in the 4th house, in a neutral sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.ketu.d1.house",
+          "conditionCode": "IN_KENDRA",
+          "ruleId": "INT-S2-006"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007"
+      ],
+      "chartRefs": [
+        "planet.ketu.d1.dignity",
+        "planet.ketu.d1.functional-nature",
+        "planet.ketu.d1.house",
+        "planet.ketu.d1.sign"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only supporting indicators apply. supporting: placed in a kendra [planet.ketu.d1.house].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.mars",
+      "topic": "career.planet",
+      "question": "What is Mars's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_NEUTRAL",
+        "text": "Mars is in Gemini in the 12th house, in a neutral sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.d1.functional-nature",
+          "conditionCode": "YOGAKARAKA_BY_OWNERSHIP",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.mars.d1.functional-nature",
+          "conditionCode": "OWNS_TRIKONA",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.mars.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-S2-006"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "planet.mars.d1.dignity",
+        "planet.mars.d1.functional-nature",
+        "planet.mars.d1.house",
+        "planet.mars.d1.sign",
+        "planet.mars.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Yogakaraka by ownership [planet.mars.d1.functional-nature]; owns a trikona [planet.mars.d1.functional-nature]; Shadbala meets the required rupas [planet.mars.shadbala]. challenging: placed in a dusthana [planet.mars.d1.house].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "IN_DUSTHANA",
+          "OWNS_TRIKONA",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGAKARAKA_BY_OWNERSHIP"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.mercury",
+      "topic": "career.planet",
+      "question": "What is Mercury's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_NEUTRAL",
+        "text": "Mercury is in Taurus in the 11th house, in a neutral sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mercury.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.mercury.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "planet.mercury.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.mercury.d1.functional-nature",
+          "conditionCode": "OWNS_3RD",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-003",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "planet.mercury.d1.combust",
+        "planet.mercury.d1.dignity",
+        "planet.mercury.d1.functional-nature",
+        "planet.mercury.d1.house",
+        "planet.mercury.d1.sign",
+        "planet.mercury.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mercury.shadbala]. challenging: combust [planet.mercury.d1.combust]; functionally challenging [planet.mercury.d1.functional-nature]; owns the 3rd [planet.mercury.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "FUNCTIONAL_CHALLENGING",
+          "OWNS_3RD",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.moon",
+      "topic": "career.planet",
+      "question": "What is Moon's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_ENEMY",
+        "text": "Moon is in Aquarius in the 8th house, in an enemy's sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "asc.d1.lord",
+          "conditionCode": "LAGNA_LORD",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.moon.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_FAVOURABLE",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.moon.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-S2-006"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "asc.d1.lord",
+        "planet.moon.d1.dignity",
+        "planet.moon.d1.functional-nature",
+        "planet.moon.d1.house",
+        "planet.moon.d1.sign",
+        "planet.moon.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Lagna lord [asc.d1.lord]; functionally favourable [planet.moon.d1.functional-nature]. challenging: in an enemy's sign [planet.moon.d1.dignity]; placed in a dusthana [planet.moon.d1.house]; Shadbala below the required rupas [planet.moon.shadbala].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "ENEMY_SIGN",
+          "FUNCTIONAL_FAVOURABLE",
+          "IN_DUSTHANA",
+          "LAGNA_LORD",
+          "SHADBALA_BELOW_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.rahu",
+      "topic": "career.planet",
+      "question": "What is Rahu's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_NEUTRAL",
+        "text": "Rahu is in Aries in the 10th house, in a neutral sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.rahu.d1.house",
+          "conditionCode": "IN_KENDRA",
+          "ruleId": "INT-S2-006"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007"
+      ],
+      "chartRefs": [
+        "planet.rahu.d1.dignity",
+        "planet.rahu.d1.functional-nature",
+        "planet.rahu.d1.house",
+        "planet.rahu.d1.sign"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only supporting indicators apply. supporting: placed in a kendra [planet.rahu.d1.house].",
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.saturn",
+      "topic": "career.planet",
+      "question": "What is Saturn's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_GREAT_FRIEND",
+        "text": "Saturn is in Gemini in the 12th house, in a great friend's sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-S2-006"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.d1.functional-nature",
+          "conditionCode": "OWNS_8TH",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.functional-nature",
+        "planet.saturn.d1.house",
+        "planet.saturn.d1.sign",
+        "planet.saturn.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]. challenging: placed in a dusthana [planet.saturn.d1.house]; functionally challenging [planet.saturn.d1.functional-nature]; owns the 8th [planet.saturn.d1.functional-nature]; Shadbala below the required rupas [planet.saturn.shadbala].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "FUNCTIONAL_CHALLENGING",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "OWNS_8TH",
+          "SHADBALA_BELOW_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.sun",
+      "topic": "career.planet",
+      "question": "What is Sun's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_GREAT_ENEMY",
+        "text": "Sun is in Taurus in the 11th house, in a great enemy's sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.d10.dignity",
+          "conditionCode": "D10_OWN_SIGN",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "planet.sun.d1.dignity",
+        "planet.sun.d1.functional-nature",
+        "planet.sun.d1.house",
+        "planet.sun.d1.sign",
+        "planet.sun.d10.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in its own sign in the D9 [planet.sun.d9.dignity]; in its own sign in the D10 [planet.sun.d10.dignity]; Shadbala meets the required rupas [planet.sun.shadbala]. challenging: in a great enemy's sign [planet.sun.d1.dignity].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_OWN_SIGN",
+          "D9_OWN_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.planet.venus",
+      "topic": "career.planet",
+      "question": "What is Venus's condition in the birth chart?",
+      "conclusion": {
+        "code": "D1_OWN_SIGN",
+        "text": "Venus is in Taurus in the 11th house, in its own sign (compound dignity, D1)."
+      },
+      "supporting": [
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "FUNCTIONAL_CHALLENGING",
+          "ruleId": "INT-S2-007"
+        },
+        {
+          "factId": "planet.venus.d1.functional-nature",
+          "conditionCode": "OWNS_11TH",
+          "ruleId": "INT-S2-007"
+        }
+      ],
+      "ruleIds": [
+        "INT-P-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-003",
+        "INT-S2-004",
+        "INT-S2-006",
+        "INT-S2-007",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "planet.venus.d1.combust",
+        "planet.venus.d1.dignity",
+        "planet.venus.d1.functional-nature",
+        "planet.venus.d1.house",
+        "planet.venus.d1.retrograde",
+        "planet.venus.d1.sign",
+        "planet.venus.d10.dignity",
+        "planet.venus.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]. challenging: debilitated in the D10 [planet.venus.d10.dignity]; combust [planet.venus.d1.combust]; functionally challenging [planet.venus.d1.functional-nature]; owns the 11th [planet.venus.d1.functional-nature].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "D10_DEBILITATED",
+          "FUNCTIONAL_CHALLENGING",
+          "OWNS_11TH",
+          "OWN_SIGN",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS ch. 3 (dignity order)",
+        "BPHS ch. 34 (functional nature; verify verses)",
+        "Surya Siddhanta (combustion orbs)"
+      ]
+    },
+    {
+      "id": "interp.career.recognition",
+      "topic": "career.recognition",
+      "question": "How do the chart indicators for professional recognition read?",
+      "conclusion": {
+        "code": "INDICATORS_SUPPORTED",
+        "text": "Recognition: the chart indicators considered for this area are supportive."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "sav.house.10",
+          "conditionCode": "SAV_ABOVE_28",
+          "ruleId": "INT-S3-004"
+        }
+      ],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-CAR-006",
+        "INT-S2-001",
+        "INT-S2-009",
+        "INT-S3-002",
+        "INT-S3-003",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "house.10.d1.aspected-by",
+        "house.10.d1.lord",
+        "house.10.d1.occupants",
+        "planet.mars.d1.dignity",
+        "planet.mars.shadbala",
+        "sav.house.10"
+      ],
+      "strengthClass": "supported",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "only supporting indicators apply. supporting: Shadbala meets the required rupas [planet.mars.shadbala]; Sarvashtakavarga above 28 [sav.house.10].",
+      "provisional": true,
+      "sources": [
+        "BPHS (10th house: status and honour)",
+        "CAR-001 (aspects)",
+        "CAR-002 (D10)"
+      ]
+    },
+    {
+      "id": "interp.career.service-orientation",
+      "topic": "career.service-orientation",
+      "question": "How do the chart indicators for employment and service read?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Employment and service: the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "sav.house.6",
+          "conditionCode": "SAV_ABOVE_28",
+          "ruleId": "INT-S3-004"
+        },
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-C-001",
+        "INT-C-002",
+        "INT-CAR-001",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-009",
+        "INT-S3-001",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "career.gov.sun-saturn",
+        "career.gov.sun-tenth",
+        "career.sav.service-vs-partnership",
+        "house.6.d1.lord",
+        "house.6.d1.lord-house",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.shadbala",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.shadbala",
+        "planet.venus.d10.dignity",
+        "sav.house.6",
+        "sav.house.7"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS",
+        "PRACTITIONER_HEURISTIC"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]; Sarvashtakavarga above 28 [sav.house.6]; in a great friend's sign [planet.saturn.d1.dignity]. challenging: debilitated in the D10 [planet.jupiter.d10.dignity]; Shadbala below the required rupas [planet.saturn.shadbala]; debilitated in the D10 [planet.venus.d10.dignity]. context (CAR-016): no Sun–Saturn link; this is \"no specific indicator\", not a negative indicator. context (CAR-016): no Sun–10th-house link; this is \"no specific indicator\", not a negative indicator. context (practitioner heuristic, CAR-006): the 6th house SAV (33) is higher than the 7th (26); this comparison is one tendency and does not decide the result.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "GREAT_FRIEND_SIGN",
+          "SAV_ABOVE_28",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS karakatvas (Saturn: servants and service)",
+        "CAR-002",
+        "CAR-006 (6th vs 7th SAV: a widely used practitioner heuristic, labelled as such)",
+        "CAR-016",
+        "CAR-016 (Sun = state and authority, Saturn = service; BPHS karakatvas)",
+        "Phaladeepika ch. 1 (6th house: service; verify verse)"
+      ]
+    },
+    {
+      "id": "interp.career.stability",
+      "topic": "career.stability",
+      "question": "How do the chart indicators for career stability read?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Career stability: the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "sav.house.10",
+          "conditionCode": "SAV_ABOVE_28",
+          "ruleId": "INT-S3-004"
+        },
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "house.10.d1.lord-house",
+          "conditionCode": "LORD_IN_DUSTHANA",
+          "ruleId": "INT-S3-001"
+        },
+        {
+          "factId": "planet.venus.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-S2-003"
+        }
+      ],
+      "ruleIds": [
+        "INT-CAR-007",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-003",
+        "INT-S2-004",
+        "INT-S2-009",
+        "INT-S3-001",
+        "INT-S3-004"
+      ],
+      "chartRefs": [
+        "house.10.d1.lord-house",
+        "house.4.d1.lord",
+        "planet.venus.d1.combust",
+        "planet.venus.d1.dignity",
+        "planet.venus.d1.retrograde",
+        "planet.venus.d10.dignity",
+        "planet.venus.shadbala",
+        "sav.house.10"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Sarvashtakavarga above 28 [sav.house.10]; in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]. challenging: lord in a dusthana [house.10.d1.lord-house]; debilitated in the D10 [planet.venus.d10.dignity]; combust [planet.venus.d1.combust].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "D10_DEBILITATED",
+          "LORD_IN_DUSTHANA",
+          "OWN_SIGN",
+          "SAV_ABOVE_28",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS (10th lord placement)",
+        "CAR-011 (4th lord: rest and security)"
+      ]
+    },
+    {
+      "id": "interp.career.transit.jupiter.current",
+      "topic": "career.transit",
+      "question": "Which natal house is Jupiter transiting now?",
+      "conclusion": {
+        "code": "TRANSIT_HOUSE_2_FROM_ASC",
+        "text": "Jupiter transits Leo until 25 Jan 2027: the 2nd house from the Ascendant and the 7th from the Moon."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-A-005",
+        "INT-T-010"
+      ],
+      "chartRefs": [
+        "house.2.d1.sign",
+        "house.6.d1.lord-house",
+        "house.9.d1.lord-house",
+        "planet.jupiter.d1.sign",
+        "transit.jupiter.01"
+      ],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2026-11-20T00:00:00.000Z",
+        "endIso": "2027-01-24T19:58:40.953Z",
+        "activatedBy": [
+          "house.2.d1.sign",
+          "house.6.d1.lord-house",
+          "house.9.d1.lord-house",
+          "planet.jupiter.d1.sign",
+          "transit.jupiter.01"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed. the transited sign holds the natal lord(s) of house(s) 6, 9. natal Jupiter in the transited sign.",
+      "provisional": true,
+      "sources": [
+        "Ephemeris sign ingress (TransitIngressSolver); house counted whole-sign from the Lagna and the Moon (definitional)"
+      ]
+    },
+    {
+      "id": "interp.career.transit.saturn.current",
+      "topic": "career.transit",
+      "question": "Which natal house is Saturn transiting now?",
+      "conclusion": {
+        "code": "TRANSIT_HOUSE_9_FROM_ASC",
+        "text": "Saturn transits Pisces until 03 Jun 2027: the 9th house from the Ascendant and the 2nd from the Moon."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-A-005",
+        "INT-T-010"
+      ],
+      "chartRefs": [
+        "house.9.d1.sign",
+        "transit.saturn.01"
+      ],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2026-11-20T00:00:00.000Z",
+        "endIso": "2027-06-03T00:32:54.078Z",
+        "activatedBy": [
+          "house.9.d1.sign",
+          "transit.saturn.01"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed. the transited sign holds no natal house lord. no natal planet in the transited sign.",
+      "provisional": true,
+      "sources": [
+        "Ephemeris sign ingress (TransitIngressSolver); house counted whole-sign from the Lagna and the Moon (definitional)"
+      ]
+    },
+    {
+      "id": "interp.career.transit.saturn.from-moon",
+      "topic": "career.transit",
+      "question": "Where is transiting Saturn counted from the natal Moon?",
+      "conclusion": {
+        "code": "SADE_SATI_SECOND_FROM_MOON",
+        "text": "Saturn is transiting the 2nd sign from the natal Moon, the closing phase of Sade Sati (Saturn's 7½-year passage around the Moon sign) (until 03 Jun 2027). This is a timing fact, not an affliction."
+      },
+      "supporting": [],
+      "contradicting": [],
+      "ruleIds": [
+        "INT-A-004",
+        "INT-T-011"
+      ],
+      "chartRefs": [
+        "planet.moon.d1.sign",
+        "transit.saturn-from-moon.01"
+      ],
+      "strengthClass": "not-assessed",
+      "timeRelevance": {
+        "kind": "period",
+        "startIso": "2026-11-20T00:00:00.000Z",
+        "endIso": "2027-06-03T00:32:41.719Z",
+        "activatedBy": [
+          "planet.moon.d1.sign",
+          "transit.saturn-from-moon.01"
+        ]
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE"
+      ],
+      "explanation": "this is a descriptive fact; no strength is assessed. stated as a neutral timing fact (D-006).",
+      "provisional": true,
+      "sources": [
+        "Saturn counted from the natal Moon sign (12th, 1st, 2nd = Sade Sati; 4th, 8th); user decision 2026-11-20 §4; D-006 neutral wording"
+      ]
+    },
+    {
+      "id": "interp.career.transitions",
+      "topic": "career.transitions",
+      "question": "How are the houses of career change (8th and 12th from the 10th, and the 8th) conditioned?",
+      "conclusion": {
+        "code": "INDICATORS_MIXED",
+        "text": "Transitions (modes of change): the chart indicators considered for this area are mixed: some support it and some call for effort."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-S2-001"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-S2-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-S2-009"
+        },
+        {
+          "factId": "planet.jupiter.d10.dignity",
+          "conditionCode": "D10_DEBILITATED",
+          "ruleId": "INT-S2-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-CAR-009",
+        "INT-S2-001",
+        "INT-S2-002",
+        "INT-S2-009"
+      ],
+      "chartRefs": [
+        "house.5.d1.lord",
+        "house.8.d1.lord",
+        "house.9.d1.lord",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.d10.dignity",
+        "planet.jupiter.shadbala",
+        "planet.mars.d1.dignity",
+        "planet.mars.shadbala",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.shadbala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mars.shadbala]; in a great friend's sign [planet.saturn.d1.dignity]; in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: Shadbala below the required rupas [planet.saturn.shadbala]; debilitated in the D10 [planet.jupiter.d10.dignity]. the 5th is the 8th from the 10th and the 9th is the 12th from the 10th (bhavat bhavam, CAR-009).",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D10_DEBILITATED",
+          "GREAT_FRIEND_SIGN",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "BPHS (8th house: change)",
+        "CAR-009 (bhavat bhavam: 5th = 8th from the 10th, 9th = 12th from the 10th)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.budha-aditya",
+      "topic": "career.yoga",
+      "question": "Is Budha-Aditya Yoga formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_MODERATE",
+        "text": "Budha-Aditya Yoga is formed by the engine rule; its provisional yoga class is \"moderate\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-YF-011"
+        },
+        {
+          "factId": "planet.mercury.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.mercury.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-YF-201"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-Y-001",
+        "INT-YF-003",
+        "INT-YF-009",
+        "INT-YF-011",
+        "INT-YF-201"
+      ],
+      "chartRefs": [
+        "planet.mercury.d1.combust",
+        "planet.mercury.shadbala",
+        "planet.sun.d1.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala",
+        "yoga.budha-aditya"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.sun.shadbala]; in its own sign in the D9 [planet.sun.d9.dignity]; Shadbala meets the required rupas [planet.mercury.shadbala]. challenging: in a great enemy's sign [planet.sun.d1.dignity]; combust [planet.mercury.d1.combust].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "D9_OWN_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.dhana-h2-h11",
+      "topic": "career.yoga",
+      "question": "Is Dhana Yoga (2nd Lord (Dhana) + 11th Lord (Labha)) formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_MODERATE",
+        "text": "Dhana Yoga (2nd Lord (Dhana) + 11th Lord (Labha)) is formed by the engine rule; its provisional yoga class is \"moderate\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-YF-011"
+        },
+        {
+          "factId": "planet.venus.d1.dignity",
+          "conditionCode": "OWN_SIGN",
+          "ruleId": "INT-YF-005"
+        },
+        {
+          "factId": "planet.venus.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.venus.d1.combust",
+          "conditionCode": "COMBUST",
+          "ruleId": "INT-YF-002"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-Y-001",
+        "INT-YF-002",
+        "INT-YF-003",
+        "INT-YF-005",
+        "INT-YF-009",
+        "INT-YF-011"
+      ],
+      "chartRefs": [
+        "planet.sun.d1.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala",
+        "planet.venus.d1.combust",
+        "planet.venus.d1.dignity",
+        "planet.venus.shadbala",
+        "yoga.dhana-h2-h11"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.sun.shadbala]; in its own sign in the D9 [planet.sun.d9.dignity]; in its own sign [planet.venus.d1.dignity]; Shadbala meets the required rupas [planet.venus.shadbala]. challenging: in a great enemy's sign [planet.sun.d1.dignity]; combust [planet.venus.d1.combust].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "COMBUST",
+          "D9_OWN_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "OWN_SIGN",
+          "SHADBALA_MEETS_REQUIRED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.gajakesari",
+      "topic": "career.yoga",
+      "question": "Is Gajakesari Yoga formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_WEAK",
+        "text": "Gajakesari Yoga is formed by the engine rule; its provisional yoga class is \"weak\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.moon.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        },
+        {
+          "factId": "planet.moon.d1.paksha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-013"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-CY-003",
+        "INT-Y-001",
+        "INT-Y-005",
+        "INT-YF-003",
+        "INT-YF-004",
+        "INT-YF-006",
+        "INT-YF-008",
+        "INT-YF-009",
+        "INT-YF-013"
+      ],
+      "chartRefs": [
+        "dasha.md.03",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.shadbala",
+        "planet.moon.d1.dignity",
+        "planet.moon.d1.house",
+        "planet.moon.d1.paksha",
+        "planet.moon.shadbala",
+        "yoga.gajakesari"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: in an enemy's sign [planet.moon.d1.dignity]; placed in a dusthana [planet.moon.d1.house]; Shadbala below the required rupas [planet.moon.shadbala]; key planet weakened [planet.moon.d1.paksha]. the Jupiter mahadasha of a key planet of this yoga is running now.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "ENEMY_SIGN",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGA_KEY_PLANET_WEAKENED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS / Laghu Parashari: yogas fruit in the dashas of the planets forming them (verify; client question Q-T-2)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.raja-h1-h9",
+      "topic": "career.yoga",
+      "question": "Is Raja Yoga (Lagna Lord + 9th Lord) formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_WEAK",
+        "text": "Raja Yoga (Lagna Lord + 9th Lord) is formed by the engine rule; its provisional yoga class is \"weak\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.jupiter.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        },
+        {
+          "factId": "planet.jupiter.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.moon.d1.dignity",
+          "conditionCode": "ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.moon.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.moon.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        },
+        {
+          "factId": "planet.moon.d1.paksha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-013"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-CY-003",
+        "INT-Y-001",
+        "INT-Y-005",
+        "INT-YF-003",
+        "INT-YF-004",
+        "INT-YF-006",
+        "INT-YF-008",
+        "INT-YF-009",
+        "INT-YF-013"
+      ],
+      "chartRefs": [
+        "dasha.md.03",
+        "planet.jupiter.d1.dignity",
+        "planet.jupiter.shadbala",
+        "planet.moon.d1.dignity",
+        "planet.moon.d1.house",
+        "planet.moon.d1.paksha",
+        "planet.moon.shadbala",
+        "yoga.raja-h1-h9"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.jupiter.d1.dignity]; Shadbala meets the required rupas [planet.jupiter.shadbala]. challenging: in an enemy's sign [planet.moon.d1.dignity]; placed in a dusthana [planet.moon.d1.house]; Shadbala below the required rupas [planet.moon.shadbala]; key planet weakened [planet.moon.d1.paksha]. the Jupiter mahadasha of a key planet of this yoga is running now.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "ENEMY_SIGN",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGA_KEY_PLANET_WEAKENED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS / Laghu Parashari: yogas fruit in the dashas of the planets forming them (verify; client question Q-T-2)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.raja-h10-h5",
+      "topic": "career.yoga",
+      "question": "Is Raja Yoga (Yogakaraka MARS: 10th Lord + 5th Lord) formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_WEAK",
+        "text": "Raja Yoga (Yogakaraka MARS: 10th Lord + 5th Lord) is formed by the engine rule; its provisional yoga class is \"weak\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.mars.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.mars.d1.avastha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-015"
+        },
+        {
+          "factId": "planet.mars.d1.conjunctions",
+          "conditionCode": "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "ruleId": "INT-YF-302"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-Y-001",
+        "INT-YF-006",
+        "INT-YF-009",
+        "INT-YF-015",
+        "INT-YF-302"
+      ],
+      "chartRefs": [
+        "planet.mars.d1.avastha",
+        "planet.mars.d1.conjunctions",
+        "planet.mars.d1.house",
+        "planet.mars.shadbala",
+        "yoga.raja-h10-h5"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.mars.shadbala]. challenging: placed in a dusthana [planet.mars.d1.house]; key planet weakened [planet.mars.d1.avastha]; association with a dusthana lord [planet.mars.d1.conjunctions].",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "IN_DUSTHANA",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "YOGA_KEY_PLANET_WEAKENED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.raja-h7-h5",
+      "topic": "career.yoga",
+      "question": "Is Raja Yoga (7th Lord + 5th Lord) formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_WEAK",
+        "text": "Raja Yoga (7th Lord + 5th Lord) is formed by the engine rule; its provisional yoga class is \"weak\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        },
+        {
+          "factId": "planet.saturn.d1.lordship",
+          "conditionCode": "OWNS_8TH",
+          "ruleId": "INT-YF-301"
+        },
+        {
+          "factId": "planet.mars.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.mars.d1.avastha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-015"
+        },
+        {
+          "factId": "planet.mars.d1.conjunctions",
+          "conditionCode": "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "ruleId": "INT-YF-302"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-CY-003",
+        "INT-Y-001",
+        "INT-Y-005",
+        "INT-YF-004",
+        "INT-YF-006",
+        "INT-YF-008",
+        "INT-YF-009",
+        "INT-YF-015",
+        "INT-YF-301",
+        "INT-YF-302"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.02",
+        "planet.mars.d1.avastha",
+        "planet.mars.d1.conjunctions",
+        "planet.mars.d1.house",
+        "planet.mars.shadbala",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.house",
+        "planet.saturn.d1.lordship",
+        "planet.saturn.shadbala",
+        "yoga.raja-h7-h5"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]; Shadbala meets the required rupas [planet.mars.shadbala]. challenging: placed in a dusthana [planet.saturn.d1.house]; Shadbala below the required rupas [planet.saturn.shadbala]; owns the 8th [planet.saturn.d1.lordship]; placed in a dusthana [planet.mars.d1.house]; key planet weakened [planet.mars.d1.avastha]; association with a dusthana lord [planet.mars.d1.conjunctions]. the Saturn antardasha of a key planet of this yoga is running now.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "OWNS_8TH",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "YOGA_KEY_PLANET_WEAKENED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS / Laghu Parashari: yogas fruit in the dashas of the planets forming them (verify; client question Q-T-2)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.sarala",
+      "topic": "career.yoga",
+      "question": "Is Sarala Yoga formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_WEAK",
+        "text": "Sarala Yoga is formed by the engine rule; its provisional yoga class is \"weak\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        },
+        {
+          "factId": "planet.saturn.d1.lordship",
+          "conditionCode": "YOGA_DUAL_LORDSHIP",
+          "ruleId": "INT-YF-401"
+        },
+        {
+          "factId": "planet.saturn.d1.conjunctions",
+          "conditionCode": "YOGA_DUSTHANA_LORD_ASSOCIATION",
+          "ruleId": "INT-YF-402"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-CY-003",
+        "INT-Y-001",
+        "INT-Y-004",
+        "INT-Y-005",
+        "INT-YF-004",
+        "INT-YF-008",
+        "INT-YF-401",
+        "INT-YF-402"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.02",
+        "planet.saturn.d1.conjunctions",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.lordship",
+        "planet.saturn.shadbala",
+        "yoga.sarala"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: in a great friend's sign [planet.saturn.d1.dignity]. challenging: Shadbala below the required rupas [planet.saturn.shadbala]; dual lordship [planet.saturn.d1.lordship]; association with a dusthana lord [planet.saturn.d1.conjunctions]. the Saturn antardasha of a key planet of this yoga is running now.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "GREAT_FRIEND_SIGN",
+          "SHADBALA_BELOW_REQUIRED",
+          "YOGA_DUAL_LORDSHIP",
+          "YOGA_DUSTHANA_LORD_ASSOCIATION"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS / Laghu Parashari: yogas fruit in the dashas of the planets forming them (verify; client question Q-T-2)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    },
+    {
+      "id": "interp.career.yoga.vesi",
+      "topic": "career.yoga",
+      "question": "Is Vesi Yoga formed, and in what condition?",
+      "conclusion": {
+        "code": "YOGA_FORMED_MODERATE",
+        "text": "Vesi Yoga is formed by the engine rule; its provisional yoga class is \"moderate\"."
+      },
+      "supporting": [
+        {
+          "factId": "planet.sun.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.sun.d9.dignity",
+          "conditionCode": "D9_OWN_SIGN",
+          "ruleId": "INT-YF-011"
+        },
+        {
+          "factId": "planet.mars.shadbala",
+          "conditionCode": "SHADBALA_MEETS_REQUIRED",
+          "ruleId": "INT-YF-009"
+        },
+        {
+          "factId": "planet.saturn.d1.dignity",
+          "conditionCode": "GREAT_FRIEND_SIGN",
+          "ruleId": "INT-YF-004"
+        }
+      ],
+      "contradicting": [
+        {
+          "factId": "planet.sun.d1.dignity",
+          "conditionCode": "GREAT_ENEMY_SIGN",
+          "ruleId": "INT-YF-003"
+        },
+        {
+          "factId": "planet.mars.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.mars.d1.avastha",
+          "conditionCode": "YOGA_KEY_PLANET_WEAKENED",
+          "ruleId": "INT-YF-015"
+        },
+        {
+          "factId": "planet.saturn.d1.house",
+          "conditionCode": "IN_DUSTHANA",
+          "ruleId": "INT-YF-006"
+        },
+        {
+          "factId": "planet.saturn.shadbala",
+          "conditionCode": "SHADBALA_BELOW_REQUIRED",
+          "ruleId": "INT-YF-008"
+        }
+      ],
+      "ruleIds": [
+        "INT-CY-001",
+        "INT-CY-002",
+        "INT-CY-003",
+        "INT-Y-001",
+        "INT-Y-003",
+        "INT-Y-005",
+        "INT-YF-003",
+        "INT-YF-004",
+        "INT-YF-006",
+        "INT-YF-008",
+        "INT-YF-009",
+        "INT-YF-011",
+        "INT-YF-015"
+      ],
+      "chartRefs": [
+        "dasha.ad.03.02",
+        "planet.mars.d1.avastha",
+        "planet.mars.d1.house",
+        "planet.mars.shadbala",
+        "planet.saturn.d1.dignity",
+        "planet.saturn.d1.house",
+        "planet.saturn.shadbala",
+        "planet.sun.d1.dignity",
+        "planet.sun.d9.dignity",
+        "planet.sun.shadbala",
+        "yoga.vesi"
+      ],
+      "strengthClass": "mixed",
+      "timeRelevance": {
+        "kind": "natal"
+      },
+      "qualification": [
+        "BIRTH_TIME_SENSITIVE",
+        "PROVISIONAL_CONVENTION",
+        "PROVISIONAL_RULE",
+        "MIXED_INDICATORS"
+      ],
+      "explanation": "supporting and challenging indicators both apply and no cited precedence rule settles them, so both are shown. supporting: Shadbala meets the required rupas [planet.sun.shadbala]; in its own sign in the D9 [planet.sun.d9.dignity]; Shadbala meets the required rupas [planet.mars.shadbala]; in a great friend's sign [planet.saturn.d1.dignity]. challenging: in a great enemy's sign [planet.sun.d1.dignity]; placed in a dusthana [planet.mars.d1.house]; key planet weakened [planet.mars.d1.avastha]; placed in a dusthana [planet.saturn.d1.house]; Shadbala below the required rupas [planet.saturn.shadbala]. the Saturn antardasha of a key planet of this yoga is running now.",
+      "resolution": {
+        "policyId": "CRP@1.0.0",
+        "applied": [],
+        "unresolved": [
+          "D9_OWN_SIGN",
+          "GREAT_ENEMY_SIGN",
+          "GREAT_FRIEND_SIGN",
+          "IN_DUSTHANA",
+          "SHADBALA_BELOW_REQUIRED",
+          "SHADBALA_MEETS_REQUIRED",
+          "YOGA_KEY_PLANET_WEAKENED"
+        ]
+      },
+      "provisional": true,
+      "sources": [
+        "Audit 04 §5 yoga decision procedure (client question Q-Y-12)",
+        "BPHS / Laghu Parashari: yogas fruit in the dashas of the planets forming them (verify; client question Q-T-2)",
+        "CAR-005 (career-relevant engine yogas; BPHS / Phaladeepika rule set of the engine)"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "ruleId": "INT-CAR-041",
+      "reason": "pending-client: evaluated in tests only, never rendered"
+    },
+    {
+      "ruleId": "INT-CAR-061",
+      "reason": "pending-client: evaluated in tests only, never rendered"
+    },
+    {
+      "ruleId": "INT-CAR-071",
+      "reason": "pending-client: evaluated in tests only, never rendered"
+    },
+    {
+      "ruleId": "INT-YC-999",
+      "reason": "pending-client: evaluated in tests only, never rendered"
+    },
+    {
+      "ruleId": "INT-YF-501",
+      "reason": "pending-client: evaluated in tests only, never rendered"
+    }
+  ]
+}

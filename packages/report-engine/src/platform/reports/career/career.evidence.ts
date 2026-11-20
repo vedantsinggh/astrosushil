@@ -7,12 +7,13 @@
  * anything other than the Ascendant never use the phrase "in the Nth house".
  */
 import { AddEvidence, ordinal, planetName } from '../../evidence/evidence-registry';
-import { formatDate } from '../../render/latex';
-import { ChartSnapshot } from '../../snapshot/chart-snapshot';
-import { CAREER_HOUSES, CareerExt, compare, durationText, SAV_BENCHMARK, signQuality } from './calc/career-calc';
+import { businessDateIso, ChartSnapshot, formatBusinessDate } from '../../snapshot/chart-snapshot';
+import { CAREER_HOUSES, CareerExt, compare, durationText, EARNINGS_WINDOW, earningsWindowDashas, SAV_BENCHMARK, signQuality } from './calc/career-calc';
 
 const SRC = 'report.career.calc';
-const date = (iso: string) => iso.slice(0, 10);
+/** Evidence values: the IST calendar date (YYYY-MM-DD); labels use the human IST date (audit F24). */
+const date = (iso: string) => businessDateIso(iso);
+const day = (iso: string) => formatBusinessDate(iso);
 const an = (w: string) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
 const list = (xs: string[], none: string) => (xs.length ? xs.join(', ') : none);
 
@@ -110,17 +111,24 @@ export function contributeCareerEvidence(add: AddEvidence, snapshot: ChartSnapsh
   // --- Dasha ------------------------------------------------------------------
   c.dashas.forEach((d, i) => {
     add(`career.dasha.md.${String(i + 1).padStart(2, '0')}.links`, 'dasha-career',
-      `${d.lord} Mahadasha ${date(d.startIso)} to ${date(d.endIso)}: career links ${list(d.careerLinks, 'none')}`,
+      `${d.lord} Mahadasha ${day(d.startIso)} to ${day(d.endIso)}: career links ${list(d.careerLinks, 'none')}`,
       [d.lord, ...d.careerLinks], `${SRC}.dashaTimeline`);
   });
   const ci = c.dashas.findIndex((d) => d.active);
   if (ci >= 0 && ci + 1 < c.dashas.length) {
     const n = c.dashas[ci + 1];
-    add('career.dasha.next.md', 'dasha', `Next Mahadasha: ${n.lord} from ${date(n.startIso)} to ${date(n.endIso)}`, n.lord, 'dasha.vimshottari');
+    add('career.dasha.next.md', 'dasha', `Next Mahadasha: ${n.lord} from ${day(n.startIso)} to ${day(n.endIso)}`, n.lord, 'dasha.vimshottari');
+  }
+  // Earning-years window (product default, see EARNINGS_WINDOW): only these Mahadashas may be
+  // offered as earnings seasons by the first-earnings topic (audit F1).
+  for (const d of earningsWindowDashas(snapshot)) {
+    add(`career.window.earnings.md.${String(d.index + 1).padStart(2, '0')}`, 'dasha-window',
+      `${d.lord} Mahadasha ${day(d.startIso)} to ${day(d.endIso)} (age ${d.ageAtStart} to ${d.ageAtEnd}) falls within the working-age window used for earnings timing (starts by age ${EARNINGS_WINDOW.maxStartAge}, ends after age ${EARNINGS_WINDOW.minEndAge})`,
+      [d.lord, date(d.startIso), date(d.endIso)], `${SRC}.earningsWindowDashas`);
   }
   c.antardashas.forEach((a, i) => {
     add(`career.dasha.ad.${String(i + 1).padStart(2, '0')}`, 'dasha-period',
-      `Antardasha of ${a.lord} within the current Mahadasha: ${date(a.startIso)} to ${date(a.endIso)}`, [a.lord, date(a.startIso), date(a.endIso)], 'dasha.vimshottari');
+      `Antardasha of ${a.lord} within the current Mahadasha: ${day(a.startIso)} to ${day(a.endIso)}`, [a.lord, date(a.startIso), date(a.endIso)], 'dasha.vimshottari');
   });
 
   // --- Transits (true ingress dates) --------------------------------------------
@@ -128,11 +136,11 @@ export function contributeCareerEvidence(add: AddEvidence, snapshot: ChartSnapsh
     const k = t.planet.toLowerCase();
     const p = t.current;
     add(`career.transit.${k}.current`, 'transit-current',
-      `${t.planet} transits ${p.sign} from ${formatDate(p.startIso)} to ${formatDate(p.endIso)} (${durationText(p.startIso, p.endIso)}): the ${ordinal(p.fromAsc)} from the Ascendant and the ${ordinal(p.fromMoon)} from the Moon`,
+      `${t.planet} transits ${p.sign} from ${day(p.startIso)} to ${day(p.endIso)} (${durationText(p.startIso, p.endIso)}): the ${ordinal(p.fromAsc)} from the Ascendant and the ${ordinal(p.fromMoon)} from the Moon`,
       [p.sign, date(p.startIso), date(p.endIso), String(p.fromAsc)], 'transit.TransitIngressSolver');
     t.upcoming.forEach((u, i) => {
       add(`career.transit.${k}.next.${String(i + 1).padStart(2, '0')}`, 'transit-upcoming',
-        `${t.planet} will transit ${u.sign} from ${formatDate(u.startIso)} to ${formatDate(u.endIso)}${u.retrogradeEntry && k !== 'rahu' && k !== 'ketu' ? ' (retrograde re-entry)' : ''}: the ${ordinal(u.fromAsc)} from the Ascendant and the ${ordinal(u.fromMoon)} from the Moon`,
+        `${t.planet} will transit ${u.sign} from ${day(u.startIso)} to ${day(u.endIso)}${u.retrogradeEntry && k !== 'rahu' && k !== 'ketu' ? ' (retrograde re-entry)' : ''}: the ${ordinal(u.fromAsc)} from the Ascendant and the ${ordinal(u.fromMoon)} from the Moon`,
         [u.sign, date(u.startIso), date(u.endIso), String(u.fromAsc)], 'transit.TransitIngressSolver');
     });
   }

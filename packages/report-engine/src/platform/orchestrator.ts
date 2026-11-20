@@ -7,15 +7,20 @@
  * if every topic was produced and validated and the PDF passed QA.
  */
 import { createHash, randomUUID } from 'crypto';
+import { deriveLifeStage } from '@astro/prediction-engine';
 import {
   PLATFORM_VERSION,
   ReportDefinition,
   ReportManifest,
   ReportManifestSchema,
+  ReportTopic,
   TopicManifestEntry,
   ValidationIssue,
 } from './contracts';
-import { EvidenceRegistry } from './evidence/evidence-registry';
+import { AddEvidence, EvidenceRegistry } from './evidence/evidence-registry';
+import { buildInterpretationExtras, interpretationContributor, InterpretationExtras } from './interpretation/register';
+import { applyTopicVariant, isInterpretationTopic } from './interpretation/scope';
+import { buildTrace } from './validation/trace';
 import { LlmNarrator, TopicOutcome } from './llm/narrator';
 import { PROMPT_VERSION } from './llm/prompts';
 import { runPdfQa } from './qa/pdf-qa';
@@ -93,6 +98,13 @@ function priceBasis(): { input: number; output: number; label: string } {
   return { input, output, label: `Estimate at $${input}/1M input and $${output}/1M output+thinking tokens (configurable list-price assumption, not provider billing).` };
 }
 
+/** Statement → evidence → interp → rule trace (proposal §5); opted-in topics with a payload only. */
+function outcomeTrace(topic: ReportTopic, o: TopicOutcome, registry: EvidenceRegistry): TopicManifestEntry['trace'] {
+  if (!isInterpretationTopic(topic) || !o.payload) return undefined;
+  const trace = buildTrace(o.payload, registry, o.validation);
+  return trace.length ? trace : undefined;
+}
+
 const FORBIDDEN_IN_PDF = [/arun pandit/i, /gemsmantra/i, /puneet/i, /lorem ipsum/i, /zero-data-leakage/i, /undefined|NaN/];
 
 export async function generateReport(req: GenerateReportRequest): Promise<GenerateReportResult> {
@@ -112,10 +124,21 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
   const snapshot = await buildChartSnapshot(req.subject, snapOpts);
   const partner = def.requires.partner && req.partner ? await buildChartSnapshot(req.partner, snapOpts) : undefined;
   const ext = module.extend ? await module.extend({ snapshot, partner }) : {};
-  const registry = new EvidenceRegistry(snapshot, {
-    partner,
-    contributors: module.evidence ? [(add, reg) => module.evidence!(add, { snapshot, partner, ext, registry: reg })] : [],
-  });
+  const contributors: Array<(add: AddEvidence, reg: EvidenceRegistry) => void> = [];
+  if (module.evidence) contributors.push((add, reg) => module.evidence!(add, { snapshot, partner, ext, registry: reg }));
+  // Interpretation runs after the module contributors so every chartRef it cites already exists.
+  if (module.interpretation) {
+    const fromExt = ext.interpretationExtras as InterpretationExtras | undefined;
+    const extras = fromExt ?? await buildInterpretationExtras(snapshot, { transitYears: def.requires.transitYears });
+    contributors.push(interpretationContributor({ pack: module.interpretation.pack, extras }));
+  }
+  const registry = new EvidenceRegistry(snapshot, { partner, contributors });
+  // Life-stage topic variants (product defaults) use the native's completed age at the report date.
+  const hasVariants = def.sections.some((s) => s.topics.some((t) => t.variants.length > 0));
+  const nativeAge = hasVariants
+    ? deriveLifeStage({ subject: { dateOfBirth: snapshot.subject.dateOfBirth }, asOfIso: snapshot.asOfIso }).ageYears
+    : undefined;
+  const variantOf = new Map<string, string>();
   const blocks = { ...CORE_BLOCKS, ...(module.blocks ?? {}) };
   const blockCtx = { snapshot, registry, partner, ext };
 
@@ -141,14 +164,23 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
   };
   emitProgress('narrative');
 
-  for (const section of def.sections) {
-    throwIfAborted(req.signal, `section ${section.id}`);
+  for (const rawSection of def.sections) {
+    throwIfAborted(req.signal, `section ${rawSection.id}`);
+    const section = {
+      ...rawSection,
+      topics: rawSection.topics.map((t) => {
+        const applied = applyTopicVariant(t, nativeAge);
+        if (applied.variant) variantOf.set(t.id, applied.variant);
+        return applied.topic;
+      }),
+    };
     const narrativeTopics = section.topics.filter((t) => t.kind === 'narrative');
     const outcomes = new Map<string, TopicOutcome>();
     if (narrativeTopics.length) {
       const ctx = {
         definition: def, registry, subjectRef: snapshot.subjectRef, topics: narrativeTopics, sectionTitle: section.title,
         priorSummaries: [...priorSummaries], onTopicSettled: settle,
+        interpretationResults: registry.interpretation?.set.results, priorPayloads: [...payloads],
       };
       if (req.regenerateTopics?.length) await req.narrator.invalidate(ctx, req.regenerateTopics);
       for (const o of await req.narrator.generateBatch(ctx)) outcomes.set(o.topic.id, o);
@@ -185,6 +217,7 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
           tokens: o.status === 'cached' ? undefined : o.tokens,
           latencyMs: o.status === 'cached' ? undefined : o.latencyMs,
           attempts: o.attempts, error: o.error,
+          variant: variantOf.get(topic.id), trace: outcomeTrace(topic, o, registry),
         });
       } else {
         // data, educational and editorial topics are all rendered from blocks; provenance follows the kind.
@@ -271,6 +304,13 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
       snapshotId: registry.snapshotId, engineVersion: snapshot.engineVersion, conventions: snapshot.conventions,
       conventionsProvisional: snapshot.conventionsProvisional, evidenceCount: registry.size,
     },
+    interpretation: registry.interpretation
+      ? {
+          schemaVersion: registry.interpretation.set.schemaVersion,
+          rulesetVersion: registry.interpretation.set.rulesetVersion,
+          resultCount: registry.interpretation.set.results.length,
+        }
+      : undefined,
     topics: topicEntries,
     usage: {
       liveCalls: new Set(live.map((t) => t.sourceGenerationId).filter(Boolean)).size,

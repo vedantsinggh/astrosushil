@@ -8,3 +8,4 @@ export * from './providers/gemini-ai.provider';
 export * from './providers/openrouter-ai.provider';
 export * from './providers/groq-ai.provider';
 export * from './providers/ai-provider.factory';
+export * from './interpretation';

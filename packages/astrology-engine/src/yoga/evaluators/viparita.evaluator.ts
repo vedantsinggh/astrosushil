@@ -1,4 +1,48 @@
-import { YogaChartContext, YogaResult, YogaCondition } from '../yoga.types';
+import { PlanetSymbol } from '../../planets/planet.types';
+import { YogaChartContext, YogaResult, YogaCondition, YogaAssessmentInputs } from '../yoga.types';
+import { buildAssessment, lordRelation } from '../yoga-assessment';
+
+const VIPARITA_SOURCE = 'Phaladeepika ch. 6 (verify verses) and Uttara Kalamrita (Viparita Raja Yoga)';
+
+/**
+ * Condition facts for a dusthana lord forming Harsha/Sarala/Vimala (no verdicts). The
+ * commentarial qualifiers (dual lordship, association with kendra/trikona lords) are reported as
+ * flags only, provisional – pending client review.
+ */
+function viparitaAssessment(ctx: YogaChartContext, dusthana: number, lord: PlanetSymbol, formed: boolean): YogaAssessmentInputs {
+  const owned = ctx.lordHouses[lord] || [];
+  const goodOwned = owned.filter((h) => [1, 4, 5, 7, 9, 10].includes(h));
+  const associations: string[] = [];
+  for (const h of [1, 4, 5, 7, 9, 10]) {
+    const other = ctx.houseLords[h];
+    if (other === lord) continue;
+    const rel = lordRelation(ctx, lord, other, dusthana, h);
+    if (rel.isAssociated) associations.push(`H${h} lord ${other}: ${rel.relations.join('+')}`);
+  }
+  return buildAssessment(ctx, {
+    formed,
+    keyPlanets: [lord],
+    cancellations: [
+      {
+        id: 'DUSTHANA_LORD_ALSO_OWNS_KENDRA_OR_TRIKONA',
+        description: `${dusthana}th lord ${lord} also owns a kendra or trikona`,
+        satisfied: goodOwned.length > 0,
+        observed: `${lord} owns houses ${owned.join(', ') || 'none'}`,
+        source: 'Commentarial condition on Viparita Raja Yoga (verify); pending client review',
+        provisional: true,
+      },
+      {
+        id: 'DUSTHANA_LORD_ASSOCIATED_WITH_KENDRA_TRIKONA_LORD',
+        description: `${dusthana}th lord ${lord} associated (conjunction, mutual aspect or sign exchange) with a kendra or trikona lord`,
+        satisfied: associations.length > 0,
+        observed: associations.join('; ') || 'None',
+        source: 'Commentarial condition on Viparita Raja Yoga (verify); pending client review',
+        provisional: true,
+      },
+    ],
+    source: VIPARITA_SOURCE,
+  });
+}
 
 export function evaluateViparitaYogas(ctx: YogaChartContext): YogaResult[] {
   const results: YogaResult[] = [];
@@ -33,13 +77,14 @@ export function evaluateViparitaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'VIPARITA',
       isDetected: isHarsha,
       varga: ctx.varga,
-      convention: 'Classical Uttara Kalamrita & Phaladeepika',
+      convention: VIPARITA_SOURCE,
       evidence: {
         conditions,
         involvedPlanets: [p6Evidence],
         involvedHouses: [ctx.houses[6], ctx.houses[p6Evidence.house]],
         relationships: [],
       },
+      assessment: viparitaAssessment(ctx, 6, lord6, isHarsha),
     });
   }
 
@@ -63,13 +108,14 @@ export function evaluateViparitaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'VIPARITA',
       isDetected: isSarala,
       varga: ctx.varga,
-      convention: 'Classical Uttara Kalamrita & Phaladeepika',
+      convention: VIPARITA_SOURCE,
       evidence: {
         conditions,
         involvedPlanets: [p8Evidence],
         involvedHouses: [ctx.houses[8], ctx.houses[p8Evidence.house]],
         relationships: [],
       },
+      assessment: viparitaAssessment(ctx, 8, lord8, isSarala),
     });
   }
 
@@ -93,13 +139,14 @@ export function evaluateViparitaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'VIPARITA',
       isDetected: isVimala,
       varga: ctx.varga,
-      convention: 'Classical Uttara Kalamrita & Phaladeepika',
+      convention: VIPARITA_SOURCE,
       evidence: {
         conditions,
         involvedPlanets: [p12Evidence],
         involvedHouses: [ctx.houses[12], ctx.houses[p12Evidence.house]],
         relationships: [],
       },
+      assessment: viparitaAssessment(ctx, 12, lord12, isVimala),
     });
   }
 

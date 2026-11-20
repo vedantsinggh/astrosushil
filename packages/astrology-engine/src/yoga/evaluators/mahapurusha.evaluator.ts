@@ -43,9 +43,10 @@ export function evaluateMahapurushaYogas(ctx: YogaChartContext): YogaResult[] {
 
     const strengthFactors: string[] = [];
     if (isDetected) {
-      if (pEvidence.isCombust) strengthFactors.push('Planet is combust, weakening the manifestation of Mahapurusha Yoga.');
-      if (pEvidence.isRetrograde) strengthFactors.push('Planet is retrograde (Cheshta Bala enhanced).');
-      if (pEvidence.dignity === 'EXALTED') strengthFactors.push('Planet is exalted (highest Sthana Bala).');
+      // Formation facts only (no results). Wording changed in the 2026-11 engine fixes.
+      if (pEvidence.isCombust) strengthFactors.push('Planet is combust (within its combustion orb of the Sun).');
+      if (pEvidence.isRetrograde) strengthFactors.push('Planet is retrograde.');
+      if (pEvidence.dignity === 'EXALTED') strengthFactors.push('Planet is exalted.');
     }
 
     const houseEvidence = ctx.houses[pEvidence.house];

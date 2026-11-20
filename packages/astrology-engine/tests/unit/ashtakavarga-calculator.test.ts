@@ -303,31 +303,49 @@ describe('Phase 2D: Ashtakavarga Unit Tests Suite', () => {
       expect(reduced[8]).toBe(0);
     });
 
-    it('reduces 2 non-zero signs when 1 sign is zero', () => {
-      // Earth trine (indices 1, 5, 9): Taurus=5, Virgo=3, Cap=0 -> min non-zero=3 -> [2, 0, 0]
+    // Expectations below were corrected (2026-11 engine fixes) to the classical rule:
+    // BPHS ch. 67 (Santhanam numbering) and B.V. Raman, *Ashtakavarga System of Prediction*, ch. 3:
+    // one sign of the trine with 0 -> no reduction; two signs with 0 -> the third also becomes 0.
+    it('makes no reduction when exactly 1 sign of the trine is zero', () => {
+      // Earth trine (indices 1, 5, 9): Taurus=5, Virgo=3, Cap=0 -> unchanged [5, 3, 0]
       const input = [0, 5, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0];
       const reduced = calculateTrikonaShodhana(input);
-      expect(reduced[1]).toBe(2);
-      expect(reduced[5]).toBe(0);
+      expect(reduced[1]).toBe(5);
+      expect(reduced[5]).toBe(3);
       expect(reduced[9]).toBe(0);
     });
 
-    it('makes both 0 when 2 non-zero signs are equal and 1 is zero', () => {
-      // Air trine (indices 2, 6, 10): Gemini=4, Libra=4, Aqua=0 -> [0, 0, 0]
+    it('makes no reduction when 1 sign is zero even if the other two are equal', () => {
+      // Air trine (indices 2, 6, 10): Gemini=4, Libra=4, Aqua=0 -> unchanged
       const input = [0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 0];
       const reduced = calculateTrikonaShodhana(input);
-      expect(reduced[2]).toBe(0);
-      expect(reduced[6]).toBe(0);
+      expect(reduced[2]).toBe(4);
+      expect(reduced[6]).toBe(4);
       expect(reduced[10]).toBe(0);
     });
 
-    it('makes no reduction when 2 or 3 signs have 0 points', () => {
-      // Water trine (indices 3, 7, 11): Cancer=5, Scorpio=0, Pisces=0 -> unchanged
+    it('removes the remaining sign when 2 signs of the trine are zero', () => {
+      // Water trine (indices 3, 7, 11): Cancer=5, Scorpio=0, Pisces=0 -> [0, 0, 0]
       const input = [0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0];
       const reduced = calculateTrikonaShodhana(input);
-      expect(reduced[3]).toBe(5);
+      expect(reduced[3]).toBe(0);
       expect(reduced[7]).toBe(0);
       expect(reduced[11]).toBe(0);
+    });
+
+    it('reproduces the independent golden-chart Mars BAV reduction (Apeksha Singh fixture)', () => {
+      // Mars BAV [5,2,3,6,0,5,3,0,5,3,2,5] -> classical trikona [5,0,1,6,0,3,1,0,5,1,0,5]
+      // (independent hand computation, scratchpad audit 03 §A4).
+      const input = [5, 2, 3, 6, 0, 5, 3, 0, 5, 3, 2, 5];
+      expect(calculateTrikonaShodhana(input)).toEqual([5, 0, 1, 6, 0, 3, 1, 0, 5, 1, 0, 5]);
+    });
+
+    it('handles the "[4,0,2]" and "[5,0,0]" cases from the audit', () => {
+      // Fire trine [4,0,2] -> unchanged; earth trine [5,0,0] -> zeroed.
+      const input = [4, 5, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0];
+      const reduced = calculateTrikonaShodhana(input);
+      expect([reduced[0], reduced[4], reduced[8]]).toEqual([4, 0, 2]);
+      expect([reduced[1], reduced[5], reduced[9]]).toEqual([0, 0, 0]);
     });
   });
 
@@ -364,6 +382,22 @@ describe('Phase 2D: Ashtakavarga Unit Tests Suite', () => {
       // Sag=5, Pisces=2 -> both become min(5, 2) = 2
       const trikona = [0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 2];
       const reduced = calculateEkadhipatyaShodhana(trikona, emptyChart);
+      expect(reduced[8]).toBe(2);
+      expect(reduced[11]).toBe(2);
+    });
+  });
+
+  describe('4b. Ekadhipatya ignores Rahu/Ketu as occupants', () => {
+    it('treats a sign holding only Rahu as unoccupied', () => {
+      // Only Rahu in Pisces (sign 12); Sagittarius empty. Both "unoccupied" for Ekadhipatya
+      // (seven grahas only: BPHS ch. 68 Santhanam numbering; Raman, Ashtakavarga ch. 3) ->
+      // unequal -> both become the smaller.
+      const nodeOnly: AstroChart = {
+        ...chart,
+        planets: { RAHU: { ...chart.planets.RAHU!, rashiIndex: 12 } } as AstroChart['planets'],
+      };
+      const trikona = [0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 2];
+      const reduced = calculateEkadhipatyaShodhana(trikona, nodeOnly);
       expect(reduced[8]).toBe(2);
       expect(reduced[11]).toBe(2);
     });

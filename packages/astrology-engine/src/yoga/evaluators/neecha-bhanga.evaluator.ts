@@ -2,6 +2,7 @@ import { PlanetSymbol } from '../../planets/planet.types';
 import { RASHIS } from '../../zodiac/rashi';
 import { YogaChartContext, YogaResult, YogaCondition } from '../yoga.types';
 import { YogaPredicates } from '../yoga-predicates';
+import { buildAssessment } from '../yoga-assessment';
 
 interface DebilitationRule {
   planet: PlanetSymbol;
@@ -96,20 +97,24 @@ export function evaluateNeechaBhangaYogas(ctx: YogaChartContext): YogaResult[] {
       },
       {
         id: 'CONJUNCT_EXALTED_PLANET',
-        description: `${rule.planet} is conjunct an exalted planet`,
+        description: `${rule.planet} is conjunct an exalted planet (unsourced engine convention; pending client review)`,
         satisfied: hasExaltedConjunct,
         expected: 'Conjunct exalted planet',
         observed: conjunctPlanets.map((p) => `${p} (${ctx.planets[p].dignity})`).join(', ') || 'None',
       },
     ];
 
+    // Formation facts only (no results). Wording changed in the 2026-11 engine fixes.
     const strengthFactors: string[] = [];
     if (isDetected) {
       if (isDebLordInLagnaKendra || isExLordInLagnaKendra) {
-        strengthFactors.push('Cancellation via Lagna Kendra creates primary Neecha Bhanga Raja Yoga.');
+        strengthFactors.push('Cancellation route: debilitation-sign or exaltation-sign lord in a kendra from the Lagna.');
       }
       if (isDebLordInMoonKendra || isExLordInMoonKendra) {
-        strengthFactors.push('Cancellation via Chandra Lagna Kendra strengthens royal/prosperous indications.');
+        strengthFactors.push('Cancellation route: debilitation-sign or exaltation-sign lord in a kendra from the Moon.');
+      }
+      if (hasExaltedConjunct) {
+        strengthFactors.push('Cancellation route: conjunct an exalted planet (unsourced convention, pending client review).');
       }
     }
 
@@ -120,7 +125,7 @@ export function evaluateNeechaBhangaYogas(ctx: YogaChartContext): YogaResult[] {
       category: 'NEECHA_BHANGA',
       isDetected,
       varga: ctx.varga,
-      convention: 'Classical Parashari & Phaladeepika (BPHS Ch. 41)',
+      convention: 'Phaladeepika ch. 7 (Neecha Bhanga, verify verses); Raman, Three Hundred Important Combinations. Not BPHS ch. 41 (Dhana yogas)',
       evidence: {
         conditions,
         involvedPlanets: [pEvidence, debLordEvidence, exLordEvidence],
@@ -132,6 +137,14 @@ export function evaluateNeechaBhangaYogas(ctx: YogaChartContext): YogaResult[] {
         relationships: [],
         strengthFactors,
       },
+      assessment: buildAssessment(ctx, {
+        formed: isDetected,
+        keyPlanets: [rule.planet, debSignLord, exSignLord],
+        notes: hasExaltedConjunct && isDebilitated
+          ? ['The "conjunct an exalted planet" route has no cited source (audit 04); pending client review.']
+          : [],
+        source: 'Phaladeepika ch. 7 (verify verses); Raman, Three Hundred Important Combinations',
+      }),
     });
   }
 

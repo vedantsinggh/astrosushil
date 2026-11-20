@@ -172,8 +172,6 @@ export const titleCase = (s: string) => s.toLowerCase().replace(/(^|[\s_-])([a-z
 
 // --------------------------------------------------------------- dashas --
 
-export const isoDay = (iso: string) => iso.slice(0, 10);
-
 /** Vimshottari Mahadasha list; the running period is highlighted. */
 export function mahadashaTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
   const now = Date.parse(snap.asOfIso);

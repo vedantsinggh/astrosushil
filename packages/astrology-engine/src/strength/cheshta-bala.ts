@@ -2,6 +2,7 @@ import { PlanetSymbol } from '../planets/planet.types';
 import { ShadbalaPlanet } from './strength.types';
 import { AstroChart } from '../chart/astro-chart.types';
 import { calculateAyanaBala, calculatePakshaBala } from './kala-bala';
+import { resolveChartAyanamsa } from './kala-time-context';
 
 // Classical mean daily velocities in degrees/day
 const MEAN_DAILY_SPEEDS: Record<ShadbalaPlanet, number> = {
@@ -31,7 +32,8 @@ export function calculateCheshtaBala(planet: ShadbalaPlanet, chart: AstroChart):
 
   // Sun special rule
   if (planet === PlanetSymbol.SUN) {
-    return calculateAyanaBala(PlanetSymbol.SUN, pos.longitude);
+    // Ayana Bala on the sayana longitude (BPHS ch. 27), see calculateAyanaBala.
+    return calculateAyanaBala(PlanetSymbol.SUN, pos.longitude, resolveChartAyanamsa(chart));
   }
 
   // Moon special rule

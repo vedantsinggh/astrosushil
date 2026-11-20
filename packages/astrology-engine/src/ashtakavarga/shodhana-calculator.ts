@@ -16,6 +16,17 @@ export const TRIKONA_GROUPS: [number, number, number][] = [
   [3, 7, 11],  // Signs 4, 8, 12
 ];
 
+/** Planets whose occupation counts in Ekadhipatya Shodhana: the seven grahas only. */
+export const EKADHIPATYA_OCCUPANT_PLANETS: readonly PlanetSymbol[] = [
+  PlanetSymbol.SUN,
+  PlanetSymbol.MOON,
+  PlanetSymbol.MARS,
+  PlanetSymbol.MERCURY,
+  PlanetSymbol.JUPITER,
+  PlanetSymbol.VENUS,
+  PlanetSymbol.SATURN,
+];
+
 /**
  * Dual sign pairs ruled by Mars, Mercury, Jupiter, Venus, Saturn (0-indexed):
  * - Mars: Aries (0) & Scorpio (7)
@@ -33,12 +44,14 @@ export const DUAL_LORD_PAIRS: { planet: PlanetSymbol; signs: [number, number] }[
 ];
 
 /**
- * Calculates Trikona Shodhana (Triplicity Reduction) according to BPHS Ch. 73:
- * - If all 3 signs have points: subtract min(p1, p2, p3) from all 3.
- * - If 1 sign has 0 and other 2 have points:
- *     - If equal, both become 0.
- *     - If unequal, subtract the smaller non-zero from both (smaller becomes 0, larger reduced by smaller).
- * - If 2 or 3 signs have 0 points: no reduction.
+ * Calculates Trikona Shodhana (Triplicity Reduction) according to BPHS ch. 67 (Santhanam
+ * numbering; "Trikona Shodhana") and B.V. Raman, *Ashtakavarga System of Prediction*, ch. 3.
+ * For each trine group (1-5-9, 2-6-10, 3-7-11, 4-8-12):
+ * - all three equal → all three become 0;
+ * - all three non-zero (and not all equal) → subtract the smallest from each;
+ * - exactly one sign has 0 → no reduction;
+ * - two signs have 0 → the remaining sign also becomes 0;
+ * - all three 0 → nothing to reduce.
  */
 export function calculateTrikonaShodhana(signList: number[]): number[] {
   const result = [...signList];
@@ -50,20 +63,24 @@ export function calculateTrikonaShodhana(signList: number[]): number[] {
 
     const nonZeroes = [p1, p2, p3].filter((p) => p > 0);
 
-    if (nonZeroes.length === 3) {
+    if (p1 === p2 && p2 === p3) {
+      // All three equal -> all become 0 (also covers the all-zero case)
+      result[s1] = 0;
+      result[s2] = 0;
+      result[s3] = 0;
+    } else if (nonZeroes.length === 3) {
       // All 3 signs have points -> subtract min from all three
       const minVal = Math.min(p1, p2, p3);
       result[s1] = p1 - minVal;
       result[s2] = p2 - minVal;
       result[s3] = p3 - minVal;
-    } else if (nonZeroes.length === 2) {
-      // Exactly 2 signs have points, 1 is zero -> subtract smaller non-zero from both
-      const minNonZero = Math.min(...nonZeroes);
-      result[s1] = p1 > 0 ? p1 - minNonZero : 0;
-      result[s2] = p2 > 0 ? p2 - minNonZero : 0;
-      result[s3] = p3 > 0 ? p3 - minNonZero : 0;
+    } else if (nonZeroes.length === 1) {
+      // Two signs are 0 -> the third is also removed
+      result[s1] = 0;
+      result[s2] = 0;
+      result[s3] = 0;
     }
-    // If nonZeroes.length <= 1, no reduction is made
+    // Exactly one sign is 0 (nonZeroes.length === 2) -> no reduction
   }
 
   return result;
@@ -79,9 +96,13 @@ export function calculateEkadhipatyaShodhana(
 ): number[] {
   const result = [...trikonaList];
 
-  // Determine which signs are occupied by planets in the natal chart
+  // Determine which signs are occupied by planets in the natal chart. Only the seven grahas
+  // (Sun..Saturn) count as occupants; Rahu/Ketu (and outer planets) are ignored, as in the
+  // classical scheme (BPHS ch. 68 Santhanam numbering "Ekadhipatya Shodhana"; Raman,
+  // *Ashtakavarga System of Prediction*, ch. 3).
   const occupiedSigns = new Set<number>();
-  for (const pos of Object.values(chart.planets)) {
+  for (const sym of EKADHIPATYA_OCCUPANT_PLANETS) {
+    const pos = chart.planets[sym];
     if (pos && pos.rashiIndex >= 1 && pos.rashiIndex <= 12) {
       occupiedSigns.add(pos.rashiIndex - 1); // 0-indexed
     }

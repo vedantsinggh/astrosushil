@@ -8,3 +8,4 @@ export * from './planetary-avasthas';
 export * from './planetary-karakas';
 export * from './planetary-war';
 export * from './planetary-intelligence.calculator';
+export * from './functional-nature';
