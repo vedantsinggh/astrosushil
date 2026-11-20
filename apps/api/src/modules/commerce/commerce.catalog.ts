@@ -47,7 +47,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     id: 'report-planetary-summary',
     itemType: OrderItemType.REPORT,
     title: 'Planetary Dynamics & Dignity Summary',
-    description: 'Detailed analysis of planetary dignities, combustions, retrogressions, and astronomical strengths.',
+    description: 'Your birth chart (D1) and planet table with a short personal reading of each of the nine planets: sign, house, nakshatra, dignity, and retrograde or combust state.',
     pricePaise: 19900, // ₹199
     currency: 'INR',
     taxRateBasisPoints: 1800,
@@ -101,7 +101,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     taxRateBasisPoints: 1800,
     taxIncluded: true,
     fulfillmentType: FulfillmentType.DIGITAL,
-    isActive: true,
+    isActive: false, // Retired 2026-11-18: only one Career report exists (report-career). Alias kept so historical CAREER_PROSITY orders still fulfil.
     minQuantity: 1,
     maxQuantity: 1,
     legacyReportType: ReportType.CAREER_PROSITY,
@@ -191,7 +191,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     id: 'report-saturn',
     itemType: OrderItemType.REPORT,
     title: 'Saturn in Your Birth Chart Report',
-    description: 'Comprehensive Vedic guide to Lord Shani analyzing natal placement, 3rd/7th/10th aspects, Swati Nakshatra, 39-point Bhinnashtakavarga, Sade Sati timeline, Kantak Shani, 2025–2029 transits, and consecrated remedies.',
+    description: 'Comprehensive Vedic guide to Lord Shani analysing your natal Saturn, its 3rd/7th/10th aspects and nakshatra, Saturn\'s Bhinnashtakavarga, your lifetime Sade Sati and Kantak Shani periods, upcoming Saturn transits, and gentle remedies.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
     taxRateBasisPoints: 1800,
@@ -207,7 +207,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     id: 'report-jupiter-transit',
     itemType: OrderItemType.REPORT,
     title: 'Jupiter Transit Report',
-    description: 'Comprehensive Vedic guide to Lord Brihaspati analyzing natal placement, 5th/7th/9th aspects, Mula Nakshatra, 56-point Bhinnashtakavarga, and 2026 Gemini & Cancer transits.',
+    description: 'Comprehensive Vedic guide to Lord Brihaspati analysing your natal Jupiter, its 5th/7th/9th aspects and nakshatra, Jupiter\'s Bhinnashtakavarga, and your personal Jupiter transit periods.',
     pricePaise: 0, // Pending commercial sign-off
     currency: 'INR',
     taxRateBasisPoints: 1800,
@@ -223,7 +223,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     id: 'report-rahu-ketu-transit',
     itemType: OrderItemType.REPORT,
     title: 'Rahu-Ketu Transit Report',
-    description: 'Comprehensive Vedic guide to the lunar nodes analyzing 180° karmic axis, Rohini/Jyeshtha nakshatras, 2025–2026 Aquarius/Leo and 2026–2028 Capricorn/Cancer transits.',
+    description: 'Comprehensive Vedic guide to the lunar nodes analysing your natal Rahu-Ketu axis and nakshatras, and your personal Rahu and Ketu transit periods.',
     pricePaise: 0, // Pending commercial sign-off
     currency: 'INR',
     taxRateBasisPoints: 1800,
@@ -249,6 +249,22 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     minQuantity: 1,
     maxQuantity: 1,
     legacyReportType: ReportType.VARSHPHAL,
+    metadataSchema: { requiredFields: ['birthProfileId'] },
+  },
+  'report-baby-name': {
+    id: 'report-baby-name',
+    itemType: OrderItemType.REPORT,
+    title: 'Baby Name Report',
+    description: 'Naming guidance from the child\'s birth nakshatra pada (namakshara syllables) and numerology compatibility with the Mulank and Bhagyank, with an optional check of names the family is considering.',
+    pricePaise: 0, // Pending commercial sign-off
+    currency: 'INR',
+    taxRateBasisPoints: 1800,
+    taxIncluded: true,
+    fulfillmentType: FulfillmentType.DIGITAL,
+    isActive: false,
+    minQuantity: 1,
+    maxQuantity: 1,
+    legacyReportType: ReportType.BABY_NAME,
     metadataSchema: { requiredFields: ['birthProfileId'] },
   },
   'report-personalised-horoscope': {
@@ -277,7 +293,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     taxRateBasisPoints: 1800,
     taxIncluded: true,
     fulfillmentType: FulfillmentType.DIGITAL,
-    isActive: true,
+    isActive: false, // No genuine generator exists; selling it would be false (docs/report-system/README.md §4).
     minQuantity: 1,
     maxQuantity: 1,
     legacyReportType: ReportType.CHILDBIRTH_FAMILY,
@@ -293,7 +309,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     taxRateBasisPoints: 1800,
     taxIncluded: true,
     fulfillmentType: FulfillmentType.DIGITAL,
-    isActive: true,
+    isActive: false, // No genuine generator exists (BNN rules not implemented); selling it would be false.
     minQuantity: 1,
     maxQuantity: 1,
     legacyReportType: ReportType.GUPTA_NADI_DOSSIER,

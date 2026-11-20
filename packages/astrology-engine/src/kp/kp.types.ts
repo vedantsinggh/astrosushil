@@ -52,8 +52,12 @@ export interface KPRulingPlanets {
 }
 
 export interface KPReport {
+  /** Ayanamsa system of the chart the report was built from (e.g. 'LAHIRI', 'KP'). */
   ayanamsaType: string;
+  /** True ayanamsa applied to the chart's planets, degrees. */
   ayanamsaValue: number;
+  /** House system of `cusps` (ADR-017: true Placidus). */
+  cuspSystem: 'PLACIDUS';
   cusps: KPCuspPlacement[];
   planets: Record<string, KPPointPlacement>;
   houseSignificators: KPHouseSignificators[];

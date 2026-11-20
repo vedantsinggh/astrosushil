@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -13,10 +10,9 @@ import '../models/matchmaking_model.dart';
 import '../providers/astrology_provider.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../widgets/astrology_explanation_card.dart';
-import '../widgets/astrology_data_table.dart';
+import '../widgets/adv_widgets.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_section_card.dart';
 
 /// Kundli Matchmaking (Ashtakoota Guna Milan & Manglik Comparison) Screen.
 /// Provides deterministic compatibility analysis for two birth profiles.
@@ -28,6 +24,15 @@ class MatchmakingScreen extends ConsumerStatefulWidget {
 }
 
 class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
+  void _recalculate(BirthProfileModel? personA, BirthProfileModel? personB) {
+    if (personA != null && personB != null) {
+      ref.read(matchmakingProvider.notifier).calculateMatchmaking(
+            personA: personA,
+            personB: personB,
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final personA = ref.watch(matchmakingPersonAProvider);
@@ -36,51 +41,22 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
     final allProfiles = profilesState.profiles;
 
-    return Scaffold(
-      appBar: AstroAppBar(
-        title: 'Kundli Matchmaking (Guna Milan)',
-        actions: [
-          if (matchState.result != null)
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
-              tooltip: 'Recalculate',
-              onPressed: () {
-                if (personA != null && personB != null) {
-                  ref.read(matchmakingProvider.notifier).calculateMatchmaking(
-                        personA: personA,
-                        personB: personB,
-                      );
-                }
-              },
-            ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: matchState.isLoading
-            ? const Center(
-                child: AstrologyLoadingState(
-                  message: 'Calculating 36-point Ashtakoota & Manglik compatibility...',
-                ),
+    final Widget body = matchState.isLoading
+        ? const AstrologyLoadingState(
+            message: 'Calculating 36-point Ashtakoota & Manglik compatibility...',
+          )
+        : matchState.errorMessage != null
+            ? AstrologyErrorState(
+                customMessage: matchState.errorMessage!,
+                onRetry: () => _recalculate(personA, personB),
               )
-            : matchState.errorMessage != null
-                ? Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: AstrologyErrorState(
-                      customMessage: matchState.errorMessage!,
-                      onRetry: () {
-                        if (personA != null && personB != null) {
-                          ref.read(matchmakingProvider.notifier).calculateMatchmaking(
-                                personA: personA,
-                                personB: personB,
-                              );
-                        }
-                      },
-                    ),
-                  )
-                : matchState.result != null
-                    ? _buildResultView(matchState.result!, personA, personB)
-                    : _buildSetupView(context, personA, personB, allProfiles),
-      ),
+            : matchState.result != null
+                ? _buildResultView(matchState.result!, personA, personB)
+                : _buildSetupView(context, personA, personB, allProfiles);
+
+    return AstroPage(
+      title: 'Kundli Matchmaking (Guna Milan)',
+      child: body,
     );
   }
 
@@ -93,90 +69,38 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final isSameProfile = personA != null && personB != null && personA.id == personB.id;
     final canCalculate = personA != null && personB != null && !isSameProfile;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Educational Explanation Card
-        AstrologyExplanationCard(
-          title: context.l10n.explainMatchmakingTitle,
-          whatIsText: context.l10n.explainMatchmakingWhatIs,
-          howToReadText: context.l10n.explainMatchmakingHowToRead,
+        // Intro summary
+        const AdvSummaryCard(
+          label: 'Kundli matching',
+          icon: Icons.favorite_rounded,
+          title: '36-Point Ashtakoota Milan',
+          subtitle: 'Select two birth profiles to evaluate classical Guna matching & Manglik compatibility.',
         ),
-        const SizedBox(height: 12),
-
-        // Intro Banner
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withValues(alpha: 0.08),
-                AppColors.secondary.withValues(alpha: 0.05),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '36-Point Ashtakoota Milan',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Select two birth profiles to evaluate classical Guna matching & Manglik compatibility.',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: kAdvGap),
 
         // Person A Selection Card
         _buildProfileSelectorCard(
           context: context,
+          step: 1,
           title: 'Person A (Boy / First Partner)',
           subtitle: 'Select active primary profile',
           icon: Icons.person_rounded,
-          iconColor: Colors.indigo,
           selectedProfile: personA,
           allProfiles: allProfiles,
           onSelect: (p) => ref.read(matchmakingPersonAProvider.notifier).state = p,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: kAdvGap),
 
         // Person B Selection Card
         _buildProfileSelectorCard(
           context: context,
+          step: 2,
           title: 'Person B (Girl / Second Partner)',
           subtitle: 'Select partner birth profile',
           icon: Icons.person_2_rounded,
-          iconColor: Colors.pink,
           selectedProfile: personB,
           allProfiles: allProfiles,
           onSelect: (p) => ref.read(matchmakingPersonBProvider.notifier).state = p,
@@ -184,35 +108,16 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         const SizedBox(height: 24),
 
         if (isSameProfile) ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    context.l10n.matchmakingSameProfileWarning,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.error,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          AstroNote(
+            context.l10n.matchmakingSameProfileWarning,
+            icon: Icons.warning_amber_rounded,
+            tint: AstroTint.danger,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: kAdvGap),
         ],
 
-        // Calculate Action Button
-        ElevatedButton.icon(
+        // Calculate Action Button (the single primary action)
+        AdvPrimaryButton(
           onPressed: canCalculate
               ? () {
                   ref.read(matchmakingProvider.notifier).calculateMatchmaking(
@@ -221,178 +126,116 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                       );
                 }
               : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey.shade300,
-            disabledForegroundColor: Colors.grey.shade600,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          icon: const Icon(Icons.favorite_rounded, color: Colors.white),
-          label: const Text(
-            'Calculate Compatibility',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          icon: Icons.favorite_rounded,
+          label: 'Calculate Compatibility',
         ),
 
         if (!canCalculate && !isSameProfile) ...[
           const SizedBox(height: 12),
-          const Center(
-            child: Text(
-              'Please select both birth profiles to proceed.',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.secondary,
-              ),
-            ),
+          const Text(
+            'Please select both birth profiles to proceed.',
+            textAlign: TextAlign.center,
+            style: kAdvSecondary,
           ),
         ],
+
+        const SizedBox(height: 24),
+
+        // Educational Explanation Card ("Learn more")
+        AstrologyExplanationCard(
+          title: context.l10n.explainMatchmakingTitle,
+          whatIsText: context.l10n.explainMatchmakingWhatIs,
+          howToReadText: context.l10n.explainMatchmakingHowToRead,
+        ),
       ],
     );
   }
 
   Widget _buildProfileSelectorCard({
     required BuildContext context,
+    required int step,
     required String title,
     required String subtitle,
     required IconData icon,
-    required Color iconColor,
     required BirthProfileModel? selectedProfile,
     required List<BirthProfileModel> allProfiles,
     required ValueChanged<BirthProfileModel?> onSelect,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: selectedProfile != null
-              ? iconColor.withValues(alpha: 0.4)
-              : AppColors.border.withValues(alpha: 0.2),
-          width: selectedProfile != null ? 1.5 : 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    final selected = selectedProfile != null;
+    return AdvCard(
+      padding: const EdgeInsets.all(18),
+      borderColor: selected ? AppColors.goldBorder : null,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: iconColor,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 20),
+          AdvStepHeader(step: step, total: 2, title: title, hint: subtitle),
+          const SizedBox(height: 14),
           if (selectedProfile != null) ...[
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
+                color: AstroTint.rose.background.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(AstroMetrics.groupRadius),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  AstroIconSquare(icon: icon, tint: AstroTint.rose, size: 40),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           selectedProfile.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                          style: kAdvBody.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${selectedProfile.dateOfBirth} • ${selectedProfile.timeOfBirth}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.secondary,
-                          ),
+                          style: kAdvSecondary,
                         ),
                         Text(
                           selectedProfile.placeName.isNotEmpty
                               ? selectedProfile.placeName
                               : '${selectedProfile.latitude}, ${selectedProfile.longitude}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.secondary,
-                          ),
+                          style: kAdvSecondary,
                         ),
                       ],
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: () => _showProfileSelectionModal(
-                      context,
-                      allProfiles,
-                      selectedProfile,
-                      onSelect,
-                    ),
-                    icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                    label: const Text('Change', style: TextStyle(fontSize: 12)),
-                  ),
                 ],
               ),
             ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _showProfileSelectionModal(
+                  context,
+                  allProfiles,
+                  selectedProfile,
+                  onSelect,
+                ),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  foregroundColor: AppColors.accent,
+                  textStyle: kAdvBody.copyWith(fontWeight: FontWeight.w600),
+                ),
+                icon: const Icon(Icons.swap_horiz_rounded, size: 22),
+                label: const Text('Change'),
+              ),
+            ),
           ] else ...[
-            OutlinedButton.icon(
+            AdvSecondaryButton(
               onPressed: () => _showProfileSelectionModal(
                 context,
                 allProfiles,
                 selectedProfile,
                 onSelect,
               ),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                side: BorderSide(color: iconColor.withValues(alpha: 0.5)),
-                foregroundColor: iconColor,
-              ),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Select Profile', style: TextStyle(fontWeight: FontWeight.w600)),
+              icon: Icons.add_rounded,
+              label: 'Select Profile',
             ),
           ],
         ],
@@ -406,98 +249,60 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     BirthProfileModel? currentSelected,
     ValueChanged<BirthProfileModel?> onSelect,
   ) {
-    showModalBottomSheet(
+    showAstroSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      title: 'Select Saved Profile',
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Select Saved Profile',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const Divider(),
-                if (allProfiles.isEmpty) ...[
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text('No saved profiles found.'),
-                    ),
-                  ),
-                ] else ...[
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.45,
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: allProfiles.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final p = allProfiles[index];
-                        final isChosen = currentSelected?.id == p.id;
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: isChosen
-                                ? AppColors.primary
-                                : AppColors.primary.withValues(alpha: 0.1),
-                            foregroundColor: isChosen ? Colors.white : AppColors.primary,
-                            child: Text(
-                              p.name.isNotEmpty ? p.name[0].toUpperCase() : '?',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('${p.dateOfBirth} • ${p.placeName}'),
-                          trailing: isChosen
-                              ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                              : null,
-                          onTap: () {
-                            onSelect(p);
-                            Navigator.pop(ctx);
-                          },
-                        );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (allProfiles.isEmpty)
+              const AstroStateView.empty(
+                compact: true,
+                icon: Icons.people_outline_rounded,
+                title: 'No saved profiles found.',
+              )
+            else
+              AstroGroupedSection(
+                children: [
+                  for (final p in allProfiles)
+                    AstroListRow(
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: currentSelected?.id == p.id
+                            ? AppColors.primary
+                            : AstroTint.rose.background,
+                        foregroundColor: currentSelected?.id == p.id ? Colors.white : AstroTint.rose.foreground,
+                        child: Text(
+                          p.name.isNotEmpty ? p.name[0].toUpperCase() : '?',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                      title: p.name,
+                      subtitle: '${p.dateOfBirth} • ${p.placeName}',
+                      trailing: currentSelected?.id == p.id
+                          ? const Icon(Icons.check_rounded, color: AppColors.accent)
+                          : null,
+                      onTap: () {
+                        onSelect(p);
+                        Navigator.pop(ctx);
                       },
                     ),
-                  ),
                 ],
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(44),
-                  ),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add New Birth Profile'),
-                ),
-              ],
+              ),
+            const SizedBox(height: 16),
+            AstroSecondaryButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                );
+              },
+              icon: Icons.add_rounded,
+              label: 'Add New Birth Profile',
             ),
-          ),
+          ],
         );
       },
     );
@@ -553,14 +358,13 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final moonA = result.personA;
     final moonB = result.personB;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 1. HERO COMPATIBILITY SCORE CARD
         _buildHeroScoreCard(result),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: kAdvGap),
 
         // Sushil Sir Explainer Button
         SushilExplainerButton(
@@ -568,35 +372,39 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
           poseAsset: AppAssets.sushilFriendly,
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: kAdvGap),
 
-        // 2. MOON PROFILES COMPARISON CARD
-        _buildMoonProfilesComparisonCard(personA, personB, moonA, moonB),
-        const SizedBox(height: 16),
-
-        // 3. 8-KOOTA BREAKDOWN
+        // 2. 8-KOOTA BREAKDOWN
         _buildAshtakootaBreakdownCard(ashtakoota),
-        const SizedBox(height: 16),
+        const SizedBox(height: kAdvGap),
 
-        // 4. MANGLIK COMPATIBILITY EVALUATION
+        // 3. MANGLIK COMPATIBILITY EVALUATION
         _buildManglikComparisonCard(manglik, personA?.name ?? 'Person A', personB?.name ?? 'Person B'),
+        const SizedBox(height: kAdvGap),
+
+        // 4. MOON PROFILES COMPARISON (detail, collapsed)
+        _buildMoonProfilesComparisonCard(personA, personB, moonA, moonB),
         const SizedBox(height: 24),
 
         // 5. RECALCULATE / CHANGE PROFILES
-        OutlinedButton.icon(
+        AdvSecondaryButton(
           onPressed: () {
             ref.read(matchmakingProvider.notifier).clear();
           },
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
-            side: const BorderSide(color: AppColors.primary),
-            foregroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          icon: const Icon(Icons.people_outline_rounded),
-          label: const Text(
-            'Select Different Profiles',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          icon: Icons.people_outline_rounded,
+          label: 'Select Different Profiles',
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton.icon(
+            onPressed: () => _recalculate(personA, personB),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              foregroundColor: AppColors.accent,
+              textStyle: kAdvBody.copyWith(fontWeight: FontWeight.w600),
+            ),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Recalculate'),
           ),
         ),
       ],
@@ -608,95 +416,72 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final isCompatible = result.isCompatible;
     final manglikHarmonious = result.manglikComparison.isHarmonious;
 
+    // Lighter tints so the score stays readable on the dark summary card.
+    const goodOnDark = Color(0xFF6EE7B7);
+    const midOnDark = Color(0xFF5EEAD4);
+    const lowOnDark = Color(0xFFFCA5A5);
+
     Color scoreColor;
     String scoreStatus;
     if (score >= 28) {
-      scoreColor = AppColors.success;
+      scoreColor = goodOnDark;
       scoreStatus = 'Excellent Match (Uttama)';
     } else if (score >= 18) {
-      scoreColor = Colors.teal;
+      scoreColor = midOnDark;
       scoreStatus = 'Favorable Match (Madhyama)';
     } else {
-      scoreColor = AppColors.error;
+      scoreColor = lowOnDark;
       scoreStatus = 'Low Guna Match (< 18 Points)';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scoreColor.withValues(alpha: 0.35), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: scoreColor.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return AdvSummaryCard(
+      label: 'Compatibility score',
+      icon: Icons.favorite_rounded,
+      title: scoreStatus,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 8,
             children: [
               Text(
                 score % 1 == 0 ? score.toInt().toString() : score.toStringAsFixed(1),
                 style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
+                  fontFamily: AppTypography.headingFamily,
+                  fontFamilyFallback: AppTypography.headingFontFamilies,
+                  fontSize: 52,
+                  fontWeight: FontWeight.w700,
                   color: scoreColor,
-                  letterSpacing: -1,
+                  height: 1.0,
                 ),
               ),
-              const SizedBox(width: 6),
-              const Text(
-                '/ 36',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.secondary,
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '/ 36',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textInverseSecondary,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: scoreColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              scoreStatus,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: scoreColor,
+          const SizedBox(height: 16),
+          AdvStatGrid(
+            onDark: true,
+            stats: [
+              AdvStat(
+                label: 'Ashtakoota',
+                value: isCompatible ? 'PASSED (≥ 18)' : 'FAILED (< 18)',
+                accent: isCompatible ? goodOnDark : lowOnDark,
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _buildVerdictPill(
-                  label: 'Ashtakoota',
-                  verdict: isCompatible ? 'PASSED (≥ 18)' : 'FAILED (< 18)',
-                  isPositive: isCompatible,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildVerdictPill(
-                  label: 'Manglik Status',
-                  verdict: manglikHarmonious ? 'HARMONIOUS' : 'MISMATCH',
-                  isPositive: manglikHarmonious,
-                ),
+              AdvStat(
+                label: 'Manglik Status',
+                value: manglikHarmonious ? 'HARMONIOUS' : 'MISMATCH',
+                accent: manglikHarmonious ? goodOnDark : lowOnDark,
               ),
             ],
           ),
@@ -705,34 +490,23 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     );
   }
 
-  Widget _buildVerdictPill({
-    required String label,
-    required String verdict,
-    required bool isPositive,
-  }) {
-    final color = isPositive ? AppColors.success : AppColors.error;
+  /// Label on top, value underneath: reads well on narrow phones and at large
+  /// text sizes where a side-by-side "A vs B" row would be cramped.
+  Widget _stackedRow(String label, String value, {bool bold = false, bool last = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: AppColors.secondary),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            verdict,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: color,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: last
+          ? null
+          : const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.cardBorderSubtle)),
             ),
-          ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: kAdvSecondary),
+          const SizedBox(height: 2),
+          Text(value, style: kAdvBody.copyWith(fontWeight: bold ? FontWeight.w700 : FontWeight.w600)),
         ],
       ),
     );
@@ -744,40 +518,41 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     DerivedMoonProfileModel moonA,
     DerivedMoonProfileModel moonB,
   ) {
-    return AstrologySectionCard(
+    return AdvDetailsExpander(
       title: 'Moon Placement Comparison',
       subtitle: 'Derived natal factors forming the foundation of Guna Milan',
       icon: Icons.nightlight_round,
       child: Column(
         children: [
-          AstrologyInfoRow(
-            label: 'Querent / Person',
-            value: '${personA?.name ?? "Person A"} vs ${personB?.name ?? "Person B"}',
-            isBold: true,
+          _stackedRow(
+            'Querent / Person',
+            '${personA?.name ?? "Person A"} vs ${personB?.name ?? "Person B"}',
+            bold: true,
           ),
-          AstrologyInfoRow(
-            label: 'Moon Sign (Rashi)',
-            value: '${moonA.rashiName} (${moonA.rashiLord}) vs ${moonB.rashiName} (${moonB.rashiLord})',
+          _stackedRow(
+            'Moon Sign (Rashi)',
+            '${moonA.rashiName} (${moonA.rashiLord}) vs ${moonB.rashiName} (${moonB.rashiLord})',
           ),
-          AstrologyInfoRow(
-            label: 'Nakshatra & Pada',
-            value: '${moonA.nakshatraName} P${moonA.pada} vs ${moonB.nakshatraName} P${moonB.pada}',
+          _stackedRow(
+            'Nakshatra & Pada',
+            '${moonA.nakshatraName} P${moonA.pada} vs ${moonB.nakshatraName} P${moonB.pada}',
           ),
-          AstrologyInfoRow(
-            label: 'Varna & Rank',
-            value: '${moonA.varna} (${moonA.varnaRank}) vs ${moonB.varna} (${moonB.varnaRank})',
+          _stackedRow(
+            'Varna & Rank',
+            '${moonA.varna} (${moonA.varnaRank}) vs ${moonB.varna} (${moonB.varnaRank})',
           ),
-          AstrologyInfoRow(
-            label: 'Gana (Temperament)',
-            value: '${moonA.gana} vs ${moonB.gana}',
+          _stackedRow(
+            'Gana (Temperament)',
+            '${moonA.gana} vs ${moonB.gana}',
           ),
-          AstrologyInfoRow(
-            label: 'Yoni Animal',
-            value: '${moonA.yoniAnimal} (${moonA.yoniGender}) vs ${moonB.yoniAnimal} (${moonB.yoniGender})',
+          _stackedRow(
+            'Yoni Animal',
+            '${moonA.yoniAnimal} (${moonA.yoniGender}) vs ${moonB.yoniAnimal} (${moonB.yoniGender})',
           ),
-          AstrologyInfoRow(
-            label: 'Nadi (Pulse/Constitution)',
-            value: '${moonA.nadi} vs ${moonB.nadi}',
+          _stackedRow(
+            'Nadi (Pulse/Constitution)',
+            '${moonA.nadi} vs ${moonB.nadi}',
+            last: true,
           ),
         ],
       ),
@@ -785,11 +560,14 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
   }
 
   Widget _buildAshtakootaBreakdownCard(AshtakootaReportModel ashtakoota) {
-    return AstrologySectionCard(
+    return AdvSection(
       title: '8-Koota Breakdown (${ashtakoota.totalObtainedPoints.toStringAsFixed(ashtakoota.totalObtainedPoints % 1 == 0 ? 0 : 1)} / 36)',
       subtitle: 'Detailed evaluation of all 8 classical compatibility pillars',
       icon: Icons.checklist_rounded,
+      tint: AstroTint.rose,
+      inCard: false,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: ashtakoota.kootaList.map((koota) {
           return _buildKootaTile(koota);
         }).toList(),
@@ -801,96 +579,57 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final bool full = koota.isFullScore;
     final bool zero = koota.isZeroScore;
     final Color badgeColor = full
-        ? AppColors.success
+        ? const Color(0xFF047857)
         : zero
-            ? AppColors.error
-            : Colors.amber.shade800;
+            ? const Color(0xFFB91C1C)
+            : AppColors.goldDark;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      text: koota.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      children: [
-                        if (koota.sanskritName.isNotEmpty) ...[
-                          const TextSpan(text: ' '),
-                          TextSpan(
-                            text: '(${koota.sanskritName})',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                        ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: koota.name,
+                    style: kAdvBody.copyWith(fontWeight: FontWeight.w700),
+                    children: [
+                      if (koota.sanskritName.isNotEmpty) ...[
+                        const TextSpan(text: ' '),
+                        TextSpan(
+                          text: '(${koota.sanskritName})',
+                          style: kAdvSecondary,
+                        ),
                       ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    koota.scoreFormatted,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: badgeColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              koota.description,
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: AppColors.secondary,
-              ),
-            ),
-            if (koota.isDoshaCancelled && koota.cancellationReason != null) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Neutralized: ${koota.cancellationReason}',
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.success,
+                    ],
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              AdvBadge(koota.scoreFormatted, color: badgeColor),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(koota.description, style: kAdvSecondary),
+          if (koota.isDoshaCancelled && koota.cancellationReason != null) ...[
+            const SizedBox(height: 8),
+            AdvNote(
+              'Neutralized: ${koota.cancellationReason}',
+              icon: Icons.check_circle_outline_rounded,
+              color: const Color(0xFF047857),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -900,104 +639,77 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     String nameA,
     String nameB,
   ) {
-    return AstrologySectionCard(
+    return AdvSection(
       title: 'Manglik Compatibility Evaluation',
       subtitle: 'Pairwise Mars placement and partnership dynamics',
       icon: Icons.shield_rounded,
+      tint: AstroTint.coral,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.18),
-              ),
+              color: AppColors.canvas,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Verdict: ${manglik.verdict.replaceAll("_", " ")}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: AppColors.primary,
-                  ),
+                  style: kAdvBody.copyWith(fontWeight: FontWeight.w700),
                 ),
                 if (manglik.explanation.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    manglik.explanation,
-                    style: const TextStyle(fontSize: 12, height: 1.35),
-                  ),
+                  Text(manglik.explanation, style: kAdvSecondary),
                 ],
               ],
             ),
           ),
           const SizedBox(height: 12),
           _buildIndividualManglikStatus(nameA, manglik.personA),
-          const SizedBox(height: 8),
-          _buildIndividualManglikStatus(nameB, manglik.personB),
+          const SizedBox(height: 4),
+          _buildIndividualManglikStatus(nameB, manglik.personB, last: true),
         ],
       ),
     );
   }
 
-  Widget _buildIndividualManglikStatus(String personName, ManglikStatusModel status) {
+  Widget _buildIndividualManglikStatus(String personName, ManglikStatusModel status, {bool last = false}) {
     return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.15)),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: last
+          ? null
+          : const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppColors.cardBorderSubtle)),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  personName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: status.isManglik
-                      ? AppColors.primary.withValues(alpha: 0.10)
-                      : AppColors.success.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  status.isManglik ? 'PRESENT' : 'NOT PRESENT',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: status.isManglik ? AppColors.primary : AppColors.success,
-                  ),
-                ),
+              Text(personName, style: kAdvBody.copyWith(fontWeight: FontWeight.w700)),
+              AdvBadge(
+                status.isManglik ? 'PRESENT' : 'NOT PRESENT',
+                color: status.isManglik ? AppColors.primary : const Color(0xFF047857),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             'Mars House from Lagna: H${status.houseFromLagna} • From Moon: H${status.houseFromMoon}',
-            style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+            style: kAdvSecondary,
           ),
           if (status.cancellationFactors.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
               'Alignment Factors: ${status.cancellationFactors.join(", ")}',
-              style: const TextStyle(fontSize: 10.5, color: AppColors.success),
+              style: kAdvSecondary.copyWith(color: const Color(0xFF047857)),
             ),
           ],
         ],

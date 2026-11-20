@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Astro Sushil launch background (AppColors.midnight #0D0E2B).
+         Keep in sync with kSplashBaseColor in
+         lib/features/splash/screens/splash_screen.dart and the iOS
+         LaunchScreen.storyboard so there is no flash into the Flutter splash. -->
+    <color name="splash_background">#0D0E2B</color>
+    <!-- Launcher icon background (AppColors.canvas cream). -->
+    <color name="ic_launcher_background">#FAF7F2</color>
+</resources>

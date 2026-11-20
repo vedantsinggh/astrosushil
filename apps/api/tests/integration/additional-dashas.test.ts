@@ -197,60 +197,112 @@ describe('Phase 2N, 2O, 2P Additional Dashas API Integration Tests', () => {
     });
   });
 
-  describe('POST /api/v1/astrology/dashas/conditional', () => {
+  // Conditional Parashari Dashas are served by the unified POST /api/v1/astrology/dasha
+  // endpoint (dashaSystem: 'DWISAPTATI_SAMA', ...). Eligibility is enforced by the engine:
+  // an ineligible chart returns evidence instead of a fabricated timeline.
+  describe('POST /api/v1/astrology/dasha (dashaSystem: DWISAPTATI_SAMA)', () => {
+    // Same date/place, 23:30 IST: Capricorn Lagna with 7th lord Moon in Lagna -> eligible.
+    const eligibleBirthDetails = { ...validBirthDetails, timeOfBirth: '23:30:00' };
+
     it('calculates Dwisaptati Sama Dasha (72 years) with eligibility and Antardashas', async () => {
       const response = await app.inject({
         method: 'POST',
-        url: '/api/v1/astrology/dashas/conditional',
+        url: '/api/v1/astrology/dasha',
         payload: {
-          birthDetails: validBirthDetails,
-          systemType: 'DWISAPTATI_SAMA',
+          birthDetails: eligibleBirthDetails,
+          dashaSystem: 'DWISAPTATI_SAMA',
           maxLevel: 2,
           targetDate: '2020-01-01T00:00:00Z',
         },
       });
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.payload);
+      const body = JSON.parse(response.payload).data;
 
       expect(body.birthDetails).toBeDefined();
       expect(body.system).toBe('DWISAPTATI_SAMA');
-      expect(body.totalYears).toBe(72);
-      expect(typeof body.isEligible).toBe('boolean');
-      expect(body.eligibilityReason).toBeDefined();
-      expect(body.startingLord).toBeDefined();
-      expect(body.balanceAtBirthYears).toBeGreaterThan(0);
-      expect(body.mahadashas).toBeDefined();
-      expect(body.mahadashas.length).toBe(8);
+      expect(body.totalSpanYears).toBe(72);
+      expect(body.eligibility.isEligible).toBe(true);
+      expect(body.eligibility.eligibilityMethod).toBe('LAGNA_LORD_IN_7TH_OR_7TH_LORD_IN_1ST');
+      expect(body.eligibility.reason).toContain('7th Lord (MOON) is in the 1st house');
 
-      for (const md of body.mahadashas) {
+      const tree = body.tree;
+      expect(tree.totalCycleYears).toBe(72);
+      expect(tree.birthLord).toBeDefined();
+      expect(tree.balanceAtBirthYears).toBeGreaterThan(0);
+      // 9 Grahas x 8 years = 72 years
+      expect(tree.mahadashas.length).toBe(9);
+      expect(tree.mahadashas[0].lord).toBe(tree.birthLord);
+
+      for (const md of tree.mahadashas) {
         expect(md.lord).toBeDefined();
-        expect(md.durationYears).toBe(9);
+        expect(md.nominalYears).toBe(8);
         expect(md.subPeriods).toBeDefined();
-        expect(md.subPeriods.length).toBe(8);
+        if (md.isBirthDasha) {
+          expect(md.subPeriods.length).toBeGreaterThanOrEqual(1);
+          expect(md.subPeriods.length).toBeLessThanOrEqual(9);
+        } else {
+          expect(md.durationYears).toBeCloseTo(8, 6);
+          expect(md.subPeriods.length).toBe(9);
+        }
       }
+    });
+
+    it('returns eligibility evidence and no timeline for an ineligible chart', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/astrology/dasha',
+        payload: {
+          birthDetails: validBirthDetails,
+          dashaSystem: 'DWISAPTATI_SAMA',
+          maxLevel: 2,
+          targetDate: '2020-01-01T00:00:00Z',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.payload).data;
+      expect(body.system).toBe('DWISAPTATI_SAMA');
+      expect(body.eligibility.isEligible).toBe(false);
+      expect(body.eligibility.criteria.lagnaLord).toBe('MERCURY');
+      expect(body.eligibility.criteria.lagnaLordHouse).toBe(8);
+      expect(body.eligibility.criteria.seventhLord).toBe('JUPITER');
+      expect(body.eligibility.criteria.seventhLordHouse).toBe(10);
+      expect(body.tree.isEligible).toBe(false);
+      expect(body.tree.mahadashas).toBeUndefined();
     });
   });
 
   describe('GET /api/v1/astrology/conventions', () => {
-    it('includes Yogini, Chara, Narayana, Kalachakra, and Conditional Dashas in conventions', async () => {
+    // Yogini, Chara, Narayana and Kalachakra moved from PENDING to IMPLEMENTED on 2026-11-18
+    // (docs/report-system/decisions/engine-extensions.md). Chara/Narayana cycle length is
+    // chart-dependent; the registry reports the 144-year maximum (12 signs x 12 years).
+    it('lists Yogini, Chara, Narayana, Kalachakra and Conditional Dashas as implemented', async () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1/astrology/conventions',
       });
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.payload);
-      expect(body.conventions.yoginiDasha).toBeDefined();
-      expect(body.conventions.yoginiDasha.subsystem).toBe('Yogini Dasha Engine');
-      expect(body.conventions.charaDasha).toBeDefined();
-      expect(body.conventions.charaDasha.subsystem).toBe('Jaimini Chara Dasha Engine');
-      expect(body.conventions.narayanaDasha).toBeDefined();
-      expect(body.conventions.narayanaDasha.subsystem).toBe('Narayana Dasha Engine');
-      expect(body.conventions.kalachakraDasha).toBeDefined();
-      expect(body.conventions.kalachakraDasha.subsystem).toBe('Kalachakra Dasha Engine');
-      expect(body.conventions.conditionalDashas).toBeDefined();
-      expect(body.conventions.conditionalDashas.subsystem).toBe('Parashara Conditional Dashas Engine');
+      const body = JSON.parse(response.payload).data;
+      const pending = body.dashaSystems.pending;
+      const implemented = body.dashaSystems.implemented;
+
+      const expectedImplemented: Record<string, number> = { YOGINI: 36, CHARA: 144, NARAYANA: 144, KALACHAKRA: 100 };
+      for (const [system, years] of Object.entries(expectedImplemented)) {
+        const meta = implemented.find((d: any) => d.system === system);
+        expect(meta).toBeDefined();
+        expect(meta.status).toBe('IMPLEMENTED');
+        expect(meta.isConditional).toBe(false);
+        expect(meta.totalCycleYears).toBe(years);
+        expect(pending.find((d: any) => d.system === system)).toBeUndefined();
+      }
+
+      const dwisaptati = implemented.find((d: any) => d.system === 'DWISAPTATI_SAMA');
+      expect(dwisaptati).toBeDefined();
+      expect(dwisaptati.status).toBe('IMPLEMENTED');
+      expect(dwisaptati.isConditional).toBe(true);
+      expect(dwisaptati.totalCycleYears).toBe(72);
     });
   });
 });

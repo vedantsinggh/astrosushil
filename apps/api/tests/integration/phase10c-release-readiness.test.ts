@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import crypto from 'crypto';
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
@@ -16,6 +16,7 @@ import {
   FulfillmentUnitStatus,
   ObligationType,
 } from '@prisma/client';
+import { stubPlatformGeneration } from '../helpers/platform-report-stub';
 
 describe('Phase 10C: End-to-End Release Readiness Audit', () => {
   let app: FastifyInstance;
@@ -49,7 +50,7 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
     customerA = await prisma.user.create({
       data: {
         email: 'customer-a-p10c@test.com',
-        fullName: 'Phase 10C Puneet Kumar',
+        fullName: 'Phase 10C Test Customer',
         role: Role.USER,
       },
     });
@@ -76,17 +77,17 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
       role: otherCustomer.role,
     });
 
-    // Puneet Kumar canonical birth profile
+    // Canonical reference test birth profile
     primaryProfile = await prisma.birthProfile.create({
       data: {
         userId: customerA.id,
-        name: 'Puneet Kumar',
+        name: 'Reference Test Native',
         dateOfBirth: '1983-12-28',
         timeOfBirth: '04:45:00',
         latitude: 28.4069,
         longitude: 77.8498,
         timezone: 'Asia/Kolkata',
-        placeName: 'Bulandshahr, Uttar Pradesh, India',
+        placeName: 'Uttar Pradesh, India',
       },
     });
 
@@ -405,15 +406,15 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
   });
 
   // =========================================================================
-  // 2. END-TO-END CUSTOMER JOURNEY FOR ALL 10 RELEASED SKUS
+  // 2. END-TO-END CUSTOMER JOURNEY FOR ALL 9 RELEASED SKUS
   // =========================================================================
-  describe('2. End-to-End Customer Journey For All 10 Released SKUs', () => {
+  describe('2. End-to-End Customer Journey For All 9 Released SKUs', () => {
     const RELEASED_SKUS = [
       { sku: 'report-kundli', price: 29900, reportType: ReportType.KUNDLI, isCareer: false },
       { sku: 'report-planetary-summary', price: 19900, reportType: ReportType.PLANETARY_SUMMARY, isCareer: false },
       { sku: 'report-horoscope', price: 49900, reportType: ReportType.HOROSCOPE, isCareer: false },
       { sku: 'report-career', price: 49900, reportType: ReportType.CAREER, isCareer: true },
-      { sku: 'report-career-pro', price: 69900, reportType: ReportType.CAREER_PROSITY, isCareer: false },
+      // report-career-pro (CAREER_PROSITY) is retired from sale; see section 3.
       { sku: 'report-finance', price: 49900, reportType: ReportType.FINANCE, isCareer: false },
       { sku: 'report-love', price: 49900, reportType: ReportType.LOVE, isCareer: false },
       { sku: 'report-fortune', price: 49900, reportType: ReportType.FORTUNE, isCareer: false },
@@ -480,21 +481,41 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
           }
 
           const genUrl = item.isCareer ? '/api/v1/reports/career' : '/api/v1/reports/generate';
-          const genResp = await app.inject({
-            method: 'POST',
-            url: genUrl,
-            headers: { authorization: `Bearer ${customerAToken}` },
-            payload: genPayload,
-          });
+          // The request enqueues without awaiting; wait for that durable-queue UPDATE to settle
+          // so the worker claim below is not skipped by its row lock (FOR UPDATE SKIP LOCKED).
+          const enqueueSpy = vi.spyOn(careerReportWorker, 'enqueueReportJob');
+          let genResp;
+          try {
+            genResp = await app.inject({
+              method: 'POST',
+              url: genUrl,
+              headers: { authorization: `Bearer ${customerAToken}` },
+              payload: genPayload,
+            });
+            await Promise.all(enqueueSpy.mock.results.map((r) => r.value));
+            expect(enqueueSpy).toHaveBeenCalledTimes(1);
+          } finally {
+            enqueueSpy.mockRestore();
+          }
 
           expect(genResp.statusCode).toBe(201);
           const genBody = JSON.parse(genResp.body);
           const reportId = genBody.id || genBody.reportId;
           expect(reportId).toBeDefined();
 
-          // If job was queued (e.g. career report pipeline), execute worker pipeline to completion
-          if (genBody.status === 'QUEUED') {
-            await careerReportWorker.executeReportPipeline(reportId);
+          // Generation always runs in the report worker: the request only queues the job.
+          expect(genBody.status).toBe('QUEUED');
+          {
+            // The paid LLM generation is substituted; claim, delivery, fencing and fulfilment run for real.
+            const generation = stubPlatformGeneration();
+            let generationCalls = 0;
+            try {
+              await careerReportWorker.executeReportPipeline(reportId);
+              generationCalls = generation.mock.calls.length;
+            } finally {
+              generation.mockRestore();
+            }
+            expect(generationCalls).toBe(1);
           }
 
           // Step 6: Verify 24-hour delivery SLA calculation
@@ -578,6 +599,30 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
         expect(unreleasedItem.pricePaise).toBe(0);
       });
     }
+  });
+
+  describe('3b. Checkout Blocked for the Retired Career Pro SKU', () => {
+    it('should reject checkout for report-career-pro while keeping its price for historical orders', async () => {
+      const ordersBefore = await prisma.order.count({ where: { userId: customerA.id } });
+      const resp = await app.inject({
+        method: 'POST',
+        url: '/api/v1/payments/create-order',
+        headers: { authorization: `Bearer ${customerAToken}` },
+        payload: {
+          items: [{ catalogId: 'report-career-pro', quantity: 1 }],
+        },
+      });
+
+      expect(resp.statusCode).toBe(400);
+      const body = JSON.parse(resp.body);
+      expect(body.error.message).toContain('currently inactive or unavailable');
+      expect(await prisma.order.count({ where: { userId: customerA.id } })).toBe(ordersBefore);
+
+      const retired = COMMERCE_CATALOG['report-career-pro'];
+      expect(retired.isActive).toBe(false);
+      expect(retired.pricePaise).toBe(69900);
+      expect(retired.legacyReportType).toBe(ReportType.CAREER_PROSITY);
+    });
   });
 
   // =========================================================================

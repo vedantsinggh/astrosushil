@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
@@ -14,16 +10,16 @@ import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/gochara_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
-import '../widgets/astrology_data_table.dart';
+import '../widgets/adv_widgets.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_section_card.dart';
-import '../widgets/degree_value_display.dart';
-import '../widgets/expandable_astrology_card.dart';
 import '../widgets/planet_chip.dart';
-import '../widgets/sign_chip.dart';
 import '../widgets/astrology_explanation_card.dart';
+
+/// Readable green / red for text on light surfaces.
+const Color _kGood = Color(0xFF047857);
+const Color _kBad = Color(0xFFB91C1C);
 
 /// Screen presenting Gochara (Planetary Transits) relative to natal chart
 /// Calculated deterministically via Fastify backend /astrology/gochara
@@ -41,73 +37,57 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Gochara (गोचर / Transits)',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.primary),
-            tooltip: 'About Gochara',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Gochara evaluates real-time sidereal planetary transits relative to your natal Moon, Ascendant, and Ashtakavarga Kakshas.',
-                  ),
-                  duration: Duration(seconds: 4),
+    return AstroPage(
+      title: 'Gochara (गोचर / Transits)',
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Gochara',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Gochara evaluates real-time sidereal planetary transits relative to your natal Moon, Ascendant, and Ashtakavarga Kakshas.',
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Profile Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: ActiveBirthProfileSelector(
-                  isDark: false,
-                  onProfileChanged: (_) {},
-                ),
+                duration: Duration(seconds: 4),
               ),
-
-              // Main Content
-              Expanded(
-                child: activeProfile == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: AstrologyEmptyState(
-                            title: 'No Active Birth Profile',
-                            message: 'Select or create a birth profile to calculate personalized Gochara transits relative to your natal Moon and Lagna.',
-                            actionLabel: 'Add Birth Profile',
-                            onAction: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : ref.watch(gocharaForProfileProvider(activeProfile)).when(
-                          loading: () => const AstrologyLoadingState(
-                            message: 'Calculating Gochara planetary transits & Kakshas...',
-                          ),
-                          error: (err, stack) => AstrologyErrorState(
-                            error: err,
-                            customMessage: 'Failed to calculate transit snapshot',
-                            onRetry: () => ref.invalidate(gocharaForProfileProvider(activeProfile)),
-                          ),
-                          data: (snapshot) => _buildGocharaContent(context, activeProfile, snapshot),
-                        ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ActiveBirthProfileSelector(
+            isDark: false,
+            onProfileChanged: (_) {},
+          ),
+          const SizedBox(height: kAdvGap),
+          if (activeProfile == null)
+            AstrologyEmptyState(
+              title: 'No Active Birth Profile',
+              message:
+                  'Select or create a birth profile to calculate personalized Gochara transits relative to your natal Moon and Lagna.',
+              actionLabel: 'Add Birth Profile',
+              onAction: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                );
+              },
+            )
+          else
+            ref.watch(gocharaForProfileProvider(activeProfile)).when(
+                  loading: () => const AstrologyLoadingState(
+                    message: 'Calculating Gochara planetary transits & Kakshas...',
+                  ),
+                  error: (err, stack) => AstrologyErrorState(
+                    error: err,
+                    customMessage: 'Failed to calculate transit snapshot',
+                    onRetry: () => ref.invalidate(gocharaForProfileProvider(activeProfile)),
+                  ),
+                  data: (snapshot) => _buildGocharaContent(context, activeProfile, snapshot),
+                ),
+        ],
       ),
     );
   }
@@ -122,14 +102,16 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
       purpose: 'Explain the current real-time planetary transits relative to natal Moon and Ascendant for ${profile.name}.',
       astrologyData: {
         'transitDate': snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso,
-        'planets': snapshot.planets.entries.map((e) => {
-          'planet': e.key,
-          'sign': e.value.rashiName,
-          'degree': e.value.degreeInRashi,
-          'isRetrograde': e.value.isRetrograde,
-          'houseFromMoon': snapshot.getMoonRelationship(e.key)?.houseFromMoon,
-          'houseFromLagna': snapshot.getLagnaRelationship(e.key)?.houseFromLagna,
-        }).toList(),
+        'planets': snapshot.planets.entries
+            .map((e) => {
+                  'planet': e.key,
+                  'sign': e.value.rashiName,
+                  'degree': e.value.degreeInRashi,
+                  'isRetrograde': e.value.isRetrograde,
+                  'houseFromMoon': snapshot.getMoonRelationship(e.key)?.houseFromMoon,
+                  'houseFromLagna': snapshot.getLagnaRelationship(e.key)?.houseFromLagna,
+                })
+            .toList(),
         'selectedPlanet': _selectedPlanet,
       },
       importantValues: {
@@ -154,335 +136,159 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     final avDetail = snapshot.getAshtakavargaDetail(_selectedPlanet);
     final kakshaDetail = snapshot.getKakshaDetail(_selectedPlanet);
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Educational Explanation Card
-        AstrologyExplanationCard(
-          title: context.l10n.explainGocharaTitle,
-          whatIs: context.l10n.explainGocharaWhatIs,
-          howToRead: context.l10n.explainGocharaHowToRead,
-        ),
-        const SizedBox(height: 12),
+        // 1. PLANET SELECTOR
+        _buildPlanetSelector(planets),
+        const SizedBox(height: kAdvGap),
 
-        // 1. CONTEXT BANNER
-        _buildContextBanner(snapshot, profile),
-
-        const SizedBox(height: 12),
+        // 2. AT-A-GLANCE: SELECTED PLANET TRANSIT
+        if (selectedPos != null) ...[
+          _buildPlanetTransitHero(snapshot, selectedPos, moonRel, lagnaRel),
+          const SizedBox(height: kAdvGap),
+        ],
 
         // Sushil Sir Explainer Button
         SushilExplainerButton(
           contextBuilder: () => _buildExplanationContext(snapshot, profile),
           poseAsset: AppAssets.sushilExplaining,
         ),
+        const SizedBox(height: kAdvGap),
 
-        const SizedBox(height: 14),
-
-        // 2. HORIZONTAL PLANET SELECTOR
-        _buildPlanetSelector(planets),
-        const SizedBox(height: 14),
-
-        // 3. SELECTED PLANET TRANSIT HERO CARD
-        if (selectedPos != null)
-          _buildPlanetTransitHero(selectedPos, moonRel, lagnaRel),
-        const SizedBox(height: 14),
-
-        // 4. TRANSIT INTELLIGENCE MATRIX
+        // 3. TRANSIT INTELLIGENCE
         _buildTransitIntelligenceSection(selectedPos, moonRel, lagnaRel, avDetail, kakshaDetail),
-        const SizedBox(height: 14),
+        const SizedBox(height: kAdvGap),
 
-        // 5. ALL 9 PLANETS TRANSIT OVERVIEW TABLE
+        // 4. ALL 9 PLANETS (COLLAPSED)
         _buildAllTransitsTable(snapshot),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
-        // 6. CLASSICAL SIGNIFICANCE ACCORDION
-        const ExpandableAstrologyCard(
+        // 5. CLASSICAL RULES (COLLAPSED)
+        const AdvDetailsExpander(
           title: 'Classical Gochara Rules',
-          subtitle: 'Principles of transit interpretation from Moon & Lagna',
+          subtitle: 'How transits are read from Moon & Lagna',
           icon: Icons.menu_book_rounded,
-          initiallyExpanded: false,
-          expandedChild: Text(
+          child: Text(
             'Classical Vedic Gochara principles:\n\n'
             '• Moon Reference (Chandra Lagna): Gochara is traditionally evaluated from the natal Moon sign to gauge mental and physical experiences.\n'
             '• Ascendant Reference (Janma Lagna): Indicates actual material events, health vitality, and environmental circumstances.\n'
             '• Ashtakavarga Support: A transit through a sign with 4+ BAV bindus and 28+ SAV points manifests benefic results.\n'
             '• Kaksha Division: Each sign is partitioned into 8 Kakshas (3°45′ each). A transit delivers results when passing through a Kaksha ruled by a planet contributing a natal bindu.',
-            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.primary),
+            style: kAdvBody,
           ),
+        ),
+        const SizedBox(height: kAdvGap),
+
+        // 6. LEARN MORE
+        AstrologyExplanationCard(
+          title: context.l10n.explainGocharaTitle,
+          whatIs: context.l10n.explainGocharaWhatIs,
+          howToRead: context.l10n.explainGocharaHowToRead,
         ),
       ],
     );
   }
 
-  Widget _buildContextBanner(TransitSnapshotModel snapshot, BirthProfileModel profile) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.public_rounded, size: 14, color: AppColors.secondary),
-              const SizedBox(width: 6),
-              const Expanded(
-                child: Text(
-                  'Real-Time Sidereal Transits',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'ACTIVE',
-                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.success),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.schedule_rounded, size: 12, color: AppColors.lightTextMuted),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'Calculated at: ${() {
-                    final raw = snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso;
-                    final displayDate = raw.replaceFirst('T', ' ');
-                    return displayDate.length > 16 ? displayDate.substring(0, 16) : displayDate;
-                  }()} (${snapshot.timezone})',
-                  style: const TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  String _calculatedAt(TransitSnapshotModel snapshot) {
+    final raw = snapshot.localIso.isNotEmpty ? snapshot.localIso : snapshot.utcIso;
+    final displayDate = raw.replaceFirst('T', ' ');
+    final trimmed = displayDate.length > 16 ? displayDate.substring(0, 16) : displayDate;
+    return 'Calculated at: $trimmed (${snapshot.timezone})';
   }
 
   Widget _buildPlanetSelector(List<TransitPlanetPositionModel> planets) {
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: planets.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (ctx, index) {
-          final p = planets[index];
-          final isSelected = p.planet.toUpperCase() == _selectedPlanet.toUpperCase();
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedPlanet = p.planet.toUpperCase()),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.accentGold : AppColors.cardSurfaceWarm,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isSelected ? AppColors.accentGold : AppColors.cardBorder,
-                  width: 1,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Choose a planet', style: kAdvTitle),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: planets.map((p) {
+            final isSelected = p.planet.toUpperCase() == _selectedPlanet.toUpperCase();
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              child: Material(
+                color: isSelected ? AppColors.gold : AppColors.cardSurface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: isSelected ? AppColors.gold : AppColors.cardBorder),
                 ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.accentGold.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PlanetChip(planetName: p.planet, isCompact: true),
-                  const SizedBox(width: 6),
-                  Text(
-                    p.rashiName.substring(0, p.rashiName.length > 3 ? 3 : p.rashiName.length),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? AppColors.textPrimaryDark : AppColors.primary,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => setState(() => _selectedPlanet = p.planet.toUpperCase()),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PlanetChip(planetName: p.planet, isCompact: true),
+                          const SizedBox(width: 6),
+                          Text(
+                            p.rashiName.substring(0, p.rashiName.length > 3 ? 3 : p.rashiName.length),
+                            style: kAdvSecondary.copyWith(
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
   Widget _buildPlanetTransitHero(
+    TransitSnapshotModel snapshot,
     TransitPlanetPositionModel p,
     TransitToMoonRelationshipModel? moonRel,
     TransitToLagnaRelationshipModel? lagnaRel,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: AppGradients.heroCosmic,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return AdvSummaryCard(
+      label: 'Real-Time Sidereal Transits',
+      icon: Icons.public_rounded,
+      title: 'Transit ${p.planet}',
+      subtitle: '${p.nakshatraName} • Pada ${p.pada}\n${_calculatedAt(snapshot)}',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header: Planet Name & Status Badges
-          Row(
-            children: [
-              PlanetChip(planetName: p.planet, isCompact: false),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Transit ${p.planet}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${p.nakshatraName} • Pada ${p.pada}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.cardSurfaceParchment),
-                    ),
-                  ],
-                ),
+          if (p.isRetrograde || p.isCombust) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (p.isRetrograde) const AdvBadge('Retrograde', color: AppColors.primary, background: AppColors.saffronLight),
+                if (p.isCombust) const AdvBadge('Combust', color: AppColors.primary, background: AppColors.errorBorder),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          AdvStatGrid(
+            onDark: true,
+            stats: [
+              AdvStat(label: 'Current Sign', value: p.rashiName, caption: p.formattedDegree, accent: AppColors.gold),
+              AdvStat(
+                label: 'From Moon',
+                value: moonRel != null ? 'H-${moonRel.houseFromMoon}' : 'H-${p.house}',
+                caption: moonRel != null ? '${moonRel.signDistance} signs' : 'Direct',
               ),
-              if (p.isRetrograde)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.deepOrange.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.deepOrange.shade300, width: 0.5),
-                  ),
-                  child: const Text(
-                    'RETROGRADE',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
-                  ),
-                ),
-              if (p.isCombust)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.redAccent, width: 0.5),
-                  ),
-                  child: const Text(
-                    'COMBUST',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.redAccent),
-                  ),
-                ),
-            ],
-          ),
-
-          const Divider(height: 20, color: Colors.white24),
-
-          // 3-Column Metrics: Position, From Moon, From Lagna
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricTile(
-                  label: 'Current Sign',
-                  value: p.rashiName,
-                  subvalue: p.formattedDegree,
-                  icon: Icons.explore_rounded,
-                  color: AppColors.accentGold,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricTile(
-                  label: 'From Moon',
-                  value: moonRel != null ? 'H-${moonRel.houseFromMoon}' : 'H-${p.house}',
-                  subvalue: moonRel != null ? '${moonRel.signDistance} signs' : 'Direct',
-                  icon: Icons.nightlight_round,
-                  color: const Color(0xFF90CAF9),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricTile(
-                  label: 'From Lagna',
-                  value: lagnaRel != null ? 'H-${lagnaRel.houseFromLagna}' : 'H-${p.house}',
-                  subvalue: lagnaRel != null ? '${lagnaRel.signDistance} signs' : 'Direct',
-                  icon: Icons.wb_twilight_rounded,
-                  color: const Color(0xFFFFCC80),
-                ),
+              AdvStat(
+                label: 'From Lagna',
+                value: lagnaRel != null ? 'H-${lagnaRel.houseFromLagna}' : 'H-${p.house}',
+                caption: lagnaRel != null ? '${lagnaRel.signDistance} signs' : 'Direct',
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricTile({
-    required String label,
-    required String value,
-    required String subvalue,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 12, color: AppColors.primary),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            subvalue,
-            style: const TextStyle(fontSize: 10.5, color: AppColors.lightTextMuted),
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -496,90 +302,41 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
     TransitAshtakavargaDetailModel? avDetail,
     GocharaKakshaDetailModel? kakshaDetail,
   ) {
-    return AstrologySectionCard(
+    return AdvSection(
       title: 'Transit Intelligence & Kaksha',
       subtitle: 'Ashtakavarga support & Kaksha partition metrics',
       icon: Icons.shield_outlined,
+      tint: AstroTint.sage,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (avDetail == null && kakshaDetail == null) const AdvNote('No Ashtakavarga or Kaksha details for this planet.'),
           if (avDetail != null) ...[
-            AstrologyInfoRow(
+            AdvInfoRow(
               label: 'BAV Bindus in Transit Sign',
-              value: '${avDetail.bavPoints} / 8',
-              valueWidget: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${avDetail.bavPoints} Points',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: avDetail.isBavFavorable ? AppColors.success : AppColors.error,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: (avDetail.isBavFavorable ? AppColors.success : AppColors.error).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      avDetail.isBavFavorable ? 'BENEFIC (≥4)' : 'CHALLENGING (<4)',
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.bold,
-                        color: avDetail.isBavFavorable ? AppColors.success : AppColors.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              value: '${avDetail.bavPoints} Points',
+              valueColor: avDetail.isBavFavorable ? _kGood : _kBad,
+              note: avDetail.isBavFavorable ? 'Benefic (≥4)' : 'Challenging (<4)',
             ),
-            AstrologyInfoRow(
+            AdvInfoRow(
               label: 'SAV Total in Transit Sign',
-              value: '${avDetail.savPoints} / 56',
-              valueWidget: Text(
-                '${avDetail.savPoints} ${avDetail.isSavFavorable ? "(Supportive ≥28)" : "(Low <28)"}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: avDetail.isSavFavorable ? AppColors.success : AppColors.secondary,
-                ),
-              ),
+              value: '${avDetail.savPoints}',
+              valueColor: avDetail.isSavFavorable ? _kGood : AppColors.secondary,
+              note: avDetail.isSavFavorable ? 'Supportive (≥28)' : 'Low (<28)',
             ),
           ],
           if (kakshaDetail != null) ...[
-            AstrologyInfoRow(
+            AdvInfoRow(
               label: 'Active Kaksha Partition',
-              value: 'Kaksha ${kakshaDetail.kakshaIndex} (Lord: ${kakshaDetail.kakshaRuler})',
+              value: 'Kaksha ${kakshaDetail.kakshaIndex}',
+              note: 'Lord: ${kakshaDetail.kakshaRuler}',
             ),
-            AstrologyInfoRow(
+            AdvInfoRow(
               label: 'Kaksha Bindu Activation',
-              value: kakshaDetail.hasNatalBindu ? 'Active (Natal Bindu Present)' : 'Inactive',
-              valueWidget: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    kakshaDetail.hasNatalBindu ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                    size: 14,
-                    color: kakshaDetail.hasNatalBindu ? AppColors.success : AppColors.lightTextMuted,
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      kakshaDetail.hasNatalBindu ? 'Benefic Triggered' : 'No Natal Bindu',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.bold,
-                        color: kakshaDetail.hasNatalBindu ? AppColors.success : AppColors.lightTextMuted,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              showBorder: false,
+              value: kakshaDetail.hasNatalBindu ? 'Benefic Triggered' : 'No Natal Bindu',
+              valueColor: kakshaDetail.hasNatalBindu ? _kGood : AppColors.textSecondary,
+              note: kakshaDetail.hasNatalBindu ? 'Active (Natal Bindu Present)' : 'Inactive',
+              showDivider: false,
             ),
           ],
         ],
@@ -590,30 +347,24 @@ class _GocharaScreenState extends ConsumerState<GocharaScreen> {
   Widget _buildAllTransitsTable(TransitSnapshotModel snapshot) {
     final planets = snapshot.orderedPlanets;
 
-    return AstrologySectionCard(
+    return AdvDetailsExpander(
       title: 'Current Planetary Positions',
       subtitle: 'All 9 grahas in real-time sidereal zodiac',
       icon: Icons.grid_view_rounded,
-      child: AstrologyDataTable(
-        columns: const [
-          AstrologyTableColumn(header: 'Graha', flex: 3),
-          AstrologyTableColumn(header: 'Sign', flex: 3),
-          AstrologyTableColumn(header: 'Degree', flex: 3),
-          AstrologyTableColumn(header: 'Moon-H', flex: 2, alignment: TextAlign.center),
-        ],
-        rows: planets.map((p) {
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: planets.map((p) {
           final moonRel = snapshot.getMoonRelationship(p.planet);
-
-          return [
-            PlanetChip(planetName: p.planet, isCompact: true),
-            SignChip(signName: p.rashiName, isCompact: true),
-            DegreeValueDisplay(degree: p.degreeInRashi),
-            Text(
-              moonRel != null ? 'H-${moonRel.houseFromMoon}' : 'H-${p.house}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
-              textAlign: TextAlign.center,
-            ),
-          ];
+          return AdvRowCard(
+            title: p.planet,
+            badge: p.isRetrograde ? const AdvBadge('R') : null,
+            highlight: p.planet.toUpperCase() == _selectedPlanet.toUpperCase(),
+            facts: [
+              MapEntry('Sign', p.rashiName),
+              MapEntry('Degree', p.formattedDegree),
+              MapEntry('From Moon', moonRel != null ? 'H-${moonRel.houseFromMoon}' : 'H-${p.house}'),
+            ],
+          );
         }).toList(),
       ),
     );

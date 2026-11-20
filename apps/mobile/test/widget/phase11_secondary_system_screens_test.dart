@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
 import 'package:astro_mobile/core/localization/locale_provider.dart';
+import 'package:astro_mobile/features/notifications/providers/notifications_provider.dart';
 import 'package:astro_mobile/features/notifications/screens/notifications_screen.dart';
+import '../helpers/notification_fixtures.dart';
 import 'package:astro_mobile/features/notifications/widgets/notification_detail_sheet.dart';
 import 'package:astro_mobile/features/support/screens/help_support_screen.dart';
 import 'package:astro_mobile/features/legal/screens/legal_documents_screen.dart';
@@ -22,6 +24,7 @@ Widget _buildTestApp({
 }) {
   return ProviderScope(
     overrides: [
+      notificationsNotifierProvider.overrideWith((ref) => SeededNotificationsNotifier()),
       secureStorageProvider.overrideWithValue(InMemorySecureStorageService()),
       ...overrides,
     ],
@@ -60,8 +63,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Notifications'), findsOneWidget);
-      expect(find.textContaining('All'), findsOneWidget);
-      expect(find.byType(ListView), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^All')), findsOneWidget);
+      // The list now scrolls under the shared large-title nav bar.
+      expect(find.byType(CustomScrollView), findsOneWidget);
 
       // Verify notification title exists
       expect(find.textContaining('Rahu Kaal'), findsWidgets);
@@ -76,7 +80,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll horizontally to bring Transits chip into viewport
-      await tester.drag(find.textContaining('All'), const Offset(-200, 0));
+      await tester.drag(find.textContaining(RegExp(r'^All')), const Offset(-200, 0));
       await tester.pumpAndSettle();
 
       final transitChip = find.textContaining('Transits');
@@ -150,6 +154,8 @@ void main() {
       // Find an FAQ item and tap it
       final faqQuestion = find.textContaining('How are planetary positions');
       expect(faqQuestion, findsOneWidget);
+      await tester.ensureVisible(faqQuestion);
+      await tester.pumpAndSettle();
       await tester.tap(faqQuestion);
       await tester.pumpAndSettle();
 
@@ -170,6 +176,8 @@ void main() {
 
       final feedbackBtn = find.text('Send Feedback');
       expect(feedbackBtn, findsOneWidget);
+      await tester.ensureVisible(feedbackBtn);
+      await tester.pumpAndSettle();
       await tester.tap(feedbackBtn);
       await tester.pumpAndSettle();
 
@@ -265,9 +273,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("You're offline"), findsOneWidget);
-      expect(find.text('Try Again'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
 
-      await tester.tap(find.text('Try Again'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(retried, isTrue);
     });
@@ -338,7 +346,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('सूचनाएं'), findsOneWidget);
-      expect(find.textContaining('सभी'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^सभी( \(\d+\))?$')), findsOneWidget);
     });
   });
 }

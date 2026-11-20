@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/app_date_time.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/consultation_models.dart';
@@ -101,8 +102,9 @@ class ConsultationNotifier extends StateNotifier<ConsultationState> {
 
   /// Select offering and default date
   void selectOffering(ConsultationOfferingModel offering) {
-    // Start date at current time + notice days
-    final minDate = DateTime.now().add(Duration(days: offering.responseDaysNotice));
+    // Slots are dated in IST (the business timezone): the first bookable day
+    // is today's IST date + notice days, whatever the device timezone is.
+    final minDate = AppDateTime.addCalendarDays(AppDateTime.istToday(), offering.responseDaysNotice);
     state = state.copyWith(
       selectedOffering: offering,
       selectedDate: minDate,
@@ -124,8 +126,7 @@ class ConsultationNotifier extends StateNotifier<ConsultationState> {
       clearError: true,
     );
 
-    final dateStr =
-        "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final dateStr = AppDateTime.dateKey(date);
 
     try {
       final slots = await _service.fetchSlots(

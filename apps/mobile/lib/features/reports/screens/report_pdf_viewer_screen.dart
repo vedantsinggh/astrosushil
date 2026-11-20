@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../providers/reports_provider.dart';
+import '../widgets/report_ui.dart';
+import '../../../shared/widgets/astro_nav_bar.dart';
 
 /// Universal high-fidelity PDF viewer screen for all Astro Sushil reports
 class ReportPdfViewerScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,10 @@ class _ReportPdfViewerScreenState extends ConsumerState<ReportPdfViewerScreen> {
       _pdfBytes = widget.initialBytes;
       _isLoading = false;
     } else {
-      _loadPdf();
+      // Load after the first frame so provider updates never happen mid-build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadPdf();
+      });
     }
   }
 
@@ -73,7 +77,8 @@ class _ReportPdfViewerScreenState extends ConsumerState<ReportPdfViewerScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load PDF dossier. Please check connection.';
+          _errorMessage =
+              'Failed to load PDF dossier. Please check connection.';
         });
       }
     }
@@ -88,121 +93,69 @@ class _ReportPdfViewerScreenState extends ConsumerState<ReportPdfViewerScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundMidnight,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.reportTitle,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: AppColors.cardSurfaceWarm,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              widget.clientName,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.accentGold,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.midnightNavy,
-        foregroundColor: AppColors.cardSurfaceWarm,
-        elevation: 0,
-        actions: [
-          if (_pdfBytes != null)
-            IconButton(
-              icon: const Icon(Icons.share_rounded, color: AppColors.accentGold),
-              tooltip: context.l10n.reportActionShare,
-              onPressed: () {
-                Printing.sharePdf(bytes: _pdfBytes!, filename: filename);
-              },
-            ),
-        ],
+      appBar: const AstroNavBar(
+        title: 'Your report',
+        style: AstroNavBarStyle.hero,
       ),
-      body: _isLoading
-          ? const Center(
-              child: AstroLoader.card(
-                message: 'Opening vector PDF dossier...',
-              ),
-            )
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(28.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.error_outline_rounded,
-                            size: 48,
-                            color: AppColors.error,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            color: AppColors.cardSurfaceWarm,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: _loadPdf,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accentGold,
-                            foregroundColor: AppColors.midnightNavy,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: Text(
-                            context.l10n.reportActionRetry,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
+      bottomNavigationBar:
+          _pdfBytes != null && !_isLoading && _errorMessage == null
+              ? ReportPdfActionBar(
+                  onShare: () =>
+                      Printing.sharePdf(bytes: _pdfBytes!, filename: filename),
+                  onPrint: () => Printing.layoutPdf(
+                    onLayout: (_) async => _pdfBytes!,
+                    name: filename,
                   ),
                 )
-              : Theme(
-                  data: ThemeData.light(),
-                  child: PdfPreview(
-                    build: (format) async => _pdfBytes!,
-                    dynamicLayout: false,
-                    canChangePageFormat: false,
-                    allowPrinting: true,
-                    allowSharing: true,
-                    canChangeOrientation: false,
-                    maxPageWidth: 700,
-                    pdfFileName: filename,
-                    loadingWidget: const Center(
-                      child: AstroLoader.card(
-                        message: 'Rendering vector pages...',
-                      ),
-                    ),
-                  ),
-                ),
+              : null,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Keep the header to one line when vertical space is short.
+          final compact = constraints.maxHeight < 420;
+          return Column(
+            children: [
+              ReportPdfHeader(
+                title: widget.reportTitle,
+                clientName: widget.clientName,
+                compact: compact,
+              ),
+              Expanded(child: _buildBody(context, filename)),
+            ],
+          );
+        },
+      ),
     );
+  }
+
+  Widget _buildBody(BuildContext context, String filename) {
+    return _isLoading
+        ? const ReportLoading(message: 'Opening your report...', onDark: true)
+        : _errorMessage != null
+            ? ReportStatusMessage(
+                onDark: true,
+                icon: Icons.error_outline_rounded,
+                iconColor: AppColors.error,
+                title: 'We couldn\'t open your report',
+                message: _errorMessage!,
+                actionLabel: context.l10n.reportActionRetry,
+                actionIcon: Icons.refresh_rounded,
+                onAction: _loadPdf,
+              )
+            : Theme(
+                data: ThemeData.light(),
+                child: PdfPreview(
+                  build: (format) async => _pdfBytes!,
+                  dynamicLayout: false,
+                  canChangePageFormat: false,
+                  allowPrinting: false,
+                  allowSharing: false,
+                  useActions: false,
+                  canChangeOrientation: false,
+                  maxPageWidth: 700,
+                  pdfFileName: filename,
+                  loadingWidget:
+                      const ReportLoading(message: 'Loading pages...'),
+                ),
+              );
   }
 }

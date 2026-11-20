@@ -28,6 +28,11 @@ const configSchema = z.object({
   EMAIL_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().default('Astro Sushil <noreply@astrosushil.com>'),
 
+  // Google Sign-In: comma-separated OAuth client IDs whose ID tokens this API accepts
+  // (the `aud` claim). Include the Web client ID used as `serverClientId` on Android
+  // and the iOS client ID. Required in production; Google sign-in is refused without it.
+  GOOGLE_OAUTH_CLIENT_IDS: z.string().optional().default(''),
+
   // Firebase Cloud Messaging (FCM) Push Notifications
   FCM_SERVER_KEY: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),

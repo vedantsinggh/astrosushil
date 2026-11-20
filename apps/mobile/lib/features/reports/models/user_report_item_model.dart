@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/app_date_time.dart';
+
 /// Representation of a user's generated or queued report dossier
 class UserReportItemModel {
   final String id;
@@ -9,6 +11,10 @@ class UserReportItemModel {
   final String status;
   final String stage;
   final int progress;
+
+  /// Short server-provided progress line while sections are written
+  /// (e.g. "Writing section 23 of 60"). Status polling only.
+  final String? progressDetail;
   final String? storageKey;
   final String? fileName;
   final int? pageCount;
@@ -29,6 +35,7 @@ class UserReportItemModel {
     required this.status,
     required this.stage,
     required this.progress,
+    this.progressDetail,
     this.storageKey,
     this.fileName,
     this.pageCount,
@@ -46,32 +53,20 @@ class UserReportItemModel {
     final bp = json['birthProfile'] as Map<String, dynamic>?;
     final meta = json['metadata'] as Map<String, dynamic>?;
 
-    DateTime parsedCreated;
-    try {
-      parsedCreated = json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : DateTime.now();
-    } catch (_) {
-      parsedCreated = DateTime.now();
-    }
-
-    DateTime? parsedCompleted;
-    if (json['completedAt'] != null) {
-      try {
-        parsedCompleted = DateTime.parse(json['completedAt'] as String);
-      } catch (_) {
-        parsedCompleted = null;
-      }
-    }
+    // Server instants are UTC; keep them in device-local time so the shown
+    // date is the user's calendar day (not the UTC one).
+    final parsedCreated = AppDateTime.parseInstant(json['createdAt']) ?? DateTime.now();
+    final parsedCompleted = AppDateTime.parseInstant(json['completedAt']);
 
     return UserReportItemModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       birthProfileId: json['birthProfileId'] as String? ?? '',
-      reportType: json['reportType'] as String? ?? 'KUNDLI',
+      reportType: json['reportType'] as String? ?? '',
       status: json['status'] as String? ?? 'QUEUED',
       stage: json['stage'] as String? ?? json['status'] as String? ?? 'QUEUED',
       progress: (json['progress'] as num?)?.toInt() ?? 0,
+      progressDetail: json['progressDetail'] as String?,
       storageKey: json['storageKey'] as String?,
       fileName: json['fileName'] as String?,
       pageCount: (json['pageCount'] as num?)?.toInt(),
@@ -80,7 +75,7 @@ class UserReportItemModel {
       errorMessage: json['errorMessage'] as String?,
       createdAt: parsedCreated,
       completedAt: parsedCompleted,
-      profileName: bp?['name'] as String? ?? 'Active Profile',
+      profileName: bp?['name'] as String? ?? '',
       partnerProfileId: meta?['partnerProfileId'] as String?,
       partnerName: meta?['partnerName'] as String?,
     );
@@ -101,7 +96,8 @@ class UserReportItemModel {
       case 'CAREER_PROSITY':
         return 'Pro Horoscope & Divisional Charts';
       case 'HOROSCOPE':
-        return 'Personalised Horoscope 2026';
+        // Year of the report itself, not a hardcoded calendar year.
+        return 'Personalised Horoscope ${createdAt.year}';
       case 'FINANCE':
         return 'Personalised Finance & Wealth Dossier';
       case 'LOVE':
@@ -161,24 +157,6 @@ class UserReportItemModel {
         return 'ASHTAKOOTA 36-GUNA MILAN & MANGLIK';
       default:
         return 'ASTROLOGICAL DOSSIER';
-    }
-  }
-
-  String get displayPrice {
-    switch (reportType.toUpperCase()) {
-      case 'KUNDLI':
-        return '₹299';
-      case 'PLANETARY_SUMMARY':
-        return '₹199';
-      case 'CAREER_PROSITY':
-        return '₹699';
-      case 'JUPITER_TRANSIT':
-      case 'RAHU_KETU_TRANSIT':
-      case 'VARSHPHAL':
-      case 'FORTUNE_PLUS':
-        return 'Pricing Pending';
-      default:
-        return '₹499';
     }
   }
 

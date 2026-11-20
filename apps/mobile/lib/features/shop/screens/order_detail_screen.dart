@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/app_date_time.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/theme/app_theme.dart';
-import '../../../shared/widgets/loading_indicator.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../providers/shop_provider.dart';
 import '../widgets/order_status_badge.dart';
+import '../widgets/order_status_timeline.dart';
+import '../widgets/shop_ui.dart';
 import 'digital_downloads_screen.dart';
 
-/// Redesigned Order Detail Screen for Astro Sushil
-/// Following the shared design system: Warm ivory surfaces,
-/// shipment tracking details, itemized 18% GST invoices, and support actions.
+/// Order detail: status pill and a simple visual timeline first, then
+/// tracking, downloads, items, address, invoice and a support button.
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
 
@@ -48,362 +48,282 @@ class OrderDetailScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final orderAsync = ref.watch(orderDetailProvider(orderId));
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.midnightNavy,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          l10n.orderDetailsTitle,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-      ),
-      body: SubtleCelestialBackground(
-        child: orderAsync.when(
-          loading: () => const LoadingIndicator(message: 'Loading order details...'),
-          error: (err, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                  const SizedBox(height: 12),
-                  Text(
-                    isHindi ? 'विवरण लोड नहीं हो सका' : 'Unable to load order details',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    err.toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    Widget fill(Widget child) => SliverFillRemaining(hasScrollBody: false, child: child);
+
+    return AstroPage(
+      title: l10n.orderDetailsTitle,
+      onRefresh: () async => ref.invalidate(orderDetailProvider(orderId)),
+      slivers: [
+        orderAsync.when(
+          loading: () =>
+              fill(AstroStateView.loading(message: isHindi ? 'आर्डर लोड हो रहा है...' : 'Loading order details...')),
+          error: (err, _) => fill(ShopStateView(
+            icon: Icons.cloud_off_outlined,
+            isError: true,
+            title: isHindi ? 'विवरण लोड नहीं हो सका' : 'Unable to load order details',
+            message: isHindi ? 'कृपया अपना इंटरनेट जांचें।' : 'Please check your internet connection.',
+            actionLabel: context.l10n.commonTryAgain,
+            actionIcon: Icons.refresh,
+            onAction: () => ref.invalidate(orderDetailProvider(orderId)),
+          )),
           data: (order) {
             final shortId = order.id.length > 10 ? order.id.substring(0, 10).toUpperCase() : order.id;
             final hasDigital = order.items.any((i) => !i.title.toLowerCase().contains('herb'));
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Status Header Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardSurfaceWarm,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Order #$shortId',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
-                            ),
-                            OrderStatusBadge(
-                              status: order.status,
-                              fulfillmentStatus: order.fulfillmentStatus,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Placed on ${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}',
-                          style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Tracking Details (if Dispatched/Delivered)
-                  if (order.trackingNumber != null && order.trackingNumber!.isNotEmpty) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardSurfaceWarm,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.gold.withValues(alpha: 0.6)),
-                      ),
+            return AstroSliverContent(
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: one hero summary card.
+                    AstroGradientCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.local_shipping_outlined, color: AppColors.gold, size: 22),
-                              const SizedBox(width: 8),
-                              Text(
-                                isHindi ? 'शिपमेंट ट्रैकिंग विवरण' : 'Shipment Tracking',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
-                                'Tracking ID: ${order.trackingNumber}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
+                                'Order #$shortId',
+                                style: AppTypography.headlineLarge.copyWith(fontSize: 21, color: Colors.white),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.copy, size: 16, color: AppColors.primary),
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: order.trackingNumber!));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Tracking number copied to clipboard')),
-                                  );
-                                },
-                              ),
+                              OrderStatusBadge(status: order.status, fulfillmentStatus: order.fulfillmentStatus),
                             ],
                           ),
-                          if (order.courierPartner != null)
-                            Text(
-                              'Courier: ${order.courierPartner}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                            ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Placed on ${AppDateTime.shortNumericDate(order.createdAt)}',
+                            style: const TextStyle(color: AppColors.textInverseSecondary, fontSize: 15),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            order.formattedAmount,
+                            style: const TextStyle(color: AppColors.gold, fontSize: 26, fontWeight: FontWeight.w700),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                  ],
 
-                  // Digital Downloads Access Card (if digital items present)
-                  if (hasDigital) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardSurfaceWarm,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.cardBorder),
-                      ),
-                      child: Row(
+                    // Status timeline
+                    AstroSurfaceCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.download_for_offline_outlined, color: AppColors.gold, size: 24),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          AstroSectionHeading(isHindi ? 'आर्डर की स्थिति' : 'Order status'),
+                          OrderStatusTimeline(order: order, isHindi: isHindi),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tracking
+                    if (order.trackingNumber != null && order.trackingNumber!.isNotEmpty) ...[
+                      AstroSurfaceCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  isHindi ? 'डिजिटल उत्पाद उपलब्ध' : 'Digital Downloads Available',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppColors.primary),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  isHindi
-                                      ? 'सुरक्षित 15-मिनट डाउनलोड लिंक से फ़ाइलें प्राप्त करें'
-                                      : 'Access secure 15-min signed download links',
-                                  style: const TextStyle(fontSize: 11.5, color: AppColors.lightTextSecondary),
+                                const AstroIconSquare(icon: Icons.local_shipping_outlined, tint: AstroTint.amber),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    isHindi ? 'शिपमेंट ट्रैकिंग विवरण' : 'Shipment Tracking',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.primary),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                          OutlinedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const DigitalDownloadsScreen()),
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              side: const BorderSide(color: AppColors.primary),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            const SizedBox(height: 10),
+                            SelectableText(
+                              'Tracking ID: ${order.trackingNumber}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.textPrimary),
                             ),
-                            child: Text(
-                              isHindi ? 'डाउनलोड्स' : 'Downloads',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            if (order.courierPartner != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Courier: ${order.courierPartner}',
+                                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            AstroSecondaryButton(
+                              label: isHindi ? 'ट्रैकिंग नंबर कॉपी करें' : 'Copy tracking number',
+                              icon: Icons.copy_rounded,
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: order.trackingNumber!));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Tracking number copied to clipboard')),
+                                );
+                              },
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 16),
+                    ],
 
-                  // Purchased Items List
-                  Text(
-                    isHindi ? 'खरीदे गए उत्पाद' : 'Purchased Items',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardSurfaceWarm,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: order.items.length,
-                      separatorBuilder: (_, __) => const Divider(height: 20, color: AppColors.cardBorder),
-                      itemBuilder: (ctx, idx) {
-                        final item = order.items[idx];
-                        return Row(
+                    // Digital downloads
+                    if (hasDigital) ...[
+                      AstroSurfaceCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const AstroIconSquare(icon: Icons.download_for_offline_outlined, tint: AstroTint.sky),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isHindi ? 'डिजिटल उत्पाद उपलब्ध' : 'Digital Downloads Available',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.primary),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        isHindi
+                                            ? 'सुरक्षित 15-मिनट डाउनलोड लिंक से फ़ाइलें प्राप्त करें'
+                                            : 'Access secure 15-min signed download links',
+                                        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            AstroSecondaryButton(
+                              label: isHindi ? 'डाउनलोड्स' : 'Downloads',
+                              icon: Icons.folder_open_outlined,
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const DigitalDownloadsScreen()),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Items
+                    AstroSectionHeading(isHindi ? 'खरीदे गए उत्पाद' : 'Purchased Items'),
+                    AstroSurfaceCard(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: Column(
+                        children: [
+                          for (var idx = 0; idx < order.items.length; idx++) ...[
+                            if (idx > 0) const Divider(height: 1, color: AppColors.cardBorder),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    item.title,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppColors.primary),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          order.items[idx].title,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.primary),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Qty: ${order.items[idx].quantity} • ${order.items[idx].formattedUnitPrice} each',
+                                          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Qty: ${item.quantity} • ${item.formattedUnitPrice} each',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                                    order.items[idx].formattedTotal,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
                                   ),
                                 ],
                               ),
                             ),
-                            Text(
-                              item.formattedTotal,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
-                            ),
                           ],
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Shipping Address (if physical)
-                  if (order.shippingAddress != null) ...[
-                    Text(
-                      isHindi ? 'डिलिवरी पता' : 'Shipping Address',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.cardSurfaceWarm,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.cardBorder),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(order.shippingAddress!.fullName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary)),
-                          const SizedBox(height: 4),
-                          Text(order.shippingAddress!.formattedAddress, style: const TextStyle(fontSize: 13, height: 1.4)),
-                          const SizedBox(height: 4),
-                          Text('Phone: ${order.shippingAddress!.phoneNumber}', style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                  ],
+                    const SizedBox(height: 20),
 
-                  // Invoice Breakdown Card
-                  Text(
-                    isHindi ? 'रसीद एवं इनवॉइस विवरण' : 'Invoice & Payment Summary',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardSurfaceWarm,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: Column(
-                      children: [
-                        _DetailRow(title: isHindi ? 'मूल मूल्य (Subtotal)' : 'Base Subtotal', value: order.formattedSubtotal),
-                        const SizedBox(height: 8),
-                        _DetailRow(title: isHindi ? 'जीएसटी (18% सम्मिलित)' : 'Taxes (18% Inclusive)', value: order.formattedTax),
-                        const SizedBox(height: 8),
-                        _DetailRow(title: isHindi ? 'डिलीवरी शुल्क' : 'Delivery Charges', value: order.formattedShipping),
-                        const Divider(height: 20, color: AppColors.cardBorder),
-                        _DetailRow(title: isHindi ? 'कुल भुगतान' : 'Total Paid', value: order.formattedAmount, isBold: true),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                    // Shipping address
+                    if (order.shippingAddress != null) ...[
+                      AstroSectionHeading(isHindi ? 'डिलिवरी पता' : 'Shipping Address'),
+                      AstroSurfaceCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              order.shippingAddress!.fullName,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              order.shippingAddress!.formattedAddress,
+                              style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Phone: ${order.shippingAddress!.phoneNumber}',
+                              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
 
-                  // WhatsApp Support Action
-                  SizedBox(
-                    width: double.infinity,
-                    height: AppTouchTargets.minTouchTarget,
-                    child: OutlinedButton.icon(
+                    // Invoice
+                    AstroSectionHeading(isHindi ? 'रसीद एवं इनवॉइस विवरण' : 'Invoice & Payment Summary'),
+                    AstroSurfaceCard(
+                      child: Column(
+                        children: [
+                          ShopPriceRow(
+                              label: isHindi ? 'मूल मूल्य (Subtotal)' : 'Base Subtotal',
+                              value: order.formattedSubtotal),
+                          ShopPriceRow(
+                              label: isHindi ? 'जीएसटी (18% सम्मिलित)' : 'Taxes (18% Inclusive)',
+                              value: order.formattedTax),
+                          ShopPriceRow(
+                            label: isHindi ? 'डिलीवरी शुल्क' : 'Delivery Charges',
+                            value: order.formattedShipping,
+                            valueColor: order.formattedShipping == 'FREE' ? kShopSuccessText : null,
+                          ),
+                          const Divider(height: 24, color: AppColors.cardBorder),
+                          ShopTotalRow(label: isHindi ? 'कुल भुगतान' : 'Total Paid', value: order.formattedAmount),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Support
+                    AstroSecondaryButton(
+                      label:
+                          isHindi ? 'इस आर्डर हेतु सहायता प्राप्त करें' : 'Need help with this order? Contact Support',
+                      icon: Icons.chat_bubble_outline_rounded,
                       onPressed: () => _launchWhatsAppSupport(context, shortId),
-                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                      label: Text(
-                        isHindi ? 'इस आर्डर हेतु सहायता प्राप्त करें' : 'Need help with this order? Contact Support',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.cardBorder),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
                     ),
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
+                  ],
+                ),
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String title;
-  final String value;
-  final bool isBold;
-
-  const _DetailRow({required this.title, required this.value, this.isBold = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 13,
-            color: isBold ? AppColors.primary : AppColors.lightTextSecondary,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isBold ? 16 : 13,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: AppColors.primary,
-          ),
         ),
       ],
     );

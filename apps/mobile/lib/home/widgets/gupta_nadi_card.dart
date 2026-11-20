@@ -171,7 +171,7 @@ class GuptaNadiCard extends StatelessWidget {
                                     style: AppTypography.caption.copyWith(
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
-                                      color: AppColors.tintSageText,
+                                      color: AppColors.successBorder,
                                     ),
                                   ),
                                 ),

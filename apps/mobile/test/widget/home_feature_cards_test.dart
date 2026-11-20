@@ -55,8 +55,8 @@ void main() {
   }
 
   group('Home Screen Feature Cards Visual Overhaul Tests', () {
-    testWidgets('Renders all 18 feature cards under All Tools', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1200, 2400);
+    testWidgets('Renders every astrology tool, grouped into plain-language sections', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 4800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -66,25 +66,39 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('Birth Chart (Kundli)'), findsOneWidget);
-      expect(find.text('Divisional Charts (Vargas)'), findsOneWidget);
-      expect(find.text('Planetary Placements'), findsOneWidget);
-      expect(find.text('Vimshottari Dasha'), findsOneWidget);
-      expect(find.text('Transits (Gochara)'), findsOneWidget);
-      expect(find.text('Panchanga'), findsOneWidget);
-      expect(find.text('Vedic Yogas'), findsOneWidget);
-      expect(find.text('Kundli Matchmaking (Guna Milan)'), findsOneWidget);
-      expect(find.textContaining('Planetary & House Strength'), findsOneWidget);
-      expect(find.textContaining('Advanced Astrological Systems'), findsOneWidget);
-      expect(find.textContaining('Shadbala'), findsWidgets);
-      expect(find.textContaining('Bhava Bala'), findsWidgets);
-      expect(find.textContaining('Ashtakavarga'), findsWidgets);
-      expect(find.textContaining('Jaimini'), findsWidgets);
-      expect(find.textContaining('KP Sub-Lords'), findsWidgets);
+      // The hub groups tools under section headings (no filter pills).
+      for (final section in ['Charts & Kundli', 'Timing & Periods', 'Strength', 'Advanced Tools', 'Matchmaking']) {
+        expect(find.text(section), findsOneWidget, reason: section);
+      }
+
+      const tools = [
+        'Birth Chart (Kundli)',
+        'Planetary Placements',
+        '12 Houses (Bhavas)',
+        'Nakshatra Profile',
+        'Divisional Charts (Vargas)',
+        'Vimshottari Dasha',
+        'Transits (Gochara)',
+        'Panchanga',
+        'Vedic Yogas',
+        'Shadbala (षड्बल)',
+        'Bhava Bala (भावबल)',
+        'Ashtakavarga Matrix',
+        'Jaimini Astrology',
+        'KP System (Krishnamurti Padhdhati)',
+        'Varshaphala (Solar Return)',
+        'Prashna (Horary Astrology)',
+        'Special Lagnas & Upagrahas',
+        'Kundli Matchmaking (Guna Milan)',
+      ];
+      for (final t in tools) {
+        await tester.scrollUntilVisible(find.text(t), 200, scrollable: find.byType(Scrollable).first);
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
     });
 
-    testWidgets('Category filter pills filter cards correctly', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1200, 2400);
+    testWidgets('Each tool shows a one-line plain-language description', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 4800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -94,41 +108,11 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Tap 'Charts & Kundli' filter pill
-      await tester.tap(find.text('Charts & Kundli').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Birth Chart (Kundli)'), findsOneWidget);
-      expect(find.text('Divisional Charts (Vargas)'), findsOneWidget);
-      expect(find.text('Planetary Placements'), findsOneWidget);
-
-      // Tap 'Timing & Dashas' filter
-      await tester.tap(find.text('Timing & Dashas').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Vimshottari Dasha'), findsOneWidget);
-      expect(find.text('Transits (Gochara)'), findsOneWidget);
-      expect(find.text('Panchanga'), findsOneWidget);
-      expect(find.text('Vedic Yogas'), findsOneWidget);
-
-      // Tap 'Strengths' filter
-      await tester.tap(find.text('Strengths').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Shadbala (षड्बल)'), findsOneWidget);
-      expect(find.text('Bhava Bala (भावबल)'), findsOneWidget);
-      expect(find.text('Ashtakavarga Matrix'), findsOneWidget);
-
-      // Tap 'Advanced' filter
-      await tester.tap(find.text('Advanced').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Jaimini Astrology'), findsOneWidget);
-      expect(find.text('KP System (Krishnamurti Padhdhati)'), findsOneWidget);
-      expect(find.text('Varshaphala (Solar Return)'), findsOneWidget);
-      expect(find.text('Prashna (Horary Astrology)'), findsOneWidget);
-      expect(find.text('Special Lagnas & Upagrahas'), findsOneWidget);
-
-      // Tap 'Matchmaking' filter pill
-      await tester.tap(find.text('Matchmaking').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Kundli Matchmaking (Guna Milan)'), findsOneWidget);
+      expect(find.text('Your main birth chart'), findsOneWidget);
+      expect(find.text('Your planet periods over time'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Check how well two charts match'), 200,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('Check how well two charts match'), findsOneWidget);
     });
 
     testWidgets('No-profile empty states render meaningful prompts without crashing', (WidgetTester tester) async {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../helpers/report_catalog_fixture.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -67,7 +68,7 @@ import 'package:astro_mobile/features/jyoti/screens/jyoti_chat_screen.dart';
 import 'package:astro_mobile/features/jyoti/models/jyoti_message.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_api_repository.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_local_chat_repository.dart';
-import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
+import '../helpers/jyoti_test_responses.dart';
 import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
 
 void main() {
@@ -174,6 +175,7 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
+            reportCatalogTestOverride,
         secureStorageProvider.overrideWithValue(InMemorySecureStorageService()),
         selectedBirthProfileProvider.overrideWith((ref) => testBirthProfile),
         selectedBirthProfileIdProvider.overrideWith((ref) => testBirthProfile.id),
@@ -295,6 +297,7 @@ void main() {
       await tester.pumpWidget(buildCaptureApp(
         boundaryKey: key,
         overrides: [
+            reportCatalogTestOverride,
           reportGenerationNotifierProvider.overrideWith(
             (ref) => _P12MockReportGenerationNotifier(
               ReportGenerationState(
@@ -371,6 +374,7 @@ void main() {
       await tester.pumpWidget(buildCaptureApp(
         boundaryKey: key,
         overrides: [
+            reportCatalogTestOverride,
           authStateProvider.overrideWith(
             (ref) => _P12TestAuthNotifier(AuthState.unauthenticated()),
           ),

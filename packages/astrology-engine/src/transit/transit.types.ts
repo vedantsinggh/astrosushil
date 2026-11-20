@@ -2,6 +2,7 @@ import { PlanetSymbol } from '../planets/planet.types';
 import { AspectType } from '../planets/planetary-intelligence.types';
 import { VargaType } from '../varga/varga.types';
 import { AshtakavargaContributor } from '../ashtakavarga/ashtakavarga.types';
+import { GocharaVedhaDetail } from './gochara-vedha';
 
 export interface TransitLocationInput {
   latitude: number;
@@ -84,6 +85,7 @@ export interface TransitToNatalMoonRelationship {
   houseFromMoon: number; // 1 to 12
   transitNakshatra: string;
   bavScore?: number;
+  vedha?: GocharaVedhaDetail;     // Phaladeepika ch. 26 favourable house / Vedha evaluation
 }
 
 export interface TransitToNatalLagnaRelationship {
@@ -165,6 +167,27 @@ export interface TransitStationEvent {
 
 export type TransitTimelineEvent = TransitIngressEvent | TransitStationEvent;
 
+export interface MajorTransitDetail {
+  planet: PlanetSymbol;
+  transitSignIndex: number;
+  transitSignName: string;
+  houseFromMoon: number;
+  favourableHousesFromMoon: number[];
+  isFavourableHouse: boolean;
+  isVedhaObstructed: boolean;
+  obstructingPlanets: PlanetSymbol[];
+}
+
+export interface MajorTransitsSummary {
+  rule: string;
+  jupiter: MajorTransitDetail;
+  saturn: MajorTransitDetail;
+  /** Jupiter (Guru) in a favourable house from the natal Moon: 2, 5, 7, 9 or 11 (Phaladeepika 26). */
+  isGuruPeyarchiFavorable: boolean;
+  /** Same, and not obstructed by Vedha. */
+  isGuruPeyarchiFavorableAfterVedha: boolean;
+}
+
 export interface TransitSnapshot {
   calculationVersion: string;
   transitChart: TransitChart;
@@ -175,6 +198,7 @@ export interface TransitSnapshot {
   ashtakavargaTransit?: TransitAshtakavargaDetail[];
   gocharaKakshas?: GocharaKakshaDetail[];
   vargaTransits?: TransitVargaDetail[];
+  majorTransits?: MajorTransitsSummary;
 }
 
 export interface TransitTimeline {

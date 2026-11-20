@@ -1,0 +1,10 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "../../..",
+    "paths": {
+      "@astro/astrology-engine": ["packages/astrology-engine/src/index.ts"],
+      "@astro/shared": ["packages/shared/src/index.ts"]
+    }
+  }
+}

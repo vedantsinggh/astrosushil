@@ -1557,4 +1557,147 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get getStartedButton => 'Get Started';
+
+  @override
+  String get homeSectionAstrology => 'Astrology';
+
+  @override
+  String get homeSectionServices => 'Services';
+
+  @override
+  String get homeTileKundli => 'Kundli';
+
+  @override
+  String get homeTileHoroscope => 'Horoscope';
+
+  @override
+  String get homeTilePanchang => 'Panchang';
+
+  @override
+  String get homeTileMatching => 'Matching';
+
+  @override
+  String get homeTilePlanets => 'Planets';
+
+  @override
+  String get homeTileDasha => 'Dasha';
+
+  @override
+  String get homeTileAskJyoti => 'Ask Jyoti';
+
+  @override
+  String get homeTileExplainChart => 'Explain Chart';
+
+  @override
+  String get homeTileCourses => 'Courses';
+
+  @override
+  String get homeTileGuptaNadi => 'Gupta Nadi';
+
+  @override
+  String get homeTileShop => 'Shop';
+
+  @override
+  String get homeTodayHoroscope => 'Today\'s Horoscope';
+
+  @override
+  String get homeRead => 'Read';
+
+  @override
+  String get homeHoroscopeNotReady => 'Today\'s horoscope is not ready yet.';
+
+  @override
+  String get homeHoroscopeError => 'Could not load today\'s horoscope.';
+
+  @override
+  String get homeLoading => 'Loading…';
+
+  @override
+  String get homeAddDetailsTitle => 'Add your birth details';
+
+  @override
+  String get homeAddDetailsSubtitle => 'See your Kundli and daily horoscope';
+
+  @override
+  String get homeChangeProfile => 'Change';
+
+  @override
+  String homeProfileSemantics(String name) {
+    return 'Birth profile: $name. Tap to change.';
+  }
+
+  @override
+  String get commonBack => 'Back';
+
+  @override
+  String get commonNext => 'Next';
+
+  @override
+  String get commonChange => 'Change';
+
+  @override
+  String commonStepOf(int current, int total) {
+    return 'Step $current of $total';
+  }
+
+  @override
+  String get commonTryAgain => 'Try again';
+
+  @override
+  String get commonLearnMore => 'Learn more';
+
+  @override
+  String get commonShowLess => 'Show less';
+
+  @override
+  String get commonDone => 'Done';
+
+  @override
+  String get commonCancel => 'Cancel';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
+  String get commonLoading => 'Loading…';
+
+  @override
+  String get commonMore => 'More';
+
+  @override
+  String get comm2StepCart => 'Cart';
+
+  @override
+  String get comm2StepAddress => 'Address';
+
+  @override
+  String get comm2StepPay => 'Pay';
+
+  @override
+  String get comm2BookingPickTimeHint => 'Choose a time to continue';
+
+  @override
+  String get core2ReportsTabMine => 'My reports';
+
+  @override
+  String get core2ReportsTabGet => 'Get a report';
+
+  @override
+  String get core2ReportsTabsLabel => 'Report sections';
+
+  @override
+  String get core2ConsultTabBook => 'Book a session';
+
+  @override
+  String get core2ConsultTabBookings => 'My bookings';
+
+  @override
+  String get core2ConsultTabsLabel => 'Consultation sections';
+
+  @override
+  String get core2ConsultBookingsEmptyTitle => 'No bookings yet';
+
+  @override
+  String get core2ConsultBookingsEmptyBody =>
+      'Sessions you book with Sushil Sir are shown here.';
 }

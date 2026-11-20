@@ -47,6 +47,8 @@ export interface SunriseSunsetDetails {
   sunriseIso: string;
   sunsetIso: string;
   dayLengthMinutes: number;
+  /** True only when the Sun does not rise/set on that date (polar) and 06:00/18:00 UTC was substituted. */
+  isFallback?: boolean;
 }
 
 export interface RahuKalaDetails {

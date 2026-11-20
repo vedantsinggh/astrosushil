@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { FastifyInstance } from 'fastify';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
+import { postgresQueueService } from '../../src/services/postgres-queue.service';
+import { finalFailureMessage } from '../../src/services/report-retry.policy';
 
 describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => {
   let app: FastifyInstance;
@@ -29,6 +31,46 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
   };
 
   const reportsStore = new Map<string, any>();
+
+  /**
+   * Runs the worker on an in-memory report: the queue's fenced claim / fail SQL is
+   * substituted with equivalents over reportsStore (no real report rows exist in this suite).
+   */
+  async function runWorkerWithInMemoryQueue(
+    worker: typeof import('../../src/services/report-worker.service').careerReportWorker,
+    reportId: string
+  ) {
+    const claimSpy = vi.spyOn(postgresQueueService, 'claimJobById').mockImplementation(async (id: string) => {
+      const r = reportsStore.get(id);
+      if (!r || r.status !== 'QUEUED') return null;
+      Object.assign(r, { status: 'CALCULATING', stage: 'CALCULATING', claimToken: 'claim-2b3', claimVersion: (r.claimVersion ?? 0) + 1 });
+      return { id, claimToken: 'claim-2b3', claimVersion: r.claimVersion, claimExpiresAt: new Date(Date.now() + 60000), executionAttempts: 1, recoveryAttempts: 0, reportType: r.reportType, orderId: null, userId: r.userId, birthProfileId: r.birthProfileId, fulfillmentUnitId: null } as any;
+    });
+    const failSpy = vi.spyOn(postgresQueueService, 'failJob').mockImplementation(async (id: string, token: string, version: number, errorCode: string, errorMessage: string) => {
+      const r = reportsStore.get(id);
+      if (!r || r.claimToken !== token || r.claimVersion !== version) return false;
+      Object.assign(r, { status: 'FAILED', stage: 'FAILED', progress: 0, errorCode, errorMessage, failedAt: new Date(), claimToken: null, claimExpiresAt: null });
+      return true;
+    });
+    const rescheduleSpy = vi.spyOn(postgresQueueService, 'rescheduleJob');
+    const updateManySpy = vi.spyOn(prisma.report, 'updateMany').mockImplementation(async ({ where, data }: any) => {
+      const r = reportsStore.get(where.id);
+      if (!r || (where.claimToken !== undefined && r.claimToken !== where.claimToken)) return { count: 0 } as any;
+      Object.assign(r, data);
+      return { count: 1 } as any;
+    });
+    try {
+      await worker.executeReportPipeline(reportId);
+      expect(claimSpy).toHaveBeenCalledTimes(1);
+      expect(failSpy).toHaveBeenCalledTimes(1);
+      expect(rescheduleSpy).not.toHaveBeenCalled();
+    } finally {
+      claimSpy.mockRestore();
+      failSpy.mockRestore();
+      rescheduleSpy.mockRestore();
+      updateManySpy.mockRestore();
+    }
+  }
 
   beforeAll(async () => {
     app = await buildApp();
@@ -75,7 +117,7 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
     await app.close();
   });
 
-  it('1. Rejects synchronous generation of GUPTA_NADI_DOSSIER with 400 REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('1. Rejects synchronous generation of GUPTA_NADI_DOSSIER with 400 REPORT_TYPE_NOT_AVAILABLE', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -91,14 +133,15 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
 
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error?.code).toBe('REPORT_TYPE_NOT_SUPPORTED');
-    expect(body.error?.message).toContain('not supported');
+    expect(body.error?.code).toBe('REPORT_TYPE_NOT_AVAILABLE');
+    expect(body.error?.message).toContain('is not available');
+    expect(body.error?.message).toContain('no genuine generator exists');
 
     // Verify NO report record was created in database store
     expect(reportsStore.size).toBe(0);
   });
 
-  it('2. Rejects synchronous generation of CHILDBIRTH_FAMILY with 400 REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('2. Rejects synchronous generation of CHILDBIRTH_FAMILY with 400 REPORT_TYPE_NOT_AVAILABLE', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -114,13 +157,14 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
 
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error?.code).toBe('REPORT_TYPE_NOT_SUPPORTED');
-    expect(body.error?.message).toContain('not supported');
+    expect(body.error?.code).toBe('REPORT_TYPE_NOT_AVAILABLE');
+    expect(body.error?.message).toContain('is not available');
+    expect(body.error?.message).toContain('no genuine generator exists');
 
     expect(reportsStore.size).toBe(0);
   });
 
-  it('3. Rejects asynchronous queueing of GUPTA_NADI_DOSSIER with 400 REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('3. Rejects asynchronous queueing of GUPTA_NADI_DOSSIER with 400 REPORT_TYPE_NOT_AVAILABLE', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -136,12 +180,12 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
 
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error?.code).toBe('REPORT_TYPE_NOT_SUPPORTED');
+    expect(body.error?.code).toBe('REPORT_TYPE_NOT_AVAILABLE');
 
     expect(reportsStore.size).toBe(0);
   });
 
-  it('4. Rejects asynchronous queueing of CHILDBIRTH_FAMILY with 400 REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('4. Rejects asynchronous queueing of CHILDBIRTH_FAMILY with 400 REPORT_TYPE_NOT_AVAILABLE', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -157,12 +201,12 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
 
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.error?.code).toBe('REPORT_TYPE_NOT_SUPPORTED');
+    expect(body.error?.code).toBe('REPORT_TYPE_NOT_AVAILABLE');
 
     expect(reportsStore.size).toBe(0);
   });
 
-  it('5. Worker execution on GUPTA_NADI_DOSSIER marks report FAILED with REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('5. Worker execution on GUPTA_NADI_DOSSIER marks report FAILED with REPORT_TYPE_NOT_AVAILABLE', async () => {
     const { careerReportWorker } = await import('../../src/services/report-worker.service');
     const legacyReportId = '99999999-aaaa-9999-aaaa-999999999991';
 
@@ -173,18 +217,26 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
       reportType: 'GUPTA_NADI_DOSSIER',
       status: 'QUEUED',
       stage: 'QUEUED',
+      createdAt: new Date(),
+      expectedDeliveryAt: null,
+      generationFailures: 0,
     });
 
-    await careerReportWorker.executeReportPipeline(legacyReportId);
+    await runWorkerWithInMemoryQueue(careerReportWorker, legacyReportId);
 
+    // REPORT_TYPE_NOT_AVAILABLE is permanent under the retry policy: failed at once, never rescheduled.
     const updated = reportsStore.get(legacyReportId);
     expect(updated.status).toBe('FAILED');
     expect(updated.stage).toBe('FAILED');
-    expect(updated.errorCode).toBe('REPORT_TYPE_NOT_SUPPORTED');
-    expect(updated.errorMessage).toContain('not supported');
+    expect(updated.errorCode).toBe('REPORT_TYPE_NOT_AVAILABLE');
+    expect(updated.errorMessage).toBe(finalFailureMessage({ action: 'fail', reason: 'PERMANENT_ERROR', failureClass: 'permanent' }, 'REPORT_TYPE_NOT_AVAILABLE', 1));
+    expect(updated.retryAfter ?? null).toBeNull();
+    expect(updated.lastAttemptErrorCode).toBe('REPORT_TYPE_NOT_AVAILABLE');
+    expect(updated.lastAttemptErrorMessage).toContain('is not available');
+    expect(updated.claimToken).toBeNull();
   });
 
-  it('6. Worker execution on CHILDBIRTH_FAMILY marks report FAILED with REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('6. Worker execution on CHILDBIRTH_FAMILY marks report FAILED with REPORT_TYPE_NOT_AVAILABLE', async () => {
     const { careerReportWorker } = await import('../../src/services/report-worker.service');
     const legacyReportId = '99999999-aaaa-9999-aaaa-999999999992';
 
@@ -195,14 +247,22 @@ describe('Phase 2B.3 Unsupported SKU & Error Handling Integration Suite', () => 
       reportType: 'CHILDBIRTH_FAMILY',
       status: 'QUEUED',
       stage: 'QUEUED',
+      createdAt: new Date(),
+      expectedDeliveryAt: null,
+      generationFailures: 0,
     });
 
-    await careerReportWorker.executeReportPipeline(legacyReportId);
+    await runWorkerWithInMemoryQueue(careerReportWorker, legacyReportId);
 
+    // REPORT_TYPE_NOT_AVAILABLE is permanent under the retry policy: failed at once, never rescheduled.
     const updated = reportsStore.get(legacyReportId);
     expect(updated.status).toBe('FAILED');
     expect(updated.stage).toBe('FAILED');
-    expect(updated.errorCode).toBe('REPORT_TYPE_NOT_SUPPORTED');
-    expect(updated.errorMessage).toContain('not supported');
+    expect(updated.errorCode).toBe('REPORT_TYPE_NOT_AVAILABLE');
+    expect(updated.errorMessage).toBe(finalFailureMessage({ action: 'fail', reason: 'PERMANENT_ERROR', failureClass: 'permanent' }, 'REPORT_TYPE_NOT_AVAILABLE', 1));
+    expect(updated.retryAfter ?? null).toBeNull();
+    expect(updated.lastAttemptErrorCode).toBe('REPORT_TYPE_NOT_AVAILABLE');
+    expect(updated.lastAttemptErrorMessage).toContain('is not available');
+    expect(updated.claimToken).toBeNull();
   });
 });

@@ -36,7 +36,11 @@ class PlanetsPreview extends StatelessWidget {
         : <PlanetModel>[];
 
     if (planets.isEmpty) {
-      return _buildFallbackGrid();
+      return const PreviewEmptyState(
+        title: 'Planetary Placements',
+        message: 'Chart data is not available right now',
+        icon: Icons.public_rounded,
+      );
     }
 
     return Column(
@@ -122,83 +126,6 @@ class PlanetsPreview extends StatelessWidget {
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFallbackGrid() {
-    final sample = [
-      {'glyph': '☉', 'name': 'Su', 'sign': 'Leo 14°'},
-      {'glyph': '☽', 'name': 'Mo', 'sign': 'Tau 08°'},
-      {'glyph': '♂', 'name': 'Ma', 'sign': 'Ari 22°'},
-      {'glyph': '☿', 'name': 'Me', 'sign': 'Vir 19°'},
-      {'glyph': '♃', 'name': 'Ju', 'sign': 'Pis 05°'},
-      {'glyph': '♀', 'name': 'Ve', 'sign': 'Lib 11°'},
-    ];
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Row(
-          children: [
-            Expanded(child: _buildRawChip(sample[0])),
-            const SizedBox(width: 4),
-            Expanded(child: _buildRawChip(sample[1])),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Row(
-          children: [
-            Expanded(child: _buildRawChip(sample[2])),
-            const SizedBox(width: 4),
-            Expanded(child: _buildRawChip(sample[3])),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Row(
-          children: [
-            Expanded(child: _buildRawChip(sample[4])),
-            const SizedBox(width: 4),
-            Expanded(child: _buildRawChip(sample[5])),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRawChip(Map<String, String> item) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.lightBorder, width: 0.6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            item['glyph']!,
-            style: const TextStyle(fontSize: 10, color: AppColors.secondary),
-          ),
-          const SizedBox(width: 3),
-          Text(
-            item['name']!,
-            style: const TextStyle(
-              fontSize: 8.5,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 2),
-          Text(
-            item['sign']!,
-            style: const TextStyle(
-              fontSize: 7.5,
-              color: AppColors.lightTextSecondary,
-            ),
           ),
         ],
       ),

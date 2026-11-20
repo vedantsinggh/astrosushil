@@ -1551,4 +1551,147 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get getStartedButton => 'शुरू करें';
+
+  @override
+  String get homeSectionAstrology => 'ज्योतिष';
+
+  @override
+  String get homeSectionServices => 'सेवाएं';
+
+  @override
+  String get homeTileKundli => 'कुंडली';
+
+  @override
+  String get homeTileHoroscope => 'राशिफल';
+
+  @override
+  String get homeTilePanchang => 'पंचांग';
+
+  @override
+  String get homeTileMatching => 'कुंडली मिलान';
+
+  @override
+  String get homeTilePlanets => 'ग्रह';
+
+  @override
+  String get homeTileDasha => 'दशा';
+
+  @override
+  String get homeTileAskJyoti => 'ज्योति से पूछें';
+
+  @override
+  String get homeTileExplainChart => 'कुंडली समझें';
+
+  @override
+  String get homeTileCourses => 'कोर्स';
+
+  @override
+  String get homeTileGuptaNadi => 'गुप्त नाड़ी';
+
+  @override
+  String get homeTileShop => 'शॉप';
+
+  @override
+  String get homeTodayHoroscope => 'आज का राशिफल';
+
+  @override
+  String get homeRead => 'पढ़ें';
+
+  @override
+  String get homeHoroscopeNotReady => 'आज का राशिफल अभी उपलब्ध नहीं है।';
+
+  @override
+  String get homeHoroscopeError => 'आज का राशिफल लोड नहीं हो सका।';
+
+  @override
+  String get homeLoading => 'लोड हो रहा है…';
+
+  @override
+  String get homeAddDetailsTitle => 'अपना जन्म विवरण जोड़ें';
+
+  @override
+  String get homeAddDetailsSubtitle => 'अपनी कुंडली और दैनिक राशिफल देखें';
+
+  @override
+  String get homeChangeProfile => 'बदलें';
+
+  @override
+  String homeProfileSemantics(String name) {
+    return 'जन्म प्रोफ़ाइल: $name. बदलने के लिए टैप करें।';
+  }
+
+  @override
+  String get commonBack => 'वापस';
+
+  @override
+  String get commonNext => 'आगे';
+
+  @override
+  String get commonChange => 'बदलें';
+
+  @override
+  String commonStepOf(int current, int total) {
+    return 'चरण $current / $total';
+  }
+
+  @override
+  String get commonTryAgain => 'फिर से कोशिश करें';
+
+  @override
+  String get commonLearnMore => 'और जानें';
+
+  @override
+  String get commonShowLess => 'कम दिखाएँ';
+
+  @override
+  String get commonDone => 'हो गया';
+
+  @override
+  String get commonCancel => 'रद्द करें';
+
+  @override
+  String get commonClose => 'बंद करें';
+
+  @override
+  String get commonLoading => 'लोड हो रहा है…';
+
+  @override
+  String get commonMore => 'और';
+
+  @override
+  String get comm2StepCart => 'कार्ट';
+
+  @override
+  String get comm2StepAddress => 'पता';
+
+  @override
+  String get comm2StepPay => 'भुगतान';
+
+  @override
+  String get comm2BookingPickTimeHint => 'आगे बढ़ने के लिए समय चुनें';
+
+  @override
+  String get core2ReportsTabMine => 'मेरी रिपोर्ट';
+
+  @override
+  String get core2ReportsTabGet => 'नई रिपोर्ट';
+
+  @override
+  String get core2ReportsTabsLabel => 'रिपोर्ट अनुभाग';
+
+  @override
+  String get core2ConsultTabBook => 'मुलाकात बुक करें';
+
+  @override
+  String get core2ConsultTabBookings => 'मेरी बुकिंग';
+
+  @override
+  String get core2ConsultTabsLabel => 'परामर्श अनुभाग';
+
+  @override
+  String get core2ConsultBookingsEmptyTitle => 'अभी कोई बुकिंग नहीं';
+
+  @override
+  String get core2ConsultBookingsEmptyBody =>
+      'सुशील जी के साथ बुक किए गए सत्र यहाँ दिखेंगे।';
 }

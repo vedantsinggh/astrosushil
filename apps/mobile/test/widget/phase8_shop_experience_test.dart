@@ -14,6 +14,7 @@ import 'package:astro_mobile/features/shop/models/shop_order_model.dart';
 import 'package:astro_mobile/features/shop/models/digital_download_model.dart';
 import 'package:astro_mobile/features/shop/models/shipping_address_model.dart';
 import 'package:astro_mobile/features/shop/services/shop_service.dart';
+import 'package:astro_mobile/features/shop/widgets/order_status_badge.dart';
 import 'package:astro_mobile/features/shop/providers/shop_provider.dart';
 import 'package:astro_mobile/features/shop/providers/cart_provider.dart';
 import 'package:astro_mobile/features/shop/screens/shop_catalog_screen.dart';
@@ -488,8 +489,10 @@ void main() {
       expect(find.text('My Orders & Purchases'), findsOneWidget);
       expect(find.text('Order #ord_101'), findsOneWidget);
       expect(find.text('Order #ord_102'), findsOneWidget);
-      expect(find.text('Processing'), findsOneWidget);
-      expect(find.text('Delivered'), findsOneWidget);
+      // Each label appears once as a filter chip and once as the order's status badge.
+      expect(find.text('Processing'), findsNWidgets(2));
+      expect(find.text('Delivered'), findsNWidgets(2));
+      expect(find.byType(OrderStatusBadge), findsNWidgets(2));
     });
 
     testWidgets('6. OrderDetailScreen displays courier tracking and WhatsApp support', (tester) async {
@@ -535,32 +538,19 @@ void main() {
       await tester.pumpWidget(createPhase8TestApp(child: const ProfileScreen()));
       await tester.pumpAndSettle();
 
-      // User Header
-      expect(find.text('AUTHENTICATED USER'), findsOneWidget);
+      // Account header (no ALL-CAPS status badge).
+      expect(find.text('Account'), findsWidgets);
+      expect(find.text('AUTHENTICATED USER'), findsNothing);
 
-      // Commerce section
-      expect(find.text('My Purchases & Orders'), findsOneWidget);
-      expect(find.text('Spiritual Shop'), findsOneWidget);
-      expect(find.text('My Orders & Purchases'), findsOneWidget);
-      expect(find.text('My Digital Library'), findsOneWidget);
-      expect(find.text('Delivery Addresses'), findsOneWidget);
+      // Profiles, orders and addresses.
+      expect(find.text('Birth profiles'), findsOneWidget);
+      expect(find.text('My orders'), findsOneWidget);
+      expect(find.text('Delivery addresses'), findsOneWidget);
 
-      // Learning & Consultations section
-      expect(find.text('Learning & Consultations'), findsOneWidget);
-      expect(find.text('My Learning'), findsOneWidget);
-      expect(find.text('Vedic Courses & Masterclasses'), findsOneWidget);
-      expect(find.text('My Consultations & Appointments'), findsOneWidget);
-      expect(find.text('My Kundli Reports & Analysis'), findsOneWidget);
-
-      // Saved Profiles section
-      expect(find.text('Saved Profiles & Astrology'), findsOneWidget);
-      expect(find.text('My Saved Birth Profiles'), findsOneWidget);
-
-      // Settings and policies
-      expect(find.text('Settings & Preferences'), findsOneWidget);
-      expect(find.textContaining('Help & WhatsApp Support'), findsWidgets);
-      expect(find.text('Shipping & Delivery Policy'), findsOneWidget);
-      expect(find.text('Refund & Cancellation Policy'), findsOneWidget);
+      // Settings, support and policies.
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Help & Support'), findsOneWidget);
+      expect(find.text('Policies & terms'), findsOneWidget);
     });
 
     testWidgets('9. ProfileScreen policy navigation displays free shipping and refund terms on tap', (tester) async {
@@ -571,8 +561,11 @@ void main() {
       await tester.pumpWidget(createPhase8TestApp(child: const ProfileScreen()));
       await tester.pumpAndSettle();
 
-      // Tap Shipping Policy
-      await tester.tap(find.text('Shipping & Delivery Policy'));
+      // Open Legal, then the Shipping Policy document.
+      await tester.scrollUntilVisible(find.text('Policies & terms'), 200);
+      await tester.tap(find.text('Policies & terms'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Shipping Policy'));
       await tester.pumpAndSettle();
 
       // Verify LegalDocumentsScreen opened with Shipping Policy
@@ -595,12 +588,11 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Devanagari headings
-      expect(find.text('खरीदारी एवं सेवाएं (My Purchases)'), findsOneWidget);
-      expect(find.text('आध्यात्मिक शॉप'), findsOneWidget);
-      expect(find.text('मेरे आर्डर्स एवं रसीदें'), findsOneWidget);
-      expect(find.text('मेरी डिजिटल लाइब्रेरी'), findsOneWidget);
-      expect(find.text('शिक्षा एवं परामर्श सेवाएं'), findsOneWidget);
+      // Devanagari headings and rows
+      expect(find.text('खाता'), findsWidgets);
+      expect(find.text('जन्म प्रोफाइल'), findsWidgets); // row + header label
+      expect(find.text('मेरे ऑर्डर'), findsOneWidget);
+      expect(find.text('डिलीवरी पते'), findsOneWidget);
     });
 
     testWidgets('11. Responsive viewports and text scaling (320dp to 414dp, 1.0x to 2.0x) without overflow', (tester) async {

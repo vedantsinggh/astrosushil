@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../home/providers/home_provider.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../astrology/screens/birth_chart_screen.dart';
 import '../../astrology/screens/planets_screen.dart';
@@ -14,7 +13,7 @@ import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/birth_profile_list_screen.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
-import '../data/jyoti_mock_data.dart';
+import '../data/jyoti_ui_copy.dart';
 import '../models/jyoti_message.dart';
 import '../providers/jyoti_controller.dart';
 import '../widgets/jyoti_action_card.dart';
@@ -67,11 +66,21 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
+        _scrollController
+            .animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
-        );
+        )
+            .then((_) {
+          // Tall bubbles can grow the list while animating; settle on the
+          // real bottom so the newest message is always fully visible.
+          if (!mounted || !_scrollController.hasClients) return;
+          final position = _scrollController.position;
+          if (position.pixels < position.maxScrollExtent) {
+            _scrollController.jumpTo(position.maxScrollExtent);
+          }
+        });
       }
     });
   }
@@ -101,93 +110,48 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
   }
 
   void _showConfirmLogoutDialog() {
-    showDialog(
+    showAstroConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.lightSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.logout_rounded, color: AppColors.error),
-            SizedBox(width: 10),
-            Text(
-              'Log Out?',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to log out of Astro Sushil?',
-          style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              await ref.read(authStateProvider.notifier).logout();
-              if (mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-                  (route) => false,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Log Out'),
-          ),
-        ],
-      ),
-    );
+      title: 'Log Out?',
+      message: 'Are you sure you want to log out of Astro Sushil?',
+      confirmLabel: 'Log Out',
+      destructive: true,
+    ).then((confirmed) async {
+      if (!confirmed) return;
+      await ref.read(authStateProvider.notifier).logout();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+          (route) => false,
+        );
+      }
+    });
   }
 
   void _showHelpBottomSheet() {
-    showModalBottomSheet(
+    showAstroSheet<void>(
       context: context,
-      backgroundColor: AppColors.lightSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.help_outline_rounded, color: AppColors.primary),
-                SizedBox(width: 10),
-                Text(
-                  'Astro Sushil Assistance',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+      title: 'Astro Sushil Assistance',
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AstroIconSquare(icon: Icons.help_outline_rounded, tint: AstroTint.indigo),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Jyoti is here to assist you with astrology concepts, your birth chart, daily horoscopes, reports, and app navigation. If you need account or payment support, you can access options in your Profile.',
+                  style: TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.45),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Jyoti is here to assist you with astrology concepts, your birth chart, daily horoscopes, reports, and app navigation. If you need account or payment support, you can access options in your Profile.',
-              style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.4),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Got it', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          AstroPrimaryButton(label: 'Got it', onPressed: () => Navigator.of(ctx).pop()),
+        ],
       ),
     );
   }
@@ -297,7 +261,6 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(jyotiControllerProvider);
@@ -305,23 +268,48 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
 
     // Auto-scroll when messages change or typing state changes
     ref.listen(jyotiControllerProvider, (prev, next) {
-      if (next.messages.length != (prev?.messages.length ?? 0) ||
-          next.isThinking != prev?.isThinking) {
+      if (next.messages.length != (prev?.messages.length ?? 0) || next.isThinking != prev?.isThinking) {
         _scrollToBottom();
       }
     });
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: 'Jyoti',
+      appBar: AstroNavBar(
+        toolbarHeight: 64,
+        titleWidget: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.3,
+          child: _JyotiChatTitle(
+            isThinking: chatState.isThinking,
+            isOffline: chatState.isOffline,
+          ),
+        ),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert_rounded,
-              color: AppColors.primary,
-            ),
-            onSelected: (value) {
+          AstroNavAction(
+            icon: AstroIcons.more(context),
+            tooltip: 'More options',
+            onPressed: () async {
+              final value = await showAstroActionSheet<String>(
+                context: context,
+                actions: [
+                  const AstroSheetAction(
+                    label: 'Clear Conversation',
+                    value: 'clear',
+                    icon: Icons.cleaning_services_rounded,
+                  ),
+                  AstroSheetAction(
+                    label: chatState.isOffline ? 'Set Online Mode' : 'Simulate Offline Mode',
+                    value: 'toggle_offline',
+                    icon: chatState.isOffline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                  ),
+                  const AstroSheetAction(
+                    label: 'Simulate AI Error',
+                    value: 'simulate_error',
+                    icon: Icons.error_outline_rounded,
+                    isDestructive: true,
+                  ),
+                ],
+              );
               if (value == 'clear') {
                 controller.clearChat();
               } else if (value == 'toggle_offline') {
@@ -330,42 +318,6 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
                 controller.triggerSimulatedError();
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.cleaning_services_rounded, size: 18, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Text('Clear Conversation'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'toggle_offline',
-                child: Row(
-                  children: [
-                    Icon(
-                      chatState.isOffline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(chatState.isOffline ? 'Set Online Mode' : 'Simulate Offline Mode'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'simulate_error',
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline_rounded, size: 18, color: AppColors.error),
-                    SizedBox(width: 8),
-                    Text('Simulate AI Error'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -376,17 +328,22 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
             if (chatState.isOffline)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: AppColors.warning.withValues(alpha: 0.15),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: AppColors.warningBg,
+                  border: Border(
+                    bottom: BorderSide(color: AppColors.warningBorder, width: 0.5),
+                  ),
+                ),
                 child: const Row(
                   children: [
-                    Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.primary),
-                    SizedBox(width: 8),
+                    Icon(Icons.wifi_off_rounded, size: 22, color: AppColors.primary),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Jyoti needs an internet connection to answer new questions.',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
                         ),
@@ -401,47 +358,17 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
               child: ListView(
                 controller: _scrollController,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                physics: const BouncingScrollPhysics(),
                 children: [
-                  // 1. JYOTI HEADER & GREETING
-                  const _JyotiChatHeader(),
-
-                  const SizedBox(height: 16),
-
-                  // 2. SUGGESTED ACTION CHIPS (Shown on empty or at top)
                   if (chatState.messages.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Suggested Actions',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.secondary,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: chatState.suggestions.map((suggestion) {
-                              return JyotiSuggestionChip(
-                                label: suggestion,
-                                onTap: () => controller.selectSuggestion(suggestion),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
+                    // Empty chat: greeting + tappable suggested questions
+                    _JyotiEmptyIntro(
+                      suggestions: chatState.suggestions.take(4).toList(),
+                      onSuggestionTap: controller.selectSuggestion,
+                    )
+                  else
+                    const _JyotiDisclosure(),
 
-                  const SizedBox(height: 12),
-
-                  // 3. MESSAGES STREAM
+                  // MESSAGES STREAM
                   ...chatState.messages.map((msg) {
                     switch (msg.type) {
                       case JyotiMessageType.user:
@@ -467,7 +394,7 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
                       case JyotiMessageType.error:
                         return JyotiErrorCard(
                           onTryAgain: () {
-                            controller.sendMessage('Explain my birth chart');
+                            controller.retryLastMessage();
                           },
                           onContinueExploring: () {
                             Navigator.of(context).pop();
@@ -475,32 +402,39 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
                         );
                       case JyotiMessageType.offline:
                         return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.amber.shade300),
+                            color: AppColors.warningBg,
+                            borderRadius: BorderRadius.circular(AstroMetrics.cardRadius),
+                            border: Border.all(color: AppColors.warningBorder, width: 0.5),
                           ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
-                                msg.text,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
-                                ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.wifi_off_rounded, size: 22, color: AppColors.primary),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      msg.text,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        height: 1.4,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              OutlinedButton(
+                              const SizedBox(height: 12),
+                              AstroSecondaryButton(
+                                label: 'Continue Exploring Astro Sushil',
+                                variant: AstroSecondaryVariant.outlined,
                                 onPressed: () => Navigator.of(context).pop(),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(color: AppColors.primary),
-                                ),
-                                child: const Text('Continue Exploring Astro Sushil'),
                               ),
                             ],
                           ),
@@ -526,121 +460,171 @@ class _JyotiChatScreenState extends ConsumerState<JyotiChatScreen> {
   }
 }
 
-/// Top greeting section of Jyoti Chat Screen
-class _JyotiChatHeader extends StatelessWidget {
-  const _JyotiChatHeader();
+/// Chat-app style title: Jyoti's avatar, name, and a live status line
+/// ("AI astrology assistant", or "Thinking…" while an answer is on its way).
+class _JyotiChatTitle extends StatelessWidget {
+  final bool isThinking;
+  final bool isOffline;
+
+  const _JyotiChatTitle({required this.isThinking, required this.isOffline});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Column(
-        children: [
-          const JyotiAvatar(size: 56),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.tintVioletBg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.tintVioletBorder,
-                width: 1,
+    final String status;
+    final Color statusColor;
+    if (isThinking) {
+      status = 'Thinking…';
+      statusColor = AppColors.goldDark;
+    } else if (isOffline) {
+      status = 'Offline';
+      statusColor = AppColors.lightTextSecondary;
+    } else {
+      status = 'AI astrology assistant';
+      statusColor = AppColors.lightTextSecondary;
+    }
+
+    // Hugs its content so iOS can centre it (Messages-style); Android keeps
+    // it start-aligned next to the back arrow.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const JyotiAvatar(size: 40, showSparkle: false),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Jyoti',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 13,
-                  color: AppColors.tintVioletText,
-                ),
-                SizedBox(width: 5),
-                Text(
-                  'AI ASTROLOGY ASSISTANT',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.tintVioletText,
-                    letterSpacing: 0.6,
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontSize: 14,
+                    fontWeight: isThinking ? FontWeight.w700 : FontWeight.w500,
+                    color: statusColor,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            JyotiMockData.initialGreetingTitle,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            JyotiMockData.initialGreetingSub,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.35,
-              color: AppColors.lightTextSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Automated AI Guidance · Based on Vedic Jyotish principles',
-            style: TextStyle(
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-              color: AppColors.lightTextMuted.withValues(alpha: 0.9),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceWarm,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.cardBorder,
-                width: 1,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Column(
-              children: [
-                Text(
-                  JyotiMockData.emptyStatePrompt,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  JyotiMockData.emptyStateDesc,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.35,
-                    color: AppColors.lightTextMuted,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Short AI disclosure line kept at the top of every conversation.
+class _JyotiDisclosure extends StatelessWidget {
+  const _JyotiDisclosure();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(24, 4, 24, 8),
+      child: Text(
+        'Automated AI Guidance · Based on Vedic Jyotish principles',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          height: 1.4,
+          color: AppColors.lightTextSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Greeting and suggested questions shown before the first message.
+class _JyotiEmptyIntro extends StatelessWidget {
+  final List<String> suggestions;
+  final ValueChanged<String> onSuggestionTap;
+
+  const _JyotiEmptyIntro({
+    required this.suggestions,
+    required this.onSuggestionTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Hero welcome card.
+              const AstroGradientCard(
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: Column(
+                  children: [
+                    JyotiAvatar(size: 64, showSparkle: false),
+                    SizedBox(height: 14),
+                    Text(
+                      JyotiUiCopy.initialGreetingTitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: AppTypography.headingFamily,
+                        fontFamilyFallback: AppTypography.headingFontFamilies,
+                        fontSize: 24,
+                        height: 1.25,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      JyotiUiCopy.initialGreetingSub,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, height: 1.45, color: AppColors.textInverseSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const _JyotiDisclosure(),
+              const SizedBox(height: 16),
+              Semantics(
+                header: true,
+                child: Text(
+                  JyotiUiCopy.emptyStatePrompt,
+                  style: AppTypography.headlineLarge.copyWith(fontSize: 20, height: 1.3),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Tap a question to ask it, or type your own below.',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.4,
+                  color: AppColors.lightTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final suggestion in suggestions) ...[
+                JyotiSuggestionChip(
+                  label: suggestion,
+                  onTap: () => onSuggestionTap(suggestion),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

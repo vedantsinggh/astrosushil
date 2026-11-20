@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,9 +8,26 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing: credentials live in android/key.properties (gitignored, never committed).
+// See apps/mobile/docs/android-release.md for how to create the upload keystore.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+} else {
+    logger.warn(
+        "WARNING: android/key.properties not found. Release builds will be signed with the " +
+            "DEBUG key. Such builds cannot be uploaded to Google Play. " +
+            "See apps/mobile/docs/android-release.md."
+    )
+}
+
 android {
-    namespace = "com.example.astro_mobile"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.astrosushil.app"
+    // Pinned explicitly (Flutter 3.47 defaults: compile 36 / target 36 / min 24).
+    // Google Play requires targetSdk >= 35 for new apps and updates (since Aug 2025).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,21 +40,42 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.astro_mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        applicationId = "com.astrosushil.app"
+        // 24 is required by google_sign_in_android and url_launcher_android.
+        minSdk = 24
+        targetSdk = 36
+        // Derived from `version:` in pubspec.yaml (versionName+versionCode).
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                if (hasReleaseKeystore) {
+                    signingConfigs.getByName("release")
+                } else {
+                    // Fallback so local `flutter build --release` still works without the
+                    // upload key. NOT uploadable to Play.
+                    signingConfigs.getByName("debug")
+                }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

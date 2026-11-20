@@ -955,8 +955,9 @@ The repository contains benchmark reference charts with verified ephemeris coord
   - **Location**: New Delhi, India (28.6139° N, 77.2090° E)
   - **Ayanamsa**: Lahiri (Chitra Paksha)
   - **Ascendant**: Kanya (Virgo)
-  - **Sun**: Vrishabha (Taurus) 20°15' (Rohini Pada 4)
-  - **Moon**: Makara (Capricorn) 12°07' (Shravana Pada 1)
+  - **Sun**: Vrishabha (Taurus) 0°33' (Krittika Pada 2)
+  - **Moon**: Makara (Capricorn) 1°54' (Uttara Ashadha Pada 2)
+  - (Corrected 2026-11-20 against JPL Horizons + ICRC Lahiri ayanamsa; the earlier Sun 20°15' / Moon 12°07' values were mock-provider numbers, not the real sky. See `REF_CHART_001_SOURCE` in the fixture file.)
 
 ### Minimum Data Creation Flow for Demos
 1. Start backend and run database migration and seeding:

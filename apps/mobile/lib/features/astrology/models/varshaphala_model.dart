@@ -117,8 +117,13 @@ class SolarReturnDetailsModel {
   });
 
   factory SolarReturnDetailsModel.fromJson(Map<String, dynamic> json) {
+    final targetYear = (json['targetYear'] as num?)?.toInt();
+    if (targetYear == null) {
+      // Never assume a year for a solar return chart.
+      throw const FormatException('Varshaphala response is missing targetYear');
+    }
     return SolarReturnDetailsModel(
-      targetYear: (json['targetYear'] as num?)?.toInt() ?? 2026,
+      targetYear: targetYear,
       age: (json['age'] as num?)?.toInt() ?? 0,
       natalSunLongitude: (json['natalSunLongitude'] as num?)?.toDouble() ?? 0.0,
       natalSunSign: json['natalSunSign'] as String? ?? '',
@@ -130,7 +135,7 @@ class SolarReturnDetailsModel {
           (json['solarReturnSunDegree'] as num?)?.toDouble() ?? 0.0,
       solarReturnUtcIso: json['solarReturnUtcIso'] as String? ?? '',
       solarReturnLocalIso: json['solarReturnLocalIso'] as String? ?? '',
-      timezone: json['timezone'] as String? ?? 'UTC',
+      timezone: json['timezone'] as String? ?? '',
     );
   }
 

@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../models/shipping_address_model.dart';
 import '../providers/cart_provider.dart';
 import '../providers/shop_provider.dart';
+import '../widgets/shop_ui.dart';
+import 'checkout_screen.dart';
 
+/// Saved delivery addresses.
+///
+/// In checkout ([isSelectionMode]) this is the address step, "Step 2 of 3",
+/// and it is always shown for physical or mixed carts: the saved addresses
+/// are listed radio-style with the last-used or default one pre-selected,
+/// each with "Edit", plus "Add new address" and one big "Deliver Here"
+/// button that continues to Review & Pay. With no saved addresses the
+/// add-address form is shown inline as the first thing on the step.
+///
+/// Outside checkout (Account → Delivery addresses) it is a plain manager
+/// with Edit / Delete on each card.
 class ShippingAddressesScreen extends ConsumerStatefulWidget {
   final bool isSelectionMode;
 
@@ -16,359 +29,657 @@ class ShippingAddressesScreen extends ConsumerStatefulWidget {
 }
 
 class _ShippingAddressesScreenState extends ConsumerState<ShippingAddressesScreen> {
+  /// Address the user tapped on this step (checkout mode only).
+  String? _chosenId;
+
+  /// The pre-selected address: the one tapped on this step, else the one
+  /// already in the cart (last used), else the default, else the first.
+  ShippingAddressModel? _resolveChoice(List<ShippingAddressModel> addresses, ShippingAddressModel? inCart) {
+    if (addresses.isEmpty) return null;
+    for (final id in [_chosenId, inCart?.id]) {
+      if (id == null) continue;
+      for (final a in addresses) {
+        if (a.id == id) return a;
+      }
+    }
+    return addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
+  }
+
+  /// Step 2 → step 3. Passes the same address into the cart that checkout
+  /// and order creation read (`cartState.selectedAddress?.id`).
+  void _continueToPay(ShippingAddressModel address) {
+    ref.read(cartProvider.notifier).selectAddress(address);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CheckoutScreen(openedFromAddressStep: true)),
+    );
+  }
+
   void _openAddressForm([ShippingAddressModel? addressToEdit]) {
-    final fullNameCtrl = TextEditingController(text: addressToEdit?.fullName ?? '');
-    final phoneCtrl = TextEditingController(text: addressToEdit?.phoneNumber ?? '');
-    final addr1Ctrl = TextEditingController(text: addressToEdit?.addressLine1 ?? '');
-    final addr2Ctrl = TextEditingController(text: addressToEdit?.addressLine2 ?? '');
-    final cityCtrl = TextEditingController(text: addressToEdit?.city ?? '');
-    final stateCtrl = TextEditingController(text: addressToEdit?.state ?? '');
-    final postalCtrl = TextEditingController(text: addressToEdit?.postalCode ?? '');
-    bool isDefault = addressToEdit?.isDefault ?? false;
-    final formKey = GlobalKey<FormState>();
-
-    showModalBottomSheet(
+    showAstroSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            top: 20,
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        addressToEdit != null ? 'Edit Address' : 'Add Delivery Address',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: fullNameCtrl,
-                    decoration: const InputDecoration(labelText: 'Full Name *', border: OutlineInputBorder()),
-                    validator: (v) => v == null || v.trim().length < 2 ? 'Please enter full name' : null,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    decoration: const InputDecoration(labelText: 'Phone Number (10 digits) *', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.phone,
-                    validator: (v) => v == null || v.trim().length < 10 ? 'Enter valid 10-digit phone' : null,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: addr1Ctrl,
-                    decoration: const InputDecoration(labelText: 'House / Flat / Street *', border: OutlineInputBorder()),
-                    validator: (v) => v == null || v.trim().length < 5 ? 'Please enter address' : null,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: addr2Ctrl,
-                    decoration: const InputDecoration(labelText: 'Landmark / Area (Optional)', border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: cityCtrl,
-                          decoration: const InputDecoration(labelText: 'City *', border: OutlineInputBorder()),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Enter city' : null,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: postalCtrl,
-                          decoration: const InputDecoration(labelText: 'PIN Code *', border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number,
-                          validator: (v) => v == null || v.trim().length < 6 ? 'Enter valid PIN code' : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: stateCtrl,
-                    decoration: const InputDecoration(labelText: 'State *', border: OutlineInputBorder()),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Enter state' : null,
-                  ),
-                  const SizedBox(height: 10),
-                  CheckboxListTile(
-                    title: const Text('Set as default delivery address', style: TextStyle(fontSize: 13)),
-                    value: isDefault,
-                    onChanged: (val) {
-                      setModalState(() {
-                        isDefault = val ?? false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (formKey.currentState!.validate()) {
-                          final newAddress = ShippingAddressModel(
-                            id: addressToEdit?.id ?? '',
-                            fullName: fullNameCtrl.text.trim(),
-                            phoneNumber: phoneCtrl.text.trim(),
-                            addressLine1: addr1Ctrl.text.trim(),
-                            addressLine2: addr2Ctrl.text.trim().isNotEmpty ? addr2Ctrl.text.trim() : null,
-                            city: cityCtrl.text.trim(),
-                            state: stateCtrl.text.trim(),
-                            postalCode: postalCtrl.text.trim(),
-                            country: 'India',
-                            isDefault: isDefault,
-                          );
-
-                          final service = ref.read(shopServiceProvider);
-                          if (addressToEdit != null) {
-                            await service.updateShippingAddress(addressToEdit.id, newAddress);
-                          } else {
-                            await service.createShippingAddress(newAddress);
-                          }
-
-                          ref.invalidate(shippingAddressesProvider);
-                          if (ctx.mounted) Navigator.of(ctx).pop();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: Text(addressToEdit != null ? 'Update Address' : 'Save Address'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      builder: (ctx) => _AddressForm(
+        addressToEdit: addressToEdit,
+        onClose: () => Navigator.of(ctx).pop(),
+        onSaved: (saved) {
+          if (ctx.mounted) Navigator.of(ctx).pop();
+          // A newly added address becomes the selection on the checkout step.
+          if (widget.isSelectionMode && addressToEdit == null && saved.id.isNotEmpty && mounted) {
+            setState(() => _chosenId = saved.id);
+          }
+        },
       ),
     );
+  }
+
+  /// First address saved from the inline form on the checkout step:
+  /// select it and continue to Review & Pay.
+  Future<void> _onInlineSaved(ShippingAddressModel saved) async {
+    var chosen = saved;
+    if (saved.id.isEmpty) {
+      final fresh = await ref.read(shippingAddressesProvider.future);
+      if (fresh.isNotEmpty) chosen = fresh.firstWhere((a) => a.isDefault, orElse: () => fresh.first);
+    }
+    if (!mounted) return;
+    setState(() => _chosenId = chosen.id);
+    _continueToPay(chosen);
+  }
+
+  Future<void> _confirmDelete(ShippingAddressModel addr) async {
+    final confirmed = await showAstroConfirm(
+      context: context,
+      title: 'Delete this address?',
+      message: addr.formattedAddress,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Keep',
+      destructive: true,
+    );
+    if (!confirmed) return;
+    await ref.read(shopServiceProvider).deleteShippingAddress(addr.id);
+    ref.invalidate(shippingAddressesProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     final addressesAsync = ref.watch(shippingAddressesProvider);
     final selectedAddress = ref.watch(cartProvider).selectedAddress;
+    final isHindi = ref.watch(localeProvider).languageCode == 'hi';
+    final addresses = addressesAsync.valueOrNull ?? const <ShippingAddressModel>[];
+    final hasAddresses = addresses.isNotEmpty;
+    final selecting = widget.isSelectionMode;
+    final chosen = selecting ? _resolveChoice(addresses, selectedAddress) : null;
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Saved Addresses',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddressForm(),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Address', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
-      body: SubtleCelestialBackground(
-        child: addressesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-          error: (err, _) => Center(child: Text(err.toString())),
+    Widget fill(Widget child) => SliverFillRemaining(hasScrollBody: false, child: child);
+
+    Widget? bottomBar;
+    if (selecting) {
+      bottomBar = hasAddresses
+          ? ShopBottomBar(
+              child: AstroPrimaryButton(
+                key: const ValueKey('address-step-continue'),
+                label: isHindi ? 'यहाँ डिलीवर करें' : 'Deliver Here',
+                icon: Icons.local_shipping_outlined,
+                onPressed: chosen == null ? null : () => _continueToPay(chosen),
+              ),
+            )
+          : null;
+    } else if (hasAddresses) {
+      bottomBar = ShopBottomBar(
+        child: AstroPrimaryButton(label: 'Add Address', icon: Icons.add, onPressed: () => _openAddressForm()),
+      );
+    }
+
+    return AstroPage(
+      title: selecting ? context.l10n.deliveryAddress : 'Saved Addresses',
+      onRefresh: () async => ref.invalidate(shippingAddressesProvider),
+      bottomBar: bottomBar,
+      slivers: [
+        addressesAsync.when(
+          loading: () => fill(const AstroStateView.loading()),
+          error: (err, _) => fill(ShopStateView(
+            icon: Icons.cloud_off_outlined,
+            isError: true,
+            title: isHindi ? 'पते लोड नहीं हो सके' : 'Unable to load addresses',
+            message: isHindi ? 'कृपया अपना इंटरनेट जांचें।' : 'Please check your internet connection.',
+            actionLabel: context.l10n.commonTryAgain,
+            actionIcon: Icons.refresh,
+            onAction: () => ref.invalidate(shippingAddressesProvider),
+          )),
           data: (addresses) {
+            if (selecting) return _buildAddressStep(addresses, chosen, isHindi);
+
             if (addresses.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.location_on_outlined, size: 56, color: AppColors.primary),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No addresses saved yet',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.lightTextPrimary),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Save your address for quick delivery of sanctified Ayurvedic herbs and physical items.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13, height: 1.4),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        onPressed: () => _openAddressForm(),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Add Address Now'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(180, 48),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return fill(ShopStateView(
+                icon: Icons.location_on_outlined,
+                title: 'No addresses saved yet',
+                message: 'Save your address for quick delivery of sanctified Ayurvedic herbs and physical items.',
+                actionLabel: 'Add Address Now',
+                actionIcon: Icons.add,
+                onAction: () => _openAddressForm(),
+              ));
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: addresses.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (ctx, idx) {
-                final addr = addresses[idx];
-                final isSelected = widget.isSelectionMode && selectedAddress?.id == addr.id;
-
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardSurfaceWarm,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.cardBorder,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+            return AstroSliverContent(
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final addr in addresses) ...[
+                      _AddressCard(
+                        address: addr,
+                        onEdit: () => _openAddressForm(addr),
+                        onDelete: () => _confirmDelete(addr),
                       ),
+                      const SizedBox(height: 12),
                     ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.home_outlined, size: 18, color: AppColors.primary),
-                              const SizedBox(width: 6),
-                              Text(
-                                addr.fullName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.lightTextPrimary),
-                              ),
-                            ],
-                          ),
-                          if (addr.isDefault)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.premiumAccent.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AppColors.premiumAccent.withValues(alpha: 0.4)),
-                              ),
-                              child: const Text(
-                                'DEFAULT',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        addr.formattedAddress,
-                        style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.lightTextPrimary),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.phone_outlined, size: 14, color: AppColors.lightTextSecondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            addr.phoneNumber,
-                            style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 20, color: AppColors.cardBorder),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (widget.isSelectionMode)
-                            ElevatedButton(
-                              onPressed: () {
-                                ref.read(cartProvider.notifier).selectAddress(addr);
-                                Navigator.of(context).pop();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isSelected ? AppColors.success : AppColors.primary,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(120, 48),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              child: Text(isSelected ? 'Selected' : 'Deliver Here'),
-                            )
-                          else ...[
-                            TextButton.icon(
-                              onPressed: () => _openAddressForm(addr),
-                              icon: const Icon(Icons.edit_outlined, size: 16),
-                              label: const Text('Edit'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.primary,
-                                minimumSize: const Size(64, 48),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: () async {
-                                await ref.read(shopServiceProvider).deleteShippingAddress(addr.id);
-                                ref.invalidate(shippingAddressesProvider);
-                              },
-                              icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
-                              label: const Text('Delete', style: TextStyle(color: AppColors.error)),
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(64, 48),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
+                  ],
+                ),
+              ),
             );
           },
         ),
+      ],
+    );
+  }
+
+  /// Checkout step 2: radio-style list, or the inline form when empty.
+  Widget _buildAddressStep(List<ShippingAddressModel> addresses, ShippingAddressModel? chosen, bool isHindi) {
+    return AstroSliverContent(
+      bottom: 24,
+      sliver: SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ShopStepIndicator(current: 2, isHindi: isHindi),
+            const SizedBox(height: 20),
+            if (addresses.isEmpty) ...[
+              AstroSectionHeading(
+                isHindi ? 'डिलीवरी पता जोड़ें' : 'Add a delivery address',
+                subtitle: isHindi
+                    ? 'भौतिक उत्पाद इस पते पर भेजे जाएंगे।'
+                    : 'Your physical items will be shipped here.',
+              ),
+              AstroSurfaceCard(
+                child: _AddressForm(
+                  key: const ValueKey('address-step-inline-form'),
+                  saveLabel: isHindi ? 'सहेजें और आगे बढ़ें' : 'Save & Continue',
+                  onSaved: _onInlineSaved,
+                ),
+              ),
+            ] else ...[
+              AstroSectionHeading(
+                isHindi ? 'कहाँ डिलीवर करें?' : 'Deliver to',
+                subtitle: isHindi ? 'एक पता चुनें' : 'Choose one address',
+              ),
+              for (final addr in addresses) ...[
+                _SelectableAddressCard(
+                  key: ValueKey('address-option-${addr.id}'),
+                  address: addr,
+                  isSelected: chosen?.id == addr.id,
+                  isHindi: isHindi,
+                  onSelect: () => setState(() => _chosenId = addr.id),
+                  onEdit: () => _openAddressForm(addr),
+                ),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 4),
+              AstroSecondaryButton(
+                key: const ValueKey('address-step-add'),
+                label: isHindi ? 'नया पता जोड़ें' : 'Add new address',
+                icon: Icons.add_location_alt_outlined,
+                onPressed: () => _openAddressForm(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Add / edit address form. Used in a sheet (with a Close action) and inline
+/// on the checkout address step when no address is saved yet.
+class _AddressForm extends ConsumerStatefulWidget {
+  final ShippingAddressModel? addressToEdit;
+
+  /// Called after the address is saved and the address list refreshed.
+  final ValueChanged<ShippingAddressModel> onSaved;
+
+  /// Shows the title row with a Close action (sheet presentation).
+  final VoidCallback? onClose;
+  final String? saveLabel;
+
+  const _AddressForm({super.key, this.addressToEdit, required this.onSaved, this.onClose, this.saveLabel});
+
+  @override
+  ConsumerState<_AddressForm> createState() => _AddressFormState();
+}
+
+class _AddressFormState extends ConsumerState<_AddressForm> {
+  late final TextEditingController _fullName;
+  late final TextEditingController _phone;
+  late final TextEditingController _addr1;
+  late final TextEditingController _addr2;
+  late final TextEditingController _city;
+  late final TextEditingController _state;
+  late final TextEditingController _postal;
+  late bool _isDefault;
+  final _formKey = GlobalKey<FormState>();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final a = widget.addressToEdit;
+    _fullName = TextEditingController(text: a?.fullName ?? '');
+    _phone = TextEditingController(text: a?.phoneNumber ?? '');
+    _addr1 = TextEditingController(text: a?.addressLine1 ?? '');
+    _addr2 = TextEditingController(text: a?.addressLine2 ?? '');
+    _city = TextEditingController(text: a?.city ?? '');
+    _state = TextEditingController(text: a?.state ?? '');
+    _postal = TextEditingController(text: a?.postalCode ?? '');
+    _isDefault = a?.isDefault ?? false;
+  }
+
+  @override
+  void dispose() {
+    for (final c in [_fullName, _phone, _addr1, _addr2, _city, _state, _postal]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_formKey.currentState!.validate()) return;
+    final edit = widget.addressToEdit;
+    final newAddress = ShippingAddressModel(
+      id: edit?.id ?? '',
+      fullName: _fullName.text.trim(),
+      phoneNumber: _phone.text.trim(),
+      addressLine1: _addr1.text.trim(),
+      addressLine2: _addr2.text.trim().isNotEmpty ? _addr2.text.trim() : null,
+      city: _city.text.trim(),
+      state: _state.text.trim(),
+      postalCode: _postal.text.trim(),
+      country: 'India',
+      isDefault: _isDefault,
+    );
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final service = ref.read(shopServiceProvider);
+      final saved = edit != null
+          ? await service.updateShippingAddress(edit.id, newAddress)
+          : await service.createShippingAddress(newAddress);
+      ref.invalidate(shippingAddressesProvider);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      widget.onSaved(saved);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  InputDecoration _field(String label) => InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+        floatingLabelStyle: const TextStyle(fontSize: 16, color: AppColors.primary),
+        errorStyle: const TextStyle(fontSize: 14),
+        errorMaxLines: 2,
+        filled: true,
+        fillColor: AppColors.cardSurface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    const fieldText = TextStyle(fontSize: 16, color: AppColors.textPrimary);
+    const gap = SizedBox(height: 14);
+    final isEdit = widget.addressToEdit != null;
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.onClose != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isEdit ? 'Edit Address' : 'Add Delivery Address',
+                    style: AppTypography.headlineLarge.copyWith(fontSize: 21),
+                  ),
+                ),
+                TextButton(
+                  onPressed: widget.onClose,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: Text(context.l10n.commonClose, style: AppTypography.navAction),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          TextFormField(
+            key: const ValueKey('address-form-fullName'),
+            controller: _fullName,
+            style: fieldText,
+            textInputAction: TextInputAction.next,
+            decoration: _field('Full Name *'),
+            validator: (v) => v == null || v.trim().length < 2 ? 'Please enter full name' : null,
+          ),
+          gap,
+          TextFormField(
+            key: const ValueKey('address-form-phone'),
+            controller: _phone,
+            style: fieldText,
+            textInputAction: TextInputAction.next,
+            decoration: _field('Phone Number (10 digits) *'),
+            keyboardType: TextInputType.phone,
+            validator: (v) => v == null || v.trim().length < 10 ? 'Enter valid 10-digit phone' : null,
+          ),
+          gap,
+          TextFormField(
+            key: const ValueKey('address-form-line1'),
+            controller: _addr1,
+            style: fieldText,
+            textInputAction: TextInputAction.next,
+            decoration: _field('House / Flat / Street *'),
+            validator: (v) => v == null || v.trim().length < 5 ? 'Please enter address' : null,
+          ),
+          gap,
+          TextFormField(
+            key: const ValueKey('address-form-line2'),
+            controller: _addr2,
+            style: fieldText,
+            textInputAction: TextInputAction.next,
+            decoration: _field('Landmark / Area (Optional)'),
+          ),
+          gap,
+          TextFormField(
+            key: const ValueKey('address-form-city'),
+            controller: _city,
+            style: fieldText,
+            textInputAction: TextInputAction.next,
+            decoration: _field('City *'),
+            validator: (v) => v == null || v.trim().isEmpty ? 'Enter city' : null,
+          ),
+          gap,
+          TextFormField(
+            key: const ValueKey('address-form-postal'),
+            controller: _postal,
+            style: fieldText,
+            textInputAction: TextInputAction.next,
+            decoration: _field('PIN Code *'),
+            keyboardType: TextInputType.number,
+            validator: (v) => v == null || v.trim().length < 6 ? 'Enter valid PIN code' : null,
+          ),
+          gap,
+          TextFormField(
+            key: const ValueKey('address-form-state'),
+            controller: _state,
+            style: fieldText,
+            textInputAction: TextInputAction.done,
+            decoration: _field('State *'),
+            validator: (v) => v == null || v.trim().isEmpty ? 'Enter state' : null,
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            title: const Text(
+              'Set as default delivery address',
+              style: TextStyle(fontSize: 16, color: AppColors.textPrimary),
+            ),
+            value: _isDefault,
+            activeTrackColor: AppColors.successText,
+            onChanged: (val) => setState(() => _isDefault = val),
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(fontSize: 15, color: AppColors.tintRoseText)),
+          ],
+          const SizedBox(height: 16),
+          AstroPrimaryButton(
+            key: const ValueKey('address-form-save'),
+            label: widget.saveLabel ?? (isEdit ? 'Update Address' : 'Save Address'),
+            icon: Icons.check,
+            isLoading: _saving,
+            onPressed: _save,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Name, Default tag, address and phone of one saved address.
+class _AddressDetails extends StatelessWidget {
+  final ShippingAddressModel address;
+  const _AddressDetails({required this.address});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              address.fullName,
+              style: AppTypography.headlineMedium.copyWith(fontSize: 17),
+            ),
+            if (address.isDefault)
+              ShopTag(
+                label: 'Default',
+                icon: Icons.star_rounded,
+                background: AstroTint.amber.background,
+                foreground: AstroTint.amber.foreground,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          address.formattedAddress,
+          style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            const Icon(Icons.phone_outlined, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                address.phoneNumber,
+                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Checkout step 2 option: the whole card is tappable and shows a radio
+/// mark; the selected card gets a gold border. "Edit" opens the form.
+class _SelectableAddressCard extends StatelessWidget {
+  final ShippingAddressModel address;
+  final bool isSelected;
+  final bool isHindi;
+  final VoidCallback onSelect;
+  final VoidCallback onEdit;
+
+  const _SelectableAddressCard({
+    super.key,
+    required this.address,
+    required this.isSelected,
+    required this.isHindi,
+    required this.onSelect,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: isSelected,
+      inMutuallyExclusiveGroup: true,
+      child: AstroSurfaceCard(
+        borderColor: isSelected ? AppColors.accent : null,
+        borderWidth: isSelected ? 2 : 1,
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 6),
+        onTap: onSelect,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(
+                    isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                    size: 26,
+                    color: isSelected ? AppColors.accent : AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: _AddressDetails(address: address)),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 30),
+              child: TextButton.icon(
+                key: ValueKey('address-edit-${address.id}'),
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                label: Text(isHindi ? 'संपादित करें' : 'Edit', style: const TextStyle(fontSize: 16)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  minimumSize: const Size(64, 48),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Account-mode card with Edit / Delete.
+class _AddressCard extends StatelessWidget {
+  final ShippingAddressModel address;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _AddressCard({
+    required this.address,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AstroIconSquare(icon: Icons.home_outlined, tint: AstroTint.coral),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      address.fullName,
+                      style: AppTypography.headlineMedium.copyWith(fontSize: 17),
+                    ),
+                    if (address.isDefault)
+                      ShopTag(
+                        label: 'Default',
+                        icon: Icons.star_rounded,
+                        background: AstroTint.amber.background,
+                        foreground: AstroTint.amber.foreground,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            address.formattedAddress,
+            style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.phone_outlined, size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  address.phoneNumber,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                label: const Text('Edit', style: TextStyle(fontSize: 16)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  minimumSize: const Size(64, 48),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline, size: 20),
+                label: const Text('Delete', style: TextStyle(fontSize: 16)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.tintRoseText,
+                  minimumSize: const Size(64, 48),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

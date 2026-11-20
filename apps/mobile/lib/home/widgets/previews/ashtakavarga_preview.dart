@@ -30,7 +30,16 @@ class AshtakavargaPreview extends StatelessWidget {
       );
     }
 
-    final sav = [28, 31, 29, 34, 26, 32, 27, 24, 30, 36, 33, 27];
+    // Genuine backend SAV bindus only.
+    final sav = result?.sav.signList ?? const <int>[];
+    if (sav.length != 12) {
+      return const PreviewEmptyState(
+        title: 'Ashtakavarga Matrix',
+        message: 'Ashtakavarga data is not available right now',
+        icon: Icons.grid_3x3_rounded,
+      );
+    }
+    final savTotal = result!.sav.grandTotal;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -53,9 +62,9 @@ class AshtakavargaPreview extends StatelessWidget {
                 color: AppColors.secondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(3),
               ),
-              child: const Text(
-                'Total: 337',
-                style: TextStyle(
+              child: Text(
+                'Total: $savTotal',
+                style: const TextStyle(
                   fontSize: 7.5,
                   fontWeight: FontWeight.bold,
                   color: AppColors.secondary,

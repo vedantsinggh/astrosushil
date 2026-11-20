@@ -4,3 +4,4 @@ export * from './normalized-chart.types';
 export * from './chart-normalizer';
 export * from './chart-variants.types';
 export * from './chart-variants.calculator';
+export * from './sudarshana-chakra';

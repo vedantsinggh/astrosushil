@@ -12,7 +12,8 @@
     "@astro/shared": "*",
     "@astro/astrology-engine": "*",
     "@astro/prediction-engine": "*",
-    "latexto": "^0.1.0"
+    "latexto": "^0.1.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

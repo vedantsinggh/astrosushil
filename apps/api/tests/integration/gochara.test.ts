@@ -26,30 +26,32 @@ describe('Phase 2G/2V Gochara Planetary Transits API Integration Tests', () => {
   });
 
   describe('POST /api/v1/astrology/gochara', () => {
+    // Current request contract: ISO `timestamp` + IANA `timezone` + transit `location`
+    // (natal birthDetails/birthProfileId optional). Response is wrapped in `{ data }`.
+    const transitPayload = {
+      birthDetails: validBirthDetails,
+      timestamp: '2026-09-24T06:00:00',
+      timezone: 'Asia/Kolkata',
+      location: { latitude: 28.6139, longitude: 77.209, timezone: 'Asia/Kolkata', placeName: 'New Delhi, India' },
+    };
+    const planets = ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN', 'RAHU', 'KETU'];
+
     it('calculates Gochara planetary transits for 9 Grahas against natal Lagna & Moon', async () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/astrology/gochara',
-        payload: {
-          birthDetails: validBirthDetails,
-          transitDate: '2026-09-24',
-          transitTime: '06:00:00',
-        },
+        payload: transitPayload,
       });
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.payload);
+      const body = JSON.parse(response.payload).data;
 
-      expect(body.birthDetails).toBeDefined();
-      expect(body.transitDateIso).toBeDefined();
-      expect(body.natalLagnaRashiIndex).toBeGreaterThanOrEqual(1);
-      expect(body.natalMoonRashiIndex).toBeGreaterThanOrEqual(1);
-
-      expect(body.transits).toBeDefined();
-      const planets = ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN', 'RAHU', 'KETU'];
+      expect(body.calculationVersion).toBeDefined();
+      expect(body.transitChart.transitTime.utcIso).toBe('2026-09-24T00:30:00.000Z');
+      expect(body.transitChart.transitTime.timezone).toBe('Asia/Kolkata');
 
       for (const p of planets) {
-        const t = body.transits[p];
+        const t = body.transitChart.planets[p];
         expect(t).toBeDefined();
         expect(t.planet).toBe(p);
         expect(t.longitude).toBeGreaterThanOrEqual(0);
@@ -63,22 +65,63 @@ describe('Phase 2G/2V Gochara Planetary Transits API Integration Tests', () => {
         expect(t.pada).toBeGreaterThanOrEqual(1);
         expect(t.pada).toBeLessThanOrEqual(4);
 
-        expect(t.houseFromLagna).toBeGreaterThanOrEqual(1);
-        expect(t.houseFromLagna).toBeLessThanOrEqual(12);
-        expect(t.houseFromMoon).toBeGreaterThanOrEqual(1);
-        expect(t.houseFromMoon).toBeLessThanOrEqual(12);
+        const fromLagna = body.transitToLagna.find((x: any) => x.transitPlanet === p);
+        expect(fromLagna).toBeDefined();
+        expect(fromLagna.natalLagnaSignIndex).toBe(6); // natal Kanya Lagna
+        expect(fromLagna.transitSignIndex).toBe(t.rashiIndex);
+        expect(fromLagna.houseFromLagna).toBe(((t.rashiIndex - 6 + 12) % 12) + 1);
 
-        expect(Array.isArray(t.aspectsToNatalPlanets)).toBe(true);
-        expect(t.vedha).toBeDefined();
+        const fromMoon = body.transitToMoon.find((x: any) => x.transitPlanet === p);
+        expect(fromMoon).toBeDefined();
+        expect(fromMoon.natalMoonSignIndex).toBe(10); // natal Makara Moon
+        expect(fromMoon.houseFromMoon).toBe(((t.rashiIndex - 10 + 12) % 12) + 1);
       }
 
-      // Major Transits
-      expect(body.majorTransits).toBeDefined();
-      expect(body.majorTransits.saturnHouseFromMoon).toBeGreaterThanOrEqual(1);
-      expect(body.majorTransits.saturnHouseFromMoon).toBeLessThanOrEqual(12);
-      expect(typeof body.majorTransits.isSadeSati).toBe('boolean');
-      expect(typeof body.majorTransits.isDhaiya).toBe('boolean');
-      expect(typeof body.majorTransits.isGuruPeyarchiFavorable).toBe('boolean');
+      expect(Array.isArray(body.aspectsToNatal)).toBe(true);
+      expect(body.aspectsToNatal.length).toBeGreaterThan(0);
+      expect(Array.isArray(body.transitToNatalPlanets)).toBe(true);
+
+      // Ashtakavarga transit scoring (BAV 0-8 bindus per sign)
+      expect(body.ashtakavargaTransit).toHaveLength(9);
+      for (const av of body.ashtakavargaTransit) {
+        expect(av.bavPoints).toBeGreaterThanOrEqual(0);
+        expect(av.bavPoints).toBeLessThanOrEqual(8);
+        expect(typeof av.isBavFavorable).toBe('boolean');
+      }
+
+      // Kakshya division: 8 Kakshyas of 3 deg 45 min per sign
+      expect(body.gocharaKakshas).toHaveLength(9);
+      for (const k of body.gocharaKakshas) {
+        expect(k.kakshaIndex).toBeGreaterThanOrEqual(1);
+        expect(k.kakshaIndex).toBeLessThanOrEqual(8);
+        expect(k.kakshaRuler).toBeDefined();
+        expect(k.endDegree - k.startDegree).toBeCloseTo(3.75, 6);
+        expect(k.degreeInSign).toBeGreaterThanOrEqual(k.startDegree);
+        expect(k.degreeInSign).toBeLessThan(k.endDegree);
+        expect(typeof k.hasNatalBindu).toBe('boolean');
+      }
+
+      // Sade Sati / Dhaiya classifications were deliberately decommissioned (Phase 2B.2
+      // editorial policy); the transit snapshot must stay neutral.
+      expect(response.payload).not.toMatch(/sadeSati|dhaiya/i);
+    });
+
+    it('reports Vedha obstruction and Guru transit favourability per transit planet', async () => {
+      // NOT IMPLEMENTED in packages/astrology-engine (TransitCalculator computes no Vedha
+      // and no Guru Peyarchi favourability). Left failing intentionally pending spec/engine work.
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/astrology/gochara',
+        payload: transitPayload,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.payload).data;
+      for (const p of planets) {
+        const fromMoon = body.transitToMoon.find((x: any) => x.transitPlanet === p);
+        expect(fromMoon.vedha).toBeDefined();
+      }
+      expect(typeof body.majorTransits?.isGuruPeyarchiFavorable).toBe('boolean');
     });
 
     it('returns 400 when invalid birth details are provided', async () => {
@@ -115,7 +158,8 @@ describe('Phase 2G/2V Gochara Planetary Transits API Integration Tests', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.payload);
+      // No Gochara entry exists in the engine ConventionRegistry yet (pending spec content).
+      const body = JSON.parse(response.payload).data;
       expect(body.conventions.gocharaTransit).toBeDefined();
       expect(body.conventions.gocharaTransit.subsystem).toBe('Gochara Planetary Transit Engine');
     });

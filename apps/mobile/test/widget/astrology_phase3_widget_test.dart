@@ -685,10 +685,12 @@ void main() {
       await tester.pump(Duration.zero);
       await tester.pump(const Duration(milliseconds: 150));
 
-      // Tap on Mahapurusha tab
-      await tester.tap(find.text('Mahapurusha'));
-      await tester.pump(Duration.zero);
-      await tester.pump(const Duration(milliseconds: 150));
+      // Open the "Type of yoga" dropdown and choose Mahapurusha
+      await tester.ensureVisible(find.text('All Yogas'));
+      await tester.tap(find.text('All Yogas'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mahapurusha').last);
+      await tester.pumpAndSettle();
 
       expect(find.text('Hamsa Yoga'), findsOneWidget);
       expect(find.text('Gaja Kesari Yoga'), findsNothing);

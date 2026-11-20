@@ -20,6 +20,7 @@ class AstroMobileApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
+      scrollBehavior: const AstroScrollBehavior(),
       locale: activeLocale,
       localizationsDelegates: const [
         AppLocalizations.delegate,

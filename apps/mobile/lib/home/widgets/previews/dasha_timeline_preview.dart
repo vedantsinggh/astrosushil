@@ -34,9 +34,17 @@ class DashaTimelinePreview extends StatelessWidget {
     final activeMaha = activeInfo?.mahadasha;
     final activeAntar = activeInfo?.antardasha;
 
-    final mahaLord = activeMaha?.lord ?? 'Jupiter';
-    final antarLord = activeAntar?.lord ?? 'Saturn';
-    final mahaEnd = activeMaha != null ? '${activeMaha.endDate.year}' : '2028';
+    // Genuine backend Dasha only: no invented lords or end years.
+    if (activeMaha == null) {
+      return const PreviewEmptyState(
+        title: 'Vimshottari Dasha',
+        message: 'Dasha data is not available right now',
+        icon: Icons.timeline_rounded,
+      );
+    }
+    final mahaLord = activeMaha.lord;
+    final antarLord = activeAntar?.lord;
+    final mahaEnd = '${activeMaha.endDate.year}';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -59,7 +67,7 @@ class DashaTimelinePreview extends StatelessWidget {
                   const Icon(Icons.circle, size: 6, color: Color(0xFFD97706)),
                   const SizedBox(width: 4),
                   Text(
-                    '$mahaLord / $antarLord',
+                    antarLord != null ? '$mahaLord / $antarLord' : mahaLord,
                     style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,

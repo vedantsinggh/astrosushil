@@ -1,0 +1,2345 @@
+{
+ "vargas": {
+  "D5": {
+   "vargaType": "D5",
+   "division": 5,
+   "name": "Panchamsa",
+   "calculationRule": "6-degree division: odd signs Aries, Aquarius, Sagittarius, Gemini, Libra (odd signs of Mars, Saturn, Jupiter, Mercury, Venus); even signs Taurus, Virgo, Pisces, Capricorn, Scorpio (even signs of Venus, Mercury, Jupiter, Saturn, Mars)",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 2,
+    "rashiName": "Vrishabha",
+    "degreeInVarga": 9.561168794842558,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 9.561168794842558,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 2.7988764096659047,
+     "sourceLongitude": 30.55977528193318,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 9.520244980122072,
+     "sourceLongitude": 271.9040489960244,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 2.628432113255883,
+     "sourceLongitude": 324.5256864226512,
+     "house": 6,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 11.560796501815371,
+     "sourceLongitude": 14.312159300363074,
+     "house": 8,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 19.01320822102008,
+     "sourceLongitude": 75.80264164420402,
+     "house": 8,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "degreeInVarga": 4.801441008441429,
+     "sourceLongitude": 348.9602882016883,
+     "house": 9,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 7.679778430557747,
+     "sourceLongitude": 271.53595568611155,
+     "house": 1,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "degreeInVarga": 28.134836466635136,
+     "sourceLongitude": 287.626967293327,
+     "house": 11,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "degreeInVarga": 28.134836466635136,
+     "sourceLongitude": 107.62696729332703,
+     "house": 11,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": [
+      "SUN",
+      "MOON",
+      "SATURN"
+     ]
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": []
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": []
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": []
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": []
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": [
+      "MERCURY",
+      "JUPITER"
+     ]
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": [
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": []
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 12,
+     "occupants": []
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 1,
+     "occupants": [
+      "SUN",
+      "MOON",
+      "SATURN"
+     ]
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 2,
+     "occupants": []
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 3,
+     "occupants": []
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 4,
+     "occupants": []
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 5,
+     "occupants": []
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 6,
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 7,
+     "occupants": []
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 8,
+     "occupants": [
+      "MERCURY",
+      "JUPITER"
+     ]
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 9,
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 10,
+     "occupants": []
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 11,
+     "occupants": [
+      "RAHU",
+      "KETU"
+     ]
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora",
+   "conventionNotes": [
+    "Not one of the BPHS ch. 6 sixteen vargas; the lord sequence mirrors the Trimsamsa lords (Mars, Saturn, Jupiter, Mercury, Venus in odd signs, reversed in even signs) with equal 6-degree parts.",
+    "Alternative 1 (some tables): odd signs Aries, Capricorn, Sagittarius, Gemini, Libra and even signs Taurus, Virgo, Pisces, Aquarius, Scorpio (Saturn sign swapped).",
+    "Alternative 2 (parivritti / cyclic): parts counted continuously from Aries through the zodiac."
+   ]
+  },
+  "D6": {
+   "vargaType": "D6",
+   "division": 6,
+   "name": "Shashtamsa",
+   "calculationRule": "5-degree division: odd signs count from Aries, even signs count from Libra",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 7,
+    "rashiName": "Tula",
+    "degreeInVarga": 11.47340255381107,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 11.47340255381107,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 3.3586516915990856,
+     "sourceLongitude": 30.55977528193318,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 11.424293976146487,
+     "sourceLongitude": 271.9040489960244,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 27.15411853590706,
+     "sourceLongitude": 324.5256864226512,
+     "house": 11,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 25.872955802178446,
+     "sourceLongitude": 14.312159300363074,
+     "house": 9,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 4.815849865224095,
+     "sourceLongitude": 75.80264164420402,
+     "house": 10,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "degreeInVarga": 23.761729210129715,
+     "sourceLongitude": 348.9602882016883,
+     "house": 4,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 9.215734116669296,
+     "sourceLongitude": 271.53595568611155,
+     "house": 1,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "degreeInVarga": 15.761803759962163,
+     "sourceLongitude": 287.626967293327,
+     "house": 4,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "degreeInVarga": 15.761803759962163,
+     "sourceLongitude": 107.62696729332703,
+     "house": 4,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": [
+      "SUN",
+      "MOON",
+      "SATURN"
+     ]
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": []
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": []
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": [
+      "VENUS",
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": []
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": [
+      "MERCURY"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": [
+      "JUPITER"
+     ]
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": []
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 7,
+     "occupants": []
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 8,
+     "occupants": []
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 9,
+     "occupants": [
+      "MERCURY"
+     ]
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 10,
+     "occupants": [
+      "JUPITER"
+     ]
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 11,
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 12,
+     "occupants": []
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 1,
+     "occupants": [
+      "SUN",
+      "MOON",
+      "SATURN"
+     ]
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 2,
+     "occupants": []
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 3,
+     "occupants": []
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 4,
+     "occupants": [
+      "VENUS",
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 5,
+     "occupants": []
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 6,
+     "occupants": []
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora",
+   "conventionNotes": [
+    "Alternative (parivritti / cyclic): parts counted continuously from Aries (6 parts per sign)."
+   ]
+  },
+  "D8": {
+   "vargaType": "D8",
+   "division": 8,
+   "name": "Ashtamsa",
+   "calculationRule": "3.75-degree division: movable signs count from Aries, fixed signs from Sagittarius, dual signs from Leo",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 5,
+    "rashiName": "Simha",
+    "degreeInVarga": 15.297870071748093,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 15.297870071748093,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 4.4782022554654475,
+     "sourceLongitude": 30.55977528193318,
+     "house": 5,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "degreeInVarga": 15.232391968195316,
+     "sourceLongitude": 271.9040489960244,
+     "house": 9,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 16.205491381209413,
+     "sourceLongitude": 324.5256864226512,
+     "house": 11,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 24.497274402904594,
+     "sourceLongitude": 14.312159300363074,
+     "house": 12,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 6.421133153632127,
+     "sourceLongitude": 75.80264164420402,
+     "house": 5,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "degreeInVarga": 1.682305613506287,
+     "sourceLongitude": 348.9602882016883,
+     "house": 6,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "degreeInVarga": 12.287645488892394,
+     "sourceLongitude": 271.53595568611155,
+     "house": 9,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 21.015738346616217,
+     "sourceLongitude": 287.626967293327,
+     "house": 1,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 21.015738346616217,
+     "sourceLongitude": 107.62696729332703,
+     "house": 1,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": [
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": []
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": []
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": []
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": [
+      "SUN",
+      "JUPITER"
+     ]
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": [
+      "MOON",
+      "SATURN"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": [
+      "MERCURY"
+     ]
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 9,
+     "occupants": [
+      "MOON",
+      "SATURN"
+     ]
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 10,
+     "occupants": []
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 11,
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 12,
+     "occupants": [
+      "MERCURY"
+     ]
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 1,
+     "occupants": [
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 2,
+     "occupants": []
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 3,
+     "occupants": []
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 4,
+     "occupants": []
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 5,
+     "occupants": [
+      "SUN",
+      "JUPITER"
+     ]
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 6,
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 7,
+     "occupants": []
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 8,
+     "occupants": []
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora",
+   "conventionNotes": [
+    "Alternative (parivritti / cyclic): parts counted continuously from Aries (8 parts per sign)."
+   ]
+  },
+  "D11": {
+   "vargaType": "D11",
+   "division": 11,
+   "name": "Rudramsa (Ekadasamsa)",
+   "calculationRule": "30/11-degree division: count from Aries to the occupied sign, count the same number of signs backwards from Aries to get the starting sign, then the 11 parts run zodiacally from that starting sign",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 8,
+    "rashiName": "Vrischika",
+    "degreeInVarga": 21.03457134865363,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "degreeInVarga": 21.03457134865363,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "degreeInVarga": 6.15752810126499,
+     "sourceLongitude": 30.55977528193318,
+     "house": 5,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 20.94453895626856,
+     "sourceLongitude": 271.9040489960244,
+     "house": 9,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "degreeInVarga": 29.78255064916296,
+     "sourceLongitude": 324.5256864226512,
+     "house": 4,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "degreeInVarga": 7.433752303993834,
+     "sourceLongitude": 14.312159300363074,
+     "house": 11,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 23.829058086244192,
+     "sourceLongitude": 75.80264164420402,
+     "house": 9,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "degreeInVarga": 28.563170218571152,
+     "sourceLongitude": 348.9602882016883,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 16.895512547227046,
+     "sourceLongitude": 271.53595568611155,
+     "house": 9,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "degreeInVarga": 13.896640226597304,
+     "sourceLongitude": 287.626967293327,
+     "house": 3,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 13.896640226597304,
+     "sourceLongitude": 107.62696729332703,
+     "house": 9,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": []
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": [
+      "RAHU"
+     ]
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": [
+      "MOON",
+      "JUPITER",
+      "SATURN",
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": [
+      "MERCURY"
+     ]
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": []
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 6,
+     "occupants": []
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 7,
+     "occupants": []
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 8,
+     "occupants": []
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 9,
+     "occupants": [
+      "MOON",
+      "JUPITER",
+      "SATURN",
+      "KETU"
+     ]
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 10,
+     "occupants": []
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 11,
+     "occupants": [
+      "MERCURY"
+     ]
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 12,
+     "occupants": []
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 1,
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 2,
+     "occupants": []
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 3,
+     "occupants": [
+      "RAHU"
+     ]
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 4,
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 5,
+     "occupants": [
+      "SUN"
+     ]
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora",
+   "conventionNotes": [
+    "Alternative 1 (some varga tables): odd signs count from Leo, even signs from Cancer.",
+    "Alternative 2 (parivritti / cyclic): parts counted continuously from Aries (11 parts per sign)."
+   ]
+  },
+  "D81": {
+   "vargaType": "D81",
+   "division": 81,
+   "name": "Nava-navamsa",
+   "calculationRule": "30/81-degree division counted continuously through the zodiac from 0 Aries (navamsa of the navamsa): part q of sign s maps to sign ((81*(s-1)+q) mod 12)+1",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 3,
+    "rashiName": "Mithuna",
+    "degreeInVarga": 4.890934476449463,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 4.890934476449463,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "degreeInVarga": 15.34179783658766,
+     "sourceLongitude": 30.55977528193318,
+     "house": 9,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 4.227968677977589,
+     "sourceLongitude": 271.9040489960244,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "degreeInVarga": 6.580600234745432,
+     "sourceLongitude": 324.5256864226512,
+     "house": 11,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 19.284903329409136,
+     "sourceLongitude": 14.312159300363074,
+     "house": 1,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "degreeInVarga": 20.013973180525298,
+     "sourceLongitude": 75.80264164420402,
+     "house": 11,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 5.783344336751125,
+     "sourceLongitude": 348.9602882016883,
+     "house": 5,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 4.412410575035501,
+     "sourceLongitude": 271.53595568611155,
+     "house": 12,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 17.784350759489413,
+     "sourceLongitude": 287.626967293327,
+     "house": 7,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 17.784350759489413,
+     "sourceLongitude": 107.62696729332703,
+     "house": 1,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": [
+      "MOON",
+      "MERCURY",
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": []
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": []
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": []
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": [
+      "RAHU"
+     ]
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": []
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": [
+      "MARS",
+      "JUPITER"
+     ]
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": [
+      "SATURN"
+     ]
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 11,
+     "occupants": [
+      "MARS",
+      "JUPITER"
+     ]
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 12,
+     "occupants": [
+      "SATURN"
+     ]
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 1,
+     "occupants": [
+      "MOON",
+      "MERCURY",
+      "KETU"
+     ]
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 2,
+     "occupants": []
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 3,
+     "occupants": []
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 4,
+     "occupants": []
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 5,
+     "occupants": [
+      "VENUS"
+     ]
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 6,
+     "occupants": []
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 7,
+     "occupants": [
+      "RAHU"
+     ]
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 8,
+     "occupants": []
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 9,
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 10,
+     "occupants": []
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora; Prasna Marga (navamsa-of-navamsa: whole longitude multiplied by 81)",
+   "conventionNotes": [
+    "Navamsa-of-navamsa and continuous counting from Aries give the same sign because 81 = 9 x 9 and the navamsa itself counts continuously from Aries."
+   ]
+  },
+  "D108": {
+   "vargaType": "D108",
+   "division": 108,
+   "name": "Ashtottaramsa",
+   "calculationRule": "30/108-degree division counted continuously through the zodiac from 0 Aries (parivritti); since 108 is a multiple of 12 every sign starts from Aries",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 7,
+    "rashiName": "Tula",
+    "degreeInVarga": 26.521245968599253,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 26.521245968599253,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 0.4557304487835383,
+     "sourceLongitude": 30.55977528193318,
+     "house": 9,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 25.63729157063675,
+     "sourceLongitude": 271.9040489960244,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 8.77413364632686,
+     "sourceLongitude": 324.5256864226512,
+     "house": 11,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 15.713204439211891,
+     "sourceLongitude": 14.312159300363074,
+     "house": 10,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 26.68529757403354,
+     "sourceLongitude": 75.80264164420402,
+     "house": 3,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "degreeInVarga": 7.7111257823348325,
+     "sourceLongitude": 348.9602882016883,
+     "house": 3,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "degreeInVarga": 15.883214100047331,
+     "sourceLongitude": 271.53595568611155,
+     "house": 12,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 13.712467679318934,
+     "sourceLongitude": 287.626967293327,
+     "house": 10,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 13.712467679318934,
+     "sourceLongitude": 107.62696729332703,
+     "house": 10,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": [
+      "MOON"
+     ]
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": []
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": [
+      "JUPITER",
+      "VENUS"
+     ]
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": []
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": []
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": [
+      "MERCURY",
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": [
+      "SATURN"
+     ]
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 7,
+     "occupants": []
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 8,
+     "occupants": []
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 9,
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 10,
+     "occupants": [
+      "MERCURY",
+      "RAHU",
+      "KETU"
+     ]
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 11,
+     "occupants": [
+      "MARS"
+     ]
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 12,
+     "occupants": [
+      "SATURN"
+     ]
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 1,
+     "occupants": [
+      "MOON"
+     ]
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 2,
+     "occupants": []
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 3,
+     "occupants": [
+      "JUPITER",
+      "VENUS"
+     ]
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 4,
+     "occupants": []
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 5,
+     "occupants": []
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 6,
+     "occupants": []
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora",
+   "conventionNotes": [
+    "Alternative 1: navamsa of the dwadasamsa (D9 applied inside each D12 part).",
+    "Alternative 2: dwadasamsa of the navamsa (D12 applied inside each D9 part)."
+   ]
+  },
+  "D144": {
+   "vargaType": "D144",
+   "division": 144,
+   "name": "Dwadas-dwadasamsa",
+   "calculationRule": "Dwadasamsa of the dwadasamsa: the 2.5-degree D12 part p1 gives sign s+p1; that part is again divided into 12 parts p2 counted from it: sign ((s-1+p1+p2) mod 12)+1",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 3,
+    "rashiName": "Mithuna",
+    "degreeInVarga": 5.36166129146568,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "degreeInVarga": 5.36166129146568,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "degreeInVarga": 20.60764059837805,
+     "sourceLongitude": 30.55977528193318,
+     "house": 2,
+     "isRetrograde": false
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 4.183055427515683,
+     "sourceLongitude": 271.9040489960244,
+     "house": 5,
+     "isRetrograde": false
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 21.69884486176943,
+     "sourceLongitude": 324.5256864226512,
+     "house": 3,
+     "isRetrograde": false
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 20.950939252282524,
+     "sourceLongitude": 14.312159300363074,
+     "house": 12,
+     "isRetrograde": true
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "degreeInVarga": 25.58039676537828,
+     "sourceLongitude": 75.80264164420402,
+     "house": 10,
+     "isRetrograde": false
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 0.28150104311282576,
+     "sourceLongitude": 348.9602882016883,
+     "house": 12,
+     "isRetrograde": false
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 11.17761880006308,
+     "sourceLongitude": 271.53595568611155,
+     "house": 3,
+     "isRetrograde": true
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 18.28329023909191,
+     "sourceLongitude": 287.626967293327,
+     "house": 3,
+     "isRetrograde": true
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "degreeInVarga": 18.28329023909191,
+     "sourceLongitude": 107.62696729332703,
+     "house": 9,
+     "isRetrograde": true
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": []
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": [
+      "MARS",
+      "SATURN",
+      "RAHU"
+     ]
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": []
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": [
+      "MOON"
+     ]
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": []
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": []
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": [
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": [
+      "JUPITER"
+     ]
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": [
+      "MERCURY",
+      "VENUS"
+     ]
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 11,
+     "occupants": []
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 12,
+     "occupants": [
+      "MERCURY",
+      "VENUS"
+     ]
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 1,
+     "occupants": []
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 2,
+     "occupants": [
+      "SUN"
+     ]
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 3,
+     "occupants": [
+      "MARS",
+      "SATURN",
+      "RAHU"
+     ]
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 4,
+     "occupants": []
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 5,
+     "occupants": [
+      "MOON"
+     ]
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 6,
+     "occupants": []
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 7,
+     "occupants": []
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 8,
+     "occupants": []
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 9,
+     "occupants": [
+      "KETU"
+     ]
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 10,
+     "occupants": [
+      "JUPITER"
+     ]
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "P.V.R. Narasimha Rao, \"Vedic Astrology: An Integrated Approach\" (Sagar Publications, 2000), ch. 6 (divisional charts); same rule is the documented default of Jagannatha Hora",
+   "conventionNotes": [
+    "Alternative (parivritti / cyclic): 144 parts per sign counted continuously from Aries (every sign then starts from Aries)."
+   ]
+  },
+  "D150": {
+   "vargaType": "D150",
+   "division": 150,
+   "name": "Nadiamsa",
+   "calculationRule": "0.2-degree division into 150 nadiamsas; ordinal counted directly in movable signs, in reverse in fixed signs, and from the 76th in dual signs; the n-th nadiamsa falls in the n-th sign counted from the occupied sign",
+   "ascendant": {
+    "planet": "Ascendant",
+    "rashiIndex": 6,
+    "rashiName": "Kanya",
+    "degreeInVarga": 16.835063845276743,
+    "sourceLongitude": 151.9122337589685,
+    "house": 1,
+    "isRetrograde": false,
+    "nadiamsaNumber": 85
+   },
+   "placements": {
+    "Ascendant": {
+     "planet": "Ascendant",
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "degreeInVarga": 16.835063845276743,
+     "sourceLongitude": 151.9122337589685,
+     "house": 1,
+     "isRetrograde": false,
+     "nadiamsaNumber": 85
+    },
+    "SUN": {
+     "planet": "SUN",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 23.966292289977137,
+     "sourceLongitude": 30.55977528193318,
+     "house": 12,
+     "isRetrograde": false,
+     "nadiamsaNumber": 148
+    },
+    "MOON": {
+     "planet": "MOON",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 15.607349403662163,
+     "sourceLongitude": 271.9040489960244,
+     "house": 2,
+     "isRetrograde": false,
+     "nadiamsaNumber": 10
+    },
+    "MARS": {
+     "planet": "MARS",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 18.85296339767617,
+     "sourceLongitude": 324.5256864226512,
+     "house": 9,
+     "isRetrograde": false,
+     "nadiamsaNumber": 28
+    },
+    "MERCURY": {
+     "planet": "MERCURY",
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "degreeInVarga": 16.82389505446098,
+     "sourceLongitude": 14.312159300363074,
+     "house": 7,
+     "isRetrograde": true,
+     "nadiamsaNumber": 72
+    },
+    "JUPITER": {
+     "planet": "JUPITER",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 0.3962466306022705,
+     "sourceLongitude": 75.80264164420402,
+     "house": 2,
+     "isRetrograde": false,
+     "nadiamsaNumber": 5
+    },
+    "VENUS": {
+     "planet": "VENUS",
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "degreeInVarga": 24.043230253242776,
+     "sourceLongitude": 348.9602882016883,
+     "house": 2,
+     "isRetrograde": false,
+     "nadiamsaNumber": 20
+    },
+    "SATURN": {
+     "planet": "SATURN",
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "degreeInVarga": 20.393352916732375,
+     "sourceLongitude": 271.53595568611155,
+     "house": 12,
+     "isRetrograde": true,
+     "nadiamsaNumber": 8
+    },
+    "RAHU": {
+     "planet": "RAHU",
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "degreeInVarga": 4.0450939990538615,
+     "sourceLongitude": 287.626967293327,
+     "house": 9,
+     "isRetrograde": true,
+     "nadiamsaNumber": 89
+    },
+    "KETU": {
+     "planet": "KETU",
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "degreeInVarga": 4.0450939990538615,
+     "sourceLongitude": 107.62696729332703,
+     "house": 3,
+     "isRetrograde": true,
+     "nadiamsaNumber": 89
+    }
+   },
+   "houses": [
+    {
+     "houseNumber": 1,
+     "rashiIndex": 6,
+     "rashiName": "Kanya",
+     "occupants": []
+    },
+    {
+     "houseNumber": 2,
+     "rashiIndex": 7,
+     "rashiName": "Tula",
+     "occupants": [
+      "MOON",
+      "JUPITER",
+      "VENUS"
+     ]
+    },
+    {
+     "houseNumber": 3,
+     "rashiIndex": 8,
+     "rashiName": "Vrischika",
+     "occupants": [
+      "KETU"
+     ]
+    },
+    {
+     "houseNumber": 4,
+     "rashiIndex": 9,
+     "rashiName": "Dhanu",
+     "occupants": []
+    },
+    {
+     "houseNumber": 5,
+     "rashiIndex": 10,
+     "rashiName": "Makara",
+     "occupants": []
+    },
+    {
+     "houseNumber": 6,
+     "rashiIndex": 11,
+     "rashiName": "Kumbha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 7,
+     "rashiIndex": 12,
+     "rashiName": "Meena",
+     "occupants": [
+      "MERCURY"
+     ]
+    },
+    {
+     "houseNumber": 8,
+     "rashiIndex": 1,
+     "rashiName": "Mesha",
+     "occupants": []
+    },
+    {
+     "houseNumber": 9,
+     "rashiIndex": 2,
+     "rashiName": "Vrishabha",
+     "occupants": [
+      "MARS",
+      "RAHU"
+     ]
+    },
+    {
+     "houseNumber": 10,
+     "rashiIndex": 3,
+     "rashiName": "Mithuna",
+     "occupants": []
+    },
+    {
+     "houseNumber": 11,
+     "rashiIndex": 4,
+     "rashiName": "Karka",
+     "occupants": []
+    },
+    {
+     "houseNumber": 12,
+     "rashiIndex": 5,
+     "rashiName": "Simha",
+     "occupants": [
+      "SUN",
+      "SATURN"
+     ]
+    }
+   ],
+   "signs": [
+    {
+     "index": 1,
+     "name": "Mesha",
+     "houseNumber": 8,
+     "occupants": []
+    },
+    {
+     "index": 2,
+     "name": "Vrishabha",
+     "houseNumber": 9,
+     "occupants": [
+      "MARS",
+      "RAHU"
+     ]
+    },
+    {
+     "index": 3,
+     "name": "Mithuna",
+     "houseNumber": 10,
+     "occupants": []
+    },
+    {
+     "index": 4,
+     "name": "Karka",
+     "houseNumber": 11,
+     "occupants": []
+    },
+    {
+     "index": 5,
+     "name": "Simha",
+     "houseNumber": 12,
+     "occupants": [
+      "SUN",
+      "SATURN"
+     ]
+    },
+    {
+     "index": 6,
+     "name": "Kanya",
+     "houseNumber": 1,
+     "occupants": []
+    },
+    {
+     "index": 7,
+     "name": "Tula",
+     "houseNumber": 2,
+     "occupants": [
+      "MOON",
+      "JUPITER",
+      "VENUS"
+     ]
+    },
+    {
+     "index": 8,
+     "name": "Vrischika",
+     "houseNumber": 3,
+     "occupants": [
+      "KETU"
+     ]
+    },
+    {
+     "index": 9,
+     "name": "Dhanu",
+     "houseNumber": 4,
+     "occupants": []
+    },
+    {
+     "index": 10,
+     "name": "Makara",
+     "houseNumber": 5,
+     "occupants": []
+    },
+    {
+     "index": 11,
+     "name": "Kumbha",
+     "houseNumber": 6,
+     "occupants": []
+    },
+    {
+     "index": 12,
+     "name": "Meena",
+     "houseNumber": 7,
+     "occupants": [
+      "MERCURY"
+     ]
+    }
+   ],
+   "provisional": true,
+   "provisionalLabel": "provisional – pending client review",
+   "source": "Nadiamsa ordering as in Chandra Kala Nadi (Deva Keralam), tr. R. Santhanam, introduction (direct in chara, reverse in sthira, from the middle/76th in dwiswabhava signs); D-150 sign placement as in Jagannatha Hora (P.V.R. Narasimha Rao)",
+   "conventionNotes": [
+    "The nadiamsa ordinal (nadiamsaNumber) is the classically defined quantity; the sign placement of the n-th nadiamsa (counted from the occupied sign) is the software convention and needs client confirmation.",
+    "Alternative sign placement: n-th nadiamsa counted from Aries.",
+    "Some authors use unequal nadiamsa spans; equal 12-arc-minute spans are used here.",
+    "degreeInVarga is measured zodiacally inside the 0.2-degree part, also in fixed and dual signs."
+   ]
+  }
+ },
+ "provisional": true
+}

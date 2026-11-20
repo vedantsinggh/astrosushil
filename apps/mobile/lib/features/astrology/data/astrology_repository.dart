@@ -39,6 +39,18 @@ class AstrologyRepository {
     return 'astrology_${inputHash.hashCode}_${suffix}_$engineVersion';
   }
 
+  /// Returns the profile's real IANA timezone. Never substitutes a default
+  /// timezone, because a guessed timezone silently produces a wrong chart.
+  String _requireTimezone(BirthProfileModel profile) {
+    if (profile.timezone.trim().isEmpty) {
+      throw const ValidationException(
+        'This birth profile has no timezone. Please edit the birth place so the chart can be calculated accurately.',
+        code: 'BIRTH_TIMEZONE_MISSING',
+      );
+    }
+    return profile.timezone;
+  }
+
   /// Helper to build standardized birth payload
   Map<String, dynamic> _buildPayload(BirthProfileModel profile, [Map<String, dynamic>? extras]) {
     final isGuestProfile = profile.id.isEmpty ||
@@ -54,7 +66,7 @@ class AstrologyRepository {
           'timeOfBirth': profile.timeOfBirth,
           'latitude': profile.latitude,
           'longitude': profile.longitude,
-          'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+          'timezone': _requireTimezone(profile),
           'placeName': profile.placeName,
         },
       };
@@ -120,7 +132,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
             'vargaType': normalizedVarga,
@@ -208,7 +220,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
             'dashaSystem': 'VIMSHOTTARI',
@@ -278,7 +290,7 @@ class AstrologyRepository {
         'timeOfBirth': profile.timeOfBirth.isNotEmpty ? profile.timeOfBirth : '12:00:00',
         'latitude': profile.latitude,
         'longitude': profile.longitude,
-        'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+        'timezone': _requireTimezone(profile),
       };
 
       final response = await _apiClient.post(
@@ -403,7 +415,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
             ...extras,
@@ -475,7 +487,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
           };
@@ -513,7 +525,7 @@ class AstrologyRepository {
     String? timezone,
     bool forceRefresh = false,
   }) async {
-    final effectiveTimezone = timezone ?? (profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata');
+    final effectiveTimezone = timezone ?? (_requireTimezone(profile));
     final dateStr = (transitDate ?? DateTime.now()).toUtc().toIso8601String().substring(0, 13);
     final cacheKey = _getCacheKey(profile, 'gochara_$dateStr');
     final cache = _cacheService;
@@ -661,7 +673,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
           };
@@ -742,7 +754,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
           };
@@ -820,7 +832,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
             'scheme': scheme,
@@ -899,7 +911,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
             'isDayBirth': isDayBirth,
@@ -978,7 +990,7 @@ class AstrologyRepository {
               'timeOfBirth': profile.timeOfBirth,
               'latitude': profile.latitude,
               'longitude': profile.longitude,
-              'timezone': profile.timezone.isNotEmpty ? profile.timezone : 'Asia/Kolkata',
+              'timezone': _requireTimezone(profile),
               'placeName': profile.placeName,
             },
             'targetYear': targetYear,
@@ -1069,7 +1081,7 @@ class AstrologyRepository {
           'timeOfBirth': personA.timeOfBirth,
           'latitude': personA.latitude,
           'longitude': personA.longitude,
-          'timezone': personA.timezone.isNotEmpty ? personA.timezone : 'Asia/Kolkata',
+          'timezone': _requireTimezone(personA),
           'placeName': personA.placeName,
         },
       },
@@ -1082,7 +1094,7 @@ class AstrologyRepository {
           'timeOfBirth': personB.timeOfBirth,
           'latitude': personB.latitude,
           'longitude': personB.longitude,
-          'timezone': personB.timezone.isNotEmpty ? personB.timezone : 'Asia/Kolkata',
+          'timezone': _requireTimezone(personB),
           'placeName': personB.placeName,
         },
       },

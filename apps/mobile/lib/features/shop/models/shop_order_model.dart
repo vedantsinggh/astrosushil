@@ -1,3 +1,4 @@
+import '../../../core/utils/app_date_time.dart';
 import 'shipping_address_model.dart';
 
 class ShopOrderItemModel {
@@ -111,11 +112,10 @@ class ShopOrderModel {
       fulfillmentStatus: json['fulfillmentStatus'] as String? ?? 'UNFULFILLED',
       trackingNumber: json['trackingNumber'] as String?,
       courierPartner: json['courierPartner'] as String?,
-      dispatchedAt: json['dispatchedAt'] != null ? DateTime.tryParse(json['dispatchedAt'].toString()) : null,
-      deliveredAt: json['deliveredAt'] != null ? DateTime.tryParse(json['deliveredAt'].toString()) : null,
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      // Server instants (UTC) kept in device-local time for display.
+      dispatchedAt: AppDateTime.parseInstant(json['dispatchedAt']),
+      deliveredAt: AppDateTime.parseInstant(json['deliveredAt']),
+      createdAt: AppDateTime.parseInstant(json['createdAt']) ?? DateTime.now(),
       items: parsedItems,
       shippingAddress: parsedAddress,
     );

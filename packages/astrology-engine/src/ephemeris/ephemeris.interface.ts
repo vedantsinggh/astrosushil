@@ -13,6 +13,8 @@ export interface EphemerisProvider {
 
   /**
    * Calculates raw ecliptic coordinates for a single planet at a given Julian Day UT.
+   * Contract (engine 0.2.0, ADR-017): planet longitudes are apparent and referred to the TRUE
+   * equinox of date; RAHU/KETU are the MEAN lunar node referred to the MEAN equinox of date.
    */
   getPlanetaryPosition(
     planet: PlanetSymbol,

@@ -7,7 +7,7 @@ import 'package:astro_mobile/features/jyoti/widgets/home_jyoti_card.dart';
 import 'package:astro_mobile/features/jyoti/widgets/jyoti_floating_button.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_api_repository.dart';
 import 'package:astro_mobile/features/jyoti/data/jyoti_local_chat_repository.dart';
-import 'package:astro_mobile/features/jyoti/data/jyoti_mock_data.dart';
+import '../helpers/jyoti_test_responses.dart';
 import 'package:astro_mobile/features/jyoti/models/jyoti_message.dart';
 import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
 
@@ -131,11 +131,17 @@ void main() {
       expect(find.text('Generate my Kundli'), findsOneWidget);
       expect(find.text('Explain this screen'), findsOneWidget);
       expect(find.text('Show my planets'), findsOneWidget);
+
+      // Labelled Send button
+      expect(find.text('Send'), findsOneWidget);
     });
 
     testWidgets('Tapping a suggestion chip inputs message and shows response', (tester) async {
       await tester.pumpWidget(buildChatScreen());
 
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Generate my Kundli'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Generate my Kundli'));
       await tester.pump(); // Start sending message
 

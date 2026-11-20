@@ -327,17 +327,21 @@ describe('Phase 9: Infrastructure & External Services Hardening Suite', () => {
       expect(data.timestamp).toBeDefined();
     });
 
-    it('returns readiness probe response with database and redis fields on /ready and /health/ready', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/health/ready',
-      });
+    // The job queue moved from Redis to the Postgres-backed queue, so readiness reports `queue` (not `redis`).
+    it('returns readiness probe response with database and queue fields on /ready and /health/ready', async () => {
+      for (const url of ['/ready', '/health/ready']) {
+        const response = await app.inject({
+          method: 'GET',
+          url,
+        });
 
-      expect([200, 503]).toContain(response.statusCode);
-      const data = JSON.parse(response.body);
-      expect(data.service).toBe('astro-api');
-      expect(data.database).toBeDefined();
-      expect(data.redis).toBeDefined();
+        expect([200, 503]).toContain(response.statusCode);
+        const data = JSON.parse(response.body);
+        expect(data.service).toBe('astro-api');
+        expect(['connected', 'disconnected']).toContain(data.database);
+        expect(['connected', 'disconnected']).toContain(data.queue);
+        expect(data.status).toBe(response.statusCode === 200 ? 'ok' : 'degraded');
+      }
     });
   });
 });

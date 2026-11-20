@@ -5,67 +5,71 @@ export class MockEphemerisProvider implements EphemerisProvider {
   private readonly defaultPositions: Record<PlanetSymbol, RawPlanetaryCoordinates>;
 
   constructor(customPositions?: Partial<Record<PlanetSymbol, RawPlanetaryCoordinates>>) {
-    // Default deterministic reference coordinates (Reference Chart #1 - 1990-05-15 09:00 UTC)
+    // Default deterministic reference coordinates: REF_CHART_001 (1990-05-15 09:00 UT, JD 2448026.875).
+    // TROPICAL apparent geocentric ecliptic-of-date values from NASA/JPL Horizons; Rahu/Ketu are the
+    // Meeus (eq. 47.7) mean node. Source query and tolerances are documented in
+    // tests/fixtures/reference-charts.ts (REF_CHART_001_SOURCE). The engine subtracts the ayanamsa.
+    // NOTE: these positions are returned for ANY Julian Day; they are only real-sky for that instant.
     this.defaultPositions = {
       [PlanetSymbol.SUN]: {
         planet: PlanetSymbol.SUN,
-        longitude: 50.2541, // ~20° Taurus
-        latitude: 0.0,
-        distanceAU: 1.011,
-        speedLongitude: 0.963,
+        longitude: 54.2755655,
+        latitude: -0.0000283,
+        distanceAU: 1.0108726,
+        speedLongitude: 0.9642616,
         isRetrograde: false,
       },
       [PlanetSymbol.MOON]: {
         planet: PlanetSymbol.MOON,
-        longitude: 282.1154, // ~12° Capricorn
-        latitude: -1.24,
-        distanceAU: 0.00257,
-        speedLongitude: 13.12,
+        longitude: 295.6195136,
+        latitude: -1.2783803,
+        distanceAU: 0.0026465,
+        speedLongitude: 12.3288368,
         isRetrograde: false,
       },
       [PlanetSymbol.MARS]: {
         planet: PlanetSymbol.MARS,
-        longitude: 325.412, // ~25° Aquarius
-        latitude: -1.12,
-        distanceAU: 1.34,
-        speedLongitude: 0.72,
+        longitude: 348.2409959,
+        latitude: -1.7287412,
+        distanceAU: 1.4573563,
+        speedLongitude: 0.7427622,
         isRetrograde: false,
       },
       [PlanetSymbol.MERCURY]: {
         planet: PlanetSymbol.MERCURY,
-        longitude: 35.841, // ~5° Taurus
-        latitude: -2.45,
-        distanceAU: 0.98,
-        speedLongitude: 1.45,
-        isRetrograde: false,
+        longitude: 38.0280756,
+        latitude: -2.495234,
+        distanceAU: 0.6008284,
+        speedLongitude: -0.1296287,
+        isRetrograde: true,
       },
       [PlanetSymbol.JUPITER]: {
         planet: PlanetSymbol.JUPITER,
-        longitude: 98.452, // ~8° Cancer
-        latitude: 0.15,
-        distanceAU: 5.42,
-        speedLongitude: 0.14,
+        longitude: 99.5180914,
+        latitude: 0.1424267,
+        distanceAU: 5.8615054,
+        speedLongitude: 0.1890378,
         isRetrograde: false,
       },
       [PlanetSymbol.VENUS]: {
         planet: PlanetSymbol.VENUS,
-        longitude: 12.145, // ~12° Aries
-        latitude: 1.82,
-        distanceAU: 0.82,
-        speedLongitude: 1.18,
+        longitude: 12.6757335,
+        latitude: -1.7932409,
+        distanceAU: 1.037062,
+        speedLongitude: 1.1404351,
         isRetrograde: false,
       },
       [PlanetSymbol.SATURN]: {
         planet: PlanetSymbol.SATURN,
-        longitude: 295.612, // ~25° Capricorn
-        latitude: -0.45,
-        distanceAU: 9.85,
-        speedLongitude: 0.04,
-        isRetrograde: false,
+        longitude: 295.2515022,
+        latitude: 0.1552388,
+        distanceAU: 9.4864721,
+        speedLongitude: -0.0167064,
+        isRetrograde: true,
       },
       [PlanetSymbol.RAHU]: {
         planet: PlanetSymbol.RAHU,
-        longitude: 285.342, // ~15° Capricorn
+        longitude: 311.3425338,
         latitude: 0.0,
         distanceAU: 0.0,
         speedLongitude: -0.053,
@@ -73,7 +77,7 @@ export class MockEphemerisProvider implements EphemerisProvider {
       },
       [PlanetSymbol.KETU]: {
         planet: PlanetSymbol.KETU,
-        longitude: 105.342, // ~15° Cancer (180° opposite Rahu)
+        longitude: 131.3425338,
         latitude: 0.0,
         distanceAU: 0.0,
         speedLongitude: -0.053,
@@ -81,26 +85,26 @@ export class MockEphemerisProvider implements EphemerisProvider {
       },
       [PlanetSymbol.URANUS]: {
         planet: PlanetSymbol.URANUS,
-        longitude: 278.45,
-        latitude: -0.1,
-        distanceAU: 19.2,
-        speedLongitude: 0.01,
-        isRetrograde: false,
+        longitude: 279.1869306,
+        latitude: -0.3147087,
+        distanceAU: 18.6748915,
+        speedLongitude: -0.0244994,
+        isRetrograde: true,
       },
       [PlanetSymbol.NEPTUNE]: {
         planet: PlanetSymbol.NEPTUNE,
-        longitude: 284.12,
-        latitude: 0.4,
-        distanceAU: 30.1,
-        speedLongitude: 0.008,
-        isRetrograde: false,
+        longitude: 284.3547057,
+        latitude: 0.8724093,
+        distanceAU: 29.5486448,
+        speedLongitude: -0.0146672,
+        isRetrograde: true,
       },
       [PlanetSymbol.PLUTO]: {
         planet: PlanetSymbol.PLUTO,
-        longitude: 226.78,
-        latitude: 15.2,
-        distanceAU: 29.4,
-        speedLongitude: -0.002,
+        longitude: 226.1708513,
+        latitude: 15.9918746,
+        distanceAU: 28.6947622,
+        speedLongitude: -0.0277212,
         isRetrograde: true,
       },
       ...customPositions,

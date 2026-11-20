@@ -6,6 +6,8 @@ import {
   evidenceRequestSchema,
   predictionsRequestSchema,
   dashaRequestSchema,
+  additionalDashaRequestSchema,
+  ADDITIONAL_DASHA_ROUTES,
   panchangRequestSchema,
   vargasRequestSchema,
   matchmakingRequestSchema,
@@ -24,12 +26,27 @@ import {
   chartVariantsRequestSchema,
   avakhadaRequestSchema,
   vimshopakaRequestSchema,
+  planetaryIntelligenceRequestSchema,
 } from './astrology.schemas';
 import { AuthenticationError, AppError } from '../../errors/app-error';
+import { parseCalculationOptions, runWithCalculationOptions } from './calculation-options';
 
 export async function astrologyRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // Use optional authentication hook for astrology routes to support Guest Mode
   fastify.addHook('onRequest', fastify.authenticateOptional);
+
+  // Optional `ayanamsa` / `nodeType` body fields (ADR-017), validated here (invalid values give the
+  // standard VALIDATION_ERROR envelope) and scoped to this request for AstrologyService.getActiveConfig.
+  fastify.addHook('preHandler', (request, _reply, done) => {
+    let options;
+    try {
+      options = parseCalculationOptions(request.body);
+    } catch (err) {
+      done(err as Error);
+      return;
+    }
+    runWithCalculationOptions(options, () => done());
+  });
 
   // POST /api/v1/astrology/chart & POST /api/v1/astrology/kundli
   const chartRouteHandler = async (request: any, reply: any) => {
@@ -112,6 +129,29 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
     },
     handler: dashaRouteHandler,
   });
+
+  // POST /api/v1/astrology/dashas/{yogini|chara|narayana|kalachakra}
+  const additionalDashaSummaries: Record<keyof typeof ADDITIONAL_DASHA_ROUTES, string> = {
+    yogini: 'Calculate Yogini Dasha (36-year, 8 Yoginis, BPHS)',
+    chara: 'Calculate Jaimini Chara Dasha (K.N. Rao method)',
+    narayana: 'Calculate Jaimini Narayana Dasha (Padakrama)',
+    kalachakra: 'Calculate Kalachakra Dasha (BPHS, Savya/Apasavya, Deha/Jeeva)',
+  };
+  for (const [slug, system] of Object.entries(ADDITIONAL_DASHA_ROUTES) as [keyof typeof ADDITIONAL_DASHA_ROUTES, typeof ADDITIONAL_DASHA_ROUTES[keyof typeof ADDITIONAL_DASHA_ROUTES]][]) {
+    fastify.post(`/dashas/${slug}`, {
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['Astrology'],
+        summary: additionalDashaSummaries[slug],
+        description: 'Deterministic Dasha timeline with Mahadasha / Antardasha (/ Pratyantardasha) and the active period at targetDate. Methods are logged in docs/report-system/decisions/engine-extensions.md.',
+      },
+      handler: async (request: any, reply: any) => {
+        const input = additionalDashaRequestSchema.parse(request.body);
+        const result = await astrologyService.calculateAdditionalDasha(system, input, request.user);
+        return reply.status(200).send(result);
+      },
+    });
+  }
 
   // POST /api/v1/astrology/panchang
   fastify.post('/panchang', {
@@ -431,6 +471,34 @@ export async function astrologyRoutes(fastify: FastifyInstance, _options: Fastif
       const input = vimshopakaRequestSchema.parse(request.body);
       const result = await astrologyService.calculateVimshopaka(input, request.user);
       return reply.status(200).send({ data: result });
+    },
+  });
+
+  // POST /api/v1/astrology/planetary-intelligence
+  fastify.post('/planetary-intelligence', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      tags: ['Astrology'],
+      summary: 'Calculate deterministic planetary intelligence',
+      description: 'Computes per-planet dignity, combustion, Baladi & Jagratadi Avasthas, Chara Karaka assignments, Graha Drishti cast/received, planetary wars, and conjunctions.',
+    },
+    handler: async (request: any, reply: any) => {
+      const input = planetaryIntelligenceRequestSchema.parse(request.body);
+      const result = await astrologyService.calculatePlanetaryIntelligence(input, request.user);
+      return reply.status(200).send({ data: result });
+    },
+  });
+
+  // GET /api/v1/astrology/conventions
+  fastify.get('/conventions', {
+    config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    schema: {
+      tags: ['Astrology'],
+      summary: 'List calculation conventions and Dasha system metadata',
+      description: 'Returns the engine convention registry (zodiac, ayanamsa, house system, node model, traditions, sources) and implemented/pending Dasha system metadata.',
+    },
+    handler: async (_request: any, reply: any) => {
+      return reply.status(200).send({ data: astrologyService.getConventions() });
     },
   });
 }

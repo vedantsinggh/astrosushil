@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_typography.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
 import '../../../shared/widgets/error_banner.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_explanation_card.dart';
@@ -75,96 +71,98 @@ class PlanetsScreen extends ConsumerWidget {
         : null;
     final chart = chartAsync?.valueOrNull;
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Planets',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline_rounded, color: AppColors.primary),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Planetary positions calculated using Lahiri Sidereal ephemeris.'),
-                ),
-              );
-            },
+    return AstroPage(
+      title: 'Planets',
+      actions: [
+        AstroNavAction(
+          icon: Icons.help_outline_rounded,
+          tooltip: 'About planetary positions',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Planetary positions calculated using Lahiri Sidereal ephemeris.'),
+              ),
+            );
+          },
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'See where each planet was positioned at the time of your birth.',
+            style: AppTypography.bodyLarge.copyWith(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
           ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 16),
+
+          if (chart != null && chart.planets.isNotEmpty && !(chartAsync?.isLoading ?? false)) ...[
+            _buildPlanetsSummaryBar(chart),
+            const SizedBox(height: 16),
+          ],
+
+          // Sushil Sir Explainer Button
+          SushilExplainerButton(
+            contextBuilder: () => _buildExplanationContext(chart, activeProfile),
+            poseAsset: AppAssets.sushilExplaining,
+          ),
+          const SizedBox(height: 12),
+
+          // Beginner Educational Explanation Card
+          AstrologyExplanationCard(
+            title: context.l10n.explainPlanetsTitle,
+            whatIsText: context.l10n.explainPlanetsWhatIs,
+            howToReadText: context.l10n.explainPlanetsHowToRead,
+          ),
+
+          const SizedBox(height: 12),
+          if (chartAsync != null && chartAsync.isLoading)
+            const AstroLoaderCard(
+              message: AstroLoaderMessages.planetaryData,
+            )
+          else if (chartAsync != null && chartAsync.hasError)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: ErrorBanner(
+                message: chartAsync.error is AppException
+                    ? (chartAsync.error as AppException).message
+                    : 'Something went wrong while loading your chart.',
+                onRetry: activeProfile != null
+                    ? () => ref.refresh(astrologyChartForProfileProvider(activeProfile))
+                    : null,
+              ),
+            )
+          else if (chartAsync != null &&
+              chartAsync.valueOrNull != null &&
+              chartAsync.valueOrNull!.planets.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const AstroSectionHeading('Planetary Placements'),
+            AstroGroupedSection(
+              dividerInset: 16 + 44 + 14,
               children: [
-                const Text(
-                  'See where each planet was positioned at the time of your birth.',
-                  style: TextStyle(
-                    fontFamily: AppTypography.bodyFamily,
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Sushil Sir Explainer Button
-                SushilExplainerButton(
-                  contextBuilder: () => _buildExplanationContext(chart, activeProfile),
-                  poseAsset: AppAssets.sushilExplaining,
-                ),
-
-                // Beginner Educational Explanation Card
-                AstrologyExplanationCard(
-                  title: context.l10n.explainPlanetsTitle,
-                  whatIsText: context.l10n.explainPlanetsWhatIs,
-                  howToReadText: context.l10n.explainPlanetsHowToRead,
-                ),
-
-                const SizedBox(height: 8),
-                if (chartAsync != null && chartAsync.isLoading)
-                  const AstroLoaderCard(
-                    message: AstroLoaderMessages.planetaryData,
-                  )
-                else if (chartAsync != null && chartAsync.hasError)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12.0),
-                    child: ErrorBanner(
-                      message: chartAsync.error is AppException
-                          ? (chartAsync.error as AppException).message
-                          : 'Something went wrong while loading your chart.',
-                      onRetry: activeProfile != null
-                          ? () => ref.refresh(astrologyChartForProfileProvider(activeProfile))
-                          : null,
-                    ),
-                  )
-                else if (chartAsync != null &&
-                    chartAsync.valueOrNull != null &&
-                    chartAsync.valueOrNull!.planets.isNotEmpty) ...[
-                  _buildPlanetsSummaryBar(chartAsync.valueOrNull!),
-                  ...chartAsync.valueOrNull!.planets.map((planet) => _buildPlanetRow(
-                        context,
-                        planet,
-                        chartAsync.valueOrNull?.ascendant?.rashiIndex ?? 1,
-                      )),
-                ]
-                else
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20.0),
-                    child: AstrologyEmptyState(
-                      title: context.l10n.dataNotAvailable,
-                      message: activeProfile != null
-                          ? 'No planetary placements calculated for ${activeProfile.name}.'
-                          : 'Please select or add a birth profile to view planetary positions.',
-                    ),
+                for (final planet in chartAsync.valueOrNull!.planets)
+                  _buildPlanetRow(
+                    context,
+                    planet,
+                    chartAsync.valueOrNull?.ascendant?.rashiIndex ?? 1,
                   ),
               ],
             ),
-          ),
-        ),
+          ]
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20.0),
+              child: AstrologyEmptyState(
+                title: context.l10n.dataNotAvailable,
+                message: activeProfile != null
+                    ? 'No planetary placements calculated for ${activeProfile.name}.'
+                    : 'Please select or add a birth profile to view planetary positions.',
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -173,22 +171,17 @@ class PlanetsScreen extends ConsumerWidget {
     final total = chart.planets.length;
     final retroCount = chart.planets.where((p) => p.isRetrograde).length;
     final directCount = total - retroCount;
+    final divider = Container(height: 36, width: 1, color: Colors.white.withValues(alpha: 0.16));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceParchment,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorderSubtle, width: 1.0),
-      ),
+    return AstroGradientCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
       child: Row(
         children: [
-          Expanded(child: _buildMetricItem('TOTAL', '$total', AppColors.primary)),
-          Container(height: 24, width: 1, color: AppColors.cardBorder),
-          Expanded(child: _buildMetricItem('DIRECT', '$directCount', AppColors.tintSageText)),
-          Container(height: 24, width: 1, color: AppColors.cardBorder),
-          Expanded(child: _buildMetricItem('RETRO', '$retroCount', retroCount > 0 ? AppColors.tintRoseText : AppColors.textSecondary)),
+          Expanded(child: _buildMetricItem('Total', '$total', Colors.white)),
+          divider,
+          Expanded(child: _buildMetricItem('Direct', '$directCount', AppColors.gold)),
+          divider,
+          Expanded(child: _buildMetricItem('Retro', '$retroCount', retroCount > 0 ? const Color(0xFFFDA4AF) : Colors.white)),
         ],
       ),
     );
@@ -200,23 +193,14 @@ class PlanetsScreen extends ConsumerWidget {
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontFamily: AppTypography.headingFamily,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          textAlign: TextAlign.center,
+          style: AppTypography.headlineLarge.copyWith(fontSize: 28, color: color, height: 1.1),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontFamily: AppTypography.bodyFamily,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textMuted,
-            letterSpacing: 0.5,
-          ),
+          textAlign: TextAlign.center,
+          style: AppTypography.rowSubtitle.copyWith(fontSize: 14, color: AppColors.textInverseSecondary),
         ),
       ],
     );
@@ -227,140 +211,93 @@ class PlanetsScreen extends ConsumerWidget {
     final degreeStr =
         '${planet.degreeInRashi.toStringAsFixed(0)}°${((planet.degreeInRashi % 1) * 60).round()}\'';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => PlanetDetailScreen(
-                planetName: planet.displayNameWithRetro,
-                signName: planet.rashiName,
-                degree: degreeStr,
-                houseNumber: houseNum,
-                isRetrograde: planet.isRetrograde,
-                nakshatraName: planet.nakshatraName,
-              ),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.cardSurfaceWarm,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.cardBorder, width: 1.0),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    void open() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlanetDetailScreen(
+            planetName: planet.displayNameWithRetro,
+            signName: planet.rashiName,
+            degree: degreeStr,
+            houseNumber: houseNum,
+            isRetrograde: planet.isRetrograde,
+            nakshatraName: planet.nakshatraName,
           ),
-          child: Row(
-            children: [
-              _buildPlanetVisualIdentifier(planet.displayName),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 6,
-                      runSpacing: 2,
+        ),
+      );
+    }
+
+    Widget badge(String text, Color bg, Color fg) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+          child: Text(text, style: TextStyle(fontFamily: AppTypography.bodyFamily, fontSize: 13, fontWeight: FontWeight.w700, color: fg)),
+        );
+
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: open,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 64),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  _buildPlanetVisualIdentifier(planet.displayName),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          planet.displayNameWithRetro,
-                          style: const TextStyle(
-                            fontFamily: AppTypography.bodyFamily,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              planet.displayNameWithRetro,
+                              style: AppTypography.rowTitle.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            if (planet.isRetrograde) badge('Retro', AppColors.tintRoseBg, AppColors.tintRoseText),
+                            if (planet.formattedDignity.isNotEmpty)
+                              badge(planet.formattedDignity, _getDignityBgColor(planet.dignity), _getDignityTextColor(planet.dignity)),
+                          ],
                         ),
-                        if (planet.isRetrograde)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.tintRoseBg,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: AppColors.tintRoseBorder, width: 0.8),
-                            ),
-                            child: const Text(
-                              'RETRO',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.tintRoseText,
-                              ),
-                            ),
-                          ),
-                        if (planet.formattedDignity.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _getDignityBgColor(planet.dignity),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: _getDignityBorderColor(planet.dignity), width: 0.8),
-                            ),
-                            child: Text(
-                              planet.formattedDignity,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: _getDignityTextColor(planet.dignity),
-                              ),
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${planet.rashiName} • $degreeStr',
+                          style: AppTypography.rowSubtitle.copyWith(fontSize: 15),
+                        ),
+                        if (planet.nakshatraName.isNotEmpty)
+                          Text(
+                            '${planet.nakshatraName} • Pada ${planet.pada}',
+                            style: AppTypography.rowSubtitle.copyWith(fontSize: 14, color: AppColors.textMuted),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${planet.rashiName} • $degreeStr',
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AstroTint.indigo.background,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'House $houseNum',
                       style: const TextStyle(
                         fontFamily: AppTypography.bodyFamily,
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
                       ),
                     ),
-                    if (planet.nakshatraName.isNotEmpty)
-                      Text(
-                        '${planet.nakshatraName} • Pada ${planet.pada}',
-                        style: const TextStyle(
-                          fontFamily: AppTypography.bodyFamily,
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'House $houseNum',
-                  style: const TextStyle(
-                    fontFamily: AppTypography.bodyFamily,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  Icon(AstroIcons.chevron(context), color: AppColors.textMuted, size: 22),
+                ],
               ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textMuted,
-                size: 18,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -373,18 +310,18 @@ class PlanetsScreen extends ConsumerWidget {
 
     if (assetPath != null) {
       return Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.06),
+          color: AstroTint.amber.background,
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.cardBorder),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
         ),
         child: ClipOval(
           child: AstroImage(
             assetPath: assetPath,
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             fit: BoxFit.contain,
             fallback: AstroImageFallback.icon,
             semanticLabel: '$cleanName planet',
@@ -430,14 +367,14 @@ class PlanetsScreen extends ConsumerWidget {
     }
 
     return Container(
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.06),
+        color: AstroTint.amber.background,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
       ),
-      child: Icon(icon, color: AppColors.gold, size: 20),
+      child: Icon(icon, color: AppColors.goldDark, size: 22),
     );
   }
 
@@ -457,14 +394,5 @@ class PlanetsScreen extends ConsumerWidget {
     if (d.contains('OWN') || d.contains('SWA')) return AppColors.tintAmberText;
     if (d.contains('MOOLA')) return AppColors.tintVioletText;
     return AppColors.textSecondary;
-  }
-
-  Color _getDignityBorderColor(String? dignity) {
-    final d = dignity?.toUpperCase() ?? '';
-    if (d.contains('EXALT') || d.contains('UCHA')) return AppColors.tintSageBorder;
-    if (d.contains('DEBIL') || d.contains('NICHA')) return AppColors.tintRoseBorder;
-    if (d.contains('OWN') || d.contains('SWA')) return AppColors.tintAmberBorder;
-    if (d.contains('MOOLA')) return AppColors.tintVioletBorder;
-    return AppColors.cardBorder;
   }
 }

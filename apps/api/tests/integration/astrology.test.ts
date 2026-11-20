@@ -144,7 +144,7 @@ describe('Astrology API Endpoints Integration Tests (Phase 3)', () => {
     const body = JSON.parse(response.payload);
 
     expect(body.chart).toBeDefined();
-    expect(body.chart.calculationVersion).toBe('0.1.0');
+    expect(body.chart.calculationVersion).toBe('0.2.0'); // engine 0.2.0: true Lahiri ayanamsa (ADR-017)
     expect(body.chart.providerName).toBeDefined();
 
     // Verify Contract Integrity & Accuracy:

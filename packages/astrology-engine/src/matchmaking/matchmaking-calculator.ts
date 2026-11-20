@@ -1,4 +1,5 @@
 import { AstroChart } from '../chart/astro-chart.types';
+import { getTrueAyanamsa } from '../ayanamsa/ayanamsa';
 import { PlanetSymbol } from '../planets/planet.types';
 import { getNakshatraByLongitude, getPada } from '../nakshatra/nakshatra';
 import { getRashiByLongitude } from '../zodiac/rashi';
@@ -747,8 +748,9 @@ export class MatchmakingCalculator {
     const jdStart = startLocal / 86400000 + 2440587.5;
     const jdEnd = endLocal / 86400000 + 2440587.5;
 
-    const ayanStart = 23.85 + 0.01396 * ((jdStart - 2451545.0) / 365.25);
-    const ayanEnd = 23.85 + 0.01396 * ((jdEnd - 2451545.0) / 365.25);
+    // Engine default ayanamsa: true Chitrapaksha Lahiri (ADR-017).
+    const ayanStart = getTrueAyanamsa(jdStart);
+    const ayanEnd = getTrueAyanamsa(jdEnd);
 
     const ephem = new AstronomyEngineAdapter();
     const rawStart = ephem.getPlanetaryPosition(PlanetSymbol.MOON, jdStart);

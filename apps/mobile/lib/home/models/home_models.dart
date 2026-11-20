@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 
-/// Models for Home Screen components and mock data representations.
-/// 
-/// IMPORTANT: These models and mock objects are isolated UI presentation models.
-/// They MUST NOT contain business or calculation logic.
+/// UI presentation models for Home Screen components.
+///
+/// IMPORTANT: These models carry backend data only. They MUST NOT contain
+/// business/calculation logic or invented default values.
 
 class RashiBhavishyaPreview {
   final String rashiName;
   final String date;
-  final String predictionPreview;
-  final String luckyColor;
-  final int luckyNumber;
+
+  /// Null when the backend has no verified prediction for today.
+  final String? predictionPreview;
+  final String? luckyColor;
+  final int? luckyNumber;
 
   const RashiBhavishyaPreview({
     required this.rashiName,
     required this.date,
-    required this.predictionPreview,
-    required this.luckyColor,
-    required this.luckyNumber,
+    this.predictionPreview,
+    this.luckyColor,
+    this.luckyNumber,
   });
 }
 

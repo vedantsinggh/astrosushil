@@ -37,8 +37,10 @@ class AstrologyLoadingState extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: height,
+    // minHeight (not a fixed height) so the loader card can grow with large
+    // system text instead of overflowing.
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
       child: Center(
         child: AstroLoader.card(
           message: message,

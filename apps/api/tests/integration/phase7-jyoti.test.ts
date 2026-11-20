@@ -5,6 +5,13 @@ import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 import { jyotiService } from '../../src/modules/jyoti/jyoti.service';
 
+// The OpenRouter provider is a module-level singleton that now refuses to run (503) when no API key is
+// configured (no fabricated fallbacks). Provide a dummy key before the app modules are imported; the
+// global `fetch` is stubbed below, so no network request is ever made.
+vi.hoisted(() => {
+  process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-openrouter-key';
+});
+
 describe('Phase 7 Jyoti AI Assistant Integration Test Suite', () => {
   let app: FastifyInstance;
   let userToken: string;

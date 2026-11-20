@@ -3,6 +3,7 @@ import { CalculatedPoint, HousePlacement } from '../houses/house.types';
 import { PanchangOutput } from '../panchang/panchang.types';
 import { AstroChart } from '../chart/astro-chart.types';
 import { CombustionDetail } from '../planets/planetary-intelligence.types';
+import { PrashnaKaryaAnalysis, PrashnaQuestionDomain } from './prashna-karya';
 
 export interface PrashnaLocation {
   latitude: number;
@@ -21,6 +22,7 @@ export interface PrashnaQuestionInput {
   questionNumber?: number;            // 1-108 for classical Parashari/Arya, 1-249 for KP
   questionNumberSystem?: PrashnaNumberSystem;
   questionText?: string;              // Optional user query text
+  questionDomain?: PrashnaQuestionDomain; // Optional: selects the Karya Bhava (see prashna-karya.ts)
 }
 
 export interface PrashnaTimeDetails {
@@ -166,5 +168,11 @@ export interface PrashnaChart {
   panchanga: PanchangOutput;
   isRahuKala: boolean;
   astroChart: AstroChart;
+  // Karya analysis, present only when questionDomain is supplied
+  questionDomain?: PrashnaQuestionDomain;
+  karyaHouseNumber?: number;
+  lagnaLord?: PlanetSymbol;
+  karyaLord?: PlanetSymbol;
+  karya?: PrashnaKaryaAnalysis;
 }
 

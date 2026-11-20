@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/astro_controls.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_loader/astro_loader_button.dart';
@@ -137,7 +138,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             child: Text(
                               _errorMessage!,
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 14,
                                 color: AppColors.error,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -171,21 +172,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           label: 'Sending Reset Code...',
                           isDark: false,
                         )
-                      : ElevatedButton(
-                          onPressed: _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            'Send Reset Code',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                      : AstroPrimaryButton(label: 'Send Reset Code', onPressed: _submit),
                   const SizedBox(height: 20),
                   Center(
                     child: TextButton(
@@ -193,9 +180,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       child: const Text(
                         'Back to Login',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: AppColors.accent,
                         ),
                       ),
                     ),

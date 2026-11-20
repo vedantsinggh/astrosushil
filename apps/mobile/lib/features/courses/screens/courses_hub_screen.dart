@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/loading_indicator.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/course_models.dart';
@@ -51,157 +47,39 @@ class _CoursesHubScreenState extends ConsumerState<CoursesHubScreen> {
     final locale = Localizations.localeOf(context);
     final langCode = locale.languageCode;
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        centerTitle: false,
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
-                tooltip: 'Back',
-              )
-            : null,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.coursesScreenTitle,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.2,
-              ),
-            ),
-            Text(
-              l10n.coursesSubtitle,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 11,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-      body: SubtleCelestialBackground(
-        child: Column(
-          children: [
-            // 1. Cosmic Hero Header & Segmented Navigation
-            Container(
-              decoration: const BoxDecoration(
-                gradient: AppGradients.heroCosmic,
-              ),
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: Column(
-                children: [
-                  // Dual Segmented Pill Bar: Explore vs My Learning (Min 48dp height)
-                  Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: AppColors.tertiary,
-                      borderRadius: BorderRadius.circular(26),
-                      border: Border.all(color: AppColors.cardBorder.withValues(alpha: 0.2)),
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _TabButton(
-                            title: l10n.exploreCoursesTab,
-                            icon: Icons.school_outlined,
-                            isSelected: activeTab == 0,
-                            onTap: () {
-                              ref.read(coursesActiveTabProvider.notifier).state = 0;
-                            },
-                          ),
-                        ),
-                        Expanded(
-                          child: _TabButton(
-                            title: l10n.myLearningTab,
-                            icon: Icons.play_lesson_outlined,
-                            isSelected: activeTab == 1,
-                            onTap: () {
-                              ref.read(coursesActiveTabProvider.notifier).state = 1;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 2. Main Tab Body
-            Expanded(
-              child: activeTab == 0
-                  ? _ExploreCatalogueView(
-                      searchController: _searchController,
-                      langCode: langCode,
-                    )
-                  : _MyLearningView(langCode: langCode),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _TabButton({
-    required this.title,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.premiumAccent : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        alignment: Alignment.center,
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? AppColors.primary : Colors.white70,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isSelected ? AppColors.primary : Colors.white70,
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
+    return AstroPage(
+      title: l10n.coursesScreenTitle,
+      style: AstroNavBarStyle.hero,
+      onRefresh: () async {
+        if (activeTab == 0) {
+          ref.invalidate(coursesListProvider);
+        } else {
+          ref.invalidate(myLearningProvider);
+        }
+      },
+      padding: const EdgeInsets.fromLTRB(AstroMetrics.gutter, 16, AstroMetrics.gutter, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.coursesSubtitle,
+            style: AppTypography.rowSubtitle.copyWith(fontSize: 16, height: 1.45),
+          ),
+          const SizedBox(height: 16),
+          // Explore vs My Learning: native-feeling segmented control.
+          AstroSegmentedControl<int>(
+            segments: [
+              AstroSegment(value: 0, label: l10n.exploreCoursesTab, icon: Icons.school_outlined),
+              AstroSegment(value: 1, label: l10n.myLearningTab, icon: Icons.play_lesson_outlined),
+            ],
+            selected: activeTab,
+            onChanged: (v) => ref.read(coursesActiveTabProvider.notifier).state = v,
+          ),
+          const SizedBox(height: 20),
+          activeTab == 0
+              ? _ExploreCatalogueView(searchController: _searchController, langCode: langCode)
+              : _MyLearningView(langCode: langCode),
+        ],
       ),
     );
   }
@@ -216,6 +94,13 @@ class _ExploreCatalogueView extends ConsumerWidget {
     required this.langCode,
   });
 
+  void _resetFilters(WidgetRef ref) {
+    searchController.clear();
+    ref.read(courseSearchQueryProvider.notifier).state = '';
+    ref.read(selectedCourseLevelProvider.notifier).state = 'ALL';
+    ref.read(selectedCourseLanguageProvider.notifier).state = 'ALL';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -223,215 +108,181 @@ class _ExploreCatalogueView extends ConsumerWidget {
     final selectedLevel = ref.watch(selectedCourseLevelProvider);
     final selectedLanguage = ref.watch(selectedCourseLanguageProvider);
 
-    return Column(
+    // Search + filters scroll together with the list so small screens and
+    // large text sizes always leave room for the courses themselves.
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Search & Filter Header
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          decoration: const BoxDecoration(
-            color: AppColors.cardSurfaceWarm,
-            border: Border(
-              bottom: BorderSide(color: AppColors.cardBorder, width: 1),
+        TextField(
+          controller: searchController,
+          style: const TextStyle(fontSize: 16, color: AppColors.lightTextPrimary),
+          decoration: InputDecoration(
+            hintText: l10n.searchCoursesHint,
+            hintMaxLines: 3,
+            hintStyle: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 16),
+            prefixIcon: const Icon(Icons.search, color: AppColors.secondary, size: 24),
+            suffixIcon: searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 22, color: AppColors.lightTextSecondary),
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      searchController.clear();
+                      ref.read(courseSearchQueryProvider.notifier).state = '';
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: AppColors.cardSurface,
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppColors.cardBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppColors.cardBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
             ),
           ),
-          child: Column(
-            children: [
-              // Search Field
-              SizedBox(
-                height: 48,
-                child: TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    hintText: l10n.searchCoursesHint,
-                    hintStyle: const TextStyle(color: AppColors.lightTextMuted, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, color: AppColors.secondary, size: 22),
-                    suffixIcon: searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18, color: AppColors.lightTextMuted),
-                            onPressed: () {
-                              searchController.clear();
-                              ref.read(courseSearchQueryProvider.notifier).state = '';
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: AppColors.canvas,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.cardBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
-                    ),
-                  ),
-                  onChanged: (val) {
-                    ref.read(courseSearchQueryProvider.notifier).state = val;
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Filter Chips Row (Min 48dp Touch Targets)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: l10n.allLevels,
-                      isSelected: selectedLevel == 'ALL',
-                      onTap: () => ref.read(selectedCourseLevelProvider.notifier).state = 'ALL',
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Beginner',
-                      isSelected: selectedLevel == 'BEGINNER',
-                      onTap: () =>
-                          ref.read(selectedCourseLevelProvider.notifier).state = 'BEGINNER',
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Advanced',
-                      isSelected: selectedLevel == 'ADVANCED',
-                      onTap: () =>
-                          ref.read(selectedCourseLevelProvider.notifier).state = 'ADVANCED',
-                    ),
-                    const SizedBox(width: 10),
-                    Container(height: 24, width: 1, color: AppColors.cardBorder),
-                    const SizedBox(width: 10),
-                    _FilterChip(
-                      label: 'All Languages',
-                      isSelected: selectedLanguage == 'ALL',
-                      onTap: () =>
-                          ref.read(selectedCourseLanguageProvider.notifier).state = 'ALL',
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'English',
-                      isSelected: selectedLanguage == 'English',
-                      onTap: () =>
-                          ref.read(selectedCourseLanguageProvider.notifier).state = 'English',
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Hindi',
-                      isSelected: selectedLanguage == 'Hindi',
-                      onTap: () =>
-                          ref.read(selectedCourseLanguageProvider.notifier).state = 'Hindi',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          onChanged: (val) {
+            ref.read(courseSearchQueryProvider.notifier).state = val;
+          },
         ),
+        const SizedBox(height: 12),
 
-        // 2. Courses List View
-        Expanded(
-          child: coursesAsync.when(
-            loading: () => const LoadingIndicator(message: 'Loading courses...'),
-            error: (err, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                    const SizedBox(height: 12),
-                    Text(
-                      err.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.lightTextPrimary),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.refresh(coursesListProvider),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(120, 48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
+        // Filter chips wrap onto new lines instead of scrolling sideways
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _FilterChip(
+              label: l10n.allLevels,
+              isSelected: selectedLevel == 'ALL',
+              onTap: () => ref.read(selectedCourseLevelProvider.notifier).state = 'ALL',
             ),
-            data: (courses) {
-              if (courses.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.search_off_rounded, size: 54, color: AppColors.lightTextMuted),
-                        const SizedBox(height: 16),
-                        Text(
-                          l10n.courseNoCoursesFound,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.lightTextPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        OutlinedButton(
-                          onPressed: () {
-                            searchController.clear();
-                            ref.read(courseSearchQueryProvider.notifier).state = '';
-                            ref.read(selectedCourseLevelProvider.notifier).state = 'ALL';
-                            ref.read(selectedCourseLanguageProvider.notifier).state = 'ALL';
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.cardBorder),
-                            minimumSize: const Size(0, 48),
-                          ),
-                          child: const Text('Reset Filters'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
+            _FilterChip(
+              label: 'Beginner',
+              isSelected: selectedLevel == 'BEGINNER',
+              onTap: () => ref.read(selectedCourseLevelProvider.notifier).state = 'BEGINNER',
+            ),
+            _FilterChip(
+              label: 'Advanced',
+              isSelected: selectedLevel == 'ADVANCED',
+              onTap: () => ref.read(selectedCourseLevelProvider.notifier).state = 'ADVANCED',
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _FilterChip(
+              label: 'All Languages',
+              isSelected: selectedLanguage == 'ALL',
+              onTap: () => ref.read(selectedCourseLanguageProvider.notifier).state = 'ALL',
+            ),
+            _FilterChip(
+              label: 'English',
+              isSelected: selectedLanguage == 'English',
+              onTap: () => ref.read(selectedCourseLanguageProvider.notifier).state = 'English',
+            ),
+            _FilterChip(
+              label: 'Hindi',
+              isSelected: selectedLanguage == 'Hindi',
+              onTap: () => ref.read(selectedCourseLanguageProvider.notifier).state = 'Hindi',
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
 
-              return RefreshIndicator(
-                onRefresh: () async => ref.refresh(coursesListProvider),
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: courses.length + 1, // +1 for educational guidance card at top
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
-                  itemBuilder: (ctx, i) {
-                    if (i == 0) {
-                      return _WhyStudyMasterclassesCard(langCode: langCode);
-                    }
-                    final course = courses[i - 1];
-                    return _CourseCard(
-                      course: course,
-                      langCode: langCode,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => CourseDetailScreen(idOrSlug: course.id),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              );
-            },
-          ),
+    final List<Widget> body = coursesAsync.when(
+      loading: () => [
+        const SizedBox(height: 200, child: AstroStateView.loading(message: 'Loading courses...')),
+      ],
+      error: (err, _) => [
+        _CoursesStateMessage(
+          icon: Icons.error_outline,
+          iconColor: AppColors.error,
+          message: err.toString(),
+          actionLabel: 'Retry',
+          onAction: () => ref.refresh(coursesListProvider),
         ),
       ],
+      data: (courses) {
+        if (courses.isEmpty) {
+          return [
+            _CoursesStateMessage(
+              icon: Icons.search_off_rounded,
+              iconColor: AppColors.lightTextSecondary,
+              message: l10n.courseNoCoursesFound,
+              actionLabel: 'Reset Filters',
+              onAction: () => _resetFilters(ref),
+            ),
+          ];
+        }
+        return [
+          for (final course in courses) ...[
+            _CourseCard(
+              course: course,
+              langCode: langCode,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CourseDetailScreen(idOrSlug: course.id),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+          // Teaching method summary, kept below the courses
+          _WhyStudyMasterclassesCard(langCode: langCode),
+        ];
+      },
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [header, ...body],
+    );
+  }
+}
+
+/// Simple centred message with one clear action (empty / error states).
+class _CoursesStateMessage extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _CoursesStateMessage({
+    required this.icon,
+    required this.iconColor,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = iconColor == AppColors.error;
+    if (isError) {
+      return AstroStateView.error(
+          compact: true, icon: icon, title: message, onRetry: onAction, retryLabel: actionLabel);
+    }
+    return AstroStateView.empty(
+      compact: true,
+      icon: icon,
+      title: message,
+      actionLabel: actionLabel,
+      onAction: onAction,
     );
   }
 }
@@ -444,74 +295,50 @@ class _WhyStudyMasterclassesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      padding: const EdgeInsets.all(16),
+    return AstroSurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 20),
-              ),
-              const SizedBox(width: 10),
+              const AstroIconSquare(icon: Icons.menu_book_rounded, tint: AstroTint.violet, size: 44),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       langCode == 'hi' ? 'प्रामाणिक वैदिक ज्योतिष शिक्षण' : 'Authentic Vedic Astrology Lineage',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextPrimary,
-                      ),
+                      style: AppTypography.headlineMedium,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       langCode == 'hi'
                           ? 'श्री के.एन. राव एवं गुप्त नाड़ी पद्धति'
                           : 'Shri K.N. Rao Method & Gupta Nadi Shastra',
-                      style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                      style: const TextStyle(fontSize: 15, color: AppColors.lightTextSecondary, height: 1.35),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.cardBorder),
-          const SizedBox(height: 12),
-          Row(
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: _FeaturePill(
-                  icon: Icons.check_circle_outline_rounded,
-                  label: langCode == 'hi' ? 'सटीक फलकथन' : 'Rule-Based Timing',
-                ),
+              _FeaturePill(
+                icon: Icons.check_circle_outline_rounded,
+                label: langCode == 'hi' ? 'सटीक फलकथन' : 'Rule-Based Timing',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _FeaturePill(
-                  icon: Icons.ondemand_video_rounded,
-                  label: langCode == 'hi' ? '12+ वीडियो व्याख्यान' : 'Detailed Lectures',
-                ),
+              _FeaturePill(
+                icon: Icons.ondemand_video_rounded,
+                label: langCode == 'hi' ? 'विस्तृत व्याख्यान' : 'Detailed Lectures',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _FeaturePill(
-                  icon: Icons.all_inclusive_rounded,
-                  label: langCode == 'hi' ? 'आजीवन पहुँच' : 'Lifetime Access',
-                ),
+              _FeaturePill(
+                icon: Icons.all_inclusive_rounded,
+                label: langCode == 'hi' ? 'आजीवन पहुँच' : 'Lifetime Access',
               ),
             ],
           ),
@@ -544,22 +371,20 @@ class _FeaturePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.cardBorder),
+        color: AstroTint.violet.background,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.secondary),
-          const SizedBox(width: 4),
+          Icon(icon, size: 18, color: AstroTint.violet.foreground),
+          const SizedBox(width: 6),
           Flexible(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary),
-              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary),
             ),
           ),
         ],
@@ -580,32 +405,7 @@ class _FilterChip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48, minWidth: 64),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.cardSurfaceWarm,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.cardBorder,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : AppColors.lightTextSecondary,
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AstroPill(label: label, selected: isSelected, onTap: onTap);
 }
 
 class _CourseCard extends StatelessWidget {
@@ -646,240 +446,175 @@ class _CourseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF121440).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return AstroSurfaceCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Thumbnail Banner
+          Stack(
+            children: [
+              Container(
+                height: 188,
+                width: double.infinity,
+                color: AppColors.primary,
+                child: _buildCourseThumbnail(),
+              ),
+              // Free Preview Badge
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.play_circle_filled_rounded, color: AppColors.gold, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        l10n.courseFreePreview,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // 2. Details
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Level / language
+                Text(
+                  '${course.level.displayName} · ${course.language}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.goldDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  course.getLocalizedTitle(langCode),
+                  style: AppTypography.headlineLarge.copyWith(fontSize: 21, height: 1.25, letterSpacing: -0.2),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  course.getLocalizedDescription(langCode),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.lightTextSecondary,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+
+                // Metadata
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _MetaItem(icon: Icons.access_time_rounded, text: course.formattedDuration),
+                    _MetaItem(
+                      icon: Icons.video_library_outlined,
+                      text: l10n.courseLessonCount(course.totalLessons.toString()),
+                    ),
+                    const _MetaItem(icon: Icons.verified, text: 'Astro Sushil', iconColor: AppColors.gold),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Price
+                Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  children: [
+                    Text(
+                      '₹${course.priceRupees}',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    if (course.originalPriceRupees != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          '₹${course.originalPriceRupees}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            decoration: TextDecoration.lineThrough,
+                            color: AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                Text(
+                  l10n.courseIncludesGst,
+                  style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+                ),
+                const SizedBox(height: 14),
+
+                // One clear action
+                course.isEnrolled
+                    ? AstroSecondaryButton(
+                        label: l10n.courseContinueLearning,
+                        icon: Icons.play_circle_fill_rounded,
+                        onPressed: onTap,
+                      )
+                    : AstroSecondaryButton(
+                        label: l10n.courseEnrollNow,
+                        onPressed: onTap,
+                      ),
+              ],
+            ),
           ),
         ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Thumbnail Banner
-            Stack(
-              children: [
-                Container(
-                  height: 155,
-                  width: double.infinity,
-                  color: AppColors.primary,
-                  child: _buildCourseThumbnail(),
-                ),
-                // Top Level / Language Pill
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.tertiary.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.gold.withValues(alpha: 0.4), width: 0.8),
-                    ),
-                    child: Text(
-                      '${course.level.displayName.toUpperCase()} • ${course.language.toUpperCase()}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-                // Free Preview Badge
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.gold, width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.play_circle_filled_rounded, color: AppColors.gold, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          l10n.courseFreePreview,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    );
+  }
+}
 
-            // 2. Details
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    course.getLocalizedTitle(langCode),
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.lightTextPrimary,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    course.getLocalizedDescription(langCode),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.lightTextSecondary,
-                      height: 1.4,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
+/// Small icon + text metadata item used on course cards.
+class _MetaItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color iconColor;
 
-                  // Metadata Badges
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.access_time_rounded, size: 15, color: AppColors.secondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            course.formattedDuration,
-                            style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.video_library_outlined, size: 15, color: AppColors.secondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            l10n.courseLessonCount(course.totalLessons.toString()),
-                            style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                          ),
-                        ],
-                      ),
-                      const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.verified, size: 14, color: AppColors.gold),
-                          SizedBox(width: 4),
-                          Text(
-                            'Astro Sushil',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  const Divider(height: 1, color: AppColors.cardBorder),
-                  const SizedBox(height: 14),
+  const _MetaItem({required this.icon, required this.text, this.iconColor = AppColors.secondary});
 
-                  // Pricing & CTA Action
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 10,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                '₹${course.priceRupees}',
-                                style: const TextStyle(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              if (course.originalPriceRupees != null) ...[
-                                const SizedBox(width: 6),
-                                Text(
-                                  '₹${course.originalPriceRupees}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    decoration: TextDecoration.lineThrough,
-                                    color: AppColors.lightTextMuted,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          Text(
-                            l10n.courseIncludesGst,
-                            style: const TextStyle(fontSize: 10, color: AppColors.lightTextMuted),
-                          ),
-                        ],
-                      ),
-                      course.isEnrolled
-                          ? ElevatedButton.icon(
-                              onPressed: onTap,
-                              icon: const Icon(Icons.play_circle_fill_rounded, size: 18),
-                              label: Text(l10n.courseContinueLearning),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.success,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(0, 48),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            )
-                          : ElevatedButton(
-                              onPressed: onTap,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(0, 48),
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                l10n.courseEnrollNow,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: iconColor),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.lightTextSecondary),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -936,119 +671,56 @@ class _MyLearningView extends ConsumerWidget {
     final myLearningAsync = ref.watch(myLearningProvider);
 
     return myLearningAsync.when(
-      loading: () => const LoadingIndicator(message: 'Loading enrolled courses...'),
-      error: (err, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_outline_rounded, size: 48, color: AppColors.secondary),
-              const SizedBox(height: 12),
-              Text(
-                err.toString(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.lightTextPrimary),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.refresh(myLearningProvider),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 48),
-                ),
-                child: const Text('Refresh'),
-              ),
-            ],
-          ),
-        ),
+      loading: () => const SizedBox(height: 200, child: AstroStateView.loading(message: 'Loading enrolled courses...')),
+      error: (err, _) => _CoursesStateMessage(
+        icon: Icons.lock_outline_rounded,
+        iconColor: AppColors.secondary,
+        message: err.toString(),
+        actionLabel: 'Refresh',
+        onAction: () => ref.refresh(myLearningProvider),
       ),
       data: (enrolledCourses) {
         if (enrolledCourses.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.menu_book_rounded,
-                      size: 38,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    l10n.courseNoMyLearning,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: AppColors.lightTextSecondary,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      ref.read(coursesActiveTabProvider.notifier).state = 0;
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 48),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      l10n.courseBrowseCourses,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          return _CoursesStateMessage(
+            icon: Icons.menu_book_rounded,
+            iconColor: AppColors.secondary,
+            message: l10n.courseNoMyLearning,
+            actionLabel: l10n.courseBrowseCourses,
+            onAction: () {
+              ref.read(coursesActiveTabProvider.notifier).state = 0;
+            },
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: () async => ref.refresh(myLearningProvider),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: enrolledCourses.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-            itemBuilder: (ctx, i) {
-              final course = enrolledCourses[i];
-              return _MyLearningCard(
-                course: course,
-                langCode: langCode,
-                onTap: () {
-                  if (course.nextLessonId != null) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CoursePlayerScreen(lessonId: course.nextLessonId!),
-                      ),
-                    );
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CourseDetailScreen(idOrSlug: course.id),
-                      ),
-                    );
-                  }
-                },
-              );
-            },
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < enrolledCourses.length; i++) ...[
+              if (i > 0) const SizedBox(height: 16),
+              Builder(builder: (context) {
+                final course = enrolledCourses[i];
+                return _MyLearningCard(
+                  course: course,
+                  langCode: langCode,
+                  onTap: () {
+                    if (course.nextLessonId != null) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CoursePlayerScreen(lessonId: course.nextLessonId!),
+                        ),
+                      );
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CourseDetailScreen(idOrSlug: course.id),
+                        ),
+                      );
+                    }
+                  },
+                );
+              }),
+            ],
+          ],
         );
       },
     );
@@ -1097,113 +769,77 @@ class _MyLearningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF121440).withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+    return AstroSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: _buildThumbnail(),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          course.getLocalizedTitle(langCode),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.lightTextPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${course.completedLessons} / ${course.totalLessons} lessons completed',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.lightTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Progress Bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: course.progressFraction,
-                  minHeight: 8,
-                  backgroundColor: AppColors.cardBorder,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                clipBehavior: Clip.antiAlias,
+                child: _buildThumbnail(),
               ),
-              const SizedBox(height: 12),
-
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    '${course.progressPercent}% completed',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.success,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: onTap,
-                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                    label: Text(l10n.courseContinueLearning),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 48),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  course.getLocalizedTitle(langCode),
+                  style: AppTypography.headlineMedium.copyWith(fontSize: 19, height: 1.3),
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+
+          // Progress: plain words + a thick bar
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            alignment: WrapAlignment.spaceBetween,
+            children: [
+              Text(
+                '${course.completedLessons} / ${course.totalLessons} lessons completed',
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppColors.lightTextSecondary,
+                ),
+              ),
+              Text(
+                '${course.progressPercent}% completed',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.tintSageText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: course.progressFraction,
+              minHeight: 10,
+              backgroundColor: AppColors.cardBorder,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          AstroPrimaryButton(
+            label: l10n.courseContinueLearning,
+            icon: Icons.play_arrow_rounded,
+            onPressed: onTap,
+          ),
+        ],
       ),
     );
   }

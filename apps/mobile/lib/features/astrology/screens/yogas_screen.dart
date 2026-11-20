@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
@@ -13,7 +11,6 @@ import '../widgets/astrology_data_table.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_tab_bar.dart';
 import '../widgets/planet_chip.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
@@ -58,65 +55,57 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Classical Vedic Yogas',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
-            tooltip: 'About Vedic Yogas',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Evaluates classical Parashari Yogas (Mahapurusha, Raja, Dhana, Chandra, etc.) with 100% deterministic rule evidence.',
-                  ),
-                  duration: Duration(seconds: 4),
+    return AstroPage(
+      title: 'Vedic Yogas',
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Vedic Yogas',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Evaluates classical Parashari Yogas (Mahapurusha, Raja, Dhana, Chandra, etc.) with 100% deterministic rule evidence.',
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Profile Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: ActiveBirthProfileSelector(
-                  isDark: false,
-                  onProfileChanged: (_) {},
-                ),
+                duration: Duration(seconds: 4),
               ),
-
-              // Main Content
-              Expanded(
-                child: activeProfile == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: AstrologyEmptyState(
-                            title: 'No Active Birth Profile',
-                            message: 'Select or create a birth profile to evaluate planetary yoga combinations.',
-                            actionLabel: 'Add Birth Profile',
-                            onAction: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const CreateBirthProfileScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : _buildYogasBody(context, activeProfile),
-              ),
-            ],
-          ),
+            );
+          },
         ),
+      ],
+      onRefresh: () async {
+        if (activeProfile != null) {
+          ref.invalidate(yogasForProfileProvider(
+            YogaEvaluationQuery(profile: activeProfile, varga: 'D1'),
+          ));
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Top Profile Bar
+          ActiveBirthProfileSelector(
+            isDark: false,
+            onProfileChanged: (_) {},
+          ),
+          const SizedBox(height: 20),
+
+          // Main Content
+          activeProfile == null
+              ? AstrologyEmptyState(
+                  title: 'No Active Birth Profile',
+                  message: 'Select or create a birth profile to evaluate planetary yoga combinations.',
+                  actionLabel: 'Add Birth Profile',
+                  onAction: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CreateBirthProfileScreen(),
+                      ),
+                    );
+                  },
+                )
+              : _buildYogasBody(context, activeProfile),
+        ],
       ),
     );
   }
@@ -131,7 +120,7 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
       ),
       error: (error, stack) => Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: AstrologyErrorState(
             error: error,
             customMessage: 'Failed to evaluate Yogas. Tap to retry.',
@@ -139,64 +128,70 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
           ),
         ),
       ),
-      data: (report) => RefreshIndicator(
-        onRefresh: () async => ref.refresh(yogasForProfileProvider(query)),
-        child: Column(
-          children: [
-            // Educational Guidance Card
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: AstrologyExplanationCard(
-                title: context.l10n.explainYogasTitle,
-                whatIsText: context.l10n.explainYogasWhatIs,
-                howToReadText: context.l10n.explainYogasHowToRead,
-              ),
-            ),
+      data: (report) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
+          SushilExplainerButton(
+            contextData: _buildYogaExplanationContext(profile, report),
+            label: 'Let Sushil Sir explain these Yogas',
+            isCompact: false,
+          ),
+          const SizedBox(height: 12),
 
-            // Search & Category Filters
-            _buildFilterHeader(report),
+          // Educational Guidance Card
+          AstrologyExplanationCard(
+            title: context.l10n.explainYogasTitle,
+            whatIsText: context.l10n.explainYogasWhatIs,
+            howToReadText: context.l10n.explainYogasHowToRead,
+          ),
 
-            // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SushilExplainerButton(
-                contextData: _buildYogaExplanationContext(profile, report),
-                label: 'Let Sushil Sir explain these Yogas',
-                isCompact: false,
-              ),
-            ),
+          // Search & Category Filters
+          _buildFilterHeader(report),
+          const SizedBox(height: 20),
 
-            // Yoga Cards List
-            Expanded(
-              child: _buildYogaList(report),
-            ),
-          ],
-        ),
+          // Yoga Cards List
+          _buildYogaList(report),
+        ],
       ),
     );
   }
 
+  Future<void> _pickCategory() async {
+    final choice = await showAstroActionSheet<String>(
+      context: context,
+      title: 'Type of yoga',
+      actions: [
+        for (final cat in _categories)
+          AstroSheetAction<String>(
+            label: _getCategoryLabel(cat),
+            value: cat,
+            icon: _getCategoryIcon(cat),
+            selected: cat == _selectedCategory,
+          ),
+      ],
+    );
+    if (choice != null && mounted) setState(() => _selectedCategory = choice);
+  }
+
   Widget _buildFilterHeader(YogaEvaluationReportModel report) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-      decoration: const BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        border: Border(bottom: BorderSide(color: AppColors.cardBorder)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Search Bar
-          TextField(
+    return AstroGroupedSection(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+          child: TextField(
             controller: _searchController,
             onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
             decoration: InputDecoration(
-              hintText: 'Search by yoga name or planet (e.g. Gajakesari, Jupiter)...',
-              hintStyle: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-              prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.midnightNavy),
+              labelText: 'Search yogas',
+              labelStyle: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+              hintText: 'Yoga name or planet',
+              hintStyle: const TextStyle(fontSize: 16, color: AppColors.textMuted),
+              prefixIcon: const Icon(Icons.search_rounded, size: 22, color: AppColors.textSecondary),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
+                      tooltip: context.l10n.commonClose,
+                      icon: const Icon(Icons.clear_rounded, size: 20, color: AppColors.textMuted),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
@@ -204,43 +199,34 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
                     )
                   : null,
               filled: true,
-              fillColor: AppColors.cardSurfaceParchment,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              fillColor: AppColors.canvas,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.cardBorder),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.cardBorder),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.gold, width: 1.5),
               ),
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // Horizontal Category Filter Pills
-          AstrologyTabBar(
-            isScrollable: true,
-            selectedIndex: _categories.indexOf(_selectedCategory),
-            onTabSelected: (idx) {
-              if (idx >= 0 && idx < _categories.length) {
-                setState(() => _selectedCategory = _categories[idx]);
-              }
-            },
-            tabs: _categories.map((cat) {
-              return AstrologyTabItem(
-                label: _getCategoryLabel(cat),
-                icon: _getCategoryIcon(cat),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+        ),
+        // Category filter: one labelled row that opens the platform action
+        // sheet, so all types stay reachable without a long row of pills.
+        AstroListRow(
+          icon: _getCategoryIcon(_selectedCategory),
+          tint: AstroTint.violet,
+          title: 'Type of yoga',
+          value: _getCategoryLabel(_selectedCategory),
+          onTap: _pickCategory,
+          showChevron: true,
+        ),
+      ],
     );
   }
 
@@ -308,7 +294,7 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
                     ? 'No yogas matching "$_searchQuery"'
                     : 'No ${_getCategoryLabel(_selectedCategory)} formed in this chart',
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textDark,
                 ),
@@ -317,7 +303,7 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
               const SizedBox(height: 4),
               const Text(
                 'Only combinations with verified astronomical criteria are displayed.',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -326,40 +312,33 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
       );
     }
 
-    return ListView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: filtered.length + 1,
-      itemBuilder: (ctx, index) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: List.generate(filtered.length + 1, (index) {
         if (index == 0) {
           // Summary Header
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
+                Text(
                     '${filtered.length} Formed ${filtered.length == 1 ? "Yoga" : "Yogas"} Detected',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.headlineLarge.copyWith(fontSize: 19, color: AppColors.textPrimary),
                   ),
-                ),
-                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.cardSurfaceWarm,
+                    color: AppColors.cardSurface,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: AppColors.cardBorder),
                   ),
                   child: Text(
                     '${report.totalEvaluated} Total Evaluated',
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textMuted,
                     ),
@@ -372,7 +351,7 @@ class _YogasScreenState extends ConsumerState<YogasScreen> {
 
         final yoga = filtered[index - 1];
         return _YogaCard(yoga: yoga);
-      },
+      }),
     );
   }
 
@@ -443,22 +422,16 @@ class _YogaCardState extends State<_YogaCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(AstroMetrics.groupRadius),
         border: Border.all(
-          color: _isExpanded ? AppColors.gold : AppColors.cardBorder,
-          width: _isExpanded ? 1.5 : 1.0,
+          color: _isExpanded ? AppColors.goldBorder : const Color(0x0F121440),
+          width: _isExpanded ? 1.2 : 0.5,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.cardShadowWarm,
-            blurRadius: _isExpanded ? 10 : 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AstroShadows.card,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AstroMetrics.groupRadius),
         child: Column(
           children: [
             // Top Clickable Header
@@ -476,41 +449,37 @@ class _YogaCardState extends State<_YogaCard> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: catColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: catColor.withValues(alpha: 0.3)),
+                              color: catColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              y.formattedCategory.toUpperCase(),
+                              y.formattedCategory,
                               style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
                                 color: catColor,
-                                letterSpacing: 0.3,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.3)),
+                            color: AstroTint.sage.background,
+                            borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF2E7D32)),
+                              Icon(Icons.check_circle_rounded, size: 14, color: AppColors.successText),
                               SizedBox(width: 4),
                               Text(
-                                'FORMED',
+                                'Formed',
                                 style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2E7D32),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.successText,
                                 ),
                               ),
                             ],
@@ -531,10 +500,10 @@ class _YogaCardState extends State<_YogaCard> {
                             children: [
                               Text(
                                 y.canonicalName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textDark,
+                                style: AppTypography.headlineLarge.copyWith(
+                                  fontSize: 18,
+                                  color: AppColors.textPrimary,
+                                  height: 1.25,
                                 ),
                               ),
                               if (y.sanskritName.isNotEmpty) ...[
@@ -542,7 +511,7 @@ class _YogaCardState extends State<_YogaCard> {
                                 Text(
                                   y.sanskritName,
                                   style: const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.deepIndigo,
                                   ),
@@ -597,7 +566,7 @@ class _YogaCardState extends State<_YogaCard> {
                           Text(
                             'Rule Verification Evidence',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: AppColors.textDark,
                             ),
@@ -610,7 +579,7 @@ class _YogaCardState extends State<_YogaCard> {
                           margin: const EdgeInsets.only(bottom: 6),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
-                            color: AppColors.cardSurfaceWarm,
+                            color: AppColors.cardSurface,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: AppColors.cardBorder),
                           ),
@@ -630,7 +599,7 @@ class _YogaCardState extends State<_YogaCard> {
                                     Text(
                                       cond.description,
                                       style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.textDark,
                                       ),
@@ -639,7 +608,7 @@ class _YogaCardState extends State<_YogaCard> {
                                     Text(
                                       'Observed: ${cond.observed} • Expected: ${cond.expected}',
                                       style: const TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 14,
                                         color: AppColors.textMuted,
                                       ),
                                     ),
@@ -662,7 +631,7 @@ class _YogaCardState extends State<_YogaCard> {
                           Text(
                             'Planetary Coordinates',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: AppColors.textDark,
                             ),
@@ -682,11 +651,11 @@ class _YogaCardState extends State<_YogaCard> {
                             PlanetChip(planetName: p.planet, isCompact: true),
                             Text(
                               p.rashiName,
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: AppColors.textDark),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textDark),
                             ),
                             Text(
                               'H-${p.house}',
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -696,8 +665,7 @@ class _YogaCardState extends State<_YogaCard> {
                               ),
                               child: Text(
                                 p.dignity,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
-                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
                               ),
                             ),
                           ];
@@ -715,7 +683,7 @@ class _YogaCardState extends State<_YogaCard> {
                           Text(
                             'Astronomical Relationships',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: AppColors.textDark,
                             ),
@@ -729,7 +697,7 @@ class _YogaCardState extends State<_YogaCard> {
                           child: Text(
                             '• ${rel.description}',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 14,
                               height: 1.4,
                               color: AppColors.textDark,
                             ),
@@ -741,15 +709,21 @@ class _YogaCardState extends State<_YogaCard> {
                     // Convention footnote
                     const SizedBox(height: 8),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.verified_outlined, size: 13, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Evaluated under ${y.convention} Classical Methodology in ${y.varga}',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            color: AppColors.textMuted,
-                            fontStyle: FontStyle.italic,
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(Icons.verified_outlined, size: 16, color: AppColors.textMuted),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Evaluated under ${y.convention} Classical Methodology in ${y.varga}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textMuted,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                       ],

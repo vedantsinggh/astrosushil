@@ -1,7 +1,18 @@
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/app_date_time.dart';
+
 /// Strongly typed models for Vedic Panchanga (Five Limbs of Time) API responses
 /// Compliant with packages/astrology-engine deterministic calculations.
+
+/// Clock time (hh:mm a) of a panchang instant. Panchang times belong to the
+/// panchang's place: pass that place's UTC offset ([placeOffset]) to show them
+/// in its local time. Without it the device's local time is used.
+String formatPanchangClock(String iso, {Duration? placeOffset}) {
+  final t = DateTime.parse(iso);
+  final shown = placeOffset == null ? AppDateTime.toLocal(t) : AppDateTime.atOffset(t, placeOffset);
+  return DateFormat('hh:mm a').format(shown);
+}
 
 class TithiModel {
   final int index;
@@ -170,21 +181,25 @@ class SunriseSunsetModel {
     );
   }
 
-  String get formattedSunrise {
+  String get formattedSunrise => formatSunrise();
+
+  String get formattedSunset => formatSunset();
+
+  /// Sunrise clock time; see [formatPanchangClock] for [placeOffset].
+  String formatSunrise({Duration? placeOffset}) {
     if (sunriseIso.isEmpty) return '06:00 AM';
     try {
-      final dt = DateTime.parse(sunriseIso).toLocal();
-      return DateFormat('hh:mm a').format(dt);
+      return formatPanchangClock(sunriseIso, placeOffset: placeOffset);
     } catch (_) {
       return sunriseIso;
     }
   }
 
-  String get formattedSunset {
+  /// Sunset clock time; see [formatPanchangClock] for [placeOffset].
+  String formatSunset({Duration? placeOffset}) {
     if (sunsetIso.isEmpty) return '06:30 PM';
     try {
-      final dt = DateTime.parse(sunsetIso).toLocal();
-      return DateFormat('hh:mm a').format(dt);
+      return formatPanchangClock(sunsetIso, placeOffset: placeOffset);
     } catch (_) {
       return sunsetIso;
     }
@@ -219,13 +234,15 @@ class RahuKalaModel {
     );
   }
 
-  String get formattedWindow {
+  String get formattedWindow => formatWindow();
+
+  /// Rahu Kala window; see [formatPanchangClock] for [placeOffset].
+  String formatWindow({Duration? placeOffset}) {
     if (startIso.isEmpty || endIso.isEmpty) return 'N/A';
     try {
-      final start = DateTime.parse(startIso).toLocal();
-      final end = DateTime.parse(endIso).toLocal();
-      final fmt = DateFormat('hh:mm a');
-      return '${fmt.format(start)} – ${fmt.format(end)}';
+      final start = formatPanchangClock(startIso, placeOffset: placeOffset);
+      final end = formatPanchangClock(endIso, placeOffset: placeOffset);
+      return '$start – $end';
     } catch (_) {
       return '$startIso – $endIso';
     }
@@ -292,11 +309,13 @@ class PanchangTransitionModel {
     );
   }
 
-  String get formattedTime {
+  String get formattedTime => formatTime();
+
+  /// Transition clock time; see [formatPanchangClock] for [placeOffset].
+  String formatTime({Duration? placeOffset}) {
     if (timestampIso.isEmpty) return '';
     try {
-      final dt = DateTime.parse(timestampIso).toLocal();
-      return DateFormat('hh:mm a').format(dt);
+      return formatPanchangClock(timestampIso, placeOffset: placeOffset);
     } catch (_) {
       return timestampIso;
     }

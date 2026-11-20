@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
@@ -12,6 +9,7 @@ import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/special_points_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
+import '../widgets/astrology_adaptive_grid.dart';
 import '../widgets/astrology_data_table.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
@@ -48,65 +46,55 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Special Points & Upagrahas',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
-            tooltip: 'About Special Points',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Computes 5 non-luminous Upagrahas, Mandi, Gulika, Special Lagnas, Yogi/Avyogi points, and Mrityu Bhaga degrees.',
-                  ),
-                  duration: Duration(seconds: 4),
+    return AstroPage(
+      title: 'Special Points',
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Special Points',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Computes 5 non-luminous Upagrahas, Mandi, Gulika, Special Lagnas, Yogi/Avyogi points, and Mrityu Bhaga degrees.',
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Profile Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: ActiveBirthProfileSelector(
-                  isDark: false,
-                  onProfileChanged: (_) {},
-                ),
+                duration: Duration(seconds: 4),
               ),
-
-              // Main Content
-              Expanded(
-                child: activeProfile == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: AstrologyEmptyState(
-                            title: 'No Active Birth Profile',
-                            message: 'Select or create a birth profile to calculate Upagrahas and Special Points.',
-                            actionLabel: 'Add Birth Profile',
-                            onAction: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const CreateBirthProfileScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : _buildSpecialPointsBody(context, activeProfile),
-              ),
-            ],
-          ),
+            );
+          },
         ),
+      ],
+      onRefresh: () async {
+        if (activeProfile != null) {
+          ref.invalidate(specialPointsForProfileProvider(activeProfile));
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Top Profile Bar
+          ActiveBirthProfileSelector(
+            isDark: false,
+            onProfileChanged: (_) {},
+          ),
+          const SizedBox(height: 20),
+
+          // Main Content
+          activeProfile == null
+              ? AstrologyEmptyState(
+                  title: 'No Active Birth Profile',
+                  message: 'Select or create a birth profile to calculate Upagrahas and Special Points.',
+                  actionLabel: 'Add Birth Profile',
+                  onAction: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CreateBirthProfileScreen(),
+                      ),
+                    );
+                  },
+                )
+              : _buildSpecialPointsBody(context, activeProfile),
+        ],
       ),
     );
   }
@@ -158,7 +146,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
       ),
       error: (error, stack) => Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: AstrologyErrorState(
             error: error,
             customMessage: 'Failed to calculate Special Points. Tap to retry.',
@@ -166,61 +154,43 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
           ),
         ),
       ),
-      data: (report) => RefreshIndicator(
-        onRefresh: () async => ref.refresh(specialPointsForProfileProvider(profile)),
-        child: Column(
-          children: [
-            // Educational Guidance Card
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
-              child: AstrologyExplanationCard(
-                title: context.l10n.explainSpecialPointsTitle,
-                whatIsText: context.l10n.explainSpecialPointsWhatIs,
-                howToReadText: context.l10n.explainSpecialPointsHowToRead,
-              ),
-            ),
+      data: (report) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Sushil Sir Explainer Button
+          SushilExplainerButton(
+            contextBuilder: () => _buildExplanationContext(report, profile),
+            poseAsset: AppAssets.sushilGuiding,
+          ),
+          const SizedBox(height: 12),
 
-            // Segmented Category Tabs
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              color: AppColors.canvas,
-              child: AstrologyTabBar(
-                isScrollable: true,
-                selectedIndex: _selectedTabIndex,
-                onTabSelected: (idx) => setState(() => _selectedTabIndex = idx),
-                tabs: _tabs,
-              ),
-            ),
+          // Educational Guidance Card
+          AstrologyExplanationCard(
+            title: context.l10n.explainSpecialPointsTitle,
+            whatIsText: context.l10n.explainSpecialPointsWhatIs,
+            howToReadText: context.l10n.explainSpecialPointsHowToRead,
+          ),
 
-            // Sushil Sir Explainer Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-              child: SushilExplainerButton(
-                contextBuilder: () => _buildExplanationContext(report, profile),
-                poseAsset: AppAssets.sushilGuiding,
-              ),
-            ),
+          // Category Tabs (all visible, wrap when needed)
+          AstrologyTabBar(
+            isScrollable: true,
+            selectedIndex: _selectedTabIndex,
+            onTabSelected: (idx) => setState(() => _selectedTabIndex = idx),
+            tabs: _tabs,
+          ),
+          const SizedBox(height: 16),
 
-            // Tab View Body
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_selectedTabIndex == 0) _buildUpagrahasTab(report.upagrahas),
-                    if (_selectedTabIndex == 1) _buildSpecialLagnasTab(report.specialLagnas),
-                    if (_selectedTabIndex == 2) _buildYogiPointsTab(report.yogiPoints),
-                    if (_selectedTabIndex == 3) _buildArishtaAndFatalTab(report.arishtaPoints, report.mrityuBhaga),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          // Tab body
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_selectedTabIndex == 0) _buildUpagrahasTab(report.upagrahas),
+              if (_selectedTabIndex == 1) _buildSpecialLagnasTab(report.specialLagnas),
+              if (_selectedTabIndex == 2) _buildYogiPointsTab(report.yogiPoints),
+              if (_selectedTabIndex == 3) _buildArishtaAndFatalTab(report.arishtaPoints, report.mrityuBhaga),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -244,19 +214,19 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
           children: [
             Text(
               p.name,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
             ),
             if (p.sanskritName.isNotEmpty)
               Text(
                 p.sanskritName,
-                style: const TextStyle(fontSize: 10, color: AppColors.lightTextMuted),
+                style: const TextStyle(fontSize: 13, color: AppColors.lightTextMuted),
               ),
           ],
         ),
         SignChip(signName: p.rashiName, isCompact: true),
         Text(
           'H-${p.house}',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.secondary),
         ),
         DegreeValueDisplay(degree: p.degreeInRashi),
       ];
@@ -295,12 +265,12 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                   children: [
                     Text(
                       '• ${p.name}: ',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
                     ),
                     Expanded(
                       child: Text(
                         p.formula.isNotEmpty ? p.formula : 'Astronomical segment calculation',
-                        style: const TextStyle(fontSize: 12, color: AppColors.primary),
+                        style: const TextStyle(fontSize: 14, color: AppColors.primary),
                       ),
                     ),
                   ],
@@ -332,19 +302,19 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
           children: [
             Text(
               p.name,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
             ),
             if (p.sanskritName.isNotEmpty)
               Text(
                 p.sanskritName,
-                style: const TextStyle(fontSize: 10, color: AppColors.lightTextMuted),
+                style: const TextStyle(fontSize: 13, color: AppColors.lightTextMuted),
               ),
           ],
         ),
         SignChip(signName: p.rashiName, isCompact: true),
         Text(
           'H-${p.house}',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.secondary),
         ),
         DegreeValueDisplay(degree: p.degreeInRashi),
       ];
@@ -377,7 +347,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
+        color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.cardBorder),
       ),
@@ -386,11 +356,13 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.lightbulb_outline_rounded, color: AppColors.deepIndigo, size: 18),
+              Icon(Icons.lightbulb_outline_rounded, color: AppColors.deepIndigo, size: 20),
               SizedBox(width: 8),
-              Text(
-                'Classical Vedic Applications',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textDark),
+              Expanded(
+                child: Text(
+                  'Classical Vedic Applications',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                ),
               ),
             ],
           ),
@@ -416,7 +388,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textDark),
               ),
             ),
             Container(
@@ -428,7 +400,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
               ),
               child: Text(
                 rashi,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
               ),
             ),
           ],
@@ -436,7 +408,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
         const SizedBox(height: 3),
         Text(
           desc,
-          style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted, height: 1.35),
+          style: const TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35),
         ),
       ],
     );
@@ -477,7 +449,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.cardSurfaceWarm,
+            color: AppColors.cardSurface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.cardBorder),
           ),
@@ -499,17 +471,17 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                   children: [
                     const Text(
                       'SAHAYOGI (सहयोगी / Duplicate Yogi)',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMuted),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Ruling Planet: ${yogi.duplicateYogiPlanet}',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
                     ),
                     const SizedBox(height: 1),
                     const Text(
                       'Assists the Yogi planet in bestowing fortune and success.',
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                     ),
                   ],
                 ),
@@ -535,7 +507,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
+        color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: themeColor.withValues(alpha: 0.35)),
         boxShadow: [
@@ -549,7 +521,11 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -561,44 +537,38 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: themeColor,
                     letterSpacing: 0.4,
                   ),
                 ),
               ),
-              const Spacer(),
               PlanetChip(planetName: rulingPlanet, isCompact: true),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+            style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
           ),
           const SizedBox(height: 10),
-          Row(
+          AstrologyAdaptiveGrid(
+            maxColumns: 3,
+            minItemWidth: 96,
+            spacing: 8,
             children: [
-              Expanded(
-                child: _buildMetricMini(
-                  'SIGN & HOUSE',
-                  '${point.rashiName} (H-${point.house})',
-                ),
+              _buildMetricMini(
+                'SIGN & HOUSE',
+                '${point.rashiName} (H-${point.house})',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricMini(
-                  'LONGITUDE',
-                  '${point.degreeInRashi.toStringAsFixed(2)}° in sign',
-                ),
+              _buildMetricMini(
+                'LONGITUDE',
+                '${point.degreeInRashi.toStringAsFixed(2)}° in sign',
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricMini(
-                  'NAKSHATRA',
-                  nakshatra,
-                ),
+              _buildMetricMini(
+                'NAKSHATRA',
+                nakshatra,
               ),
             ],
           ),
@@ -620,13 +590,12 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.textMuted),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textMuted),
           ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.textDark),
-            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textDark),
           ),
         ],
       ),
@@ -656,7 +625,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurfaceWarm,
+                  color: AppColors.cardSurface,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: AppColors.cardBorder),
                 ),
@@ -668,12 +637,12 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                         children: [
                           Text(
                             p.name,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textDark),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Lord: ${p.nakshatraLord} • Pada ${p.pada}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                            style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
                           ),
                         ],
                       ),
@@ -682,7 +651,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                     const SizedBox(width: 8),
                     Text(
                       'H-${p.house}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
                     ),
                   ],
                 ),
@@ -719,7 +688,7 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                       Expanded(
                         child: Text(
                           'Afflicted grahas within fatal orb: ${mrityu.afflictedPlanets.join(", ")}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFC62828)),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFC62828)),
                         ),
                       ),
                     ],
@@ -736,15 +705,15 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                   return [
                     Text(
                       pt.planet,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textDark),
                     ),
                     Text(
                       '${pt.currentDegreeInRashi.toStringAsFixed(1)}°',
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.textDark),
+                      style: const TextStyle(fontSize: 14, color: AppColors.textDark),
                     ),
                     Text(
                       '${pt.exactFatalDegree.toStringAsFixed(1)}°',
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                      style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -762,11 +731,10 @@ class _SpecialPointsScreenState extends ConsumerState<SpecialPointsScreen> {
                       child: Text(
                         pt.severity,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: pt.isWithinOrb ? const Color(0xFFC62828) : const Color(0xFF2E7D32),
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ];

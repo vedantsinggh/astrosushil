@@ -1,4 +1,5 @@
 import { EphemerisProvider } from '../ephemeris/ephemeris.interface';
+import { getTrueAyanamsa, SupportedAyanamsaSystem, DEFAULT_AYANAMSA_SYSTEM } from '../ayanamsa/ayanamsa';
 import { AstronomyEngineAdapter } from '../ephemeris/astronomy-engine.adapter';
 import { PlanetSymbol } from '../planets/planet.types';
 import { normalizeDegree } from '../coordinates/angular-math';
@@ -41,9 +42,12 @@ export function utcDateToJulianDay(date: Date): number {
  */
 export class SolarReturnSolver {
   private readonly ephemerisProvider: EphemerisProvider;
+  private readonly ayanamsaSystem: SupportedAyanamsaSystem;
 
-  constructor(ephemerisProvider?: EphemerisProvider) {
+  /** `ayanamsaSystem` must match the natal chart's ayanamsa (default true Lahiri, ADR-017). */
+  constructor(ephemerisProvider?: EphemerisProvider, ayanamsaSystem: SupportedAyanamsaSystem = DEFAULT_AYANAMSA_SYSTEM) {
     this.ephemerisProvider = ephemerisProvider || new AstronomyEngineAdapter();
+    this.ayanamsaSystem = ayanamsaSystem;
   }
 
   /**
@@ -51,9 +55,7 @@ export class SolarReturnSolver {
    */
   public async getSiderealSunLongitude(julianDayUT: number): Promise<{ longitude: number; speedDegreesPerDay: number }> {
     const raw = await this.ephemerisProvider.getPlanetaryPosition(PlanetSymbol.SUN, julianDayUT);
-    const yearsFromJ2000 = (julianDayUT - 2451545.0) / 365.25;
-    const ayanamsaOffset = 23.85 + 0.01396 * yearsFromJ2000;
-    const siderealLon = normalizeDegree(raw.longitude - ayanamsaOffset);
+    const siderealLon = normalizeDegree(raw.longitude - getTrueAyanamsa(julianDayUT, this.ayanamsaSystem));
     const speedDegreesPerDay = raw.speedLongitude || 0.9856;
 
     return {
@@ -179,7 +181,8 @@ export class SolarReturnSolver {
     natalBirthDetails: BirthDetails,
     targetYear: number,
     annualLocation?: AnnualLocationInput,
-    ephemerisProvider?: EphemerisProvider
+    ephemerisProvider?: EphemerisProvider,
+    ayanamsaSystem: SupportedAyanamsaSystem = DEFAULT_AYANAMSA_SYSTEM
   ): Promise<SolarReturnDetails> {
     const normalizedTime = normalizeBirthTime(natalBirthDetails);
     const birthYear = natalBirthDetails.date.year;
@@ -190,7 +193,7 @@ export class SolarReturnSolver {
       placeName: natalBirthDetails.placeName,
     };
 
-    const solver = new SolarReturnSolver(ephemerisProvider);
+    const solver = new SolarReturnSolver(ephemerisProvider, ayanamsaSystem);
     return solver.solveSolarReturn(
       natalSunLongitude,
       normalizedTime.julianDayUT,

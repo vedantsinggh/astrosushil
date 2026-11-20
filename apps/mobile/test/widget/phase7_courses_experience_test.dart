@@ -575,8 +575,11 @@ void main() {
       expect(find.byIcon(Icons.replay_10_rounded), findsOneWidget);
       expect(find.byIcon(Icons.forward_10_rounded), findsOneWidget);
 
-      // Mark lesson completed
+      // Mark lesson completed (scroll the larger lesson controls into view first)
       final completeBtn = find.text('Complete');
+      await tester.scrollUntilVisible(completeBtn, 150, scrollable: find.byType(Scrollable).last);
+      await tester.ensureVisible(completeBtn);
+      await tester.pumpAndSettle();
       expect(completeBtn, findsOneWidget);
       await tester.tap(completeBtn);
       await tester.pumpAndSettle();
@@ -597,6 +600,7 @@ void main() {
       expect(find.text('Official Masterclass Protected Stream'), findsOneWidget);
       expect(find.text('Open in Learning Portal'), findsOneWidget);
       expect(find.text('Basic Introduction - Gupt Nadi Astrology'), findsWidgets);
+      await tester.scrollUntilVisible(find.text('Previous'), 150, scrollable: find.byType(Scrollable).last);
       expect(find.text('Previous'), findsOneWidget);
     });
 

@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "incremental": false,
+    "baseUrl": ".",
+    "paths": {
+      "@astro/astrology-engine": [".engine-types/index.d.ts"]
+    },
+    "types": ["node"],
+    "typeRoots": ["../../../node_modules/@types"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

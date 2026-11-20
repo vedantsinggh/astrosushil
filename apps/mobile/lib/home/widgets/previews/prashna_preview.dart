@@ -21,8 +21,8 @@ class PrashnaPreview extends StatelessWidget {
     }
 
     final hasResult = chart != null;
-    final lagnaSign = chart?.prashnaLagna.rashiName ?? 'Mesha';
-    final chandraSign = chart?.moon.rashiName ?? 'Vrishabha';
+    final lagnaSign = chart?.prashnaLagna.rashiName ?? '';
+    final chandraSign = chart?.moon.rashiName ?? '';
 
     return FittedBox(
       fit: BoxFit.scaleDown,
@@ -70,7 +70,7 @@ class PrashnaPreview extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: _buildHoraryTile('Chandra Mind', hasResult ? chandraSign : 'Active Muhurta', const Color(0xFF0284C7)),
+                  child: _buildHoraryTile('Chandra Mind', hasResult ? chandraSign : 'Cast on Query', const Color(0xFF0284C7)),
                 ),
               ],
             ),

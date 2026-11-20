@@ -45,7 +45,7 @@ describe('Phase 7: Shop, Digital Products, Physical Products & Customer Account 
     userB = await prisma.user.create({
       data: {
         email: `shop_customer_b_${Date.now()}@example.com`,
-        fullName: 'Ananya Sharma',
+        fullName: 'Test Customer Sharma',
         phoneNumber: `+9198722${Math.floor(10000 + Math.random() * 90000)}`,
         role: 'USER',
       },

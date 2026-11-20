@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/utils/app_date_time.dart';
+
 /// Supported action types that Jyoti can suggest or perform.
 enum JyotiActionType {
   openHome,
@@ -217,7 +219,7 @@ class JyotiMessageModel {
         'id': id,
         'type': type.name,
         'text': text,
-        'timestamp': timestamp.toIso8601String(),
+        'timestamp': AppDateTime.toJsonInstant(timestamp),
         'action': action?.toJson(),
         'explanation': explanation?.toJson(),
         'isUser': isUser,
@@ -230,7 +232,7 @@ class JyotiMessageModel {
           orElse: () => JyotiMessageType.jyotiText,
         ),
         text: json['text'] as String? ?? '',
-        timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ?? DateTime.now(),
+        timestamp: AppDateTime.parseInstant(json['timestamp']) ?? DateTime.now(),
         action: json['action'] != null ? JyotiAction.fromJson(json['action'] as Map<String, dynamic>) : null,
         explanation: json['explanation'] != null
             ? JyotiExplanation.fromJson(json['explanation'] as Map<String, dynamic>)

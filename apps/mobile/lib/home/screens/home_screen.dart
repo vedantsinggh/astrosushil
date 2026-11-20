@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/auth/auth_required_gate.dart';
 import '../../core/auth/feature_access_service.dart';
 import '../../core/localization/locale_provider.dart';
+import '../../features/astrology/models/astro_chart_model.dart';
 import '../../features/astrology/providers/astrology_provider.dart';
 import '../../features/astrology/screens/birth_chart_screen.dart';
 import '../../features/astrology/screens/astrology_hub_screen.dart';
@@ -12,28 +14,23 @@ import '../../features/astrology/screens/panchanga_screen.dart';
 import '../../features/astrology/screens/planets_screen.dart';
 import '../../features/astrology/screens/rashi_bhavishya_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/birth_profile/models/birth_profile_model.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/courses/screens/course_detail_screen.dart';
 import '../../features/courses/screens/courses_hub_screen.dart';
 import '../../features/jyoti/screens/jyoti_chat_screen.dart';
-import '../../features/jyoti/widgets/home_jyoti_card.dart';
-import '../../features/jyoti/widgets/jyoti_floating_button.dart';
 import '../../features/shop/screens/shop_catalog_screen.dart';
-import '../../shared/theme/app_colors.dart';
+import '../../features/sushil_explainer/models/explanation_context.dart';
+import '../../features/sushil_explainer/widgets/sushil_explainer_sheet.dart';
+import '../../shared/widgets/astro_design_system.dart';
 import '../providers/home_provider.dart';
-import '../widgets/business_shortcuts_grid.dart';
 import '../widgets/celestial_background_painter.dart';
-import '../widgets/daily_panchang_summary_card.dart';
-import '../widgets/essential_astrology_shortcuts.dart';
-import '../widgets/explore_astrology_card.dart';
-import '../widgets/gupta_nadi_card.dart';
-import '../widgets/hero_astrology_card.dart';
 import '../widgets/home_bottom_navigation.dart';
+import '../widgets/home_greeting.dart';
 import '../widgets/home_header.dart';
-import '../widgets/quick_insights_row.dart';
-import '../widgets/rashi_bhavishya_card.dart';
-import '../widgets/sushil_sir_explainer_banner.dart';
+import '../widgets/home_service_grid.dart';
+import '../widgets/home_today_cards.dart';
 import 'consult_screen.dart';
 import 'profile_screen.dart';
 import 'reports_screen.dart';
@@ -48,6 +45,9 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      // iOS: content scrolls under the frosted tab bar (each tab pads its
+      // end by MediaQuery's bottom padding). Android: solid M3 bar.
+      extendBody: AstroPlatform.isCupertino(context),
       body: SubtleCelestialBackground(
         child: IndexedStack(
           index: currentTabIndex,
@@ -65,38 +65,18 @@ class HomeScreen extends ConsumerWidget {
           ref.read(homeTabControllerProvider.notifier).state = index;
         },
       ),
-      floatingActionButton: currentTabIndex == 0
-          ? JyotiFloatingButton(
-              onTap: () {
-                AuthRequiredGate.checkAndProceed(
-                  context: context,
-                  ref: ref,
-                  feature: AppFeature.jyoti,
-                  featureTitle: 'Jyoti AI Assistant',
-                  onAllowed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const JyotiChatScreen()),
-                    );
-                  },
-                );
-              },
-            )
-          : null,
     );
   }
 }
 
-/// Home Tab Content View displaying clear Phase 2 UX visual hierarchy:
-/// 1. Compact Branded Header
-/// 2. Premium Hero (Dark cosmic navy/indigo, Sushil Sir AI avatar, active birth-profile summary, View Chart CTA)
-/// 3. Essential Astrology Shortcuts (Birth Chart, Planets, Dasha, Match Making)
-/// 4. Contextual AI Explainer Banner (Sushil Sir AI Guide)
-/// 5. Today's Panchanga (Deterministic real data)
-/// 6. Personalized Insights (Moon in Sign, Auspicious Time, Avoid Rahu Kaal, Rashi Bhavishya)
-/// 7. Explore Astro Sushil (Reports, Consultations, Courses, Shop)
-/// 8. Explore Astrology Tools (Grouped progressive disclosure hub)
-/// 9. Gupta Nadi Flagship Promotion (Real catalog course data & route)
-/// 10. Persistent Jyoti Assistant Entry
+/// Home tab, kept deliberately simple for users of all ages:
+/// 1. Brand bar (notifications, language, account)
+/// 2. Greeting + active birth profile ("Change" opens the profile switcher)
+/// 3. One highlight card: today's horoscope for the Moon sign
+/// 4. Slim Today's Panchang card
+/// 5. "Astrology" grid of large labelled tiles + "All tools" link
+/// 6. "Services" grid (Ask Jyoti, Sushil Sir explainer, Consult, Reports,
+///    Courses, Gupta Nadi, Shop)
 class _HomeTabContentView extends ConsumerWidget {
   const _HomeTabContentView();
 
@@ -193,240 +173,330 @@ class _HomeTabContentView extends ConsumerWidget {
     final profilesState = ref.read(birthProfilesListNotifierProvider);
     final activeProfile = ref.read(selectedBirthProfileProvider);
 
-    showModalBottomSheet(
+    showAstroSheet<void>(
       context: context,
-      backgroundColor: AppColors.cardSurfaceWarm,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      title: l10n.switchProfile,
+      builder: (ctx) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AstroGroupedSection(
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    l10n.switchProfile,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                    label: Text(l10n.addBirthProfile),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: profilesState.profiles.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final p = profilesState.profiles[index];
-                    final isSelected = p.id == activeProfile?.id;
-
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                      leading: CircleAvatar(
-                        backgroundColor: isSelected ? AppColors.primary : AppColors.canvasSecondary,
-                        foregroundColor: isSelected ? AppColors.gold : AppColors.primary,
-                        child: Text(
-                          p.name.isNotEmpty ? p.name[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      title: Text(
-                        p.name,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${p.dateOfBirth} • ${p.placeName.isNotEmpty ? p.placeName : "Vedic Chart"}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                      ),
-                      trailing: isSelected
-                          ? const Icon(Icons.check_circle_rounded, color: AppColors.success)
-                          : null,
-                      onTap: () {
-                        ref.read(selectedBirthProfileIdProvider.notifier).state = p.id;
-                        Navigator.of(ctx).pop();
-                      },
-                    );
+              for (final p in profilesState.profiles)
+                AstroListRow(
+                  leading: _ProfileInitial(name: p.name, selected: p.id == activeProfile?.id),
+                  title: p.name,
+                  subtitle: '${p.dateOfBirth} • ${p.placeName.isNotEmpty ? p.placeName : "Vedic Chart"}',
+                  trailing: p.id == activeProfile?.id
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.successText)
+                      : null,
+                  onTap: () {
+                    ref.read(selectedBirthProfileIdProvider.notifier).state = p.id;
+                    Navigator.of(ctx).pop();
                   },
                 ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AstroGroupedSection(
+            children: [
+              AstroListRow(
+                icon: Icons.add_rounded,
+                tint: AstroTint.amber,
+                title: l10n.addBirthProfile,
+                titleColor: AppColors.accent,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                  );
+                },
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 
+  void _openSushilExplainer(BuildContext context, WidgetRef ref, BirthProfileModel? activeProfile, AstroChartModel? chart) {
+    final locale = ref.read(localeProvider);
+    final hasProfile = activeProfile != null;
+
+    final contextData = ExplanationContext(
+      feature: 'home_dashboard',
+      screenTitle: 'Home Screen',
+      purpose: hasProfile
+          ? 'Explaining key patterns, lagna, and current planetary alignments from Janma Kundli'
+          : 'Introducing Vedic astrology concepts and guiding the user to create their birth profile',
+      mode: 'standard',
+      language: locale.languageCode == 'hi' ? 'hi' : 'en',
+      birthProfileId: activeProfile?.id,
+      astrologyData: {
+        'hasProfile': hasProfile,
+        if (activeProfile != null) 'profileName': activeProfile.name,
+        if (activeProfile != null) 'dateOfBirth': activeProfile.dateOfBirth,
+        if (chart?.ascendant != null) 'ascendant': chart!.ascendant!.rashiName,
+        if (chart != null) 'planetsCount': chart.planets.length,
+      },
+      importantValues: {
+        if (chart?.ascendant != null) 'lagna': chart!.ascendant!.rashiName,
+        if (activeProfile != null) 'location': activeProfile.placeName,
+      },
+    );
+
+    SushilExplainerSheet.show(
+      context,
+      explanationContext: contextData,
+      initialPoseAsset: AppAssets.sushilExplainingChart,
+    );
+  }
+
+  void _openGuptaNadi(BuildContext context, WidgetRef ref) {
+    AuthRequiredGate.checkAndProceed(
+      context: context,
+      ref: ref,
+      feature: AppFeature.courses,
+      featureTitle: 'Gupta Nadi Masterclass',
+      onAllowed: () => _navigateToGuptaNadiCourse(context),
+    );
+  }
+
+  void _createProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+    );
+  }
+
+  void _setTab(WidgetRef ref, int index) {
+    ref.read(homeTabControllerProvider.notifier).state = index;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final authState = ref.watch(authStateProvider);
     final user = authState.user;
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
     final activeProfile = ref.watch(selectedBirthProfileProvider);
     final hasProfile = profilesState.profiles.isNotEmpty;
-    final chartAsync = ref.watch(activeProfileAstroChartProvider);
-    final chart = chartAsync.valueOrNull;
-    final dashaAsync = ref.watch(activeProfileVimshottariDashaProvider);
-    final dashaTree = dashaAsync.valueOrNull;
-    final prediction = ref.watch(dailyRashiBhavishyaProvider);
+    final chart = ref.watch(activeProfileAstroChartProvider).valueOrNull;
+    final prediction = ref.watch(homeRashiPreviewProvider);
 
-    String? activeMahadashaName;
-    if (dashaTree != null && dashaTree.mahadashas.isNotEmpty) {
-      final now = DateTime.now();
-      final currentMaha = dashaTree.mahadashas.firstWhere(
-        (m) => m.isActive || (now.isAfter(m.startDate) && now.isBefore(m.endDate)),
-        orElse: () => dashaTree.mahadashas.first,
-      );
-      activeMahadashaName = currentMaha.planet;
+    final fullName = user?.fullName?.trim() ?? '';
+    final email = user?.email ?? '';
+    final displayName = fullName.isNotEmpty
+        ? fullName.split(' ').first
+        : (email.contains('@') ? email.split('@').first : email);
+
+    final astrologyItems = <HomeServiceItem>[
+      HomeServiceItem(
+        id: 'kundli',
+        tint: AstroTint.indigo,
+        label: l10n.homeTileKundli,
+        icon: Icons.grid_view_rounded,
+        onTap: () => _navigateToBirthChart(context, hasProfile),
+      ),
+      HomeServiceItem(
+        id: 'horoscope',
+        tint: AstroTint.amber,
+        label: l10n.homeTileHoroscope,
+        icon: Icons.wb_sunny_outlined,
+        onTap: () => _navigateToRashiBhavishya(context),
+      ),
+      HomeServiceItem(
+        id: 'panchang',
+        tint: AstroTint.coral,
+        label: l10n.homeTilePanchang,
+        icon: Icons.calendar_month_rounded,
+        onTap: () => _navigateToPanchanga(context),
+      ),
+      HomeServiceItem(
+        id: 'matching',
+        tint: AstroTint.rose,
+        label: l10n.homeTileMatching,
+        icon: Icons.favorite_border_rounded,
+        onTap: () => _navigateToMatchmaking(context),
+      ),
+      HomeServiceItem(
+        id: 'planets',
+        tint: AstroTint.sky,
+        label: l10n.homeTilePlanets,
+        icon: Icons.public_rounded,
+        onTap: () => _navigateToPlanets(context, hasProfile),
+      ),
+      HomeServiceItem(
+        id: 'dasha',
+        tint: AstroTint.violet,
+        label: l10n.homeTileDasha,
+        icon: Icons.timeline_rounded,
+        onTap: () => _navigateToDasha(context),
+      ),
+    ];
+
+    final serviceItems = <HomeServiceItem>[
+      HomeServiceItem(
+        id: 'ask-jyoti',
+        tint: AstroTint.violet,
+        label: l10n.homeTileAskJyoti,
+        icon: Icons.chat_bubble_outline_rounded,
+        onTap: () => _navigateToJyoti(context, ref),
+      ),
+      HomeServiceItem(
+        id: 'explain-chart',
+        tint: AstroTint.amber,
+        label: l10n.homeTileExplainChart,
+        icon: Icons.record_voice_over_outlined,
+        imageAsset: AppAssets.sushilAvatar,
+        onTap: () => _openSushilExplainer(context, ref, activeProfile, chart),
+      ),
+      HomeServiceItem(
+        id: 'consult',
+        tint: AstroTint.sage,
+        label: l10n.navConsult,
+        icon: Icons.phone_in_talk_outlined,
+        onTap: () => _setTab(ref, 2),
+      ),
+      HomeServiceItem(
+        id: 'reports',
+        tint: AstroTint.sky,
+        label: l10n.navReports,
+        icon: Icons.description_outlined,
+        onTap: () => _setTab(ref, 1),
+      ),
+      HomeServiceItem(
+        id: 'courses',
+        tint: AstroTint.indigo,
+        label: l10n.homeTileCourses,
+        icon: Icons.school_outlined,
+        onTap: () => _navigateToCourses(context),
+      ),
+      HomeServiceItem(
+        id: 'gupta-nadi',
+        tint: AstroTint.amber,
+        label: l10n.homeTileGuptaNadi,
+        icon: Icons.menu_book_outlined,
+        onTap: () => _openGuptaNadi(context, ref),
+      ),
+      HomeServiceItem(
+        id: 'shop',
+        tint: AstroTint.coral,
+        label: l10n.homeTileShop,
+        icon: Icons.shopping_bag_outlined,
+        onTap: () => _navigateToShop(context),
+      ),
+    ];
+
+    final gridLabels = [...astrologyItems, ...serviceItems].map((i) => i.label).toList();
+
+    final greeting = displayName.isNotEmpty ? '${l10n.welcomeGuest}, $displayName' : l10n.welcomeGuest;
+
+    return CustomScrollView(
+      slivers: [
+        // 1. Large-title greeting with the brand mark and quick actions.
+        AstroSliverNavBar(
+          title: greeting,
+          subtitle: _todayLabel(context),
+          showBack: false,
+          leading: const HomeBrandMark(),
+          actions: HomeHeaderActions.build(
+            context,
+            userName: email.isNotEmpty ? email : 'User',
+            onProfileTap: () => _setTab(ref, 3),
+          ),
+        ),
+        AstroSliverContent(
+          top: 8,
+          bottom: 32 + MediaQuery.paddingOf(context).bottom,
+          // A box column (not a lazy list) keeps the whole home tab built,
+          // so semantics and keyboard/screen-reader traversal see every tile.
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+              // 2. Active birth profile ("Change" opens the switcher).
+              HomeGreeting(
+                displayName: displayName,
+                activeProfile: activeProfile,
+                onChangeProfileTap: () => _showProfileSwitchBottomSheet(context, ref),
+              ),
+              if (activeProfile != null) const SizedBox(height: 16),
+
+              // 3. The one hero: today's horoscope for the Moon sign.
+              HomeHoroscopeCard(
+                preview: prediction,
+                hasProfile: hasProfile,
+                onReadTap: () => _navigateToRashiBhavishya(context),
+                onCreateProfileTap: () => _createProfile(context),
+                onRetryTap: () => ref.invalidate(homeRashiPreviewProvider),
+              ),
+              const SizedBox(height: 14),
+
+              // 4. Today's Panchang (slim).
+              HomePanchangCard(onTap: () => _navigateToPanchanga(context)),
+              const SizedBox(height: 32),
+
+              // 5. Astrology tools grid + link to every tool.
+              HomeSectionTitle(l10n.homeSectionAstrology),
+              const SizedBox(height: 12),
+              HomeServiceGrid(items: astrologyItems, sizingLabels: gridLabels),
+              const SizedBox(height: 12),
+              HomeLinkRow(
+                key: const ValueKey('home-service-all-tools'),
+                label: l10n.exploreAllTools,
+                icon: Icons.apps_rounded,
+                onTap: () => _navigateToAstrologyHub(context),
+              ),
+              const SizedBox(height: 32),
+
+              // 6. Guidance, learning and shop.
+              HomeSectionTitle(l10n.homeSectionServices),
+              const SizedBox(height: 12),
+              HomeServiceGrid(items: serviceItems, sizingLabels: gridLabels),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// "Friday, November 20" in the app language (falls back to the medium
+  /// Material date if the locale has no intl data).
+  String _todayLabel(BuildContext context) {
+    final now = DateTime.now();
+    try {
+      return DateFormat.MMMMEEEEd(Localizations.localeOf(context).toLanguageTag()).format(now);
+    } catch (_) {
+      return MaterialLocalizations.of(context).formatMediumDate(now);
     }
+  }
+}
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. COMPACT BRANDED HEADER (Avatar + Branding + Notification + Language + Account)
-            HomeHeader(
-              userName: user?.email ?? 'User',
-              onProfileTap: () {
-                ref.read(homeTabControllerProvider.notifier).state = 3;
-              },
-            ),
+/// Initial avatar for the profile switcher rows.
+class _ProfileInitial extends StatelessWidget {
+  final String name;
+  final bool selected;
 
-            const SizedBox(height: 12),
+  const _ProfileInitial({required this.name, required this.selected});
 
-            // 2. PREMIUM HERO (Cosmic Navy Gradient + Greeting + Floating Profile Selector + Verified Highlights)
-            HeroAstrologyCard(
-              hasBirthProfile: hasProfile,
-              activeProfile: activeProfile,
-              userName: user?.email,
-              chart: chart,
-              activeMahadasha: activeMahadashaName,
-              isLoadingData: chartAsync.isLoading || dashaAsync.isLoading,
-              onViewChartTap: () => _navigateToBirthChart(context, hasProfile),
-              onChangeProfileTap: () => _showProfileSwitchBottomSheet(context, ref),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 3. ESSENTIAL ASTROLOGY SHORTCUTS (Birth Chart, Planets, Dasha, Kundli Matching)
-            EssentialAstrologyShortcutsGrid(
-              onBirthChartTap: () => _navigateToBirthChart(context, hasProfile),
-              onPlanetsTap: () => _navigateToPlanets(context, hasProfile),
-              onDashaTap: () => _navigateToDasha(context),
-              onMatchmakingTap: () => _navigateToMatchmaking(context),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 4. CONTEXTUAL AI EXPLAINER BANNER (Sushil Sir AI Guide)
-            SushilSirExplainerBanner(
-              activeProfile: activeProfile,
-              chart: chart,
-            ),
-
-            const SizedBox(height: 20),
-
-            // 5. TODAY'S PANCHANGA REAL-DATA CARD
-            DailyPanchangSummaryCard(
-              onViewFullPanchang: () => _navigateToPanchanga(context),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 6. PERSONALIZED INSIGHTS: QUICK INSIGHTS CAROUSEL
-            QuickInsightsRow(
-              onSeeAllTap: () => _navigateToAstrologyHub(context),
-              chart: chart,
-            ),
-
-            const SizedBox(height: 18),
-
-            // 6b. PERSONALIZED INSIGHTS: TODAY'S RASHI BHAVISHYA PREVIEW
-            RashiBhavishyaSection(
-              preview: prediction,
-              onReadTap: () => _navigateToRashiBhavishya(context),
-            ),
-
-            const SizedBox(height: 22),
-
-            // 7. EXPLORE ASTRO SUSHIL (2x2: Reports, Consultations, Courses, Shop)
-            BusinessShortcutsGrid(
-              onReportsTap: () {
-                ref.read(homeTabControllerProvider.notifier).state = 1;
-              },
-              onConsultTap: () {
-                ref.read(homeTabControllerProvider.notifier).state = 2;
-              },
-              onCoursesTap: () => _navigateToCourses(context),
-              onShopTap: () => _navigateToShop(context),
-            ),
-
-            const SizedBox(height: 22),
-
-            // 8. EXPLORE ALL ASTROLOGY TOOLS (Grouped Progressive Disclosure Directory)
-            ExploreAstrologyCard(
-              onExploreTap: () => _navigateToAstrologyHub(context),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 9. GUPTA NADI FLAGSHIP MASTERCLASS PROMOTION (Real Catalog Course & Route)
-            GuptaNadiCard(
-              onExploreTap: () {
-                AuthRequiredGate.checkAndProceed(
-                  context: context,
-                  ref: ref,
-                  feature: AppFeature.courses,
-                  featureTitle: 'Gupta Nadi Masterclass',
-                  onAllowed: () => _navigateToGuptaNadiCourse(context),
-                );
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            // 10. PERSISTENT ASK JYOTI ASSISTANT ENTRY CARD
-            HomeJyotiCard(
-              onTap: () => _navigateToJyoti(context, ref),
-            ),
-
-            const SizedBox(height: 24),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: AstroMetrics.iconSquare + 4,
+      height: AstroMetrics.iconSquare + 4,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: selected ? AppGradients.heroNavy : null,
+        color: selected ? null : AstroTint.navy.background,
+      ),
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 16,
+          color: selected ? AppColors.gold : AppColors.primary,
         ),
       ),
     );

@@ -372,7 +372,7 @@ void main() {
       await tester.pump(Duration.zero);
       await tester.pump(const Duration(milliseconds: 150));
 
-      expect(find.text('ACTIVE PERIOD'), findsOneWidget);
+      expect(find.textContaining('Active period'), findsOneWidget);
       expect(find.text('Current Dasha Influence'), findsOneWidget);
       expect(find.text('120-Year Mahadasha Timeline'), findsOneWidget);
 
@@ -392,7 +392,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
 
       // Scroll to and tap Moon Mahadasha to expand Antardashas
-      await tester.scrollUntilVisible(find.text('Moon Mahadasha'), 100);
+      // The page is now one CustomScrollView under a pinned nav bar: scroll
+      // the page itself and centre the row before tapping.
+      final pageScroll = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(find.text('Moon Mahadasha'), 100, scrollable: pageScroll);
+      await tester.drag(pageScroll, const Offset(0, -150));
+      await tester.pump();
       await tester.tap(find.text('Moon Mahadasha'));
       await tester.pump(Duration.zero);
       await tester.pump(const Duration(milliseconds: 200));
@@ -400,7 +405,9 @@ void main() {
       expect(find.text('Moon – Mars'), findsOneWidget);
 
       // Scroll to and tap Moon – Mars Antardasha to expand Pratyantardashas
-      await tester.scrollUntilVisible(find.text('Moon – Mars'), 100);
+      await tester.scrollUntilVisible(find.text('Moon – Mars'), 100, scrollable: pageScroll);
+      await tester.drag(pageScroll, const Offset(0, -150));
+      await tester.pump();
       await tester.tap(find.text('Moon – Mars'));
       await tester.pump(Duration.zero);
       await tester.pump(const Duration(milliseconds: 200));

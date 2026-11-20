@@ -432,7 +432,9 @@ class PrashnaNotifier extends StateNotifier<PrashnaState> {
     state = const PrashnaState(isLoading: true);
     try {
       final res = await _repository.getPrashna(
-        questionTimestamp: questionTime.toIso8601String(),
+        // The question moment is an instant: send it in UTC with `Z`. A
+        // zone-less local string is read in the server's timezone instead.
+        questionTimestamp: questionTime.toUtc().toIso8601String(),
         timezone: timezone,
         latitude: latitude,
         longitude: longitude,

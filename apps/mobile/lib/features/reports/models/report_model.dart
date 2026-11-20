@@ -17,11 +17,11 @@ class ReportProfileModel {
 
   factory ReportProfileModel.fromJson(Map<String, dynamic> json) {
     return ReportProfileModel(
-      name: json['name'] as String? ?? 'User Profile',
+      name: json['name'] as String? ?? '',
       dateOfBirth: json['dateOfBirth'] as String? ?? '',
       timeOfBirth: json['timeOfBirth'] as String? ?? '',
       placeName: json['placeName'] as String?,
-      timezone: json['timezone'] as String? ?? 'Asia/Kolkata',
+      timezone: json['timezone'] as String? ?? '',
     );
   }
 }

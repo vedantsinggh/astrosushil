@@ -111,7 +111,7 @@ void main() {
       expect(find.text('Explaining Birth Chart'), findsOneWidget);
       expect(find.text('Strong Planetary Placement'), findsOneWidget);
       expect(find.text('Your chart indicates positive career growth and balanced relationships.'), findsOneWidget);
-      expect(find.text('KEY TAKEAWAYS'), findsOneWidget);
+      expect(find.text('Key takeaways'), findsOneWidget);
       expect(find.text('Sun in 10th house supports authority.'), findsOneWidget);
       expect(find.text('Got It'), findsOneWidget);
     });

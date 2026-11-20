@@ -208,7 +208,7 @@ export function renderNotificationTemplate(
       const meetingLink = data.meetingLink || '';
       return {
         title: `🗓️ Consultation Confirmed: ${title}`,
-        body: `Your appointment is confirmed for ${date} at ${time} (${mode}). Tap for details.`,
+        body: `Your appointment is confirmed for ${date} at ${time} IST (${mode}). Tap for details.`,
         emailSubject: `🗓️ Appointment Confirmed: ${title} on ${date}`,
         emailText: `Hello ${userName},\n\nYour consultation "${title}" has been confirmed for ${date} at ${time} IST (${mode}).\n${meetingLink ? `Meeting link: ${meetingLink}\n` : ''}\nThank you for choosing Astro Sushil.`,
         emailHtml: `

@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../helpers/report_catalog_fixture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,13 +70,14 @@ void main() {
   }
 
   group('Phase 6.11A: Fortune Plus Mobile UI & Widget Verification', () {
-    testWidgets('1. Catalogue card displays distinct title, PRICING PENDING badge, and blocks checkout on tap', (tester) async {
+    testWidgets('1. Fortune Plus is hidden while the server catalogue does not offer it (no invented price)', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 844 * 2);
       tester.view.devicePixelRatio = 2.0;
 
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile]),
             ),
@@ -87,24 +89,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Scroll down using the catalogue SingleChildScrollView
-      final cardFinder = find.text('Personalised Fortune Report Plus (Comprehensive Edition)');
-      await tester.scrollUntilVisible(
-        cardFinder,
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(cardFinder, findsOneWidget);
-
-      // Verify Pricing Pending badge is rendered for inactive pricing status
-      expect(find.text('PRICING PENDING'), findsWidgets);
-
-      // Tap on the Fortune Plus card
-      await tester.tap(cardFinder);
-      await tester.pump();
-
-      // Verify checkout is blocked: snackbar with 'coming soon' appears instead of payment screen
-      expect(find.text('Personalised Fortune Report Plus (Comprehensive Edition) is coming soon!'), findsOneWidget);
+      // FORTUNE_PLUS is inactive in the server catalogue, so no card and no
+      // fabricated "pricing pending" offer is shown.
+      expect(find.text('Personalised Fortune Report Plus (Comprehensive Edition)'), findsNothing);
+      expect(find.text('PRICING PENDING'), findsNothing);
     });
 
     testWidgets('2. My Reports history displays existing completed FORTUNE_PLUS report with correct badges and allows viewing', (tester) async {
@@ -114,6 +102,7 @@ void main() {
       await tester.pumpWidget(
         createTestWidget(
           overrides: [
+            reportCatalogTestOverride,
             birthProfilesListNotifierProvider.overrideWith(
               (ref) => _MockBirthProfilesNotifier([testProfile]),
             ),
@@ -132,17 +121,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Switch to My Reports tab
-      await tester.tap(find.text('My Reports'));
-      await tester.pumpAndSettle();
+      // My reports is shown at the top of the single Reports page.
+      expect(find.text('My reports'), findsOneWidget);
 
       // Verify report item rendered with model getters
       expect(find.text('Personalised Fortune Report Plus (Comprehensive Edition)'), findsOneWidget);
-      expect(find.text('Profile: Puneet Kumar'), findsOneWidget);
-      expect(find.text('READY'), findsOneWidget);
+      expect(find.textContaining('For Puneet Kumar'), findsOneWidget);
+      expect(find.text('Ready'), findsOneWidget);
 
-      // Verify Open PDF button is present (localized label for reportActionViewPdf)
-      final openPdfButton = find.text('Open PDF');
+      // One clear action for a ready report: Open report
+      final openPdfButton = find.text('Open report');
       expect(openPdfButton, findsOneWidget);
 
       // Tap Open PDF button

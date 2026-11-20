@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../widgets/astro_app_bar.dart';
-import '../widgets/astro_offline_state.dart';
 import '../widgets/subtle_celestial_background.dart';
+import 'simple_screen_kit.dart';
+import '../../core/localization/locale_provider.dart';
 
 /// Full screen network connectivity error view
 class NetworkErrorScreen extends StatelessWidget {
@@ -19,21 +19,19 @@ class NetworkErrorScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: isHindi ? 'कनेक्शन त्रुटि' : 'Network Connectivity',
-      ),
+      appBar: const SimpleScreenAppBar(),
       body: SubtleCelestialBackground(
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: AstroOfflineState(
-                onRetry: onRetry,
-                message: isHindi
-                    ? 'इंटरनेट कनेक्शन उपलब्ध नहीं है। कृपया नेटवर्क जांचें और पुनः प्रयास करें। आपकी सहेजी गई कुंडलियां सुरक्षित हैं।'
-                    : 'Unable to connect to astrology calculation servers. Please check your internet connection and try again.',
-              ),
-            ),
+          child: SimpleStateView(
+            icon: Icons.wifi_off_rounded,
+            iconColor: AppColors.secondary,
+            title: isHindi ? 'आप ऑफ़लाइन हैं' : "You're offline",
+            message: isHindi
+                ? 'इंटरनेट कनेक्शन उपलब्ध नहीं है। कृपया नेटवर्क जांचें और पुनः प्रयास करें। आपकी सहेजी गई कुंडलियां सुरक्षित हैं।'
+                : 'Unable to connect to astrology calculation servers. Please check your internet connection and try again.',
+            actionLabel: context.l10n.commonTryAgain,
+            actionIcon: Icons.refresh_rounded,
+            onAction: onRetry,
           ),
         ),
       ),

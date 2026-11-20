@@ -30,6 +30,18 @@ class SpecialPointsPreview extends StatelessWidget {
       );
     }
 
+    // Genuine backend special points only.
+    final r = report;
+    if (r == null) {
+      return const PreviewEmptyState(
+        title: 'Special Points',
+        message: 'Special points data is not available right now',
+        icon: Icons.flare_rounded,
+      );
+    }
+    String coord(CalculatedSpecialPointModel p) =>
+        '${p.rashiName} ${p.degreeInRashi.floor().toString().padLeft(2, '0')}°';
+
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(
@@ -39,17 +51,17 @@ class SpecialPointsPreview extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: _buildPointTile('Hora Lagna (HL)', 'Gemini 08°', AppColors.secondary)),
+                Expanded(child: _buildPointTile('Hora Lagna (HL)', coord(r.specialLagnas.horaLagna), AppColors.secondary)),
                 const SizedBox(width: 4),
-                Expanded(child: _buildPointTile('Ghatika (GL)', 'Virgo 21°', const Color(0xFF0284C7))),
+                Expanded(child: _buildPointTile('Ghatika (GL)', coord(r.specialLagnas.ghatikaLagna), const Color(0xFF0284C7))),
               ],
             ),
             const SizedBox(height: 3),
             Row(
               children: [
-                Expanded(child: _buildPointTile('Gulika (Gk)', 'Scorpio 14°', const Color(0xFFE11D48))),
+                Expanded(child: _buildPointTile('Gulika (Gk)', coord(r.upagrahas.gulika), const Color(0xFFE11D48))),
                 const SizedBox(width: 4),
-                Expanded(child: _buildPointTile('Mandi (Md)', 'Sagittarius 02°', const Color(0xFFD97706))),
+                Expanded(child: _buildPointTile('Mandi (Md)', coord(r.upagrahas.mandi), const Color(0xFFD97706))),
               ],
             ),
           ],

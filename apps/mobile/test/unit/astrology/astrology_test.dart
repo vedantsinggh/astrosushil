@@ -5,9 +5,15 @@ import 'package:astro_mobile/core/utils/formatters.dart';
 void main() {
   group('Astrology Engine Model Unit Tests', () {
     test('AstroChartModel.fromJson parses full backend API payload', () {
+      // Payload for REF_CHART_001 (1990-05-15 14:30 IST, New Delhi), engine 0.2.0 (true Lahiri, ADR-017).
+      // Sun and Mercury: packages/astrology-engine/tests/fixtures/reference-charts.ts, i.e. JPL Horizons
+      // apparent tropical longitude minus the IAE true Lahiri ayanamsa 23.7257785° (Sun 30.549787°,
+      // Mercury 14.302297°; daily motion and latitude from Horizons). The earlier payload (Sun 50.2541°
+      // Vrishabha/Rohini) did not match the sky. The ascendant is engine 0.2.0 output (no independent
+      // reference in the fixture).
       final json = {
         'chart': {
-          'calculationVersion': '0.1.0',
+          'calculationVersion': '0.2.0',
           'providerName': 'AstronomyEngineAdapter (astronomy-engine)',
           'providerVersion': '2.1.19-mit',
           'normalizedTime': {
@@ -23,43 +29,43 @@ void main() {
             'planetaryCalculationMode': 'GEOCENTRIC',
           },
           'ascendant': {
-            'longitude': 120.45,
-            'rashiIndex': 4,
-            'rashiName': 'Simha',
-            'degreeInRashi': 0.45,
-            'nakshatraIndex': 10,
-            'nakshatraName': 'Magha',
-            'pada': 1,
-            'nakshatraLord': 'KETU',
+            'longitude': 151.9053,
+            'rashiIndex': 6,
+            'rashiName': 'Kanya',
+            'degreeInRashi': 1.9053,
+            'nakshatraIndex': 12,
+            'nakshatraName': 'Uttara Phalguni',
+            'pada': 2,
+            'nakshatraLord': 'SUN',
           },
           'planets': [
             {
               'planet': 'SUN',
-              'longitude': 50.2541,
+              'longitude': 30.5498,
               'latitude': 0.0,
-              'speedLongitude': 0.963,
+              'speedLongitude': 0.9643,
               'isRetrograde': false,
               'rashiIndex': 2,
               'rashiName': 'Vrishabha',
-              'degreeInRashi': 20.2541,
-              'nakshatraIndex': 4,
-              'nakshatraName': 'Rohini',
-              'pada': 4,
-              'nakshatraLord': 'MOON',
+              'degreeInRashi': 0.5498,
+              'nakshatraIndex': 3,
+              'nakshatraName': 'Krittika',
+              'pada': 2,
+              'nakshatraLord': 'SUN',
             },
             {
               'planet': 'MERCURY',
-              'longitude': 42.12,
-              'latitude': -1.2,
-              'speedLongitude': -0.15,
+              'longitude': 14.3023,
+              'latitude': -2.4952,
+              'speedLongitude': -0.1296,
               'isRetrograde': true,
-              'rashiIndex': 2,
-              'rashiName': 'Vrishabha',
-              'degreeInRashi': 12.12,
-              'nakshatraIndex': 4,
-              'nakshatraName': 'Rohini',
+              'rashiIndex': 1,
+              'rashiName': 'Mesha',
+              'degreeInRashi': 14.3023,
+              'nakshatraIndex': 2,
+              'nakshatraName': 'Bharani',
               'pada': 1,
-              'nakshatraLord': 'MOON',
+              'nakshatraLord': 'VENUS',
             },
           ],
           'houses': [],
@@ -68,18 +74,20 @@ void main() {
 
       final chart = AstroChartModel.fromJson(json);
 
-      expect(chart.calculationVersion, equals('0.1.0'));
+      expect(chart.calculationVersion, equals('0.2.0'));
       expect(chart.providerName, contains('AstronomyEngineAdapter'));
       expect(chart.config.ayanamsa, equals('LAHIRI'));
       expect(chart.config.zodiacType, equals('SIDEREAL'));
 
       expect(chart.ascendant, isNotNull);
-      expect(chart.ascendant!.rashiName, equals('Simha'));
-      expect(chart.ascendant!.nakshatraLord, equals('KETU'));
+      expect(chart.ascendant!.rashiName, equals('Kanya'));
+      expect(chart.ascendant!.nakshatraLord, equals('SUN'));
 
       expect(chart.planets.length, equals(2));
       final sun = chart.planets.firstWhere((p) => p.planet == 'SUN');
       expect(sun.rashiName, equals('Vrishabha'));
+      expect(sun.nakshatraName, equals('Krittika'));
+      expect(sun.pada, equals(2));
       expect(sun.isRetrograde, isFalse);
 
       final mercury = chart.planets.firstWhere((p) => p.planet == 'MERCURY');

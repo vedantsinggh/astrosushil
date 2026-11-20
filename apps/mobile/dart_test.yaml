@@ -1,0 +1,5 @@
+# Test tag declarations for `flutter test`.
+tags:
+  # Heavy visual QA audit (test/ui_audit/). Excluded from CI via
+  # `--exclude-tags ui_audit`; run explicitly with `flutter test test/ui_audit`.
+  ui_audit:

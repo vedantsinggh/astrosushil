@@ -48,8 +48,8 @@ class SignChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: EdgeInsets.symmetric(
-          horizontal: isCompact ? 8 : 12,
-          vertical: isCompact ? 4 : 6,
+          horizontal: isCompact ? 10 : 12,
+          vertical: isCompact ? 5 : 8,
         ),
         decoration: BoxDecoration(
           color: isSelected
@@ -62,23 +62,14 @@ class SignChip extends StatelessWidget {
                 : AppColors.lightBorder,
             width: isSelected ? 1.5 : 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.15),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
                   ),
-                ]
-              : null,
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               glyph,
               style: TextStyle(
-                fontSize: isCompact ? 13 : 15,
+                fontSize: isCompact ? 15 : 17,
                 color: isSelected ? AppColors.premiumAccent : AppColors.secondary,
               ),
             ),
@@ -87,7 +78,7 @@ class SignChip extends StatelessWidget {
               child: Text(
                 signName,
                 style: TextStyle(
-                  fontSize: isCompact ? 11 : 12,
+                  fontSize: isCompact ? 13 : 14,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   color: isSelected ? Colors.white : AppColors.primary,
                 ),
@@ -99,7 +90,7 @@ class SignChip extends StatelessWidget {
               Text(
                 '($sanskritName)',
                 style: TextStyle(
-                  fontSize: isCompact ? 10 : 11,
+                  fontSize: isCompact ? 13 : 14,
                   color: isSelected
                       ? AppColors.premiumAccent
                       : AppColors.lightTextSecondary,
@@ -119,7 +110,7 @@ class SignChip extends StatelessWidget {
                 child: Text(
                   'H$houseNumber',
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? AppColors.premiumAccent : AppColors.primary,
                   ),

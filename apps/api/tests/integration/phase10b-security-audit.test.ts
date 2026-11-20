@@ -79,13 +79,13 @@ describe('Phase 10B: Payment, Fulfillment and Customer Access Security Audit', (
     birthProfileA = await prisma.birthProfile.create({
       data: {
         userId: customerA.id,
-        name: 'Puneet Kumar Profile',
+        name: 'Reference Test Profile',
         dateOfBirth: '1983-12-28',
         timeOfBirth: '04:45:00',
         latitude: 28.4069,
         longitude: 77.8498,
         timezone: 'Asia/Kolkata',
-        placeName: 'Bulandshahr, Uttar Pradesh, India',
+        placeName: 'Uttar Pradesh, India',
       },
     });
 

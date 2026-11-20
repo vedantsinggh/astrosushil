@@ -45,11 +45,12 @@ class DegreeValueDisplay extends StatelessWidget {
     final effectiveColor = color ?? AppColors.primary;
 
     final defaultStyle = TextStyle(
-      fontSize: 13,
-      fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-      fontFamily: isMonospace ? 'monospace' : null,
+      fontSize: 15,
+      fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+      // Tabular (fixed-width) digits keep columns of degrees aligned while
+      // using the app's own readable font instead of a generic monospace.
+      fontFeatures: isMonospace ? const [FontFeature.tabularFigures()] : null,
       color: effectiveColor,
-      letterSpacing: -0.2,
     );
 
     if (label == null) {
@@ -67,7 +68,7 @@ class DegreeValueDisplay extends StatelessWidget {
           label!,
           style: labelStyle ??
               const TextStyle(
-                fontSize: 11,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: AppColors.lightTextSecondary,
               ),

@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../models/prashna_model.dart';
 import '../providers/astrology_provider.dart';
-import '../widgets/astrology_data_table.dart';
+import '../widgets/adv_widgets.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_section_card.dart';
 
 /// Screen for casting instantaneous or customized Prashna (Horary) astrology queries
 /// calculates Prashna Lagna, Chandra query mind, Sphutas (Gulika, Trisphuta), and moment Panchanga.
@@ -27,10 +22,11 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
   final _formKey = GlobalKey<FormState>();
 
   DateTime _selectedDateTime = DateTime.now();
-  final _placeController = TextEditingController(text: 'New Delhi, India');
-  final _latitudeController = TextEditingController(text: '28.6139');
-  final _longitudeController = TextEditingController(text: '77.2090');
-  final _timezoneController = TextEditingController(text: 'Asia/Kolkata');
+  // Location fields start empty: the querent must enter their own place.
+  final _placeController = TextEditingController();
+  final _latitudeController = TextEditingController();
+  final _longitudeController = TextEditingController();
+  final _timezoneController = TextEditingController();
   final _questionTextController = TextEditingController();
   final _questionNumberController = TextEditingController();
   String _selectedNumberSystem = 'PARASHARI_108'; // or 'KP_249'
@@ -50,8 +46,15 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
   void _submitPrashna() {
     if (!_formKey.currentState!.validate()) return;
 
-    final lat = double.tryParse(_latitudeController.text.trim()) ?? 28.6139;
-    final lng = double.tryParse(_longitudeController.text.trim()) ?? 77.2090;
+    // The querent's real location is required; no default city is assumed.
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    if (lat == null || lng == null || _timezoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the place, latitude, longitude and timezone of the question.')),
+      );
+      return;
+    }
     final qNum = _useQuestionNumber
         ? int.tryParse(_questionNumberController.text.trim())
         : null;
@@ -74,101 +77,116 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
   Widget build(BuildContext context) {
     final prashnaState = ref.watch(prashnaProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Prashna (Horary Astrology)',
-        actions: [
-          if (prashnaState.result != null)
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
-              tooltip: 'New Question',
-              onPressed: () {
-                ref.read(prashnaProvider.notifier).clear();
-              },
-            ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: prashnaState.isLoading
-            ? const AstrologyLoadingState(
-                message: 'Casting Prashna Chart and Sphuta Calculations...',
+    final Widget body = prashnaState.isLoading
+        ? const AstrologyLoadingState(
+            message: 'Casting Prashna Chart and Sphuta Calculations...',
+          )
+        : prashnaState.errorMessage != null
+            ? AstrologyErrorState(
+                customMessage: prashnaState.errorMessage,
+                onRetry: _submitPrashna,
               )
-            : prashnaState.errorMessage != null
-                ? AstrologyErrorState(
-                    customMessage: prashnaState.errorMessage,
-                    onRetry: _submitPrashna,
-                  )
-                : prashnaState.result != null
-                    ? _buildResultView(prashnaState.result!)
-                    : _buildInputForm(),
-      ),
+            : prashnaState.result != null
+                ? _buildResultView(prashnaState.result!)
+                : _buildInputForm();
+
+    return AstroPage(
+      title: 'Prashna (Horary Astrology)',
+      child: body,
+    );
+  }
+
+  /// Large, light, clearly labelled input decoration used by the form fields.
+  InputDecoration _fieldDecoration({String? hint, String? label}) {
+    OutlineInputBorder border(Color c, [double w = 1.2]) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: c, width: w),
+        );
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: AppColors.cardSurface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: kAdvSecondary,
+      hintStyle: kAdvSecondary.copyWith(color: AppColors.textMuted),
+      errorStyle: kAdvSecondary.copyWith(color: AppColors.error),
+      errorMaxLines: 2,
+      border: border(AppColors.cardBorder),
+      enabledBorder: border(AppColors.cardBorder),
+      focusedBorder: border(AppColors.gold, 2),
+      errorBorder: border(AppColors.error),
+      focusedErrorBorder: border(AppColors.error, 2),
+    );
+  }
+
+  /// A visible label above an input, so the purpose stays readable while typing.
+  Widget _labelled(String label, Widget field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: kAdvBody.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        field,
+      ],
     );
   }
 
   Widget _buildInputForm() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Form(
+    return Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardSurfaceWarm,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.psychology_rounded, color: AppColors.primary, size: 28),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Prashna Shastra casts a precise astrological chart for the moment and place a question is asked.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.primary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const AdvSummaryCard(
+              label: 'Prashna',
+              icon: Icons.psychology_rounded,
+              title: 'Ask your question',
+              subtitle:
+                  'Prashna Shastra casts a precise astrological chart for the moment and place a question is asked.',
             ),
-            const SizedBox(height: 16),
-            AstrologySectionCard(
-              title: '1. Query Details',
-              subtitle: 'State the querent question and optional seed number',
-              icon: Icons.help_outline_rounded,
+            const SizedBox(height: kAdvGap),
+
+            // STEP 1: QUESTION
+            AdvCard(
+              padding: const EdgeInsets.all(18),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
-                    controller: _questionTextController,
-                    decoration: const InputDecoration(
-                      labelText: 'Question / Topic (Optional)',
-                      hintText: 'e.g. Will the business contract finalize smoothly?',
-                      border: OutlineInputBorder(),
+                  const AdvStepHeader(
+                    step: 1,
+                    total: 2,
+                    title: 'Query Details',
+                    hint: 'Write your question. A seed number is optional.',
+                  ),
+                  const SizedBox(height: 16),
+                  _labelled(
+                    'Question / Topic (Optional)',
+                    TextFormField(
+                      controller: _questionTextController,
+                      style: kAdvBody,
+                      decoration: _fieldDecoration(
+                        hint: 'e.g. Will the business contract finalize smoothly?',
+                      ),
+                      maxLines: 3,
+                      minLines: 2,
                     ),
-                    maxLines: 2,
                   ),
                   const SizedBox(height: 12),
                   Material(
                     color: Colors.transparent,
-                    child: SwitchListTile(
+                    child: SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text(
+                      activeThumbColor: AppColors.gold,
+                      title: Text(
                         'Use Horary Seed Number (Prashna Sankhya)',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: kAdvBody.copyWith(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(
                         _selectedNumberSystem == 'PARASHARI_108'
                             ? 'Parashari / Ashtamangala (1–108)'
                             : 'KP Seed Number (1–249)',
-                        style: const TextStyle(fontSize: 11, color: AppColors.secondary),
+                        style: kAdvSecondary,
                       ),
                       value: _useQuestionNumber,
                       onChanged: (val) {
@@ -180,203 +198,197 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
                   ),
                   if (_useQuestionNumber) ...[
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _selectedNumberSystem,
-                            decoration: const InputDecoration(
-                              labelText: 'System',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'PARASHARI_108',
-                                child: Text('Parashari (1–108)', style: TextStyle(fontSize: 12)),
-                              ),
-                              DropdownMenuItem(
-                                value: 'KP_249',
-                                child: Text('KP (1–249)', style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _selectedNumberSystem = val;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _questionNumberController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: _selectedNumberSystem == 'PARASHARI_108'
-                                  ? 'Number (1–108)'
-                                  : 'Number (1–249)',
-                              border: const OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                            validator: (val) {
-                              if (!_useQuestionNumber) return null;
-                              final num = int.tryParse(val ?? '');
-                              if (num == null) return 'Enter number';
-                              if (_selectedNumberSystem == 'PARASHARI_108' &&
-                                  (num < 1 || num > 108)) {
-                                return '1 to 108 only';
-                              }
-                              if (_selectedNumberSystem == 'KP_249' &&
-                                  (num < 1 || num > 249)) {
-                                return '1 to 249 only';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
+                    _labelled(
+                      'System',
+                      AstroSegmentedControl<String>(
+                        selected: _selectedNumberSystem,
+                        segments: const [
+                          AstroSegment(value: 'PARASHARI_108', label: 'Parashari (1–108)'),
+                          AstroSegment(value: 'KP_249', label: 'KP (1–249)'),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedNumberSystem = val;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _labelled(
+                      _selectedNumberSystem == 'PARASHARI_108' ? 'Number (1–108)' : 'Number (1–249)',
+                      TextFormField(
+                        controller: _questionNumberController,
+                        keyboardType: TextInputType.number,
+                        style: kAdvBody,
+                        decoration: _fieldDecoration(),
+                        validator: (val) {
+                          if (!_useQuestionNumber) return null;
+                          final num = int.tryParse(val ?? '');
+                          if (num == null) return 'Enter number';
+                          if (_selectedNumberSystem == 'PARASHARI_108' &&
+                              (num < 1 || num > 108)) {
+                            return '1 to 108 only';
+                          }
+                          if (_selectedNumberSystem == 'KP_249' &&
+                              (num < 1 || num > 249)) {
+                            return '1 to 249 only';
+                          }
+                          return null;
+                        },
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            AstrologySectionCard(
-              title: '2. Time & Location',
-              subtitle: 'Defaults to current moment and location',
-              icon: Icons.location_on_rounded,
+            const SizedBox(height: kAdvGap),
+
+            // STEP 2: TIME & LOCATION
+            AdvCard(
+              padding: const EdgeInsets.all(18),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Material(
-                    color: Colors.transparent,
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Question Timestamp', style: TextStyle(fontSize: 13)),
-                      subtitle: Text(
-                        _selectedDateTime.toLocal().toString().split('.')[0],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppColors.primary,
+                  const AdvStepHeader(
+                    step: 2,
+                    total: 2,
+                    title: 'Time & Location',
+                    hint: 'When and where the question was asked.',
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Question Timestamp', style: kAdvBody.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AstroTint.sky.background,
+                      borderRadius: BorderRadius.circular(AstroMetrics.buttonRadius),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule_rounded, color: AstroTint.sky.foreground, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _selectedDateTime.toLocal().toString().split('.')[0],
+                            style: kAdvBody.copyWith(fontWeight: FontWeight.w700),
+                          ),
                         ),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedDateTime = DateTime.now();
-                              });
-                            },
-                            child: const Text('Now'),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_calendar_rounded, color: AppColors.primary),
-                            onPressed: () async {
-                              final date = await showDatePicker(
-                                context: context,
-                                initialDate: _selectedDateTime,
-                                firstDate: DateTime(1900),
-                                lastDate: DateTime(2100),
-                              );
-                              if (date != null && mounted) {
-                                final time = await showTimePicker(
-                                  context: context,
-                                  initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
-                                );
-                                if (time != null) {
-                                  setState(() {
-                                    _selectedDateTime = DateTime(
-                                      date.year,
-                                      date.month,
-                                      date.day,
-                                      time.hour,
-                                      time.minute,
-                                    );
-                                  });
-                                }
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
-                  const Divider(),
-                  TextFormField(
-                    controller: _placeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Place Name',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Place is required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _latitudeController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Latitude',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Latitude required' : null,
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          foregroundColor: AppColors.accent,
+                          textStyle: kAdvBody.copyWith(fontWeight: FontWeight.w600),
                         ),
+                        onPressed: () {
+                          setState(() {
+                            _selectedDateTime = DateTime.now();
+                          });
+                        },
+                        icon: const Icon(Icons.update_rounded),
+                        label: const Text('Now'),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _longitudeController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Longitude',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Longitude required' : null,
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          foregroundColor: AppColors.accent,
+                          textStyle: kAdvBody.copyWith(fontWeight: FontWeight.w600),
                         ),
+                        icon: const Icon(Icons.edit_calendar_rounded),
+                        label: const Text('Change date & time'),
+                        onPressed: () async {
+                          final date = await showAstroDatePicker(
+                            context: context,
+                            initialDate: _selectedDateTime,
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime(2100),
+                          );
+                          if (date != null && mounted) {
+                            final time = await showAstroTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
+                            );
+                            if (time != null) {
+                              setState(() {
+                                _selectedDateTime = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                            }
+                          }
+                        },
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  _labelled(
+                    'Place Name',
+                    TextFormField(
+                      controller: _placeController,
+                      style: kAdvBody,
+                      decoration: _fieldDecoration(hint: 'e.g. New Delhi'),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Place is required' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _labelled(
+                    'Latitude',
+                    TextFormField(
+                      controller: _latitudeController,
+                      style: kAdvBody,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true, signed: true),
+                      decoration: _fieldDecoration(hint: 'e.g. 28.61'),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Latitude required' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _labelled(
+                    'Longitude',
+                    TextFormField(
+                      controller: _longitudeController,
+                      style: kAdvBody,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true, signed: true),
+                      decoration: _fieldDecoration(hint: 'e.g. 77.21'),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Longitude required' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _labelled(
+                    'Timezone',
+                    TextFormField(
+                      controller: _timezoneController,
+                      style: kAdvBody,
+                      decoration: _fieldDecoration(hint: 'e.g. Asia/Kolkata'),
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            AdvPrimaryButton(
               onPressed: _submitPrashna,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              icon: const Icon(Icons.flare_rounded, color: Colors.white),
-              label: const Text(
-                'Cast Prashna Chart',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              icon: Icons.flare_rounded,
+              label: 'Cast Prashna Chart',
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -414,75 +426,36 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
     final moon = result.chandra;
     final sphutas = result.sphutas;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: AppGradients.heroCosmic,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+        // 1. AT-A-GLANCE SUMMARY
+        AdvSummaryCard(
+          label: 'Your question',
+          icon: Icons.psychology_rounded,
+          title: result.questionText ?? 'Horary Question Analysis',
+          subtitle: 'Cast: ${result.timeDetails.formattedLocalTime} • ${result.location.placeName}',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.psychology_rounded, color: AppColors.accentGold, size: 24),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      result.questionText ?? 'Horary Question Analysis',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+              AdvStatGrid(
+                onDark: true,
+                stats: [
+                  AdvStat(label: 'Prashna Lagna', value: lagna.rashiName, accent: AppColors.gold),
+                  AdvStat(label: 'Moon house', value: 'House ${moon.house}'),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Cast: ${result.timeDetails.formattedLocalTime} • ${result.location.placeName}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.cardSurfaceParchment,
-                ),
-              ),
               if (result.questionNumberDetails != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentGold.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.4), width: 0.5),
-                  ),
-                  child: Text(
-                    'Seed Number: ${result.questionNumberDetails!.number} (${result.questionNumberDetails!.system})',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      color: AppColors.accentGold,
-                    ),
-                  ),
+                const SizedBox(height: 12),
+                AdvBadge.now(
+                  'Seed Number: ${result.questionNumberDetails!.number} (${result.questionNumberDetails!.system})',
                 ),
               ],
             ],
           ),
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: kAdvGap),
 
         // Sushil Sir Explainer Button
         SushilExplainerButton(
@@ -490,131 +463,131 @@ class _PrashnaScreenState extends ConsumerState<PrashnaScreen> {
           poseAsset: AppAssets.sushilGuiding,
         ),
 
-        const SizedBox(height: 16),
-        AstrologySectionCard(
+        const SizedBox(height: kAdvGap),
+        AdvSection(
           title: 'Prashna Lagna (Horary Ascendant)',
           subtitle: 'The primary anchor point and physical reality of the query',
           icon: Icons.explore_rounded,
+          tint: AstroTint.indigo,
           child: Column(
             children: [
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Ascendant Sign',
                 value: lagna.rashiName,
+                emphasize: true,
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Exact Degree',
                 value: lagna.formattedDegree,
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Ascendant Lord (Lagnesha)',
                 value: lagna.lord,
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Nakshatra & Pada',
                 value: '${lagna.nakshatraName} (P${lagna.pada})',
+                showDivider: false,
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        AstrologySectionCard(
+        const SizedBox(height: kAdvGap),
+        AdvSection(
           title: 'Chandra (Moon Position & Query Mind)',
           subtitle: 'Reflects querent mental intention and ultimate fruition',
           icon: Icons.nightlight_round,
+          tint: AstroTint.sky,
           child: Column(
             children: [
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Moon Sign (Chandra Rashi)',
                 value: moon.rashiName,
+                emphasize: true,
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Moon House from Lagna',
                 value: 'House ${moon.house}',
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Moon Nakshatra & Pada',
                 value: '${moon.nakshatraName} (P${moon.pada})',
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Moon Lord',
                 value: moon.lord,
+                showDivider: false,
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        AstrologySectionCard(
+        const SizedBox(height: kAdvGap),
+        AdvDetailsExpander(
           title: 'Classical Horary Sphutas (Sensitive Points)',
           subtitle: 'Traditional Parashari mathematical points for Prashna validation',
           icon: Icons.flare_rounded,
           child: Column(
             children: [
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Gulika / Mandi',
-                value:
-                    '${sphutas.gulika.rashiName} (${sphutas.gulika.formattedDegree})',
+                value: '${sphutas.gulika.rashiName} (${sphutas.gulika.formattedDegree})',
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Trisphuta (Lagna + Moon + Gulika)',
-                value:
-                    '${sphutas.trisphuta.rashiName} (${sphutas.trisphuta.formattedDegree})',
+                value: '${sphutas.trisphuta.rashiName} (${sphutas.trisphuta.formattedDegree})',
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Chatusphuta (+ Sun)',
-                value:
-                    '${sphutas.chatusphuta.rashiName} (${sphutas.chatusphuta.formattedDegree})',
+                value: '${sphutas.chatusphuta.rashiName} (${sphutas.chatusphuta.formattedDegree})',
               ),
-              AstrologyInfoRow(
+              AdvInfoRow(
                 label: 'Panchasphuta (+ Rahu)',
-                value:
-                    '${sphutas.panchasphuta.rashiName} (${sphutas.panchasphuta.formattedDegree})',
+                value: '${sphutas.panchasphuta.rashiName} (${sphutas.panchasphuta.formattedDegree})',
+                showDivider: false,
               ),
             ],
           ),
         ),
         if (result.panchanga != null) ...[
-          const SizedBox(height: 16),
-          AstrologySectionCard(
+          const SizedBox(height: 12),
+          AdvDetailsExpander(
             title: 'Moment Panchanga',
             subtitle: 'Cosmic climate when the query was initiated',
             icon: Icons.wb_twilight_rounded,
             child: Column(
               children: [
-                AstrologyInfoRow(
+                AdvInfoRow(
                   label: 'Tithi',
                   value: result.panchanga!.tithiName,
                 ),
-                AstrologyInfoRow(
+                AdvInfoRow(
                   label: 'Vara (Weekday)',
                   value: result.panchanga!.varaName,
                 ),
-                AstrologyInfoRow(
+                AdvInfoRow(
                   label: 'Yoga',
                   value: result.panchanga!.yogaName,
                 ),
-                AstrologyInfoRow(
+                AdvInfoRow(
                   label: 'Karana',
                   value: result.panchanga!.karanaName,
                 ),
-                AstrologyInfoRow(
+                AdvInfoRow(
                   label: 'Rahu Kala Active',
                   value: result.panchanga!.isRahuKala ? 'YES (Inauspicious)' : 'NO',
+                  showDivider: false,
                 ),
               ],
             ),
           ),
         ],
         const SizedBox(height: 24),
-        OutlinedButton.icon(
+        AdvSecondaryButton(
           onPressed: () {
             ref.read(prashnaProvider.notifier).clear();
           },
-          icon: const Icon(Icons.add_comment_rounded, color: AppColors.primary),
-          label: const Text('Cast Another Prashna', style: TextStyle(color: AppColors.primary)),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            side: const BorderSide(color: AppColors.primary),
-          ),
+          icon: Icons.add_comment_rounded,
+          label: 'Cast Another Prashna',
         ),
       ],
     );

@@ -30,12 +30,25 @@ class ShadbalaPreview extends StatelessWidget {
       );
     }
 
-    final items = [
-      {'planet': 'SUN', 'name': 'Su', 'rupas': 7.4, 'ratio': 1.14},
-      {'planet': 'MOON', 'name': 'Mo', 'rupas': 8.2, 'ratio': 1.36},
-      {'planet': 'MARS', 'name': 'Ma', 'rupas': 5.8, 'ratio': 1.16},
-      {'planet': 'JUPITER', 'name': 'Ju', 'rupas': 8.9, 'ratio': 1.37},
-    ];
+    // Genuine backend Shadbala only: top planets by rank from the report.
+    final source = report == null
+        ? <PlanetShadbalaModel>[]
+        : (report!.summary.isNotEmpty ? report!.summary : report!.planets.values.toList());
+    if (source.isEmpty) {
+      return const PreviewEmptyState(
+        title: 'Shadbala Strengths',
+        message: 'Shadbala data is not available right now',
+        icon: Icons.bar_chart_rounded,
+      );
+    }
+    final ranked = [...source]..sort((a, b) => a.rank.compareTo(b.rank));
+    final items = ranked.take(4).map((p) {
+      final clean = p.planet.trim();
+      final short = clean.length >= 2
+          ? '${clean[0].toUpperCase()}${clean[1].toLowerCase()}'
+          : clean.toUpperCase();
+      return {'planet': clean, 'name': short, 'rupas': p.totalRupas, 'ratio': p.ratio};
+    }).toList();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,

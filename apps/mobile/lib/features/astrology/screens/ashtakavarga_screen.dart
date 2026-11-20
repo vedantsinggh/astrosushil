@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/ashtakavarga_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
-import '../widgets/astrology_data_table.dart';
+import '../widgets/adv_widgets.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_section_card.dart';
 import '../widgets/astrology_tab_bar.dart';
-import '../widgets/expandable_astrology_card.dart';
-import '../widgets/planet_chip.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../../core/localization/locale_provider.dart';
@@ -42,95 +36,82 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
   ];
 
   static const _rashiNames = [
-    'Aries', 'Taurus', 'Gemini', 'Cancer',
-    'Leo', 'Virgo', 'Libra', 'Scorpio',
-    'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
+    'Aries',
+    'Taurus',
+    'Gemini',
+    'Cancer',
+    'Leo',
+    'Virgo',
+    'Libra',
+    'Scorpio',
+    'Sagittarius',
+    'Capricorn',
+    'Aquarius',
+    'Pisces'
   ];
 
-  static const _rashiSanskrit = [
-    'मेष', 'वृषभ', 'मिथुन', 'कर्क',
-    'सिंह', 'कन्या', 'तुला', 'वृश्चिक',
-    'धनु', 'मकर', 'कुम्भ', 'मीन'
-  ];
+  static const _rashiSanskrit = ['मेष', 'वृषभ', 'मिथुन', 'कर्क', 'सिंह', 'कन्या', 'तुला', 'वृश्चिक', 'धनु', 'मकर', 'कुम्भ', 'मीन'];
 
   @override
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Ashtakavarga (अष्टकवर्ग)',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
-            tooltip: 'About Ashtakavarga',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Ashtakavarga evaluates 8-contributor benefic bindu distributions across 12 Rashis for all 7 classical grahas.',
-                  ),
-                  duration: Duration(seconds: 4),
+    return AstroPage(
+      title: 'Ashtakavarga (अष्टकवर्ग)',
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Ashtakavarga',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Ashtakavarga evaluates 8-contributor benefic bindu distributions across 12 Rashis for all 7 classical grahas.',
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Profile Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: ActiveBirthProfileSelector(
-                  isDark: false,
-                  onProfileChanged: (_) {},
-                ),
+                duration: Duration(seconds: 4),
               ),
-
-              // Tab Bar
-              AstrologyTabBar(
-                tabs: _tabs,
-                selectedIndex: _selectedTabIndex,
-                onTabSelected: (index) => setState(() => _selectedTabIndex = index),
-              ),
-
-              // Main Content Area
-              Expanded(
-                child: activeProfile == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: AstrologyEmptyState(
-                            title: 'No Active Birth Profile',
-                            message: 'Select or create a birth profile to calculate Sarvashtakavarga and Bhinnashtakavarga charts.',
-                            actionLabel: 'Add Birth Profile',
-                            onAction: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : ref.watch(ashtakavargaForProfileProvider(activeProfile)).when(
-                          loading: () => const AstrologyLoadingState(
-                            message: 'Computing Ashtakavarga matrices, Shodhana & Pindas...',
-                          ),
-                          error: (err, stack) => AstrologyErrorState(
-                            error: err,
-                            customMessage: 'Failed to calculate Ashtakavarga',
-                            onRetry: () => ref.invalidate(ashtakavargaForProfileProvider(activeProfile)),
-                          ),
-                          data: (ashtakavarga) => _buildTabContent(context, ashtakavarga),
-                        ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ActiveBirthProfileSelector(
+            isDark: false,
+            onProfileChanged: (_) {},
+          ),
+          const SizedBox(height: 12),
+          AstrologyTabBar(
+            tabs: _tabs,
+            selectedIndex: _selectedTabIndex,
+            onTabSelected: (index) => setState(() => _selectedTabIndex = index),
+          ),
+          const SizedBox(height: kAdvGap),
+          if (activeProfile == null)
+            AstrologyEmptyState(
+              title: 'No Active Birth Profile',
+              message: 'Select or create a birth profile to calculate Sarvashtakavarga and Bhinnashtakavarga charts.',
+              actionLabel: 'Add Birth Profile',
+              onAction: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                );
+              },
+            )
+          else
+            ref.watch(ashtakavargaForProfileProvider(activeProfile)).when(
+                  loading: () => const AstrologyLoadingState(
+                    message: 'Computing Ashtakavarga matrices, Shodhana & Pindas...',
+                  ),
+                  error: (err, stack) => AstrologyErrorState(
+                    error: err,
+                    customMessage: 'Failed to calculate Ashtakavarga',
+                    onRetry: () => ref.invalidate(ashtakavargaForProfileProvider(activeProfile)),
+                  ),
+                  data: (ashtakavarga) => _buildTabContent(context, ashtakavarga),
+                ),
+        ],
       ),
     );
   }
@@ -152,80 +133,23 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
   // TAB 1: SARVASHTAKAVARGA (SAV)
   // ==========================================
   Widget _buildSarvashtakavargaView(BuildContext context, SarvashtakavargaModel sav) {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Educational Explanation Card
-        AstrologyExplanationCard(
-          title: context.l10n.explainAshtakavargaTitle,
-          whatIsText: context.l10n.explainAshtakavargaWhatIs,
-          howToReadText: context.l10n.explainAshtakavargaHowToRead,
-        ),
-        const SizedBox(height: 12),
-
-        // Grand Total Hero Card
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: AppGradients.heroCosmic,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.midnightNavy.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-                ),
-                child: const Icon(Icons.stars_rounded, color: AppColors.gold, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Sarvashtakavarga (SAV) Total',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.goldLight,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${sav.grandTotal} Bindus',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Aggregated across all 7 classical planetary charts (benchmark: 337)',
-                      style: TextStyle(fontSize: 11.5, color: AppColors.lavenderMuted),
-                    ),
-                  ],
-                ),
-              ),
+        // At-a-glance total
+        AdvSummaryCard(
+          label: 'Sarvashtakavarga (SAV) Total',
+          icon: Icons.stars_rounded,
+          title: '${sav.grandTotal} Bindus',
+          subtitle: 'Aggregated across all 7 classical planetary charts (benchmark: 337)',
+          child: AdvStatGrid(
+            onDark: true,
+            stats: [
+              AdvStat(label: 'Average per sign', value: (sav.grandTotal / 12).toStringAsFixed(1), accent: AppColors.gold),
             ],
           ),
         ),
-
-        const SizedBox(height: 14),
+        const SizedBox(height: kAdvGap),
 
         // SUSHIL SIR CONTEXTUAL EXPLAINER ENTRYPOINT
         SushilExplainerButton(
@@ -233,116 +157,59 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
           label: 'Let Sushil Sir explain this Ashtakavarga',
           isCompact: false,
         ),
-
-        const SizedBox(height: 16),
+        const SizedBox(height: kAdvGap),
 
         // 12-Sign SAV Grid
-        AstrologySectionCard(
+        AdvSection(
           title: 'Sign-Wise SAV Distribution',
           subtitle: 'Scores ≥28 denote supportive, high-vitality signs',
           icon: Icons.grid_3x3_rounded,
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 12,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.92,
-            ),
-            itemBuilder: (ctx, idx) {
-              final signIndex = idx + 1;
-              final score = sav.getScoreForRashi(signIndex);
+          tint: AstroTint.amber,
+          child: _SignScoreGrid(
+            cells: List.generate(12, (idx) {
+              final score = sav.getScoreForRashi(idx + 1);
               final isHigh = score >= 28;
               final isAverage = score >= 25 && score < 28;
-
-              final Color bgColor = isHigh
-                  ? const Color(0xFF1B5E20).withValues(alpha: 0.08)
-                  : isAverage
-                      ? AppColors.gold.withValues(alpha: 0.1)
-                      : const Color(0xFFB71C1C).withValues(alpha: 0.07);
-
-              final Color borderColor = isHigh
-                  ? const Color(0xFF2E7D32).withValues(alpha: 0.35)
-                  : isAverage
-                      ? AppColors.gold.withValues(alpha: 0.35)
-                      : const Color(0xFFD32F2F).withValues(alpha: 0.3);
-
-              final Color scoreColor = isHigh
-                  ? const Color(0xFF2E7D32)
-                  : isAverage
-                      ? AppColors.deepIndigo
-                      : const Color(0xFFC62828);
-
-              final String tierLabel = isHigh
-                  ? 'Strong'
-                  : isAverage
-                      ? 'Balanced'
-                      : 'Low';
-
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: borderColor),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${_rashiNames[idx]} (${_rashiSanskrit[idx]})',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textDark,
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '$score',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: scoreColor,
-                        ),
-                      ),
-                      Text(
-                        tierLabel,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                          color: scoreColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              return _SignScoreCell(
+                name: _rashiNames[idx],
+                sanskrit: _rashiSanskrit[idx],
+                value: '$score',
+                tier: isHigh
+                    ? 'Strong'
+                    : isAverage
+                        ? 'Balanced'
+                        : 'Low',
+                color: isHigh
+                    ? _kGood
+                    : isAverage
+                        ? AppColors.secondary
+                        : _kBad,
               );
-            },
+            }),
           ),
         ),
-
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
         // SAV Interpretation Summary
-        const ExpandableAstrologyCard(
+        const AdvDetailsExpander(
           title: 'SAV Scoring Guidelines',
           subtitle: 'Classical Parashari thresholds for houses and signs',
           icon: Icons.menu_book_rounded,
-          initiallyExpanded: false,
-          expandedChild: Text(
+          child: Text(
             '• 30+ Points: Highly auspicious; supports expansive planetary transits and houses.\n'
             '• 28–29 Points: Balanced, steady energetic foundation.\n'
             '• 25–27 Points: Average strength; demands conscious karmic effort.\n'
             '• Under 25 Points: Sensitive sign; challenges manifest during major transits.',
-            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.textDark),
+            style: kAdvBody,
           ),
+        ),
+        const SizedBox(height: kAdvGap),
+
+        // Learn more
+        AstrologyExplanationCard(
+          title: context.l10n.explainAshtakavargaTitle,
+          whatIsText: context.l10n.explainAshtakavargaWhatIs,
+          howToReadText: context.l10n.explainAshtakavargaHowToRead,
         ),
       ],
     );
@@ -355,99 +222,64 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
     const planets = AshtakavargaResultModel.classicalPlanets;
     final activeBav = bavMap[_selectedPlanet] ?? bavMap.values.firstOrNull;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Horizontal Planet Selector with min 48dp touch target
-        SizedBox(
-          height: 48,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: planets.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (ctx, index) {
-              final p = planets[index];
-              final isSelected = p == _selectedPlanet;
-
-              return InkWell(
-                onTap: () => setState(() => _selectedPlanet = p),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.midnightNavy : AppColors.cardSurfaceWarm,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected ? AppColors.gold : AppColors.cardBorder,
-                      width: isSelected ? 1.5 : 1.0,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      PlanetChip(planetName: p, isCompact: true),
-                      const SizedBox(width: 8),
-                      Text(
+        const Text('Choose a planet', style: kAdvTitle),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: planets.map((p) {
+            final isSelected = p == _selectedPlanet;
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              child: Material(
+                color: isSelected ? AppColors.gold : AppColors.cardSurface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: isSelected ? AppColors.gold : AppColors.cardBorder),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => setState(() => _selectedPlanet = p),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48, minWidth: 64),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Text(
                         p,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? AppColors.gold : AppColors.textDark,
+                        textAlign: TextAlign.center,
+                        style: kAdvBody.copyWith(
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: AppColors.primary,
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          }).toList(),
         ),
-
-        const SizedBox(height: 14),
-
+        const SizedBox(height: kAdvGap),
         if (activeBav != null) ...[
-          // Planet BAV Hero Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceWarm,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.cardBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: AppColors.cardShadowWarm,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
+          // Planet BAV total
+          AdvCard(
             child: Row(
               children: [
-                PlanetChip(planetName: activeBav.planet, isCompact: false),
+                const Icon(Icons.auto_awesome_rounded, color: AppColors.goldDark, size: 28),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${activeBav.planet} BAV Total',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textDark,
-                        ),
-                      ),
+                      Text('${activeBav.planet} BAV Total', style: kAdvSecondary),
                       const SizedBox(height: 2),
                       Text(
                         '${activeBav.totalPoints} Benefic Bindus',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.deepIndigo,
-                        ),
+                        style: kAdvTitle.copyWith(fontSize: 22),
                       ),
                     ],
                   ),
@@ -455,71 +287,25 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
               ],
             ),
           ),
-
-          const SizedBox(height: 14),
+          const SizedBox(height: kAdvGap),
 
           // 12-Sign BAV Grid
-          AstrologySectionCard(
+          AdvSection(
             title: '${activeBav.planet} Sign Distribution',
             subtitle: 'Scores ≥4 denote benefic transit support',
             icon: Icons.grid_view_rounded,
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 12,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 0.92,
-              ),
-              itemBuilder: (ctx, idx) {
-                final signIndex = idx + 1;
-                final score = activeBav.getScoreForRashi(signIndex);
+            tint: AstroTint.amber,
+            child: _SignScoreGrid(
+              cells: List.generate(12, (idx) {
+                final score = activeBav.getScoreForRashi(idx + 1);
                 final isFavorable = score >= 4;
-
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isFavorable
-                        ? const Color(0xFF1B5E20).withValues(alpha: 0.08)
-                        : AppColors.cardSurfaceParchment,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isFavorable
-                          ? const Color(0xFF2E7D32).withValues(alpha: 0.3)
-                          : AppColors.cardBorder,
-                    ),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _rashiNames[idx],
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textDark,
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '$score / 8',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isFavorable ? const Color(0xFF2E7D32) : AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                return _SignScoreCell(
+                  name: _rashiNames[idx],
+                  value: '$score / 8',
+                  color: isFavorable ? _kGood : AppColors.textSecondary,
+                  tier: isFavorable ? 'Benefic' : null,
                 );
-              },
+              }),
             ),
           ),
         ],
@@ -533,78 +319,80 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
   Widget _buildShodhanaAndPindasView(AshtakavargaResultModel report) {
     const planets = AshtakavargaResultModel.classicalPlanets;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Shodhya Pindas Table
-        AstrologySectionCard(
+        // Shodhya Pindas
+        AdvSection(
           title: 'Shodhya Pinda Summary',
           subtitle: 'Pinda Sadhana (Rashi Pinda, Graha Pinda & Shodhya Pinda)',
           icon: Icons.account_balance_rounded,
-          child: AstrologyDataTable(
-            columns: const [
-              AstrologyTableColumn(header: 'Graha', flex: 3),
-              AstrologyTableColumn(header: 'Rashi-P', flex: 2, alignment: TextAlign.center),
-              AstrologyTableColumn(header: 'Graha-P', flex: 2, alignment: TextAlign.center),
-              AstrologyTableColumn(header: 'Shodhya-P', flex: 3, alignment: TextAlign.right),
+          tint: AstroTint.sage,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < planets.length; i++)
+                _buildPindaRow(planets[i], report.pinda[planets[i]], isLast: i == planets.length - 1),
             ],
-            rows: planets.map((p) {
-              final pinda = report.pinda[p];
-              return [
-                PlanetChip(planetName: p, isCompact: true),
-                Text(
-                  pinda?.rashiPinda != null ? '${pinda!.rashiPinda}' : '—',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
-                ),
-                Text(
-                  pinda?.grahaPinda != null ? '${pinda!.grahaPinda}' : '—',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
-                ),
-                Text(
-                  pinda?.shodhyaPinda != null ? '${pinda!.shodhyaPinda}' : '—',
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
-                  textAlign: TextAlign.right,
-                ),
-              ];
-            }).toList(),
           ),
         ),
+        const SizedBox(height: kAdvGap),
 
-        const SizedBox(height: 14),
-
-        // Shodhana Reductions Table
-        AstrologySectionCard(
+        // Shodhana Reductions
+        AdvSection(
           title: 'Shodhana (Reductions)',
           subtitle: 'Trikona & Ekadhipatya Shodhana reduced bindus',
           icon: Icons.tune_rounded,
-          child: AstrologyDataTable(
-            columns: const [
-              AstrologyTableColumn(header: 'Graha', flex: 3),
-              AstrologyTableColumn(header: 'Trikona Total', flex: 3, alignment: TextAlign.center),
-              AstrologyTableColumn(header: 'Ekadhipatya Total', flex: 3, alignment: TextAlign.right),
-            ],
-            rows: planets.map((p) {
+          tint: AstroTint.violet,
+          inCard: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: planets.map((p) {
               final shodhana = report.shodhana[p];
-              return [
-                PlanetChip(planetName: p, isCompact: true),
-                Text(
-                  shodhana?.totalTrikonaPoints != null ? '${shodhana!.totalTrikonaPoints}' : '—',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
-                  textAlign: TextAlign.center,
-                ),
-                Text(
-                  shodhana?.totalEkadhipatyaPoints != null ? '${shodhana!.totalEkadhipatyaPoints}' : '—',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
-                  textAlign: TextAlign.right,
-                ),
-              ];
+              return AdvRowCard(
+                title: p,
+                facts: [
+                  MapEntry('Trikona total', shodhana?.totalTrikonaPoints != null ? '${shodhana!.totalTrikonaPoints}' : '—'),
+                  MapEntry('Ekadhipatya total', shodhana?.totalEkadhipatyaPoints != null ? '${shodhana!.totalEkadhipatyaPoints}' : '—'),
+                ],
+              );
             }).toList(),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPindaRow(String planet, ShodhyaPindaModel? pinda, {required bool isLast}) {
+    final rashi = pinda?.rashiPinda != null ? '${pinda!.rashiPinda}' : '—';
+    final graha = pinda?.grahaPinda != null ? '${pinda!.grahaPinda}' : '—';
+    final shodhya = pinda?.shodhyaPinda != null ? '${pinda!.shodhyaPinda}' : '—';
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: isLast ? null : const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.cardBorderSubtle))),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(planet, style: kAdvBody.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text('Rashi Pinda $rashi · Graha Pinda $graha', style: kAdvSecondary),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text('Shodhya', style: kAdvSecondary),
+              Text(shodhya, style: kAdvTitle.copyWith(fontSize: 20, color: AppColors.secondary)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -626,3 +414,76 @@ class _AshtakavargaScreenState extends ConsumerState<AshtakavargaScreen> {
   }
 }
 
+/// Readable green / red for text on light surfaces.
+const Color _kGood = Color(0xFF047857);
+const Color _kBad = Color(0xFFB91C1C);
+
+class _SignScoreCell {
+  final String name;
+  final String? sanskrit;
+  final String value;
+  final String? tier;
+  final Color color;
+
+  const _SignScoreCell({required this.name, this.sanskrit, required this.value, this.tier, required this.color});
+}
+
+/// Responsive 12-sign score grid: 3 columns on phones, 2 at very large text,
+/// 4 or 6 on wider screens. Text wraps rather than shrinking.
+class _SignScoreGrid extends StatelessWidget {
+  final List<_SignScoreCell> cells;
+
+  const _SignScoreGrid({required this.cells});
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        int columns = width >= 640 ? 6 : (width >= 420 ? 4 : 3);
+        if (scale >= 1.6) columns = width >= 640 ? 3 : 2;
+        const spacing = 8.0;
+        final cellWidth = (width - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: cells.map((c) {
+            return Container(
+              width: cellWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              decoration: BoxDecoration(
+                color: c.color.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: c.color.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    c.name,
+                    textAlign: TextAlign.center,
+                    style: kAdvSecondary.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                  ),
+                  if (c.sanskrit != null) Text(c.sanskrit!, textAlign: TextAlign.center, style: kAdvSecondary),
+                  const SizedBox(height: 4),
+                  Text(
+                    c.value,
+                    textAlign: TextAlign.center,
+                    style: kAdvTitle.copyWith(fontSize: 22, color: c.color),
+                  ),
+                  if (c.tier != null)
+                    Text(
+                      c.tier!,
+                      textAlign: TextAlign.center,
+                      style: kAdvSecondary.copyWith(color: c.color, fontWeight: FontWeight.w600),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/theme/app_colors.dart';
-import '../../../../shared/theme/app_typography.dart';
-import '../../../../shared/widgets/astro_app_bar.dart';
+import '../../../../shared/screens/simple_screen_kit.dart';
 import '../../../../shared/widgets/astro_badge.dart';
-import '../../../../shared/widgets/astro_chip.dart';
 import '../../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_nav_bar.dart';
 
 enum LegalDocumentType {
   privacy,
@@ -41,61 +40,60 @@ class _LegalDocumentsScreenState extends State<LegalDocumentsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: isHindi ? 'विधिक नीतियां एवं शर्तें' : 'Policies & Terms',
-      ),
       body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Horizontal Document Selector Chips
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      _buildSelectorChip(
-                        type: LegalDocumentType.privacy,
-                        label: isHindi ? 'गोपनीयता नीति' : 'Privacy Policy',
-                      ),
-                      const SizedBox(width: 8),
-                      _buildSelectorChip(
-                        type: LegalDocumentType.terms,
-                        label: isHindi ? 'सेवा की शर्तें' : 'Terms of Service',
-                      ),
-                      const SizedBox(width: 8),
-                      _buildSelectorChip(
-                        type: LegalDocumentType.refund,
-                        label: isHindi ? 'रिफंड एवं वापसी' : 'Refund Policy',
-                      ),
-                      const SizedBox(width: 8),
-                      _buildSelectorChip(
-                        type: LegalDocumentType.shipping,
-                        label: isHindi ? 'शिपिंग नीति' : 'Shipping Policy',
-                      ),
-                      const SizedBox(width: 8),
-                      _buildSelectorChip(
-                        type: LegalDocumentType.disclaimer,
-                        label: isHindi ? 'अस्वीकरण' : 'Disclaimer',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+        child: CustomScrollView(
+          slivers: [
+            AstroSliverNavBar(title: isHindi ? 'विधिक नीतियां एवं शर्तें' : 'Policies & Terms'),
+            SliverSafeArea(
+              top: false,
+              sliver: SliverToBoxAdapter(
+                child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Document selector (wraps; no hidden sideways scrolling)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildSelectorChip(
+                          type: LegalDocumentType.privacy,
+                          label: isHindi ? 'गोपनीयता नीति' : 'Privacy Policy',
+                        ),
+                        _buildSelectorChip(
+                          type: LegalDocumentType.terms,
+                          label: isHindi ? 'सेवा की शर्तें' : 'Terms of Service',
+                        ),
+                        _buildSelectorChip(
+                          type: LegalDocumentType.refund,
+                          label: isHindi ? 'रिफंड एवं वापसी' : 'Refund Policy',
+                        ),
+                        _buildSelectorChip(
+                          type: LegalDocumentType.shipping,
+                          label: isHindi ? 'शिपिंग नीति' : 'Shipping Policy',
+                        ),
+                        _buildSelectorChip(
+                          type: LegalDocumentType.disclaimer,
+                          label: isHindi ? 'अस्वीकरण' : 'Disclaimer',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-              // 2. Active Document Content View
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                  child: _buildDocumentContent(context, isHindi),
+                    // 2. Active document content
+                    _buildDocumentContent(context, isHindi),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ),),
+            ),
+          ],
         ),
       ),
     );
@@ -105,9 +103,9 @@ class _LegalDocumentsScreenState extends State<LegalDocumentsScreen> {
     required LegalDocumentType type,
     required String label,
   }) {
-    return AstroChip(
+    return SimpleChoicePill(
       label: label,
-      isSelected: _activeDocument == type,
+      selected: _activeDocument == type,
       onTap: () {
         setState(() {
           _activeDocument = type;
@@ -138,65 +136,64 @@ class _LegalDocumentsScreenState extends State<LegalDocumentsScreen> {
     String? badgeLabel,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTypography.titleSmall.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              if (badgeLabel != null)
-                AstroBadge(
-                  text: badgeLabel,
-                  style: AstroBadgeStyle.pastel,
-                ),
-            ],
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.3,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
           ),
-          const SizedBox(height: 8),
+          if (badgeLabel != null) ...[
+            const SizedBox(height: 8),
+            AstroBadge(
+              text: badgeLabel,
+              style: AstroBadgeStyle.pastel,
+            ),
+          ],
+          const SizedBox(height: 10),
           Text(
             body,
-            style: AppTypography.bodySmall.copyWith(
+            style: const TextStyle(
+              fontSize: 16,
               color: AppColors.lightTextSecondary,
-              height: 1.5,
+              height: 1.55,
             ),
           ),
           if (bulletPoints != null && bulletPoints.isNotEmpty) ...[
             const SizedBox(height: 10),
             ...bulletPoints.map(
               (point) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Padding(
-                      padding: EdgeInsets.only(top: 5, right: 8),
+                      padding: EdgeInsets.only(top: 8, right: 10),
                       child: Icon(
                         Icons.circle,
-                        size: 6,
-                        color: AppColors.premiumAccent,
+                        size: 7,
+                        color: AppColors.goldDark,
                       ),
                     ),
                     Expanded(
                       child: Text(
                         point,
-                        style: AppTypography.bodySmall.copyWith(
+                        style: const TextStyle(
+                          fontSize: 16,
                           color: AppColors.lightTextPrimary,
-                          height: 1.4,
+                          height: 1.5,
                         ),
                       ),
                     ),

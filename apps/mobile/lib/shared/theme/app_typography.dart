@@ -66,32 +66,32 @@ class AppTypography {
   // TITLES (OUTFIT / SANS-SERIF)
   // ===========================================================================
 
-  /// Title Large (16sp) — Prominent card headers, item titles
+  /// Title Large (17sp) — Prominent card headers, item titles
   static const TextStyle titleLarge = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.1,
     height: 1.35,
     color: AppColors.textPrimary,
   );
 
-  /// Title Medium (15sp) — Standard card titles, list item headers
+  /// Title Medium (16sp) — Standard card titles, list item headers
   static const TextStyle titleMedium = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: FontWeight.w600,
     height: 1.35,
     color: AppColors.textPrimary,
   );
 
-  /// Title Small (14sp) — Feature shortcut labels, compact item titles
+  /// Title Small (15sp) — Feature shortcut labels, compact item titles
   static const TextStyle titleSmall = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: FontWeight.w600,
     height: 1.3,
     color: AppColors.textPrimary,
@@ -101,31 +101,31 @@ class AppTypography {
   // BODY (OUTFIT / SANS-SERIF)
   // ===========================================================================
 
-  /// Body Large (15sp) — Primary explanatory paragraphs
+  /// Body Large (16sp) — Primary explanatory paragraphs
   static const TextStyle bodyLarge = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: FontWeight.w400,
-    height: 1.45,
+    height: 1.5,
     color: AppColors.textSecondary,
   );
 
-  /// Body Medium (13sp) — Standard descriptive text under card titles
+  /// Body Medium (15sp) — Standard descriptive text under card titles
   static const TextStyle bodyMedium = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     height: 1.4,
     color: AppColors.textSecondary,
   );
 
-  /// Body Small (12sp) — Secondary metadata, timestamps, notes
+  /// Body Small (14sp) — Secondary metadata, timestamps, notes
   static const TextStyle bodySmall = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.35,
     color: AppColors.textMuted,
@@ -135,50 +135,50 @@ class AppTypography {
   // LABELS & BADGES (OUTFIT / SANS-SERIF)
   // ===========================================================================
 
-  /// Label Large (14sp) — CTA Button text
+  /// Label Large (16sp) — CTA Button text
   static const TextStyle labelLarge = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.1,
     color: AppColors.textPrimary,
   );
 
-  /// Label Medium (12sp) — Filter pills, interactive chips
+  /// Label Medium (14sp) — Filter pills, interactive chips
   static const TextStyle labelMedium = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.2,
     color: AppColors.textPrimary,
   );
 
-  /// Label Small (10sp) — Eyebrow badges, uppercase section tags ("YOUR ASTRO REPORTS")
+  /// Label Small (13sp) — Eyebrow badges and small tags (sentence case, no ALL-CAPS)
   static const TextStyle labelSmall = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: FontWeight.w700,
-    letterSpacing: 1.1,
+    letterSpacing: 0.2,
     color: AppColors.textMuted,
   );
 
-  /// Caption (11sp) — Footnotes, micro-labels
+  /// Caption (13sp) — Footnotes, micro-labels
   static const TextStyle caption = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: FontWeight.w500,
     color: AppColors.textMuted,
   );
 
-  /// Price Tag (15sp Bold Gold / Saffron) — Formatted price displays ("₹299")
+  /// Price Tag (17sp Bold Gold / Saffron) — Formatted price displays ("₹299")
   static const TextStyle priceTag = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: FontWeight.w700,
     color: AppColors.goldDark,
   );
@@ -210,7 +210,7 @@ class AppTypography {
   static const TextStyle inverseBodyMedium = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     height: 1.4,
     color: AppColors.textInverseSecondary,
@@ -219,9 +219,85 @@ class AppTypography {
   static const TextStyle inverseGoldTag = TextStyle(
     fontFamily: bodyFamily,
     fontFamilyFallback: bodyFontFamilies,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: FontWeight.w700,
-    letterSpacing: 1.2,
+    letterSpacing: 0.3,
     color: AppColors.gold,
+  );
+
+  // ===========================================================================
+  // iOS-FIRST ROLES (shared nav bar, grouped lists, buttons)
+  // ===========================================================================
+
+  /// iOS large title (34sp serif, tight tracking). Used by the shared nav bar.
+  static const TextStyle largeTitle = TextStyle(
+    fontFamily: headingFamily,
+    fontFamilyFallback: headingFontFamilies,
+    fontSize: 34,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.7,
+    height: 1.12,
+    color: AppColors.textPrimary,
+  );
+
+  /// Compact, centred nav bar title (18sp serif).
+  static const TextStyle navTitle = TextStyle(
+    fontFamily: headingFamily,
+    fontFamilyFallback: headingFontFamilies,
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.2,
+    height: 1.2,
+    color: AppColors.textPrimary,
+  );
+
+  /// Nav bar back label and text actions (17sp, iOS bar button size).
+  static const TextStyle navAction = TextStyle(
+    fontFamily: bodyFamily,
+    fontFamilyFallback: bodyFontFamilies,
+    fontSize: 17,
+    fontWeight: FontWeight.w500,
+    height: 1.2,
+    color: AppColors.accent,
+  );
+
+  /// Grouped-section header above an inset list (sentence case, 15sp).
+  static const TextStyle sectionHeader = TextStyle(
+    fontFamily: bodyFamily,
+    fontFamilyFallback: bodyFontFamilies,
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    height: 1.3,
+    color: AppColors.textSecondary,
+  );
+
+  /// List row title (17sp, iOS body).
+  static const TextStyle rowTitle = TextStyle(
+    fontFamily: bodyFamily,
+    fontFamilyFallback: bodyFontFamilies,
+    fontSize: 17,
+    fontWeight: FontWeight.w500,
+    height: 1.3,
+    color: AppColors.textPrimary,
+  );
+
+  /// List row subtitle / secondary line (15sp).
+  static const TextStyle rowSubtitle = TextStyle(
+    fontFamily: bodyFamily,
+    fontFamilyFallback: bodyFontFamilies,
+    fontSize: 15,
+    fontWeight: FontWeight.w400,
+    height: 1.35,
+    color: AppColors.textSecondary,
+  );
+
+  /// Button label (17sp semibold).
+  static const TextStyle button = TextStyle(
+    fontFamily: bodyFamily,
+    fontFamilyFallback: bodyFontFamilies,
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
+    color: AppColors.primary,
   );
 }

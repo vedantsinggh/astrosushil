@@ -1,8 +1,10 @@
 import { normalizeDegree } from '../coordinates/angular-math';
+import { getTrueAyanamsa } from '../ayanamsa/ayanamsa';
 import { getNakshatraByLongitude, getPada } from '../nakshatra/nakshatra';
 import { PlanetSymbol } from '../planets/planet.types';
 import { RASHIS } from '../zodiac/rashi';
 import { AstronomyEngineAdapter } from '../ephemeris/astronomy-engine.adapter';
+import { findLocalSolarEvents, localMidnightUtcMs } from '../astronomy/solar-day';
 import {
   PanchangOutput,
   TithiDetails,
@@ -141,8 +143,8 @@ export class PanchangCalculator {
     const jd = date.getTime() / 86400000 + 2440587.5;
     const sunRaw = this.ephemeris.getPlanetaryPosition(PlanetSymbol.SUN, jd);
     const moonRaw = this.ephemeris.getPlanetaryPosition(PlanetSymbol.MOON, jd);
-    const yearsFromJ2000 = (jd - 2451545.0) / 365.25;
-    const ayanamsa = 23.85 + 0.01396 * yearsFromJ2000;
+    // Engine default ayanamsa: true Chitrapaksha Lahiri (ADR-017), applied to apparent longitudes.
+    const ayanamsa = getTrueAyanamsa(jd);
     const sunSidereal = normalizeDegree(sunRaw.longitude - ayanamsa);
     const moonSidereal = normalizeDegree(moonRaw.longitude - ayanamsa);
     return {
@@ -318,42 +320,42 @@ export class PanchangCalculator {
 
   /**
    * Deterministically calculates Sunrise and Sunset for a geographic location and date.
+   *
+   * The civil date is the UTC calendar date of `date` (year/month/day fields); the sunrise search
+   * starts at LOCAL midnight of that date: in `timezone` when given (IANA, DST-aware), otherwise at
+   * local mean midnight derived from the longitude. (Before this fix the search started at UTC
+   * midnight, which returned the next day's sunrise east of Greenwich whenever sunrise falls before
+   * 00:00 UTC, e.g. New Delhi from roughly April to August.)
+   *
+   * If the Sun does not rise/set that day (polar latitudes) the legacy geometric fallback
+   * (06:00 / 18:00 UTC, 720 min) is returned with `isFallback: true`.
    */
   public calculateSunriseSunset(
     date: Date,
     latitude: number,
-    longitude: number
+    longitude: number,
+    timezone?: string
   ): SunriseSunsetDetails {
+    const civil = { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
     if (astronomyLib) {
-      try {
-        const observer = new astronomyLib.Observer(latitude, longitude, 0);
-        const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0));
-
-        const rise = astronomyLib.SearchRiseSet('Sun', observer, +1, dayStart, 1.2);
-        const set = astronomyLib.SearchRiseSet('Sun', observer, -1, rise ? rise.date : dayStart, 1.2);
-
-        if (rise && set) {
-          const sunriseIso = rise.date.toISOString();
-          const sunsetIso = set.date.toISOString();
-          const dayLengthMinutes = Math.max(0, Math.round((set.date.getTime() - rise.date.getTime()) / 60000));
-          return {
-            sunriseIso,
-            sunsetIso,
-            dayLengthMinutes,
-          };
-        }
-      } catch {
-        // Fall through to deterministic fallback if astronomyLib throws on polar regions
+      const { sunrise, sunset } = findLocalSolarEvents(civil, latitude, longitude, timezone);
+      if (sunrise && sunset) {
+        return {
+          sunriseIso: sunrise.toISOString(),
+          sunsetIso: sunset.toISOString(),
+          dayLengthMinutes: Math.max(0, Math.round((sunset.getTime() - sunrise.getTime()) / 60000)),
+        };
       }
     }
 
-    // Geometric fallback (approx 6:00 to 18:00 local solar time)
-    const fallbackRise = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 6, 0, 0));
-    const fallbackSet = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 18, 0, 0));
+    // Geometric fallback (approx 6:00 to 18:00), only when the Sun does not rise and set.
+    const fallbackRise = new Date(Date.UTC(civil.year, civil.month - 1, civil.day, 6, 0, 0));
+    const fallbackSet = new Date(Date.UTC(civil.year, civil.month - 1, civil.day, 18, 0, 0));
     return {
       sunriseIso: fallbackRise.toISOString(),
       sunsetIso: fallbackSet.toISOString(),
       dayLengthMinutes: 720,
+      isFallback: true,
     };
   }
 
@@ -389,27 +391,35 @@ export class PanchangCalculator {
     longitude: number,
     timezone: string = 'UTC'
   ): DailyPanchangOutput {
-    // 1. Civil day boundaries in UTC
+    // 1. Civil date = UTC calendar fields of `date`; its boundaries are LOCAL midnights in `timezone`.
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth();
     const day = date.getUTCDate();
-    const dayStart = new Date(Date.UTC(year, month, day, 0, 0, 0));
-    const dayEnd = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-    const dayStartMs = dayStart.getTime();
-    const dayEndMs = dayEnd.getTime();
+    const civil = { year, month: month + 1, day };
+    const dayStartMs = localMidnightUtcMs(civil, timezone, longitude);
+    const nextCivil = new Date(Date.UTC(year, month, day + 1));
+    const dayEndMs =
+      localMidnightUtcMs(
+        { year: nextCivil.getUTCFullYear(), month: nextCivil.getUTCMonth() + 1, day: nextCivil.getUTCDate() },
+        timezone,
+        longitude
+      ) - 1;
 
-    // 2. Solar Rise and Set
-    const sun = this.calculateSunriseSunset(date, latitude, longitude);
+    // 2. Solar Rise and Set (searched from local midnight of the civil date)
+    const sun = this.calculateSunriseSunset(date, latitude, longitude, timezone);
     const dayIndex = date.getUTCDay();
     const rahuKala = this.calculateRahuKala(sun.sunriseIso, sun.sunsetIso, dayIndex);
 
-    // 3. Instantaneous Panchang at sunrise (or noon if sunrise unavailable)
+    // 3. Instantaneous Panchang at sunrise. Vara, sunrise/sunset and Rahu Kala belong to the
+    //    local civil date (the Vedic day starting at this sunrise), not to the UTC date of the
+    //    sunrise instant, which is the previous UTC date east of Greenwich in summer.
     const referenceDate = new Date(sun.sunriseIso);
-    const instantaneous = this.calculatePanchangForDate(referenceDate, {
-      withBoundaries: true,
-      latitude,
-      longitude,
-    });
+    const instantaneous: PanchangOutput = {
+      ...this.calculatePanchangForDate(referenceDate, { withBoundaries: true }),
+      vara: { dayIndex, name: VARA_LORDS[dayIndex].name, lord: VARA_LORDS[dayIndex].lord },
+      sunriseSunset: sun,
+      rahuKala,
+    };
 
     // 4. Assemble chronological transition events during this civil day
     const transitions: PanchangaTransitionEvent[] = [];

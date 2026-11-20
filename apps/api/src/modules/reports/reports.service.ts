@@ -1,46 +1,43 @@
 import crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
 import { ReportType, OrderStatus, FulfillmentStatus, ObligationType, OrderItemType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { storageService } from '../../services/storage.service';
 import { NotFoundError, ForbiddenError, AuthorizationError, AppError } from '../../errors/app-error';
 import { CreateReportInput } from './reports.schemas';
-import { astrologyService } from '../astrology/astrology.service';
 import { careerReportWorker } from '../../services/report-worker.service';
 import { distributedLockService } from '../../services/distributed-lock.service';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { notificationService } from '../notifications/notification.service';
 import { logger } from '../../utils/logger';
-import {
-  generateKundliReport,
-  generatePlanetaryReport,
-  generateProHoroscopeReport,
-  generateMatchmakingReport,
-  generateCareerReport,
-  generateFinanceReport,
-  generateLoveReport,
-  generateFortuneReport,
-  generateFortunePlusReport,
-  generateSaturnReport,
-  generateJupiterReport,
-  generateRahuKetuReport,
-  generateVarshphalReport,
-  validateAstrologyDataForReport,
-  IncompleteAstrologyDataError,
-  DeterministicInterpretationProvider,
-  StructuredReportModel,
-  reportPdfService,
-} from '@astro/report-engine';
+import { isPlatformReportType } from '../../services/platform-report.runner';
 import { featureAccessService } from '../../services/feature-access.service';
 
 export type UserContext = { id: string; role?: string; [key: string]: any };
 
 export const CURRENT_REPORT_VERSION = '1.0.0';
-export const CURRENT_CALCULATION_VERSION = '1.0.0';
+/**
+ * Calculation method version stored on every report. 2.0.0 = astrology engine 0.2.0 (ADR-017:
+ * true Chitrapaksha Lahiri ayanamsa, Meeus mean node, true Placidus KP cusps, real-MC Sripati
+ * bhava chalit). Completed reports are only reused when their calculationVersion matches, so
+ * reports made with 1.0.0 (linear Lahiri approximation) are regenerated on the next request and
+ * keep their '1.0.0' label.
+ */
+export const CURRENT_CALCULATION_VERSION = '2.0.0';
+
+/**
+ * Short display line for the generation screen ("Writing section 23 of 60"),
+ * written by the worker during the LLM phase. Shown only while that phase is
+ * running, so a value left over from an earlier attempt never appears.
+ */
+export function reportProgressDetail(report: { status?: string | null; stage?: string | null; metadata?: unknown }): string | null {
+  if (report.status !== 'ANALYZING' || (report.stage && report.stage !== 'ANALYZING')) return null;
+  const meta = report.metadata;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
+  const detail = (meta as Record<string, unknown>).progressDetail;
+  return typeof detail === 'string' && detail.length > 0 ? detail.slice(0, 120) : null;
+}
 
 export class ReportsService {
-  private readonly interpretationProvider = new DeterministicInterpretationProvider();
   private static readonly inflightJobLocks = new Map<string, Promise<any>>();
 
   private isAdminUser(user: UserContext): boolean {
@@ -339,6 +336,10 @@ export class ReportsService {
           claimToken: null,
           claimExpiresAt: null,
           claimVersion: { increment: 1 },
+          retryAfter: null,
+          generationFailures: 0,
+          lastAttemptErrorCode: null,
+          lastAttemptErrorMessage: null,
           updatedAt: now,
         } as any,
       });
@@ -492,6 +493,8 @@ export class ReportsService {
     const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
     const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
     const isReady = isCompleted;
+    // A report waiting for a scheduled retry is QUEUED and simply still being prepared.
+    const isPreparing = !isCompleted && !isFailed;
     const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
 
     return {
@@ -499,14 +502,16 @@ export class ReportsService {
       status: r.status,
       stage: r.stage || r.status,
       progress: r.progress ?? 0,
-      errorCode: r.errorCode ?? null,
-      errorMessage: r.errorMessage ?? null,
+      progressDetail: reportProgressDetail(r),
+      errorCode: isFailed ? r.errorCode ?? null : null,
+      errorMessage: isFailed ? r.errorMessage ?? null : null,
       expectedDeliveryAt,
       paymentStatus,
       isOnSchedule,
       isOverdue,
       isFailed,
       isReady,
+      isPreparing,
     };
   }
 
@@ -543,6 +548,8 @@ export class ReportsService {
     const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
     const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
     const isReady = isCompleted;
+    // A report waiting for a scheduled retry is QUEUED and simply still being prepared.
+    const isPreparing = !isCompleted && !isFailed;
     const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
 
     return {
@@ -558,8 +565,8 @@ export class ReportsService {
       calculationVersion: r.calculationVersion ?? '1.0.0',
       pageCount: r.pageCount ?? null,
       fileSize: r.fileSize ?? null,
-      errorCode: r.errorCode ?? null,
-      errorMessage: r.errorMessage ?? null,
+      errorCode: isFailed ? r.errorCode ?? null : null,
+      errorMessage: isFailed ? r.errorMessage ?? null : null,
       createdAt: r.createdAt,
       completedAt: r.completedAt ?? null,
       expectedDeliveryAt,
@@ -568,6 +575,7 @@ export class ReportsService {
       isOverdue,
       isFailed,
       isReady,
+      isPreparing,
       downloadUrl: isReady ? downloadUrl : null,
       birthProfile: r.birthProfile,
     };
@@ -675,19 +683,31 @@ export class ReportsService {
       const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
       const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
       const isReady = isCompleted;
+      const isPreparing = !isCompleted && !isFailed;
       const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
 
+      const metadata = r.metadata && typeof r.metadata === 'object' ? { ...r.metadata, platformManifest: undefined } : r.metadata;
       return {
         ...r,
+        metadata,
+        errorCode: isFailed ? r.errorCode ?? null : null,
+        errorMessage: isFailed ? r.errorMessage ?? null : null,
         expectedDeliveryAt,
         paymentStatus,
         isOnSchedule,
         isOverdue,
         isFailed,
         isReady,
+        isPreparing,
         claimToken: undefined,
         claimExpiresAt: undefined,
         claimVersion: undefined,
+        // Internal retry bookkeeping is never shown to customers.
+        retryAfter: undefined,
+        generationFailures: undefined,
+        lastAttemptAt: undefined,
+        lastAttemptErrorCode: undefined,
+        lastAttemptErrorMessage: undefined,
       };
     });
   }
@@ -703,9 +723,6 @@ export class ReportsService {
     const report = await this.getReportStatus(reportId, user);
 
     if (report.status !== 'COMPLETED') {
-      if (report.errorCode === 'INCOMPLETE_ASTROLOGY_DATA') {
-        throw new IncompleteAstrologyDataError(report.errorMessage || 'Complete chart data is currently unavailable. Please try again.');
-      }
       throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
     }
 
@@ -740,28 +757,13 @@ export class ReportsService {
     input: CreateReportInput,
     user: UserContext
   ) {
-    const SUPPORTED_REPORT_TYPES: string[] = [
-      'CAREER',
-      'KUNDLI',
-      'PLANETARY_SUMMARY',
-      'CAREER_PROSITY',
-      'MARRIAGE_COMPATIBILITY',
-      'HOROSCOPE',
-      'FINANCE',
-      'LOVE',
-      'FORTUNE',
-      'FORTUNE_PLUS',
-      'SATURN',
-      'JUPITER_TRANSIT',
-      'RAHU_KETU_TRANSIT',
-      'VARSHPHAL',
-    ];
-
-    if (!SUPPORTED_REPORT_TYPES.includes(input.reportType)) {
+    // Only report types with a genuine generator (a registered platform module) can be generated.
+    // CHILDBIRTH_FAMILY and GUPTA_NADI_DOSSIER have none and are rejected; nothing is substituted.
+    if (!isPlatformReportType(input.reportType)) {
       throw new AppError(
-        `Report type ${input.reportType} is not supported. Dedicated generator is not available.`,
+        `The ${input.reportType} report is not available. It cannot be generated because no genuine generator exists for it.`,
         400,
-        'REPORT_TYPE_NOT_SUPPORTED'
+        'REPORT_TYPE_NOT_AVAILABLE'
       );
     }
 
@@ -793,29 +795,18 @@ export class ReportsService {
         return initResult.result;
       }
 
-      // If async mode requested, enqueue in background worker and return immediately
-      if (input.async) {
-        careerReportWorker.enqueueReportJob(initResult.reportId);
-        return {
-          reportId: initResult.reportId,
-          id: initResult.reportId,
-          status: 'QUEUED',
-          stage: 'QUEUED',
-          progress: 0,
-          reused: false,
-        };
-      }
-
-      // 2. Long-running synchronous pipeline OUTSIDE the distributed lock!
-      // PDF rendering, calculations, AI providers, and S3 storage upload
-      return await this.executeSynchronousReportPipeline(
-        initResult.reportId,
-        input,
-        user,
-        initResult.order,
-        initResult.profile,
-        initResult.partnerProfile
-      );
+      // 2. Generation always runs in the report worker through the universal platform
+      // (there is no synchronous in-request generation). `async` is accepted for
+      // backward compatibility and has no effect.
+      careerReportWorker.enqueueReportJob(initResult.reportId);
+      return {
+        reportId: initResult.reportId,
+        id: initResult.reportId,
+        status: 'QUEUED',
+        stage: 'QUEUED',
+        progress: 0,
+        reused: false,
+      };
     };
 
     const jobPromise = runTask();
@@ -996,6 +987,10 @@ export class ReportsService {
           claimToken: null,
           claimExpiresAt: null,
           claimVersion: { increment: 1 },
+          retryAfter: null,
+          generationFailures: 0,
+          lastAttemptErrorCode: null,
+          lastAttemptErrorMessage: null,
           updatedAt: now,
         } as any,
       });
@@ -1068,247 +1063,6 @@ export class ReportsService {
       order,
       profile,
       partnerProfile,
-    };
-  }
-
-  /**
-   * Executes long-running synchronous report generation pipeline OUTSIDE the distributed lock.
-   */
-  private async executeSynchronousReportPipeline(
-    reportId: string,
-    input: CreateReportInput,
-    user: UserContext,
-    order: any,
-    profile: any,
-    partnerProfile: any
-  ) {
-    const now = new Date();
-
-    const profileInput = {
-      name: profile.name,
-      dateOfBirth: profile.dateOfBirth,
-      timeOfBirth: profile.timeOfBirth,
-      placeName: profile.placeName,
-      timezone: profile.timezone,
-      latitude: profile.latitude,
-      longitude: profile.longitude,
-    };
-
-    let structuredReport: any;
-    try {
-      if (input.reportType === 'MARRIAGE_COMPATIBILITY') {
-        const chart1 = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
-        const chart2 = await astrologyService.calculateChartForProfile(input.partnerProfileId!, user);
-        validateAstrologyDataForReport(chart1);
-        validateAstrologyDataForReport(chart2);
-
-        const profile2Input = {
-          name: partnerProfile.name,
-          dateOfBirth: partnerProfile.dateOfBirth,
-          timeOfBirth: partnerProfile.timeOfBirth,
-          placeName: partnerProfile.placeName,
-          timezone: partnerProfile.timezone,
-          latitude: partnerProfile.latitude,
-          longitude: partnerProfile.longitude,
-        };
-        structuredReport = await generateMatchmakingReport(profileInput, profile2Input, chart1, chart2, this.interpretationProvider);
-      } else {
-        const chartResponse = await astrologyService.calculateChartForProfile(input.birthProfileId, user);
-        validateAstrologyDataForReport(chartResponse);
-
-        if (input.reportType === 'KUNDLI') {
-          structuredReport = await generateKundliReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if (input.reportType === 'PLANETARY_SUMMARY') {
-          structuredReport = await generatePlanetaryReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'HOROSCOPE' || (input.reportType as string) === 'RASHI_BHAVISHYA') {
-          structuredReport = await generateProHoroscopeReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'CAREER' || (input.reportType as string) === 'CAREER_PROSITY') {
-          const tier = (input.reportType as string) === 'CAREER_PROSITY' ? 'PRO' : 'BASIC';
-          structuredReport = await generateCareerReport(profileInput, chartResponse, this.interpretationProvider, { tier });
-        } else if ((input.reportType as string) === 'FINANCE') {
-          structuredReport = await generateFinanceReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'LOVE') {
-          structuredReport = await generateLoveReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'FORTUNE') {
-          structuredReport = await generateFortuneReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'FORTUNE_PLUS') {
-          structuredReport = await generateFortunePlusReport(profileInput, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'SATURN') {
-          structuredReport = await generateSaturnReport(profileInput, {
-            zodiacType: 'SIDEREAL',
-            ayanamsa: 'LAHIRI',
-            houseSystem: 'WHOLE_SIGN',
-            nodeCalculation: 'MEAN_NODE',
-          }, chartResponse, this.interpretationProvider);
-        } else if ((input.reportType as string) === 'JUPITER_TRANSIT') {
-          const referenceDate = (input as any).referenceDate || new Date();
-          const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
-          structuredReport = await generateJupiterReport(profileInput, {
-            zodiacType: 'SIDEREAL',
-            ayanamsa: 'LAHIRI',
-            houseSystem: 'WHOLE_SIGN',
-            nodeCalculation: 'MEAN_NODE',
-          }, chartResponse, this.interpretationProvider, { referenceDate: referenceDateIso });
-        } else if ((input.reportType as string) === 'RAHU_KETU_TRANSIT') {
-          const referenceDate = (input as any).referenceDate || new Date();
-          const referenceDateIso = referenceDate instanceof Date ? referenceDate.toISOString() : new Date(referenceDate).toISOString();
-          structuredReport = await generateRahuKetuReport(profileInput, {
-            zodiacType: 'SIDEREAL',
-            ayanamsa: 'LAHIRI',
-            houseSystem: 'WHOLE_SIGN',
-            nodeCalculation: 'MEAN_NODE',
-          }, chartResponse, this.interpretationProvider, { referenceDate: referenceDateIso });
-        } else if ((input.reportType as string) === 'VARSHPHAL') {
-          const targetYear = (input as any).targetYear || (input as any).year || new Date().getFullYear();
-          structuredReport = await generateVarshphalReport(profileInput, {
-            zodiacType: 'SIDEREAL',
-            ayanamsa: 'LAHIRI',
-            houseSystem: 'WHOLE_SIGN',
-            nodeCalculation: 'MEAN_NODE',
-          }, chartResponse, this.interpretationProvider, { targetYear });
-        } else {
-          throw new AppError(
-            `Report type ${input.reportType} is not supported. Dedicated generator is not available.`,
-            400,
-            'REPORT_TYPE_NOT_SUPPORTED'
-          );
-        }
-      }
-    } catch (genErr: any) {
-      const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
-      await prisma.report.updateMany({
-        where: {
-          id: reportId,
-          status: { in: activeStatuses as any[] },
-        },
-        data: {
-          status: 'FAILED',
-          stage: 'FAILED',
-          progress: 0,
-          errorCode: genErr?.code || 'GENERATION_FAILED',
-          errorMessage: genErr?.message || 'Failed during report generation',
-          failedAt: now,
-          updatedAt: now,
-        } as any,
-      });
-      if (order?.id) {
-        try {
-          await prisma.order.updateMany({
-            where: { id: order.id, fulfillmentStatus: FulfillmentStatus.PROCESSING },
-            data: { fulfillmentStatus: FulfillmentStatus.FAILED },
-          });
-        } catch (_) {}
-      }
-      throw genErr;
-    }
-
-    // Render & upload PDF to private storage
-    const pdfBuffer = await reportPdfService.generateReportPdf(structuredReport);
-    const storageKey = `reports/${user.id}/${reportId}.pdf`;
-    const prefix = input.reportType.toLowerCase().replace(/_/g, '-');
-    const fileName = `${prefix}-${profile.name.toLowerCase().replace(/\s+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
-
-    let fileSize = pdfBuffer.length;
-    try {
-      const uploadRes = await storageService.upload({
-        key: storageKey,
-        body: pdfBuffer,
-        contentType: 'application/pdf',
-        metadata: {
-          userId: user.id,
-          reportId,
-          birthProfileId: input.birthProfileId,
-          reportType: input.reportType,
-        },
-      });
-      fileSize = uploadRes.fileSize;
-    } catch (uploadErr: any) {
-      logger.error(
-        { reportId, userId: user.id, err: uploadErr?.message },
-        '[REPORT_CREATE] Storage upload critical failure. Report cannot be marked COMPLETED.'
-      );
-      try {
-        const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
-        await prisma.report.updateMany({
-          where: {
-            id: reportId,
-            status: { in: activeStatuses as any[] },
-          },
-          data: {
-            status: 'FAILED',
-            stage: 'FAILED',
-            progress: 0,
-            errorCode: 'STORAGE_UPLOAD_FAILED',
-            errorMessage: uploadErr?.message || 'Failed to persist report artifact to storage',
-            storageKey,
-            fileName,
-            fileSize: 0,
-            pageCount: 0,
-            updatedAt: now,
-            failedAt: now,
-          } as any,
-        });
-      } catch (dbErr: any) {
-        logger.error(
-          { reportId, userId: user.id, uploadErr: uploadErr?.message, dbErr: dbErr?.message },
-          '[REPORT_CREATE] Critical double-fault: Failed to record FAILED report state to database after storage upload failure.'
-        );
-      }
-      if (order?.id) {
-        try {
-          await prisma.order.updateMany({
-            where: { id: order.id, fulfillmentStatus: FulfillmentStatus.PROCESSING },
-            data: { fulfillmentStatus: FulfillmentStatus.FAILED },
-          });
-        } catch (_) {}
-      }
-      throw new AppError(`Failed to persist report artifact to storage: ${uploadErr?.message || 'unknown storage error'}`, 500, 'STORAGE_UPLOAD_FAILED');
-    }
-
-    const repType = input.reportType as string;
-    const pageCount = repType === 'FORTUNE_PLUS' ? 35 : (repType === 'FORTUNE' ? 27 : (repType === 'LOVE' ? 23 : (repType === 'VARSHPHAL' ? 16 : (repType === 'FINANCE' ? 12 : (repType === 'RAHU_KETU_TRANSIT' ? 12 : (repType === 'JUPITER_TRANSIT' ? 11 : (repType === 'SATURN' ? 10 : (repType === 'MARRIAGE_COMPATIBILITY' || repType === 'HOROSCOPE') ? 11 : (repType === 'CAREER_PROSITY' ? 13 : (repType === 'CAREER' ? 7 : 3)))))))));
-
-    const activeStatuses = ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'UPLOADING', 'PENDING', 'PROCESSING'];
-    const compRes = await prisma.report.updateMany({
-      where: {
-        id: reportId,
-        status: { in: activeStatuses as any[] },
-      },
-      data: {
-        status: 'COMPLETED',
-        stage: 'COMPLETED',
-        progress: 100,
-        storageKey,
-        fileName,
-        fileSize,
-        pageCount,
-        updatedAt: now,
-        completedAt: now,
-      } as any,
-    });
-
-    if (compRes.count > 0 && order?.id) {
-      try {
-        await prisma.order.updateMany({
-          where: { id: order.id },
-          data: { fulfillmentStatus: FulfillmentStatus.FULFILLED },
-        });
-      } catch (_) {}
-    }
-
-    const report = await prisma.report.findUnique({
-      where: { id: reportId },
-      include: { order: true },
-    });
-
-    return {
-      id: report?.id ?? reportId,
-      userId: user.id,
-      birthProfileId: input.birthProfileId,
-      reportType: input.reportType,
-      status: 'COMPLETED',
-      report: structuredReport,
-      createdAt: report?.createdAt ?? new Date(),
     };
   }
 }

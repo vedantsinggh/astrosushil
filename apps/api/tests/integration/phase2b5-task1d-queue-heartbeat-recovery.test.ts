@@ -6,6 +6,7 @@ import { prisma } from '../../src/services/prisma.service';
 import { nativeRedisClient } from '../../src/services/redis-client';
 import { careerReportWorker } from '../../src/services/report-worker.service';
 import { redisQueueService } from '../../src/services/redis-queue.service';
+import { postgresQueueService } from '../../src/services/postgres-queue.service';
 import { distributedLockService } from '../../src/services/distributed-lock.service';
 import { reportsService } from '../../src/modules/reports/reports.service';
 import { OrderStatus, PaymentStatus, FulfillmentStatus } from '@prisma/client';
@@ -251,19 +252,21 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
     // Set updatedAt to 10 minutes ago
     await prisma.$executeRaw`UPDATE "reports" SET "updatedAt" = (NOW() at time zone 'UTC') - INTERVAL '10 minutes' WHERE id = ${reportId}`;
 
-    // Execute recovery
+    // The PostgreSQL row queue is the source of truth: a QUEUED row is claimable as-is,
+    // so stale recovery has nothing to re-enqueue and must leave it untouched (not failed).
     const stats = await careerReportWorker.recoverStaleJobs();
-    expect(stats.recoveredReports).toBeGreaterThanOrEqual(1);
+    expect(stats.skipped).toBeUndefined();
 
-    // Report should STILL be QUEUED (not failed!) with metadata.enqueued = true
     const recovered = await prisma.report.findUnique({ where: { id: reportId } });
     expect(recovered?.status).toBe('QUEUED');
-    expect((recovered?.metadata as any)?.enqueued).toBe(true);
-    expect((recovered?.metadata as any)?.recoveryAttempts).toBe(1);
+    expect(recovered?.recoveryAttempts).toBe(0);
+    expect(recovered?.claimVersion).toBe(0);
+    expect(recovered?.retryAfter).toBeNull();
 
-    // Job must now be present in the Redis queue!
-    const queuedId = await redisQueueService.dequeueJob();
-    expect(queuedId).toBe(reportId);
+    // The abandoned job is directly claimable by a worker from the DB queue.
+    const claim = await postgresQueueService.claimJobById(reportId);
+    expect(claim?.id).toBe(reportId);
+    expect(claim?.claimVersion).toBe(1);
   });
 
   it('3. Repeated recovery does not create duplicate queue jobs or reports', async () => {
@@ -285,18 +288,22 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
     });
     await prisma.$executeRaw`UPDATE "reports" SET "updatedAt" = (NOW() at time zone 'UTC') - INTERVAL '10 minutes' WHERE id = ${reportId}`;
 
-    // First recovery run
+    // Two recovery runs back to back
     await careerReportWorker.recoverStaleJobs();
-
-    // Immediate second recovery run
     const stats2 = await careerReportWorker.recoverStaleJobs();
     expect(stats2.recoveredReports).toBe(0);
 
-    // Exactly 1 job in Redis
-    const firstJob = await redisQueueService.dequeueJob();
-    expect(firstJob).toBe(reportId);
-    const secondJob = await redisQueueService.dequeueJob();
-    expect(secondJob).toBeNull();
+    // Still exactly one report row for the order, unchanged by recovery
+    const rows = await prisma.report.findMany({ where: { orderId: order.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe('QUEUED');
+    expect(rows[0].recoveryAttempts).toBe(0);
+
+    // Exactly one claim succeeds: no duplicate execution
+    const firstClaim = await postgresQueueService.claimJobById(reportId);
+    expect(firstClaim?.id).toBe(reportId);
+    const secondClaim = await postgresQueueService.claimJobById(reportId);
+    expect(secondClaim).toBeNull();
   });
 
   it('4. Redis unavailable during recovery does not lose recovery info, followed by successful retry', async () => {
@@ -321,26 +328,28 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
     // Disable Redis to simulate network partition
     nativeRedisClient.setMockDisabled(true);
 
-    // Recovery runs while Redis is offline
-    await careerReportWorker.recoverStaleJobs();
+    try {
+      // Recovery runs while Redis is offline (PostgreSQL advisory-lock fallback)
+      const outageStats = await careerReportWorker.recoverStaleJobs();
+      expect(outageStats.skipped).toBeUndefined();
 
-    // Report must still be QUEUED and enqueued=false (not prematurely failed)
-    const pendingReport = await prisma.report.findUnique({ where: { id: reportId } });
-    expect(pendingReport?.status).toBe('QUEUED');
-    expect((pendingReport?.metadata as any)?.enqueued).toBe(false);
+      // Report must still be QUEUED (not prematurely failed) and keep its recovery state
+      const pendingReport = await prisma.report.findUnique({ where: { id: reportId } });
+      expect(pendingReport?.status).toBe('QUEUED');
+      expect(pendingReport?.errorCode).toBeNull();
+      expect(pendingReport?.recoveryAttempts).toBe(0);
 
-    // Re-enable Redis
-    nativeRedisClient.setMockDisabled(false);
+      // The DB queue does not depend on Redis: the job is claimable during the outage
+      const claim = await postgresQueueService.claimJobById(reportId);
+      expect(claim?.id).toBe(reportId);
+    } finally {
+      // Re-enable Redis
+      nativeRedisClient.setMockDisabled(false);
+    }
 
-    // Next recovery run succeeds in re-enqueueing
-    const retryStats = await careerReportWorker.recoverStaleJobs();
-    expect(retryStats.recoveredReports).toBeGreaterThanOrEqual(1);
-
-    const enqueuedReport = await prisma.report.findUnique({ where: { id: reportId } });
-    expect((enqueuedReport?.metadata as any)?.enqueued).toBe(true);
-
-    const queuedJob = await redisQueueService.dequeueJob();
-    expect(queuedJob).toBe(reportId);
+    const claimed = await prisma.report.findUnique({ where: { id: reportId } });
+    expect(claimed?.status).toBe('CALCULATING');
+    expect(claimed?.claimToken).not.toBeNull();
   });
 
   // =========================================================================
@@ -442,9 +451,13 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
         status: 'CALCULATING',
         stage: 'CALCULATING',
         progress: 20,
+        claimToken: crypto.randomUUID(),
+        claimVersion: 1,
+        executionAttempts: 1,
       } as any,
     });
-    await prisma.$executeRaw`UPDATE "reports" SET "updatedAt" = (NOW() at time zone 'UTC') - INTERVAL '10 minutes' WHERE id = ${staleReportId}`;
+    // The crashed worker's lease expired 10 minutes ago
+    await prisma.$executeRaw`UPDATE "reports" SET "updatedAt" = clock_timestamp() - INTERVAL '10 minutes', "claimExpiresAt" = clock_timestamp() - INTERVAL '9 minutes' WHERE id = ${staleReportId}`;
 
     // Send recovery command simultaneously to both independent OS processes
     const [res1, res2] = await Promise.all([
@@ -459,9 +472,15 @@ describe('Phase 2B.5 Task 1D: Queue Recovery, Heartbeats & Multi-Worker Safety',
     const totalRecovered = (res1.recoveredReports || 0) + (res2.recoveredReports || 0);
     expect(totalRecovered).toBe(1);
 
+    // Recovery requeues the crashed job exactly once with backoff and fences the dead worker
     const finalReport = await prisma.report.findUnique({ where: { id: staleReportId } });
-    expect(finalReport?.status).toBe('FAILED');
-    expect(finalReport?.errorCode).toBe('WORKER_TIMEOUT_RECOVERED');
+    expect(finalReport?.status).toBe('QUEUED');
+    expect(finalReport?.recoveryAttempts).toBe(1);
+    expect(finalReport?.claimVersion).toBe(2);
+    expect(finalReport?.claimToken).toBeNull();
+    expect(finalReport?.claimExpiresAt).toBeNull();
+    expect(finalReport?.retryAfter).not.toBeNull();
+    expect(finalReport?.errorCode).toBeNull();
   });
 
   it('8. Recovery lock expiry and stale-owner protection handles TTL cleanly', async () => {

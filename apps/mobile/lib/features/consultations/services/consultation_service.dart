@@ -12,11 +12,9 @@ class ConsultationService {
     try {
       response = await _apiClient.get('/consultations');
     } catch (_) {
-      try {
-        response = await _apiClient.get('/consultations/catalog');
-      } catch (_) {
-        return [];
-      }
+      // Errors propagate so the screen shows an explicit error state
+      // instead of an empty (or invented) catalogue.
+      response = await _apiClient.get('/consultations/catalog');
     }
     final List<dynamic> items;
     if (response is Map) {

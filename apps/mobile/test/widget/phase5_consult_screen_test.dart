@@ -11,6 +11,8 @@ import 'package:astro_mobile/features/consultations/services/consultation_servic
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
+import 'package:astro_mobile/features/auth/models/user_model.dart';
+import 'package:astro_mobile/features/auth/providers/auth_provider.dart' show AuthNotifier, AuthState, authStateProvider;
 
 class MockConsultationService implements ConsultationService {
   @override
@@ -156,6 +158,13 @@ class MockConsultationService implements ConsultationService {
   }
 }
 
+class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier {
+  TestAuthNotifier(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
 class TestCustomLocaleNotifier extends LocaleNotifier {
   TestCustomLocaleNotifier(super.storage, Locale initialLocale) {
     state = initialLocale;
@@ -189,6 +198,12 @@ void main() {
         consultationServiceProvider.overrideWithValue(MockConsultationService()),
         localeProvider.overrideWith((ref) => TestCustomLocaleNotifier(storage, locale)),
         birthProfilesListNotifierProvider.overrideWith((ref) => TestBirthProfilesNotifier([])),
+        authStateProvider.overrideWith((ref) => TestAuthNotifier(AuthState.authenticated(UserModel(
+              id: 'usr-1',
+              email: 'seeker@astrosushil.com',
+              role: 'USER',
+              createdAt: DateTime(2026, 1, 1),
+            )))),
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -205,39 +220,44 @@ void main() {
     );
   }
 
+  Future<void> openTab(WidgetTester tester, String label) async {
+    await tester.tap(find.descendant(of: find.byKey(const ValueKey('consult_tabs')), matching: find.text(label)));
+    await tester.pumpAndSettle();
+  }
+
   group('Phase 5 Consultation Screen Widget Tests', () {
-    testWidgets('Renders dual tabs and consultation catalog offerings', (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
+    testWidgets('Renders services and bookings sections with catalogue offerings', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pumpAndSettle();
 
-      // Check Tabs
-      expect(find.text('Book Consultation'), findsOneWidget);
-      expect(find.text('My Appointments'), findsOneWidget);
+      // Two tabs pinned under the title: Book a session / My bookings
+      expect(find.text('Book a session'), findsOneWidget);
+      expect(find.text('My bookings'), findsOneWidget);
+      await openTab(tester, 'Book a session');
 
       // Check offerings
       expect(find.text('Budget Friendly Consultation'), findsOneWidget);
-      expect(find.text('General Video Consultation'), findsOneWidget);
-      expect(find.text('₹5000'), findsOneWidget);
-      expect(find.text('₹15000'), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_service_consult-general-video')), findsOneWidget);
+      expect(find.text('₹5,000'), findsOneWidget);
+      expect(find.text('₹15,000'), findsOneWidget);
 
       // Check Book Now button
-      expect(find.text('Book Now'), findsAtLeastNWidgets(1));
+      expect(find.text('Book Now'), findsNWidgets(2));
     });
 
-    testWidgets('Switches to My Appointments tab and displays confirmed appointment', (tester) async {
+    testWidgets('Shows confirmed appointment with Join and Cancel', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
       await tester.pumpWidget(buildAppWrapper(child: const ConsultScreen()));
       await tester.pumpAndSettle();
 
-      // Tap on "My Appointments" tab
-      await tester.tap(find.text('My Appointments'));
-      await tester.pumpAndSettle();
-
-      // Verify confirmed booking details rendered
-      expect(find.text('BK-TEST-1'), findsOneWidget);
+      expect(find.text('Ref: BK-TEST-1'), findsOneWidget);
       expect(find.text('Confirmed'), findsOneWidget);
       expect(find.text('Join Live Session'), findsOneWidget);
       expect(find.text('Cancel Appointment'), findsOneWidget);
@@ -251,8 +271,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check Hindi tab labels
-      expect(find.text('परामर्श बुक करें'), findsOneWidget);
-      expect(find.text('मेरी नियुक्तियाँ'), findsOneWidget);
+      expect(find.text('मुलाकात बुक करें'), findsOneWidget);
+      expect(find.text('मेरी बुकिंग'), findsOneWidget);
+      await openTab(tester, 'मुलाकात बुक करें');
       expect(find.text('अभी बुक करें'), findsAtLeastNWidgets(1));
     });
   });

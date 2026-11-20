@@ -32,29 +32,26 @@ class MiniKundliPreview extends StatelessWidget {
       );
     }
 
+    // Genuine backend chart only: no assumed Lagna/Moon values.
     final ascendant = chart?.ascendant;
-    final ascSign = ascendant?.rashiName ?? 'Mesha';
-    final moon = chart?.planets.firstWhere(
-      (p) => p.planet.toUpperCase().contains('MOON') || p.planet.toUpperCase().contains('CHANDRA'),
-      orElse: () => chart!.planets.isNotEmpty
-          ? chart!.planets.first
-          : const PlanetModel(
-              planet: 'Moon',
-              longitude: 0,
-              latitude: 0,
-              speedLongitude: 0,
-              isRetrograde: false,
-              rashiIndex: 2,
-              rashiName: 'Vrishabha',
-              degreeInRashi: 8.0,
-              nakshatraIndex: 4,
-              nakshatraName: 'Rohini',
-              pada: 1,
-              nakshatraLord: 'Moon',
-            ),
-    );
-    final moonSign = moon?.rashiName ?? 'Vrishabha';
-    final moonNak = moon?.nakshatraName ?? 'Rohini';
+    if (chart == null || ascendant == null) {
+      return const PreviewEmptyState(
+        title: 'Birth Chart',
+        message: 'Chart data is not available right now',
+        icon: Icons.grid_view_rounded,
+      );
+    }
+    final ascSign = ascendant.rashiName;
+    PlanetModel? moon;
+    for (final p in chart!.planets) {
+      final up = p.planet.toUpperCase();
+      if (up.contains('MOON') || up.contains('CHANDRA')) {
+        moon = p;
+        break;
+      }
+    }
+    final moonSign = moon?.rashiName ?? '—';
+    final moonNak = moon?.nakshatraName ?? '—';
 
     return Row(
       children: [
@@ -172,7 +169,8 @@ class _MiniNorthIndianPainter extends CustomPainter {
     canvas.drawPath(lagnaPath, lagnaPaint);
 
     // Rashi index text painter
-    final ascRashi = chart?.ascendant?.rashiIndex ?? 1;
+    final ascRashi = chart?.ascendant?.rashiIndex;
+    if (ascRashi == null) return;
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     // Draw Lagna Rashi number at House 1 center

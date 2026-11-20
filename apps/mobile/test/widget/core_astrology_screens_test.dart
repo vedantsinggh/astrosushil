@@ -20,6 +20,8 @@ import 'package:astro_mobile/features/astrology/providers/vastu_provider.dart';
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
+import '../helpers/rashi_bhavishya_sample.dart';
+
 void main() {
   late AstroChartModel canonicalChartD1;
 
@@ -75,7 +77,6 @@ void main() {
         astrologyChartForProfileProvider(testProfile).overrideWith((ref) => Future.value(canonicalChartD1)),
         vastuCategoriesProvider.overrideWith((ref) => Future.value([mockCat])),
         vastuGuidanceProvider(1).overrideWith((ref) => Future.value([mockGuidance])),
-        todayRashiBhavishyaProvider(1).overrideWith((ref) => Future.value(RashiBhavishyaModel.fromJson({}))),
         ...extraOverrides,
       ],
       child: MaterialApp(
@@ -164,14 +165,76 @@ void main() {
       expect(find.text('About the Sun'), findsOneWidget);
     });
 
-    testWidgets('RashiBhavishyaScreen renders Rashi selector and prediction categories', (tester) async {
-      await tester.pumpWidget(createTestableWidget(const RashiBhavishyaScreen()));
+    testWidgets('RashiBhavishyaScreen renders genuine backend facts and narrative with API date', (tester) async {
+      final genuine = rashiBhavishyaSampleModel();
+      await tester.pumpWidget(createTestableWidget(
+        const RashiBhavishyaScreen(),
+        extraOverrides: [
+          userMoonRashiIndexProvider.overrideWith((ref) async => 1),
+          todayRashiBhavishyaProvider(1).overrideWith((ref) => Future.value(genuine)),
+        ],
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.textContaining('Rashi Bhavishya'), findsOneWidget);
       expect(find.textContaining('Aries'), findsWidgets);
-      expect(find.text('Today\'s Outlook'), findsOneWidget);
-      expect(find.text('Category Guidance'), findsOneWidget);
+      expect(find.text('Your Moon sign'), findsOneWidget);
+      expect(find.text('18 November 2026, Wednesday'), findsOneWidget);
+      expect(find.text(genuine.prediction.summary), findsOneWidget);
+      expect(find.textContaining('Moon in Aquarius'), findsOneWidget);
+      expect(find.text(genuine.prediction.sections[1].title), findsOneWidget);
+      expect(find.textContaining('Lucky'), findsNothing);
+      await tester.scrollUntilVisible(find.text('Planets from your Moon sign'), 300);
+      expect(find.textContaining('a plain count, not a score'), findsOneWidget);
+    });
+
+    testWidgets('RashiBhavishyaScreen asks for a Moon sign instead of defaulting to Mesha', (tester) async {
+      await tester.pumpWidget(createTestableWidget(
+        const RashiBhavishyaScreen(),
+        extraOverrides: [userMoonRashiIndexProvider.overrideWith((ref) async => null)],
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Choose your Moon sign'), findsOneWidget);
+      expect(find.text("Today's outlook"), findsNothing);
+    });
+
+    testWidgets('RashiBhavishyaScreen shows an error, never fallback content, when the API fails', (tester) async {
+      await tester.pumpWidget(createTestableWidget(
+        const RashiBhavishyaScreen(),
+        extraOverrides: [
+          userMoonRashiIndexProvider.overrideWith((ref) async => 1),
+          todayRashiBhavishyaProvider(1).overrideWith((ref) => Future<RashiBhavishyaModel>.error(Exception('503'))),
+        ],
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.textContaining('could not be loaded'), findsOneWidget);
+      expect(find.text("Today's outlook"), findsNothing);
+    });
+
+    testWidgets('RashiBhavishyaScreen shows a warning for development fixture content', (tester) async {
+      final json = rashiBhavishyaSampleJson();
+      (json['data'] as Map<String, dynamic>)['isDevelopmentFixture'] = true;
+      final fixture = RashiBhavishyaModel.fromJson(json);
+      await tester.pumpWidget(createTestableWidget(
+        const RashiBhavishyaScreen(),
+        extraOverrides: [
+          userMoonRashiIndexProvider.overrideWith((ref) async => 1),
+          todayRashiBhavishyaProvider(1).overrideWith((ref) => Future.value(fixture)),
+        ],
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.textContaining('not available yet'), findsOneWidget);
+      expect(find.text(fixture.prediction.summary), findsNothing);
     });
 
     testWidgets('VastuScreen and VastuDetailScreen render spatial guidance', (tester) async {

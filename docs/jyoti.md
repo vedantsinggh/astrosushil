@@ -125,7 +125,15 @@ Configure the following variables in `apps/api/.env`:
 ```env
 LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=your_openrouter_api_key_here
-OPENROUTER_MODEL=poolside/laguna-s-2.1:free
+OPENROUTER_MODEL=baidu/ernie-5.5-flash-preview:free   # must be a model id that currently exists on OpenRouter
+OPENROUTER_FALLBACK_MODELS=recursive/flint-v1.0:free,particle-ai/particle-1:free   # optional; first 2 are used
+OPENROUTER_REASONING_EFFORT=low        # optional; keeps reasoning models from starving the answer
+JYOTI_LLM_TOTAL_TIMEOUT_MS=50000       # optional; total LLM budget incl. retries, keep below the 60s app timeout
 JYOTI_RATE_LIMIT_PER_MINUTE=20
 JYOTI_DAILY_LIMIT=200
 ```
+
+Both Jyoti chat (`/jyoti/chat`) and the Sushil Sir explainer (`/jyoti/explain`) use this OpenRouter
+configuration. When the LLM fails, the API returns `503 AI_SERVICE_UNAVAILABLE` (or `502
+AI_RESPONSE_INVALID`) in the standard error envelope and the app shows a friendly "unavailable,
+please try again" message with a retry button. No canned or invented answer is ever returned.

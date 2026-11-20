@@ -3,10 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_required_gate.dart';
 import '../../../core/auth/feature_access_service.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/loading_indicator.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../models/course_models.dart';
 import '../providers/courses_provider.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
@@ -27,22 +24,10 @@ class CourseDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<CourseDetailScreen> createState() => _CourseDetailScreenState();
 }
 
-class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
+  /// 0 = curriculum & syllabus, 1 = overview.
+  int _section = 0;
   bool _isProcessingEnrollment = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   Future<void> _handleEnrollment(CourseDetailModel course) async {
     AuthRequiredGate.checkAndProceed(
@@ -80,175 +65,100 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     final basePriceRupees = (course.priceRupees * 10000) ~/ 11800;
     final gstRupees = course.priceRupees - basePriceRupees;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.cardSurfaceWarm,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border(
-              top: BorderSide(color: AppColors.cardBorder, width: 1.5),
-              left: BorderSide(color: AppColors.cardBorder, width: 1),
-              right: BorderSide(color: AppColors.cardBorder, width: 1),
-            ),
-          ),
-          padding: EdgeInsets.only(
-            top: 16,
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    Widget line(String label, String value, {bool total = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+              Expanded(
+                child: Text(
+                  label,
+                  style: total
+                      ? const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary)
+                      : const TextStyle(color: AppColors.textSecondary, fontSize: 15),
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Complete Masterclass Enrollment',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextPrimary,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Text(
+                value,
+                style: total
+                    ? const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary)
+                    : const TextStyle(color: AppColors.textPrimary, fontSize: 15),
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Masterclass:', style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            course.title,
-                            textAlign: TextAlign.end,
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary, fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Base Course Fee:', style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13)),
-                        Text('₹$basePriceRupees', style: const TextStyle(color: AppColors.lightTextPrimary, fontSize: 13)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('GST (18% Included):', style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 13)),
-                        Text('₹$gstRupees', style: const TextStyle(color: AppColors.lightTextPrimary, fontSize: 13)),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    const Divider(height: 1, color: AppColors.cardBorder),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total Payable:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary)),
-                        Text(
-                          '₹${course.priceRupees}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Instant unlocking across both mobile app and Astro Sushil Graphy Learning Cloud portal upon confirmation.',
-                        style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary, height: 1.4),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Payment order initialized. Secure gateway checkout ready.'),
-                        backgroundColor: AppColors.primary,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
+            ],
+          ),
+        );
+
+    showAstroSheet<void>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const AstroIconSquare(icon: Icons.school_rounded, tint: AstroTint.violet, size: 44),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Semantics(
+                  header: true,
                   child: Text(
-                    'Proceed to Pay ₹${course.priceRupees}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    'Complete Masterclass Enrollment',
+                    style: AppTypography.headlineLarge.copyWith(fontSize: 20, height: 1.25),
                   ),
                 ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 16),
+          AstroSurfaceCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Masterclass:', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        course.title,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 15),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                line('Base Course Fee:', '₹$basePriceRupees'),
+                line('GST (18% Included):', '₹$gstRupees'),
+                const Divider(height: 20, color: AppColors.separator),
+                line('Total Payable:', '₹${course.priceRupees}', total: true),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const AstroNote(
+            'Instant unlocking across both mobile app and Astro Sushil Graphy Learning Cloud portal upon confirmation.',
+            icon: Icons.lock_outline_rounded,
+          ),
+          const SizedBox(height: 20),
+          AstroPrimaryButton(
+            label: 'Proceed to Pay ₹${course.priceRupees}',
+            icon: Icons.lock_rounded,
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment order initialized. Secure gateway checkout ready.'),
+                  backgroundColor: AppColors.primary,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -258,232 +168,112 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     final locale = Localizations.localeOf(context);
     final langCode = locale.languageCode;
     final courseAsync = ref.watch(courseDetailProvider(widget.idOrSlug));
+    final course = courseAsync.valueOrNull;
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
+    final firstLessonId = course != null && course.sections.isNotEmpty && course.sections.first.lessons.isNotEmpty
+        ? course.sections.first.lessons.first.id
+        : null;
+
+    return AstroPage(
+      title: l10n.coursesNavTitle,
+      onRefresh: () async => ref.invalidate(courseDetailProvider(widget.idOrSlug)),
+      bottomBar: course == null
+          ? null
+          : _BottomPurchaseBar(
+              course: course,
+              isProcessing: _isProcessingEnrollment,
+              onEnroll: () => _handleEnrollment(course),
+              onContinue: () {
+                if (firstLessonId != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CoursePlayerScreen(lessonId: firstLessonId),
+                    ),
+                  );
+                }
+              },
+            ),
+      child: courseAsync.when(
+        loading: () =>
+            const SizedBox(height: 320, child: AstroStateView.loading(message: 'Loading course syllabus...')),
+        error: (err, _) => AstroStateView.error(
+          compact: true,
+          message: err.toString(),
+          retryLabel: 'Retry',
+          onRetry: () => ref.refresh(courseDetailProvider(widget.idOrSlug)),
         ),
-        title: Text(
-          l10n.coursesNavTitle,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          courseAsync.maybeWhen(
-            data: (course) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: SushilExplainerButton(
-                isCompact: true,
-                label: langCode == 'hi' ? 'पाठ्यक्रम समझें' : 'Explain syllabus',
-                contextData: ExplanationContext(
-                  feature: 'course_detail',
-                  screenTitle: course.title,
-                  data: {
-                    'courseId': course.id,
-                    'title': course.title,
-                    'level': course.level.displayName,
-                    'durationMinutes': course.totalDurationMinutes,
-                    'lessonsCount': course.sections.fold<int>(0, (acc, s) => acc + s.lessons.length),
-                    'curriculum': course.sections
-                        .map((s) => {
-                              'title': s.title,
-                              'lessons': s.lessons.map((l) => l.title).toList(),
-                            })
-                        .toList(),
-                  },
-                ),
+        data: (course) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _CourseHeaderBanner(course: course, langCode: langCode),
+            const SizedBox(height: 16),
+            SushilExplainerButton(
+              label: langCode == 'hi' ? 'पाठ्यक्रम समझें' : 'Explain syllabus',
+              contextData: ExplanationContext(
+                feature: 'course_detail',
+                screenTitle: course.title,
+                data: {
+                  'courseId': course.id,
+                  'title': course.title,
+                  'level': course.level.displayName,
+                  'durationMinutes': course.totalDurationMinutes,
+                  'lessonsCount': course.sections.fold<int>(0, (acc, s) => acc + s.lessons.length),
+                  'curriculum': course.sections
+                      .map((s) => {
+                            'title': s.title,
+                            'lessons': s.lessons.map((l) => l.title).toList(),
+                          })
+                      .toList(),
+                },
               ),
             ),
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: courseAsync.when(
-          loading: () => const LoadingIndicator(message: 'Loading course syllabus...'),
-          error: (err, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                  const SizedBox(height: 12),
-                  Text(err.toString(), textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => ref.refresh(courseDetailProvider(widget.idOrSlug)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 48),
-                    ),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          data: (course) {
-            final firstLessonId = course.sections.isNotEmpty &&
-                    course.sections.first.lessons.isNotEmpty
-                ? course.sections.first.lessons.first.id
-                : null;
-
-            return Column(
-              children: [
-                Expanded(
-                  child: NestedScrollView(
-                    headerSliverBuilder: (ctx, innerBoxIsScrolled) {
-                      return [
-                        SliverToBoxAdapter(
-                          child: _CourseHeaderBanner(
-                            course: course,
-                            langCode: langCode,
-                          ),
-                        ),
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _SliverTabHeaderDelegate(
-                            TabBar(
-                              controller: _tabController,
-                              indicatorColor: AppColors.gold,
-                              indicatorWeight: 3,
-                              labelColor: AppColors.primary,
-                              unselectedLabelColor: AppColors.lightTextSecondary,
-                              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              tabs: [
-                                Tab(text: l10n.courseSyllabus),
-                                Tab(text: l10n.courseOverview),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ];
-                    },
-                    body: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        // Curriculum & Syllabus Tab
-                        _SyllabusView(
-                          course: course,
-                          langCode: langCode,
-                          onLessonTap: (lesson) {
-                            if (course.isEnrolled || lesson.isFreePreview) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => CoursePlayerScreen(lessonId: lesson.id),
-                                ),
-                              );
-                            } else {
-                              _showLockedLessonDialog(lesson);
-                            }
-                          },
-                        ),
-
-                        // Overview Tab
-                        _OverviewView(
-                          course: course,
-                          langCode: langCode,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Bottom Sticky Purchase & Action Bar
-                _BottomPurchaseBar(
-                  course: course,
-                  isProcessing: _isProcessingEnrollment,
-                  onEnroll: () => _handleEnrollment(course),
-                  onContinue: () {
-                    if (firstLessonId != null) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => CoursePlayerScreen(lessonId: firstLessonId),
-                        ),
-                      );
-                    }
-                  },
-                ),
+            const SizedBox(height: 24),
+            AstroSegmentedControl<int>(
+              segments: [
+                AstroSegment(value: 0, label: l10n.courseSyllabus),
+                AstroSegment(value: 1, label: l10n.courseOverview),
               ],
-            );
-          },
+              selected: _section,
+              onChanged: (v) => setState(() => _section = v),
+            ),
+            const SizedBox(height: 20),
+            if (_section == 0)
+              _SyllabusView(
+                course: course,
+                langCode: langCode,
+                onLessonTap: (lesson) {
+                  if (course.isEnrolled || lesson.isFreePreview) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CoursePlayerScreen(lessonId: lesson.id),
+                      ),
+                    );
+                  } else {
+                    _showLockedLessonDialog(lesson);
+                  }
+                },
+              )
+            else
+              _OverviewView(course: course, langCode: langCode),
+          ],
         ),
       ),
     );
   }
 
   void _showLockedLessonDialog(CourseLessonModel lesson) {
-    showDialog(
+    // Both choices simply close the dialog (enrollment lives in the bottom bar).
+    showAstroConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardSurfaceWarm,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.cardBorder),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.lock_rounded, color: AppColors.secondary, size: 22),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Premium Masterclass Lesson',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: AppColors.primary),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              lesson.title,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.lightTextPrimary),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'This lesson contains exclusive proprietary techniques from Astro Sushil Kumar Singh. Enroll in the masterclass to unlock instant streaming access to all lectures.',
-              style: TextStyle(fontSize: 13, color: AppColors.lightTextSecondary, height: 1.4),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.lightTextSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('View Enrollment'),
-          ),
-        ],
-      ),
+      title: 'Premium Masterclass Lesson',
+      message: '${lesson.title}\n\n'
+          'This lesson contains exclusive proprietary techniques from Astro Sushil Kumar Singh. Enroll in the masterclass to unlock instant streaming access to all lectures.',
+      confirmLabel: 'View Enrollment',
     );
   }
 }
 
+/// Hero card: course artwork, serif title, badges, instructor and length.
 class _CourseHeaderBanner extends StatelessWidget {
   final CourseDetailModel course;
   final String langCode;
@@ -520,152 +310,103 @@ class _CourseHeaderBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return Container(
-      color: AppColors.cardSurfaceWarm,
-      padding: const EdgeInsets.all(16),
+    Widget chip(String label, {IconData? icon, bool gold = false}) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: gold ? AppColors.gold.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: gold ? AppColors.gold.withValues(alpha: 0.6) : Colors.white24),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: AppColors.gold),
+                const SizedBox(width: 5),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    Widget meta(IconData icon, String text) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: AppColors.gold),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(text, style: const TextStyle(fontSize: 15, color: AppColors.textInverseSecondary)),
+            ),
+          ],
+        );
+
+    return AstroGradientCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              height: 185,
-              width: double.infinity,
-              color: AppColors.primary,
-              child: _buildThumbnail(),
-            ),
+          // Artwork, full bleed at the top of the card.
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ColoredBox(color: AppColors.primary, child: _buildThumbnail()),
           ),
-          const SizedBox(height: 14),
-
-          // Badges
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.tertiary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Text(
-                  course.level.displayName.toUpperCase(),
-                  style: const TextStyle(
-                    color: AppColors.secondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.canvas,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Text(
-                  course.language,
-                  style: const TextStyle(
-                    color: AppColors.lightTextSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
-                    Icon(Icons.verified, size: 14, color: AppColors.gold),
-                    SizedBox(width: 4),
-                    Text(
-                      'Official Course',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
+                    chip(course.level.displayName),
+                    chip(course.language),
+                    chip('Official Course', icon: Icons.verified, gold: true),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Title
-          Text(
-            course.getLocalizedTitle(langCode),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.lightTextPrimary,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Instructor
-          Row(
-            children: [
-              const CircleAvatar(
-                radius: 14,
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.person, size: 16, color: Colors.white),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  course.instructorName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.lightTextSecondary,
+                const SizedBox(height: 12),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    course.getLocalizedTitle(langCode),
+                    style: AppTypography.headlineLarge.copyWith(fontSize: 24, color: Colors.white, height: 1.25),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(Icons.verified, size: 16, color: AppColors.gold),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Duration & Lessons Count
-          Wrap(
-            spacing: 16,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.access_time_rounded, size: 16, color: AppColors.secondary),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${course.totalDurationMinutes} mins total duration',
-                    style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.play_circle_outline, size: 16, color: AppColors.secondary),
-                  const SizedBox(width: 6),
-                  Text(
-                    l10n.courseLessonCount(course.totalLessonsCount.toString()),
-                    style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary),
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AppColors.gold,
+                      child: Icon(Icons.person, size: 16, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        course.instructorName,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.verified, size: 16, color: AppColors.gold),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 6,
+                  children: [
+                    meta(Icons.access_time_rounded, '${course.totalDurationMinutes} mins total duration'),
+                    meta(Icons.play_circle_outline, l10n.courseLessonCount(course.totalLessonsCount.toString())),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -712,6 +453,7 @@ class _FallbackBanner extends StatelessWidget {
   }
 }
 
+/// Curriculum: one inset-grouped section per module, one row per lesson.
 class _SyllabusView extends StatelessWidget {
   final CourseDetailModel course;
   final String langCode;
@@ -727,93 +469,73 @@ class _SyllabusView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: course.sections.length,
-      itemBuilder: (ctx, sIndex) {
-        final section = course.sections[sIndex];
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Material(
-            color: AppColors.cardSurfaceWarm,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: AppColors.cardBorder),
-            ),
-            child: ExpansionTile(
-              initiallyExpanded: true,
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              title: Text(
-                section.getLocalizedTitle(langCode),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.lightTextPrimary,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final section in course.sections)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          section.getLocalizedTitle(langCode),
+                          style: AppTypography.headlineMedium.copyWith(fontSize: 18),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text('${section.lessons.length} lessons', style: AppTypography.rowSubtitle),
+                    ],
+                  ),
                 ),
-              ),
-              subtitle: Text(
-                '${section.lessons.length} lessons',
-                style: const TextStyle(fontSize: 12, color: AppColors.lightTextMuted),
-              ),
-              children: section.lessons.map((lesson) {
-                final isUnlocked = course.isEnrolled || lesson.isFreePreview;
-
-                return ListTile(
-                  onTap: () => onLessonTap(lesson),
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: isUnlocked
-                        ? (lesson.isFreePreview
-                            ? AppColors.gold.withValues(alpha: 0.18)
-                            : AppColors.success.withValues(alpha: 0.15))
-                        : AppColors.canvas,
-                    child: Icon(
-                      isUnlocked
-                          ? (lesson.isCompleted ? Icons.check : Icons.play_arrow_rounded)
-                          : Icons.lock_outline_rounded,
-                      size: 18,
-                      color: isUnlocked
-                          ? (lesson.isFreePreview ? AppColors.primary : AppColors.success)
-                          : AppColors.lightTextMuted,
-                    ),
-                  ),
-                  title: Text(
-                    lesson.getLocalizedTitle(langCode),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isUnlocked ? AppColors.lightTextPrimary : AppColors.lightTextSecondary,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${lesson.durationMinutes} mins',
-                    style: const TextStyle(fontSize: 12, color: AppColors.lightTextMuted),
-                  ),
-                  trailing: lesson.isFreePreview && !course.isEnrolled
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.gold.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AppColors.gold, width: 0.8),
-                          ),
-                          child: Text(
-                            l10n.courseFreePreview,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        )
-                      : null,
-                );
-              }).toList(),
+                AstroGroupedSection(
+                  children: [
+                    for (final lesson in section.lessons)
+                      Builder(builder: (context) {
+                        final isUnlocked = course.isEnrolled || lesson.isFreePreview;
+                        return AstroListRow(
+                          icon: isUnlocked
+                              ? (lesson.isCompleted ? Icons.check_rounded : Icons.play_arrow_rounded)
+                              : Icons.lock_outline_rounded,
+                          tint:
+                              isUnlocked ? (lesson.isFreePreview ? AstroTint.amber : AstroTint.sage) : AstroTint.slate,
+                          title: lesson.getLocalizedTitle(langCode),
+                          titleColor: isUnlocked ? AppColors.textPrimary : AppColors.textSecondary,
+                          subtitle: '${lesson.durationMinutes} mins',
+                          trailing: lesson.isFreePreview && !course.isEnrolled
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AstroTint.amber.background,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    l10n.courseFreePreview,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AstroTint.amber.foreground,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          showChevron: true,
+                          onTap: () => onLessonTap(lesson),
+                        );
+                      }),
+                  ],
+                ),
+              ],
             ),
           ),
-        );
-      },
+      ],
     );
   }
 }
@@ -829,119 +551,69 @@ class _OverviewView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceWarm,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.cardBorder),
+    Widget heading(IconData icon, AstroTint tint, String text) => Row(
+          children: [
+            AstroIconSquare(icon: icon, tint: tint),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(text, style: AppTypography.headlineMedium),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'About This Masterclass',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.lightTextPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  course.getLocalizedDescription(langCode),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.lightTextSecondary,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Divider(height: 1, color: AppColors.cardBorder),
-                const SizedBox(height: 16),
-                const Text(
-                  'Key Deliverables & Learning Objectives',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const _ObjectiveBullet(text: 'Structured video lectures covering foundational and advanced techniques.'),
-                const _ObjectiveBullet(text: 'Practical case studies and real horoscope breakdowns for event timing.'),
-                const _ObjectiveBullet(text: 'Classical Gupta Nadi and Shri K.N. Rao methodology rules.'),
-                const _ObjectiveBullet(text: 'Exclusive access to learning community on official Graphy Cloud LMS.'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+          ],
+        );
 
-          // Instructor Information Card
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceWarm,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.cardBorder),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.person_pin_rounded, color: AppColors.primary, size: 20),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Instructor Profile',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.lightTextPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Astro Sushil Kumar Singh',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Principal Astrologer & Vedic Shastra Expert with 25+ years of active consultation, research, and astrological teaching experience.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.lightTextSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AstroSurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              heading(Icons.info_outline_rounded, AstroTint.indigo, 'About This Masterclass'),
+              const SizedBox(height: 12),
+              Text(
+                course.getLocalizedDescription(langCode),
+                style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppColors.separator),
+              const SizedBox(height: 16),
+              Text(
+                'Key Deliverables & Learning Objectives',
+                style: AppTypography.rowTitle.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              const _ObjectiveBullet(text: 'Structured video lectures covering foundational and advanced techniques.'),
+              const _ObjectiveBullet(text: 'Practical case studies and real horoscope breakdowns for event timing.'),
+              const _ObjectiveBullet(text: 'Classical Gupta Nadi and Shri K.N. Rao methodology rules.'),
+              const _ObjectiveBullet(text: 'Exclusive access to learning community on official Graphy Cloud LMS.'),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+
+        // Instructor Information Card
+        AstroSurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              heading(Icons.person_pin_rounded, AstroTint.amber, 'Instructor Profile'),
+              const SizedBox(height: 12),
+              const Text(
+                'Astro Sushil Kumar Singh',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Principal Astrologer & Vedic Shastra Expert with 25+ years of active consultation, research, and astrological teaching experience.',
+                style: TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.45),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -958,12 +630,15 @@ class _ObjectiveBullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
-          const SizedBox(width: 8),
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.check_circle_rounded, color: AppColors.successText, size: 18),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary, height: 1.4),
+              style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.4),
             ),
           ),
         ],
@@ -988,129 +663,106 @@ class _BottomPurchaseBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final isHindi = Localizations.localeOf(context).languageCode == 'hi';
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceWarm,
-        border: const Border(top: BorderSide(color: AppColors.cardBorder)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF121440).withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
+    final Widget content;
+    if (course.isEnrolled) {
+      final started = course.progressPercent > 0;
+      final progress = (course.progressPercent / 100).clamp(0.0, 1.0);
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Visible progress
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: AppColors.cardBorder,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                isHindi ? '${course.progressPercent}% पूरा' : '${course.progressPercent}% done',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.tintSageText),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AstroPrimaryButton(
+            label: started ? l10n.courseContinueLearning : (isHindi ? 'पाठ्यक्रम शुरू करें' : 'Start Course'),
+            icon: Icons.play_circle_fill_rounded,
+            onPressed: onContinue,
           ),
         ],
+      );
+    } else {
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 8,
+            runSpacing: 2,
+            children: [
+              Text(
+                '₹${course.priceRupees}',
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              if (course.originalPriceRupees != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    '₹${course.originalPriceRupees}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      decoration: TextDecoration.lineThrough,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  l10n.courseIncludesGst,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          AstroPrimaryButton(
+            label: l10n.courseEnrollNow,
+            isLoading: isProcessing,
+            onPressed: onEnroll,
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AstroMetrics.gutter, 12, AstroMetrics.gutter, 12),
+      decoration: const BoxDecoration(
+        color: AppColors.cardSurface,
+        border: Border(top: BorderSide(color: AppColors.separator, width: 0.5)),
       ),
       child: SafeArea(
         top: false,
-        child: course.isEnrolled
-            ? SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: onContinue,
-                  icon: const Icon(Icons.play_circle_fill_rounded, size: 20),
-                  label: Text(
-                    l10n.courseContinueLearning,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 6,
-                          children: [
-                            Text(
-                              '₹${course.priceRupees}',
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            if (course.originalPriceRupees != null)
-                              Text(
-                                '₹${course.originalPriceRupees}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  decoration: TextDecoration.lineThrough,
-                                  color: AppColors.lightTextMuted,
-                                ),
-                              ),
-                          ],
-                        ),
-                        Text(
-                          l10n.courseIncludesGst,
-                          style: const TextStyle(fontSize: 11, color: AppColors.lightTextMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isProcessing ? null : onEnroll,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: isProcessing
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(
-                              l10n.courseEnrollNow,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: AstroMetrics.maxContentWidth),
+            child: content,
+          ),
+        ),
       ),
     );
-  }
-}
-
-class _SliverTabHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar _tabBar;
-
-  _SliverTabHeaderDelegate(this._tabBar);
-
-  @override
-  double get minExtent => _tabBar.preferredSize.height;
-  @override
-  double get maxExtent => _tabBar.preferredSize.height;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.canvas,
-      child: _tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverTabHeaderDelegate oldDelegate) {
-    return false;
   }
 }

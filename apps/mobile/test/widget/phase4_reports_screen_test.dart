@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../helpers/report_catalog_fixture.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astro_mobile/home/screens/reports_screen.dart';
+import 'package:astro_mobile/features/reports/models/user_report_item_model.dart';
+import 'package:astro_mobile/features/reports/providers/reports_provider.dart';
 import 'package:astro_mobile/core/localization/locale_provider.dart';
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
@@ -33,6 +36,9 @@ void main() {
 
     return ProviderScope(
       overrides: [
+            reportCatalogTestOverride,
+        // My reports is now on the same page; keep it off the network.
+        userReportsProvider.overrideWith((ref) async => const <UserReportItemModel>[]),
         birthProfilesListNotifierProvider.overrideWith(
           (ref) => MockBirthProfilesNotifier([sampleProfile]),
         ),
@@ -50,26 +56,29 @@ void main() {
     await tester.pumpAndSettle();
 
     // 1. Featured Career report
-    expect(find.text('Career & Professional Life'), findsOneWidget);
-    expect(find.text('PREMIUM PDF'), findsOneWidget);
+    expect(find.text('Career & Professional Life Report'), findsOneWidget);
+    expect(find.text('₹499'), findsWidgets); // career price from server catalogue
 
     // 2. Kundli report (₹299)
-    expect(find.text('Birth Chart & Kundli Report'), findsOneWidget);
+    expect(find.text('Janma Kundli & Birth Chart Report'), findsOneWidget);
     expect(find.text('₹299'), findsOneWidget);
 
     // 3. Mini Horoscope (₹199)
-    expect(find.text('Mini Horoscope & Transit Forecast'), findsOneWidget);
+    expect(find.text('Planetary Dynamics & Dignity Summary'), findsOneWidget);
     expect(find.text('₹199'), findsOneWidget);
 
-    // 4. Pro Horoscope (₹699)
-    expect(find.text('Pro Horoscope & Divisional Charts'), findsOneWidget);
-    expect(find.text('₹699'), findsOneWidget);
+    // 4. Pro Horoscope / Executive Career was retired (only one career report):
+    // it is inactive in the server catalogue and must not be shown or sold.
+    expect(find.text('Executive Career & Wealth Prosperity Dossier'), findsNothing);
+    expect(find.text('Pro Horoscope & Divisional Charts'), findsNothing);
+    expect(find.text('₹699'), findsNothing);
 
     // 5. Matchmaking Report (₹499)
-    expect(find.text('Marriage & Relationship Report'), findsOneWidget);
+    expect(find.text('Marriage & Relationship Compatibility Report'), findsOneWidget);
     expect(find.text('₹499'), findsWidgets);
 
-    // Verify 100% Deterministic Engine pill badge
-    expect(find.text('100% Deterministic Engine'), findsOneWidget);
+    // Simple layout: one heading and the "Get a report" tab
+    expect(find.text('Reports'), findsOneWidget);
+    expect(find.text('Get a report'), findsOneWidget);
   });
 }

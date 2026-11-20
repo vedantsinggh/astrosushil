@@ -1,12 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/astro_card.dart';
-import '../../../shared/widgets/astro_chip.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_image.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../widgets/astrology_tab_bar.dart';
 
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
@@ -60,107 +56,117 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
   Widget build(BuildContext context) {
     final cleanName = widget.planetName.replaceAll('(R)', '').trim();
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: cleanName,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share_rounded, color: AppColors.primary, size: 20),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Sharing placement details for $cleanName...')),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            physics: const BouncingScrollPhysics(),
+    return AstroPage(
+      title: cleanName,
+      actions: [
+        AstroNavAction(
+          icon: AstroIcons.share(context),
+          tooltip: 'Share $cleanName placement',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Sharing placement details for $cleanName...')),
+            );
+          },
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. HERO: planet emblem + placement summary
+          AstroGradientCard(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. CELESTIAL PLANET EMBLEM VISUAL WITH ASSET LOADING
                 _buildPlanetVisualEmblem(cleanName),
-
                 const SizedBox(height: 16),
-
-                // 2. PLACEMENT SUMMARY TITLES
                 Text(
                   cleanName.toUpperCase(),
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                    letterSpacing: 1.5,
+                    fontFamily: AppTypography.bodyFamily,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.gold,
+                    letterSpacing: 1.6,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   '${widget.signName.isNotEmpty ? widget.signName : 'N/A'} • ${widget.degree}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                  textAlign: TextAlign.center,
+                  style: AppTypography.headlineLarge.copyWith(fontSize: 24, color: Colors.white, height: 1.2),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'House ${widget.houseNumber}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.lightTextSecondary,
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Sushil Sir Explainer Button
-                SushilExplainerButton(
-                  contextBuilder: () => _buildExplanationContext(cleanName),
-                  poseAsset: AppAssets.sushilExplaining,
-                ),
-
-                const SizedBox(height: 16),
-
-                // 3. SEGMENTED NAVIGATION TABS
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                const SizedBox(height: 12),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    AstroChip(
-                      label: 'Overview',
-                      isSelected: _selectedTab == 0,
-                      onTap: () => setState(() => _selectedTab = 0),
-                    ),
-                    const SizedBox(width: 8),
-                    AstroChip(
-                      label: 'Placement',
-                      isSelected: _selectedTab == 1,
-                      onTap: () => setState(() => _selectedTab = 1),
-                    ),
-                    const SizedBox(width: 8),
-                    AstroChip(
-                      label: 'Meaning',
-                      isSelected: _selectedTab == 2,
-                      onTap: () => setState(() => _selectedTab = 2),
-                    ),
+                    _heroPill(Icons.home_work_rounded, 'House ${widget.houseNumber}'),
+                    if (widget.nakshatraName != null && widget.nakshatraName!.isNotEmpty)
+                      _heroPill(Icons.auto_awesome_rounded, widget.nakshatraName!),
+                    if (widget.isRetrograde) _heroPill(Icons.replay_rounded, 'Retrograde'),
                   ],
                 ),
-
-                const SizedBox(height: 24),
-
-                // 4. STRUCTURED INTERPRETATION SECTIONS
-                _buildStructuredSections(cleanName),
-
-                const SizedBox(height: 24),
               ],
             ),
           ),
-        ),
+
+          const SizedBox(height: 16),
+
+          // Sushil Sir Explainer Button
+          SushilExplainerButton(
+            contextBuilder: () => _buildExplanationContext(cleanName),
+            poseAsset: AppAssets.sushilExplaining,
+          ),
+
+          const SizedBox(height: 16),
+
+          // 3. SEGMENTED NAVIGATION TABS
+          AstrologyTabBar(
+            selectedIndex: _selectedTab,
+            onTabSelected: (index) => setState(() => _selectedTab = index),
+            tabs: const [
+              AstrologyTabItem(label: 'Overview'),
+              AstrologyTabItem(label: 'Placement'),
+              AstrologyTabItem(label: 'Meaning'),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // 4. STRUCTURED INTERPRETATION SECTIONS
+          _buildStructuredSections(cleanName),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroPill(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.gold),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontFamily: AppTypography.bodyFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -174,21 +180,14 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.lightSurface,
-        border: Border.all(color: AppColors.lightBorder, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.55), width: 1.5),
       ),
       child: ClipOval(
         child: Stack(
           alignment: Alignment.center,
           children: [
             // Celestial background layer
-            AstroImage(
+            const AstroImage(
               assetPath: AppAssets.subtleCelestialBackground,
               fit: BoxFit.cover,
               width: 140,
@@ -223,142 +222,59 @@ class _PlanetDetailScreenState extends State<PlanetDetailScreen> {
     final houseText = _getHouseInterpretation(planet, widget.houseNumber);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // SECTION 1: ABOUT THE PLANET
-        AstroCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.wb_sunny_outlined, size: 18, color: AppColors.premiumAccent),
-                  const SizedBox(width: 8),
-                  Text(
-                    'About the $planet',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                overviewText,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.lightTextSecondary,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
+        _section(
+          icon: Icons.wb_sunny_rounded,
+          tint: AstroTint.amber,
+          title: 'About the $planet',
+          body: overviewText,
         ),
-
         const SizedBox(height: 14),
-
-        // SECTION 2: PLANET IN SIGN
-        AstroCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        widget.signName.isNotEmpty ? widget.signName.substring(0, 1) : '?',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '$planet in ${widget.signName.isNotEmpty ? widget.signName : 'Sign'}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                signText,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.lightTextSecondary,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
+        _section(
+          icon: Icons.brightness_5_rounded,
+          tint: AstroTint.indigo,
+          title: '$planet in ${widget.signName.isNotEmpty ? widget.signName : 'Sign'}',
+          body: signText,
         ),
-
         const SizedBox(height: 14),
-
-        // SECTION 3: PLANET IN HOUSE
-        AstroCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${widget.houseNumber}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '$planet in the ${_getOrdinal(widget.houseNumber)} House',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                houseText,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.lightTextSecondary,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
+        _section(
+          icon: Icons.home_work_rounded,
+          tint: AstroTint.sage,
+          title: '$planet in the ${_getOrdinal(widget.houseNumber)} House',
+          body: houseText,
         ),
       ],
+    );
+  }
+
+  Widget _section({required IconData icon, required AstroTint tint, required String title, required String body}) {
+    return AstroSurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AstroIconSquare(icon: icon, tint: tint, size: 38),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: AppTypography.headlineLarge.copyWith(fontSize: 19, height: 1.25),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            body,
+            style: AppTypography.bodyLarge.copyWith(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+          ),
+        ],
+      ),
     );
   }
 
@@ -420,7 +336,7 @@ class _PlanetEmblemPainter extends CustomPainter {
     final radius = size.width * 0.28;
 
     final linePaint = Paint()
-      ..color = AppColors.primary.withOpacity(0.2)
+      ..color = AppColors.primary.withValues(alpha: 0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -430,7 +346,7 @@ class _PlanetEmblemPainter extends CustomPainter {
       ..strokeWidth = 1.5;
 
     final fillGold = Paint()
-      ..color = AppColors.premiumAccent.withOpacity(0.25)
+      ..color = AppColors.premiumAccent.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill;
 
     // Concentric orbital circles

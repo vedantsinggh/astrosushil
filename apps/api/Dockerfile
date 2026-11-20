@@ -22,8 +22,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-xetex \
     texlive-latex-extra \
+    texlive-fonts-recommended \
     fonts-open-sans \
     fonts-texgyre \
+    fonts-noto-core \
+    poppler-utils \
     fontconfig \
     ghostscript \
     && rm -rf /var/lib/apt/lists/*

@@ -243,7 +243,14 @@ model Report {
   claimVersion       Int              @default(0)
   recoveryAttempts   Int              @default(0)
   executionAttempts  Int              @default(0)
+  /// Earliest time the queue may claim this report again (crash recovery and scheduled generation retries).
   retryAfter         DateTime?
+  /// Transient generation failures since the report was last (re)queued by a user or admin.
+  generationFailures Int              @default(0)
+  lastAttemptAt      DateTime?
+  /// Internal diagnostics of the last failed attempt; never returned to customers.
+  lastAttemptErrorCode    String?
+  lastAttemptErrorMessage String?
   birthProfile       BirthProfile     @relation(fields: [birthProfileId], references: [id], onDelete: Cascade)
   order              Order?           @relation(fields: [orderId], references: [id])
   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -433,6 +440,7 @@ enum ReportType {
   RAHU_KETU_TRANSIT
   VARSHPHAL
   FORTUNE_PLUS
+  BABY_NAME
 }
 
 enum ReportStatus {
@@ -947,4 +955,53 @@ model RefundItemAllocation {
   @@index([orderId])
   @@index([orderItemId])
   @@map("refund_item_allocations")
+}
+
+/// LLM narrative cache for the universal report platform (packages/report-engine/src/platform).
+/// The key hashes snapshot, subject, report spec, topic, prompt version, evidence fingerprint and model,
+/// so cached narrative can never be served to a different client or a changed chart.
+model ReportTopicCache {
+  key          String   @id
+  subjectRef   String
+  snapshotId   String
+  definitionId String
+  topicId      String
+  model        String
+  provider     String
+  generationId String
+  parts        Json
+  payload      Json
+  tokens       Json
+  latencyMs    Int
+  createdAt    DateTime @default(now())
+
+  @@index([subjectRef])
+  @@index([definitionId, topicId])
+  @@map("report_topic_cache")
+}
+
+/// Daily Rashi Bhavishya (Moon-sign horoscope): one validated narrative per IST date, Moon sign,
+/// language and method version, shared by every user with that Moon sign. `facts` holds the
+/// deterministic gochara facts the narrative was written from (modules/rashi-bhavishya).
+/// Only validated narrative is stored; failures are never written here.
+model RashiDailyHoroscope {
+  id            String   @id @default(uuid())
+  date          String
+  rashiIndex    Int
+  language      String   @default("en")
+  methodVersion String
+  promptVersion String
+  factsHash     String
+  facts         Json
+  narrative     Json
+  provider      String
+  model         String
+  generationId  String
+  tokens        Json
+  latencyMs     Int
+  createdAt     DateTime @default(now())
+
+  @@unique([date, rashiIndex, language, methodVersion, promptVersion])
+  @@index([date])
+  @@map("rashi_daily_horoscopes")
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../shared/theme/app_colors.dart';
 
+/// Small rounded status pill. Labels use plain sentence case and
+/// high-contrast text colours on soft tinted fills.
 class OrderStatusBadge extends StatelessWidget {
   final String status;
   final String? fulfillmentStatus;
@@ -11,67 +13,71 @@ class OrderStatusBadge extends StatelessWidget {
     this.fulfillmentStatus,
   });
 
+  static String _sentenceCase(String raw) {
+    final s = raw.replaceAll('_', ' ').toLowerCase();
+    return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     Color bg;
     Color fg;
-    String label = status.toUpperCase();
+    String label = _sentenceCase(status);
 
     if (fulfillmentStatus != null && fulfillmentStatus!.isNotEmpty) {
       final fStatus = fulfillmentStatus!.toUpperCase();
       if (fStatus == 'DELIVERED' || fStatus == 'FULFILLED') {
-        bg = AppColors.success.withValues(alpha: 0.15);
-        fg = AppColors.success;
-        label = fStatus == 'DELIVERED' ? 'DELIVERED' : 'COMPLETED';
+        bg = AppColors.successBg;
+        fg = AppColors.tintSageText;
+        label = fStatus == 'DELIVERED' ? 'Delivered' : 'Completed';
       } else if (fStatus == 'DISPATCHED') {
-        bg = AppColors.secondary.withValues(alpha: 0.15);
+        bg = AppColors.tintVioletBg;
         fg = AppColors.secondary;
-        label = 'DISPATCHED';
+        label = 'Dispatched';
       } else if (fStatus == 'PROCESSING') {
-        bg = AppColors.warning.withValues(alpha: 0.15);
-        fg = AppColors.warning;
-        label = 'PROCESSING';
+        bg = AppColors.warningBg;
+        fg = AppColors.goldDark;
+        label = 'Processing';
       } else if (fStatus == 'CANCELLED') {
-        bg = AppColors.error.withValues(alpha: 0.15);
-        fg = AppColors.error;
-        label = 'CANCELLED';
+        bg = AppColors.errorBg;
+        fg = AppColors.tintRoseText;
+        label = 'Cancelled';
       } else {
-        bg = AppColors.primary.withValues(alpha: 0.1);
+        bg = AppColors.cardSurfaceParchment;
         fg = AppColors.primary;
-        label = fStatus;
+        label = _sentenceCase(fStatus);
       }
     } else {
       if (status == 'PAID') {
-        bg = AppColors.success.withValues(alpha: 0.15);
-        fg = AppColors.success;
-        label = 'PAID';
+        bg = AppColors.successBg;
+        fg = AppColors.tintSageText;
+        label = 'Paid';
       } else if (status == 'PENDING') {
-        bg = AppColors.warning.withValues(alpha: 0.15);
-        fg = AppColors.warning;
-        label = 'PAYMENT PENDING';
+        bg = AppColors.warningBg;
+        fg = AppColors.goldDark;
+        label = 'Payment pending';
       } else if (status == 'FAILED' || status == 'CANCELLED') {
-        bg = AppColors.error.withValues(alpha: 0.15);
-        fg = AppColors.error;
-        label = status;
+        bg = AppColors.errorBg;
+        fg = AppColors.tintRoseText;
+        label = _sentenceCase(status);
       } else {
-        bg = AppColors.primary.withValues(alpha: 0.1);
+        bg = AppColors.cardSurfaceParchment;
         fg = AppColors.primary;
       }
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: fg,
-          fontSize: 11,
+          fontSize: 14,
           fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
         ),
       ),
     );

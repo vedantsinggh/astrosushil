@@ -1,3 +1,4 @@
+import { evaluatePrashnaKarya } from './prashna-karya';
 import { AstroChart, ASTROLOGY_ENGINE_VERSION } from '../chart/astro-chart.types';
 import { ChartCalculator } from '../chart/chart-calculator';
 import { BirthDetails, LocalDateInput, LocalTimeInput } from '../input/birth-details';
@@ -281,6 +282,11 @@ export class PrashnaCalculator {
       );
     }
 
+    // 11. Optional Karya Bhava / Karya lord analysis for a question domain
+    const karya = input.questionDomain
+      ? evaluatePrashnaKarya(input.questionDomain, prashnaLagna.rashiIndex, typedPlanets)
+      : undefined;
+
     return {
       calculationVersion: ASTROLOGY_ENGINE_VERSION,
       convention: DEFAULT_PRASHNA_CONVENTION,
@@ -296,6 +302,15 @@ export class PrashnaCalculator {
       panchanga,
       isRahuKala,
       astroChart,
+      ...(karya
+        ? {
+            questionDomain: karya.questionDomain,
+            karyaHouseNumber: karya.karyaHouseNumber,
+            lagnaLord: karya.lagnaLord,
+            karyaLord: karya.karyaLord,
+            karya,
+          }
+        : {}),
     };
   }
 }

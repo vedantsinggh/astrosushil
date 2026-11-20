@@ -126,15 +126,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
             state = AuthState.authenticated(cachedUser);
             return;
           }
-          // Token exists, treat as authenticated offline session
-          state = AuthState.authenticated(
-            UserModel(
-              id: 'offline',
-              email: 'offline@astrosushil.internal',
-              role: 'USER',
-              createdAt: DateTime(2026, 1, 1),
-            ),
-          );
+          // No genuine user record available (server unreachable and nothing
+          // cached). Do not invent a placeholder account; ask the user to sign in.
+          state = AuthState.unauthenticated();
           return;
         }
       }
@@ -192,6 +186,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Exit Guest Mode
   Future<void> exitGuestMode() async {
     await _storage.delete(key: StorageKeys.isGuestMode);
+    // Leaving guest mode discards the guest's temporary birth details (the
+    // confirmation dialog says so), so they can't resurface at a later login.
+    await _storage.delete(key: StorageKeys.guestBirthProfile);
     state = AuthState.unauthenticated();
   }
 
@@ -392,6 +389,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true);
     await _repository.logout();
     await _storage.delete(key: StorageKeys.isGuestMode);
+    // Any guest details were already offered at sign-in; never carry them over
+    // to the next account that signs in on this device.
+    await _storage.delete(key: StorageKeys.guestBirthProfile);
     state = AuthState.unauthenticated();
   }
 

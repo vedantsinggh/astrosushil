@@ -1,6 +1,7 @@
 import { EphemerisProvider } from './ephemeris.interface';
 import { PlanetSymbol, RawPlanetaryCoordinates, MANDATORY_VEDIC_PLANETS } from '../planets/planet.types';
 import { EphemerisProviderError } from '../errors/astrology.error';
+import { calculateLunarNodes } from '../rahu-ketu/lunar-nodes';
 
 /**
  * Adapter integrating Don Cross's astronomy-engine (MIT Licensed local ephemeris)
@@ -66,22 +67,17 @@ export class AstronomyEngineAdapter implements EphemerisProvider {
         const astroTime = this.astronomyLib.MakeTime(daysFromJ2000);
 
         if (planet === PlanetSymbol.RAHU || planet === PlanetSymbol.KETU) {
-          // Calculate Lunar Node (Mean Node)
-          // Mean node longitude formula relative to J2000 equinox
-          const T = (julianDayUT - 2451545.0) / 36525;
-          let omega = 125.04452 - 1934.136261 * T + 0.0020708 * T * T + (T * T * T) / 450000;
-          omega = ((omega % 360) + 360) % 360; // Normalize 0..360
-
-          const rahuLon = omega;
-          const ketuLon = (omega + 180) % 360;
-          const targetLon = planet === PlanetSymbol.RAHU ? rahuLon : ketuLon;
+          // Mean lunar node, Meeus eq. 47.7 (mean equinox of date): src/rahu-ketu/lunar-nodes.ts.
+          // The true (osculating) node is applied by ChartCalculator when the config selects it.
+          const nodes = calculateLunarNodes(julianDayUT, 'MEAN_NODE');
+          const targetLon = planet === PlanetSymbol.RAHU ? nodes.rahuLongitude : nodes.ketuLongitude;
 
           return {
             planet,
             longitude: targetLon,
             latitude: 0.0,
             distanceAU: 0.00257,
-            speedLongitude: -0.05295, // Mean daily retrograde motion ~3.18 arcmin/day
+            speedLongitude: nodes.speedLongitude, // about -0.05295°/day (3.18'/day retrograde)
             isRetrograde: true,
           };
         }

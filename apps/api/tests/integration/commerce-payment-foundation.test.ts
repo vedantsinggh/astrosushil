@@ -665,27 +665,51 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
   // ===========================================================================
   // 15. LEGACY ORDER COMPATIBILITY
   // ===========================================================================
-  it('15. Backward compatibility: supports legacy { reportType: "GUPTA_NADI_DOSSIER" } payload', async () => {
+  it('15. Backward compatibility: supports legacy { reportType: "CAREER" } payload', async () => {
     const legacyRes = await app.inject({
       method: 'POST',
       url: '/api/v1/payments/create-order',
       headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { reportType: 'GUPTA_NADI_DOSSIER' },
+      payload: { reportType: 'CAREER' },
     });
 
     expect(legacyRes.statusCode).toBe(201);
     const body = JSON.parse(legacyRes.payload);
-    expect(body.reportType).toBe('GUPTA_NADI_DOSSIER');
-    expect(body.amount).toBe(99900); // ₹999
+    expect(body.reportType).toBe('CAREER');
+    expect(body.amount).toBe(49900); // ₹499 (report-career, authoritative catalog price)
 
     // Check database has both reportType and order_items
     const dbOrder = await prisma.order.findUnique({
       where: { id: body.orderId },
       include: { items: true },
     });
-    expect(dbOrder?.reportType).toBe('GUPTA_NADI_DOSSIER');
+    expect(dbOrder?.reportType).toBe('CAREER');
     expect(dbOrder?.items.length).toBe(1);
-    expect(dbOrder?.items[0].catalogId).toBe('report-gupta-nadi');
+    expect(dbOrder?.items[0].catalogId).toBe('report-career');
+  });
+
+  it('15a. Legacy payload for the retired CAREER_PROSITY SKU (report-career-pro, isActive:false) cannot be bought', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/create-order',
+      headers: { authorization: `Bearer ${tokenUserA}` },
+      payload: { reportType: 'CAREER_PROSITY' },
+    });
+
+    expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    expect(res.statusCode).toBeLessThan(500);
+  });
+
+  it('15b. Legacy payload for a report without a genuine generator (GUPTA_NADI_DOSSIER) cannot be bought', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/create-order',
+      headers: { authorization: `Bearer ${tokenUserA}` },
+      payload: { reportType: 'GUPTA_NADI_DOSSIER' },
+    });
+
+    expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    expect(res.statusCode).toBeLessThan(500);
   });
 
   // ===========================================================================

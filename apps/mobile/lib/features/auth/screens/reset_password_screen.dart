@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/astro_controls.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/widgets/astro_app_bar.dart';
 import '../../../shared/widgets/astro_loader/astro_loader_button.dart';
@@ -150,7 +151,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                             child: Text(
                               _errorMessage!,
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 14,
                                 color: AppColors.error,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -253,21 +254,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
                   _isLoading
                       ? const AstroLoaderButton(label: 'Resetting Password...', isDark: false)
-                      : ElevatedButton(
-                          onPressed: _handleResetPassword,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            'Reset Password',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                      : AstroPrimaryButton(label: 'Reset Password', onPressed: _handleResetPassword),
                 ],
               ),
             ),

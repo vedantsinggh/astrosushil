@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import crypto from 'crypto';
 import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
@@ -9,6 +9,8 @@ import { COMMERCE_CATALOG, commerceCatalog } from '../../src/modules/commerce/co
 import { reportsService } from '../../src/modules/reports/reports.service';
 import { postgresQueueService } from '../../src/services/postgres-queue.service';
 import { storageService } from '../../src/services/storage.service';
+import { careerReportWorker } from '../../src/services/report-worker.service';
+import { stubPlatformGeneration } from '../helpers/platform-report-stub';
 import { OrderStatus, PaymentStatus, Role, ReportType, OrderItemType, FulfillmentStatus, ObligationType } from '@prisma/client';
 
 describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
@@ -74,7 +76,7 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
         latitude: 28.4069,
         longitude: 77.8498,
         timezone: 'Asia/Kolkata',
-        placeName: 'Bulandshahr, Uttar Pradesh, India',
+        placeName: 'Uttar Pradesh, India',
       },
     });
   });
@@ -93,18 +95,19 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
   // 1. CATALOGUE CORRECTNESS & PRICE INVARIANTS
   // =========================================================================
   describe('1. Catalogue Inventory & Pricing Invariants', () => {
-    it('should strictly maintain authorized pricing for all 10 released reports', () => {
-      const EXPECTED_PRICES: Record<string, { price: number; reportType: ReportType }> = {
-        'report-kundli': { price: 29900, reportType: ReportType.KUNDLI },
-        'report-planetary-summary': { price: 19900, reportType: ReportType.PLANETARY_SUMMARY },
-        'report-horoscope': { price: 49900, reportType: ReportType.HOROSCOPE },
-        'report-career': { price: 49900, reportType: ReportType.CAREER },
-        'report-career-pro': { price: 69900, reportType: ReportType.CAREER_PROSITY },
-        'report-finance': { price: 49900, reportType: ReportType.FINANCE },
-        'report-love': { price: 49900, reportType: ReportType.LOVE },
-        'report-fortune': { price: 49900, reportType: ReportType.FORTUNE },
-        'report-marriage': { price: 49900, reportType: ReportType.MARRIAGE_COMPATIBILITY },
-        'report-saturn': { price: 49900, reportType: ReportType.SATURN },
+    it('should strictly maintain authorized pricing for all 9 released reports and the retired Career Pro alias', () => {
+      const EXPECTED_PRICES: Record<string, { price: number; reportType: ReportType; isActive: boolean }> = {
+        'report-kundli': { price: 29900, reportType: ReportType.KUNDLI, isActive: true },
+        'report-planetary-summary': { price: 19900, reportType: ReportType.PLANETARY_SUMMARY, isActive: true },
+        'report-horoscope': { price: 49900, reportType: ReportType.HOROSCOPE, isActive: true },
+        'report-career': { price: 49900, reportType: ReportType.CAREER, isActive: true },
+        // Retired from sale (only one Career report exists); kept so historical CAREER_PROSITY orders still fulfil.
+        'report-career-pro': { price: 69900, reportType: ReportType.CAREER_PROSITY, isActive: false },
+        'report-finance': { price: 49900, reportType: ReportType.FINANCE, isActive: true },
+        'report-love': { price: 49900, reportType: ReportType.LOVE, isActive: true },
+        'report-fortune': { price: 49900, reportType: ReportType.FORTUNE, isActive: true },
+        'report-marriage': { price: 49900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isActive: true },
+        'report-saturn': { price: 49900, reportType: ReportType.SATURN, isActive: true },
       };
 
       for (const [sku, expected] of Object.entries(EXPECTED_PRICES)) {
@@ -112,7 +115,7 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
         expect(item, `SKU ${sku} must exist in COMMERCE_CATALOG`).toBeDefined();
         expect(item.pricePaise).toBe(expected.price);
         expect(item.legacyReportType).toBe(expected.reportType);
-        expect(item.isActive).toBe(true);
+        expect(item.isActive, `SKU ${sku} isActive`).toBe(expected.isActive);
         expect(REPORT_PRICES_PAISE[expected.reportType]).toBe(expected.price);
       }
     });
@@ -350,31 +353,65 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
     });
 
     it('should generate report, bind fulfillment unit, and enqueue in PostgreSQL queue', async () => {
-      const genResp = await app.inject({
-        method: 'POST',
-        url: '/api/v1/reports/generate',
-        headers: { authorization: `Bearer ${userToken}` },
-        payload: {
-          birthProfileId: birthProfile.id,
-          reportType: 'HOROSCOPE',
-          orderId: paidOrderId,
-        },
-      });
+      // The request enqueues without awaiting; wait for that durable-queue UPDATE to settle
+      // so the worker claim below is not skipped by its row lock (FOR UPDATE SKIP LOCKED).
+      const enqueueSpy = vi.spyOn(careerReportWorker, 'enqueueReportJob');
+      let genResp;
+      try {
+        genResp = await app.inject({
+          method: 'POST',
+          url: '/api/v1/reports/generate',
+          headers: { authorization: `Bearer ${userToken}` },
+          payload: {
+            birthProfileId: birthProfile.id,
+            reportType: 'HOROSCOPE',
+            orderId: paidOrderId,
+          },
+        });
+        await Promise.all(enqueueSpy.mock.results.map((r) => r.value));
+        expect(enqueueSpy).toHaveBeenCalledTimes(1);
+        expect(await enqueueSpy.mock.results[0].value).toBe(true);
+      } finally {
+        enqueueSpy.mockRestore();
+      }
 
+      // Generation always runs in the report worker: the request only queues the job.
       expect(genResp.statusCode).toBe(201);
       const body = JSON.parse(genResp.body);
       generatedReportId = body.id;
-      expect(body.status).toBe('COMPLETED');
-      expect(body.reportType).toBe('HOROSCOPE');
+      expect(body.status).toBe('QUEUED');
+      expect(body.reused).toBe(false);
 
-      // Verify report is attached to the fulfillment unit
+      // Verify report is queued and attached to the fulfillment unit
       const report = await prisma.report.findUnique({
         where: { id: generatedReportId },
         include: { fulfillmentUnit: true },
       });
-      expect(report?.fulfillmentUnitId).toBeDefined();
+      expect(report?.status).toBe('QUEUED');
+      expect(report?.reportType).toBe('HOROSCOPE');
+      expect(report?.orderId).toBe(paidOrderId);
+      expect(report?.fulfillmentUnitId).toBeTruthy();
       expect(report?.fulfillmentUnit?.orderId).toBe(paidOrderId);
       expect(report?.fulfillmentUnit?.status).toBe('PROCESSING');
+
+      // The worker claims the queued job and delivers it (platform generation stubbed: no LLM).
+      const generation = stubPlatformGeneration('completed');
+      let generationCalls = 0;
+      try {
+        await careerReportWorker.executeReportPipeline(generatedReportId);
+        generationCalls = generation.mock.calls.length;
+      } finally {
+        generation.mockRestore();
+      }
+      expect(generationCalls).toBe(1);
+
+      const delivered = await prisma.report.findUnique({
+        where: { id: generatedReportId },
+        include: { fulfillmentUnit: true },
+      });
+      expect(delivered?.status).toBe('COMPLETED');
+      expect(delivered?.storageKey).toBe(`reports/${testUser.id}/${generatedReportId}.pdf`);
+      expect(delivered?.fulfillmentUnit?.status).toBe('FULFILLED');
     });
 
     it('should reuse existing completed report artifact without regenerating on second request', async () => {

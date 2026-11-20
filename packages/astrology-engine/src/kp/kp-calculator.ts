@@ -12,6 +12,10 @@ import {
 } from './kp.types';
 import { KPSubLordCalculator } from './kp-sub-lords';
 import { VARA_LORDS } from '../panchang/panchang-calculator';
+import { calculateHouseAngles, calculatePlacidusCuspsTropical, houseOfLongitude } from '../houses/house-cusps';
+import { computeAyanamsa, resolveAyanamsaSystem } from '../ayanamsa/ayanamsa';
+import { KP_CUSP_SYSTEM } from '../configuration/astrology-config';
+import { AstrologyEngineError } from '../errors/astrology.error';
 
 export class KPCalculator {
   /**
@@ -23,15 +27,32 @@ export class KPCalculator {
     isDayBirth: boolean = true
   ): KPReport {
     const ascLong = chart.ascendant?.longitude ?? 0;
-    const ascRashi = chart.ascendant?.rashiIndex ?? 1;
 
-    // 1. Build Placidus / KP Cusps (1 to 12)
-    // In classical KP, whole-sign or Placidus cusps are computed;
-    // Here we derive cusps from Ascendant degree using the classical equal/Placidus arc increments
+    // 1. KP cusps = TRUE Placidus (client decision ADR-017; src/houses/house-cusps.ts), in the
+    // chart's zodiac: tropical Placidus cusps (mean equinox) minus the chart's MEAN ayanamsa.
+    // Throws PlacidusUndefinedError beyond the polar circles (|latitude| >= ~66.56°).
+    const julianDayUT = chart.metadata?.normalizedTime?.julianDayUT;
+    const latitude = chart.birthDetails?.latitude;
+    const longitude = chart.birthDetails?.longitude;
+    if (typeof julianDayUT !== 'number' || typeof latitude !== 'number' || typeof longitude !== 'number') {
+      throw new AstrologyEngineError('KP cusps need the chart birth time (metadata.normalizedTime) and place (birthDetails).');
+    }
+    const sidereal = chart.metadata.config?.zodiacType !== 'TROPICAL';
+    const chartAyanamsa =
+      chart.metadata.ayanamsa ??
+      (sidereal
+        ? (() => {
+            const a = computeAyanamsa(julianDayUT, resolveAyanamsaSystem(chart.metadata.config?.ayanamsa));
+            return { system: a.system, label: a.definition.label, trueDegrees: a.trueDegrees, meanDegrees: a.meanDegrees };
+          })()
+        : null);
+    const angles = calculateHouseAngles(julianDayUT, latitude, longitude);
+    const placidusTropical = calculatePlacidusCuspsTropical(angles.armcDegrees, latitude, angles.obliquityDegrees);
+    const cuspLongitudes = placidusTropical.map((c) => normalizeDegree(c - (chartAyanamsa ? chartAyanamsa.meanDegrees : 0)));
+
     const cusps: KPCuspPlacement[] = [];
     for (let h = 1; h <= 12; h++) {
-      // 30-degree span starting from Ascendant degree
-      const cuspLong = normalizeDegree(ascLong + (h - 1) * 30);
+      const cuspLong = cuspLongitudes[h - 1];
       const rashiDef = getRashiByLongitude(cuspLong);
       const nakDef = getNakshatraByLongitude(cuspLong);
       const degInRashi = getDegreeInRashi(cuspLong);
@@ -65,7 +86,8 @@ export class KPCalculator {
       const nakDef = getNakshatraByLongitude(norm);
       const pada = getPada(norm);
       const degInRashi = getDegreeInRashi(norm);
-      const house = ((rashiDef.index - ascRashi + 12) % 12) + 1;
+      // KP bhava: the planet is in house h when it lies between cusp h and cusp h+1.
+      const house = houseOfLongitude(norm, cuspLongitudes);
 
       const lords = KPSubLordCalculator.calculateKPLords(norm);
 
@@ -213,7 +235,7 @@ export class KPCalculator {
     const fortunaNakDef = getNakshatraByLongitude(fortunaLong);
     const fortunaPada = getPada(fortunaLong);
     const fortunaDegInRashi = getDegreeInRashi(fortunaLong);
-    const fortunaHouse = ((fortunaRashiDef.index - ascRashi + 12) % 12) + 1;
+    const fortunaHouse = houseOfLongitude(fortunaLong, cuspLongitudes);
     const fortunaLords = KPSubLordCalculator.calculateKPLords(fortunaLong);
 
     const parsFortuna: KPPointPlacement = {
@@ -234,8 +256,9 @@ export class KPCalculator {
     };
 
     return {
-      ayanamsaType: 'KP_NEW',
-      ayanamsaValue: 23.85,
+      ayanamsaType: chartAyanamsa ? chartAyanamsa.system : 'TROPICAL',
+      ayanamsaValue: chartAyanamsa ? Number(chartAyanamsa.trueDegrees.toFixed(6)) : 0,
+      cuspSystem: KP_CUSP_SYSTEM,
       cusps,
       planets: planetsReport,
       houseSignificators,

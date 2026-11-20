@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
+import 'astro_controls.dart';
 import 'astro_state_illustration.dart';
 
 /// Reusable generic server / application error state component
@@ -19,54 +22,48 @@ class AstroErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    // Shrink the illustration when vertical space is short (landscape,
+    // split screen) and scroll instead of overflowing at large text sizes.
+    final short = MediaQuery.sizeOf(context).height < 520;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            AstroStateIllustration(type: illustrationType),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 28),
-              OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Retry'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: short ? 12.0 : 32.0),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              AstroStateIllustration(type: illustrationType, size: short ? 84 : 140),
+              SizedBox(height: short ? 12 : 24),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: AppTypography.headlineLarge.copyWith(fontSize: 22, height: 1.25),
+                  textAlign: TextAlign.center,
                 ),
               ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary, height: 1.45),
+                textAlign: TextAlign.center,
+              ),
+              if (onRetry != null) ...[
+                SizedBox(height: short ? 16 : 28),
+                AstroSecondaryButton(
+                  label: l10n?.commonTryAgain ?? 'Try again',
+                  icon: Icons.refresh_rounded,
+                  onPressed: onRetry,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
-

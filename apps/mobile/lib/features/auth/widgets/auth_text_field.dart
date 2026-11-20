@@ -40,10 +40,9 @@ class AuthTextField extends StatelessWidget {
         Text(
           labelText,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
             color: AppColors.primary,
-            letterSpacing: 0.2,
           ),
         ),
         const SizedBox(height: 6),
@@ -57,7 +56,7 @@ class AuthTextField extends StatelessWidget {
           readOnly: readOnly,
           onTap: onTap,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.w500,
             color: AppColors.primary,
           ),
@@ -65,35 +64,35 @@ class AuthTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               color: AppColors.lightTextMuted,
             ),
             prefixIcon: prefixIcon != null
                 ? IconTheme(
-                    data: const IconThemeData(color: AppColors.secondary, size: 20),
+                    data: const IconThemeData(color: AppColors.accent, size: 21),
                     child: prefixIcon!,
                   )
                 : null,
             suffixIcon: suffixIcon != null
                 ? IconTheme(
-                    data: const IconThemeData(color: AppColors.secondary, size: 20),
+                    data: const IconThemeData(color: AppColors.accent, size: 21),
                     child: suffixIcon!,
                   )
                 : null,
             filled: true,
-            fillColor: AppColors.lightBackground,
+            fillColor: AppColors.cardSurface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.lightBorder),
+              borderSide: const BorderSide(color: AppColors.cardBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.lightBorder),
+              borderSide: const BorderSide(color: AppColors.cardBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -104,9 +103,9 @@ class AuthTextField extends StatelessWidget {
               borderSide: const BorderSide(color: AppColors.error, width: 1.5),
             ),
             errorStyle: const TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: AppColors.error,
+              color: AppColors.errorText,
             ),
           ),
         ),

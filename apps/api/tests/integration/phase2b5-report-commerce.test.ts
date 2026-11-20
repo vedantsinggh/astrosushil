@@ -4,6 +4,7 @@ import { FastifyInstance } from 'fastify';
 import '@fastify/jwt';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
+import { CURRENT_CALCULATION_VERSION } from '../../src/modules/reports/reports.service';
 import { paymentService } from '../../src/services/payment.service';
 import { OrderStatus, PaymentStatus, Role, ReportType } from '@prisma/client';
 
@@ -122,12 +123,12 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
   // ===========================================================================
   // 1. Authoritative Order Creation for All 5 Supported SKUs
   // ===========================================================================
+  // Authoritative prices from COMMERCE_CATALOG / REPORT_PRICES_PAISE (integer paise).
   const supportedSkus = [
-    { reportType: 'KUNDLI', expectedAmount: 50000 },
-    { reportType: 'PLANETARY_SUMMARY', expectedAmount: 50000 },
-    { reportType: 'CAREER', expectedAmount: 50000 },
-    { reportType: 'MARRIAGE_COMPATIBILITY', expectedAmount: 50000 },
-    { reportType: 'CAREER_PROSITY', expectedAmount: 50000 },
+    { reportType: 'KUNDLI', expectedAmount: 29900 }, // ₹299
+    { reportType: 'PLANETARY_SUMMARY', expectedAmount: 19900 }, // ₹199
+    { reportType: 'CAREER', expectedAmount: 49900 }, // ₹499
+    { reportType: 'MARRIAGE_COMPATIBILITY', expectedAmount: 49900 }, // ₹499
   ];
 
   for (const sku of supportedSkus) {
@@ -153,10 +154,31 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
     });
   }
 
+  // CAREER_PROSITY (report-career-pro) was retired from sale: only one Career report exists.
+  // The alias stays in the catalog (isActive: false) so historical paid orders still fulfil.
+  it('1. Rejects new orders for the retired CAREER_PROSITY SKU without creating an order', async () => {
+    const before = await prisma.order.count({ where: { userId: testUser.id } });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/create-order',
+      headers: { authorization: `Bearer ${userToken}` },
+      payload: {
+        reportType: 'CAREER_PROSITY',
+        idempotencyKey: `idemp_CAREER_PROSITY_${Date.now()}`,
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.payload);
+    expect(body.error?.code).toBe('VALIDATION_ERROR');
+    expect(body.error?.message).toContain('currently inactive or unavailable');
+    expect(await prisma.order.count({ where: { userId: testUser.id } })).toBe(before);
+  });
+
   // ===========================================================================
   // 2. Reject Unsupported Report SKUs
   // ===========================================================================
-  it('2. Rejects unsupported report SKU generation with 400 REPORT_TYPE_NOT_SUPPORTED', async () => {
+  it('2. Rejects unsupported report SKU generation with 400 REPORT_TYPE_NOT_AVAILABLE', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/reports',
@@ -169,7 +191,7 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.payload);
-    expect(body.error?.code).toBe('REPORT_TYPE_NOT_SUPPORTED');
+    expect(body.error?.code).toBe('REPORT_TYPE_NOT_AVAILABLE');
   });
 
   // ===========================================================================
@@ -528,6 +550,7 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
         birthProfileId: testBirthProfile.id,
         reportType: 'PLANETARY_SUMMARY',
         status: 'COMPLETED',
+        calculationVersion: CURRENT_CALCULATION_VERSION, // reuse needs the current method version (ADR-017)
         createdAt: new Date(Date.now() + 1000), // after profile.updatedAt
         updatedAt: new Date(Date.now() + 1000),
       } as any,

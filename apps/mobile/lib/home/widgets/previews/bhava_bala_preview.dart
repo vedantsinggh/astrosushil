@@ -30,21 +30,22 @@ class BhavaBalaPreview extends StatelessWidget {
       );
     }
 
-    // Default sample 12 houses strengths
-    final sampleBhavas = [
-      {'h': 1, 'v': 8.5},
-      {'h': 2, 'v': 7.1},
-      {'h': 3, 'v': 6.8},
-      {'h': 4, 'v': 9.2},
-      {'h': 5, 'v': 8.9},
-      {'h': 6, 'v': 6.4},
-      {'h': 7, 'v': 7.8},
-      {'h': 8, 'v': 5.9},
-      {'h': 9, 'v': 9.6},
-      {'h': 10, 'v': 9.8},
-      {'h': 11, 'v': 9.0},
-      {'h': 12, 'v': 6.1},
-    ];
+    // Genuine backend Bhava Bala only.
+    final houses = [...(report?.houses ?? const <HouseBhavaBalaModel>[])]
+      ..sort((a, b) => a.houseNumber.compareTo(b.houseNumber));
+    if (houses.isEmpty) {
+      return const PreviewEmptyState(
+        title: 'Bhava Bala',
+        message: 'Bhava Bala data is not available right now',
+        icon: Icons.home_work_outlined,
+      );
+    }
+    final byStrength = [...houses]..sort((a, b) => b.totalRupas.compareTo(a.totalRupas));
+    final strongest = byStrength.take(3).toList();
+    final top = strongest.first;
+    final maxRupas = byStrength.first.totalRupas <= 0 ? 1.0 : byStrength.first.totalRupas;
+    final highThreshold = strongest.last.totalRupas;
+    final sampleBhavas = houses.map((h) => {'h': h.houseNumber, 'v': h.totalRupas}).toList();
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -53,9 +54,9 @@ class BhavaBalaPreview extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Strongest: H-10, H-9, H-4',
-              style: TextStyle(
+            Text(
+              'Strongest: ${strongest.map((h) => 'H-${h.houseNumber}').join(', ')}',
+              style: const TextStyle(
                 fontSize: 8,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
@@ -67,9 +68,9 @@ class BhavaBalaPreview extends StatelessWidget {
                 color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(3),
               ),
-              child: const Text(
-                '10th House (9.8R)',
-                style: TextStyle(
+              child: Text(
+                'House ${top.houseNumber} (${top.totalRupas.toStringAsFixed(1)}R)',
+                style: const TextStyle(
                   fontSize: 7.5,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF16A34A),
@@ -85,8 +86,8 @@ class BhavaBalaPreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: sampleBhavas.map((b) {
             final val = b['v'] as double;
-            final isHigh = val >= 8.5;
-            final height = (val / 10.0) * 26.0;
+            final isHigh = val >= highThreshold;
+            final height = ((val / maxRupas).clamp(0.05, 1.0)) * 26.0;
 
             return Column(
               mainAxisSize: MainAxisSize.min,

@@ -183,8 +183,8 @@ void main() {
       expect(find.text('₹899'), findsOneWidget);
 
       // Check digital vs physical badges
-      expect(find.text('PHYSICAL'), findsOneWidget);
-      expect(find.text('DIGITAL'), findsWidgets);
+      expect(find.text('Physical'), findsOneWidget);
+      expect(find.text('Digital'), findsWidgets);
     });
 
     testWidgets('Category filtering updates product list in ShopCatalogScreen', (tester) async {
@@ -229,6 +229,7 @@ void main() {
 
       // Scroll and tap Small variant chip
       await tester.ensureVisible(find.text('Small (₹1499)'));
+      await tester.pump();
       await tester.tap(find.text('Small (₹1499)'));
       await tester.pumpAndSettle();
 
@@ -248,31 +249,26 @@ void main() {
       await tester.pumpWidget(createTestApp(child: const ProfileScreen()));
       await tester.pumpAndSettle();
 
-      // Profile Header
-      expect(find.text('AUTHENTICATED USER'), findsOneWidget);
+      // Header: account identity instead of an ALL-CAPS status badge.
+      expect(find.text('Account'), findsWidgets);
+      expect(find.text('AUTHENTICATED USER'), findsNothing);
 
-      // Commerce section
-      expect(find.text('My Purchases & Orders'), findsOneWidget);
-      expect(find.text('Spiritual Shop'), findsOneWidget);
-      expect(find.text('My Orders & Purchases'), findsOneWidget);
-      expect(find.text('My Digital Library'), findsOneWidget);
-      expect(find.text('Delivery Addresses'), findsOneWidget);
+      // Short iOS-style list (reports/bookings have their own tabs).
+      for (final label in [
+        'Birth profiles',
+        'My orders',
+        'Delivery addresses',
+        'Notifications',
+        'App Language / भाषा',
+        'Settings',
+        'Help & Support',
+        'Policies & terms',
+      ]) {
+        await tester.scrollUntilVisible(find.text(label), 200);
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
 
-      // Courses section
-      expect(find.text('My Learning'), findsOneWidget);
-      expect(find.text('Vedic Courses & Masterclasses'), findsOneWidget);
-
-      // Scroll to view Astrology Profiles section
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
-      await tester.pumpAndSettle();
-      expect(find.text('Saved Profiles & Astrology'), findsOneWidget);
-      expect(find.text('My Saved Birth Profiles'), findsOneWidget);
-
-      // Scroll to view Policies & Settings
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -400));
-      await tester.pumpAndSettle();
-      expect(find.text('Shipping & Delivery Policy'), findsOneWidget);
-      expect(find.text('Refund & Cancellation Policy'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Sign Out'), 200);
       expect(find.text('Sign Out'), findsOneWidget);
     });
 
@@ -283,16 +279,13 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('खरीदारी एवं सेवाएं (My Purchases)'), findsOneWidget);
-      expect(find.text('आध्यात्मिक शॉप'), findsOneWidget);
-      expect(find.text('मेरे आर्डर्स एवं रसीदें'), findsOneWidget);
-      expect(find.text('मेरी डिजिटल लाइब्रेरी'), findsOneWidget);
-      expect(find.text('सुरक्षित डिलीवरी पते'), findsOneWidget);
+      expect(find.text('खाता'), findsWidgets);
+      expect(find.text('जन्म प्रोफाइल'), findsWidgets); // row + header label
+      expect(find.text('मेरे ऑर्डर'), findsOneWidget);
+      expect(find.text('डिलीवरी पते'), findsOneWidget);
 
-      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -500));
-      await tester.pumpAndSettle();
-      expect(find.text('शिपिंग एवं डिलीवरी नीति'), findsOneWidget);
-      expect(find.text('रिफंड एवं वापसी नीति'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('नियम एवं नीतियां'), 200);
+      expect(find.text('नियम एवं नीतियां'), findsOneWidget);
     });
   });
 }

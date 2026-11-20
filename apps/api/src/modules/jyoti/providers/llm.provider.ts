@@ -29,6 +29,8 @@ export interface LLMProviderOptions {
   systemInstruction?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  /** Overall wall-clock budget across all retries (ms). */
+  totalTimeoutMs?: number;
 }
 
 export interface LLMProvider {

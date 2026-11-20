@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/astrology/providers/astrology_provider.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../shared/theme/app_colors.dart';
-import '../providers/home_provider.dart';
 import 'previews/ashtakavarga_preview.dart';
 import 'previews/bhava_bala_preview.dart';
 import 'previews/dasha_timeline_preview.dart';
@@ -129,7 +128,16 @@ class _QuickAccessSectionState extends ConsumerState<QuickAccessSection> {
 
     final matchmakingState = ref.watch(matchmakingProvider);
     final prashnaState = ref.watch(prashnaProvider);
-    final dailyPrediction = ref.watch(dailyRashiBhavishyaProvider);
+    // Genuine Moon rashi from the active chart (null when no chart is available).
+    String? moonRashi;
+    if (chart != null) {
+      for (final p in chart.planets) {
+        if (p.displayName == 'Moon') {
+          moonRashi = p.rashiName;
+          break;
+        }
+      }
+    }
 
     final allItems = _buildAllItems(
       hasProfile: hasProfile,
@@ -158,7 +166,7 @@ class _QuickAccessSectionState extends ConsumerState<QuickAccessSection> {
       isSpecialPointsLoading: isSpecialPointsLoading,
       matchmakingState: matchmakingState,
       prashnaState: prashnaState,
-      activeRashi: dailyPrediction.rashiName,
+      activeRashi: moonRashi,
     );
 
     final displayedItems = _filterItems(allItems);
@@ -361,7 +369,7 @@ class _QuickAccessSectionState extends ConsumerState<QuickAccessSection> {
     required bool isSpecialPointsLoading,
     required dynamic matchmakingState,
     required dynamic prashnaState,
-    required String activeRashi,
+    required String? activeRashi,
   }) {
     return [
       // 1. Birth Chart (Kundli)

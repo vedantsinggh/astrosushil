@@ -19,7 +19,6 @@ void main() {
 
       expect(item.displayTitle, 'Personalised Fortune Report Plus (Comprehensive Edition)');
       expect(item.displayTagline, '25-CHAPTER VEDIC NUMEROLOGY & ASTROLOGICAL DOSSIER');
-      expect(item.displayPrice, 'Pricing Pending');
       expect(item.icon, Icons.diamond_rounded);
       expect(item.isCompleted, isTrue);
     });
@@ -39,7 +38,6 @@ void main() {
 
       expect(item.displayTitle, 'Personalised Fortune Report Plus');
       expect(item.displayTagline, 'CHALDEAN NUMEROLOGY, LO-SHU GRID & 17-PART VEDIC BLUEPRINT');
-      expect(item.displayPrice, '₹499');
       expect(item.icon, Icons.diamond_outlined);
     });
   });

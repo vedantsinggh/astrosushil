@@ -1,9 +1,9 @@
+import 'package:flutter/cupertino.dart' show CupertinoSliverRefreshControl;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
+import '../../../shared/screens/simple_screen_kit.dart';
 import '../../../shared/widgets/error_banner.dart';
-import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/subtle_celestial_background.dart';
 import '../providers/birth_profile_provider.dart';
 import '../widgets/birth_profile_card.dart';
@@ -13,161 +13,141 @@ import 'create_birth_profile_screen.dart';
 class BirthProfileListScreen extends ConsumerWidget {
   const BirthProfileListScreen({super.key});
 
+  void _openCreate(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const CreateBirthProfileScreen(),
+      ),
+    );
+  }
+
+  Widget _navBar(bool empty, Future<void> Function() refresh) {
+    return AstroSliverNavBar(
+      title: 'My Birth Profiles',
+      subtitle: empty ? null : 'Tap a profile to see or edit it.',
+      actions: [
+        AstroNavAction(icon: Icons.refresh_rounded, tooltip: 'Refresh Profiles', onPressed: refresh),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(birthProfilesListNotifierProvider);
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AstroAppBar(
-        title: 'My Birth Profiles',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
-            tooltip: 'Refresh Profiles',
-            onPressed: () {
-              ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (state.errorMessage != null) ...[
-                  ErrorBanner(
-                    message: state.errorMessage!,
-                    onRetry: () =>
-                        ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles(),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Expanded(
-                  child: state.isLoading && state.profiles.isEmpty
-                      ? const LoadingIndicator(message: 'Loading birth profiles...')
-                      : state.profiles.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppColors.primary.withOpacity(0.06),
-                                      border: Border.all(color: AppColors.primary.withOpacity(0.15)),
-                                    ),
-                                    child: const Icon(
-                                      Icons.account_box_outlined,
-                                      size: 40,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'No birth profiles created yet',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.lightTextPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Add your birth details or create profiles for family members.',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.lightTextSecondary,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.add),
-                                    label: const Text('Create Birth Profile'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => const CreateBirthProfileScreen(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: () async {
-                                await ref
-                                    .read(birthProfilesListNotifierProvider.notifier)
-                                    .fetchProfiles();
-                              },
-                              child: ListView.builder(
-                                physics: const AlwaysScrollableScrollPhysics(
-                                  parent: BouncingScrollPhysics(),
-                                ),
-                                itemCount: state.profiles.length,
-                                itemBuilder: (context, index) {
-                                  final profile = state.profiles[index];
-                                  final isCurrentActive = profile.id == activeProfile?.id;
+    Future<void> refresh() => ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
 
-                                  return BirthProfileCard(
-                                    profile: profile,
-                                    isActive: isCurrentActive,
-                                    onSelectActive: () {
-                                      ref.read(selectedBirthProfileIdProvider.notifier).state = profile.id;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${profile.name} set as active profile'),
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    },
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              BirthProfileDetailScreen(profileId: profile.id),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                ),
-              ],
+    final List<Widget> content;
+    if (state.isLoading && state.profiles.isEmpty) {
+      content = [
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: AstroStateView.loading(message: 'Loading birth profiles...'),
+        ),
+      ];
+    } else {
+      content = [
+        if (state.errorMessage != null)
+          AstroSliverContent(
+            bottom: 12,
+            sliver: SliverToBoxAdapter(
+              child: ErrorBanner(message: state.errorMessage!, onRetry: refresh),
             ),
           ),
-        ),
+        if (state.profiles.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: SimpleStateView(
+              icon: Icons.account_box_outlined,
+              iconColor: AppColors.primary,
+              title: 'No birth profiles created yet',
+              message: 'Add your birth details or create profiles for family members.',
+              actionLabel: 'Create Birth Profile',
+              actionIcon: Icons.add_rounded,
+              onAction: () => _openCreate(context),
+            ),
+          )
+        else
+          AstroSliverContent(
+            top: 8,
+            bottom: 24,
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final profile = state.profiles[index];
+                  final isCurrentActive = profile.id == activeProfile?.id;
+
+                  return BirthProfileCard(
+                    profile: profile,
+                    isActive: isCurrentActive,
+                    onSelectActive: () {
+                      ref.read(selectedBirthProfileIdProvider.notifier).state = profile.id;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${profile.name} set as active profile'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BirthProfileDetailScreen(profileId: profile.id),
+                        ),
+                      );
+                    },
+                  );
+                },
+                childCount: state.profiles.length,
+              ),
+            ),
+          ),
+      ];
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.lightBackground,
+      body: SubtleCelestialBackground(
+        child: AstroPlatform.isCupertino(context)
+            ? CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                slivers: [
+                  _navBar(state.profiles.isEmpty, refresh),
+                  CupertinoSliverRefreshControl(onRefresh: refresh),
+                  ...content,
+                ],
+              )
+            : RefreshIndicator(
+                onRefresh: refresh,
+                edgeOffset: MediaQuery.paddingOf(context).top + AstroMetrics.navBarHeight,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [_navBar(state.profiles.isEmpty, refresh), ...content],
+                ),
+              ),
       ),
-      floatingActionButton: state.profiles.isNotEmpty
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const CreateBirthProfileScreen(),
+      bottomNavigationBar: state.profiles.isNotEmpty
+          ? SafeArea(
+              top: false,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.navBarFrost,
+                  border: Border(top: BorderSide(color: AppColors.separator, width: 0.5)),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Center(
+                  heightFactor: 1,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: AstroMetrics.maxContentWidth),
+                    child: SimplePrimaryButton(
+                      label: 'New Profile',
+                      icon: Icons.add_rounded,
+                      onPressed: () => _openCreate(context),
+                    ),
                   ),
-                );
-              },
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.premiumAccent,
-              icon: const Icon(Icons.add),
-              label: const Text('New Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
             )
           : null,
     );

@@ -1,4 +1,5 @@
 import { prisma } from '../../services/prisma.service';
+import { istDateOf, istStartOfDay, parseDateBound } from '../../utils/business-time';
 
 export type AnalyticsPeriod = 'today' | '7d' | '30d' | '90d' | '12m' | 'custom';
 
@@ -18,8 +19,10 @@ export function parseAnalyticsDateRange(
   const now = new Date();
 
   if (period === 'custom' && customStart && customEnd) {
-    const startDate = new Date(customStart);
-    const endDate = new Date(customEnd);
+    // A bare YYYY-MM-DD is an IST business date: the range covers that whole
+    // IST day (start 00:00 IST, end 23:59:59.999 IST). Full ISO instants are used as given.
+    const startDate = parseDateBound(customStart, 'start');
+    const endDate = parseDateBound(customEnd, 'end');
     const duration = endDate.getTime() - startDate.getTime();
     const prevEndDate = new Date(startDate.getTime());
     const prevStartDate = new Date(startDate.getTime() - (duration > 0 ? duration : 86400000));
@@ -28,7 +31,7 @@ export function parseAnalyticsDateRange(
       endDate,
       prevStartDate,
       prevEndDate,
-      periodLabel: `Custom (${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]})`,
+      periodLabel: `Custom (${istDateOf(startDate)} to ${istDateOf(endDate)})`,
     };
   }
 
@@ -39,8 +42,8 @@ export function parseAnalyticsDateRange(
 
   switch (period) {
     case 'today': {
-      startDate = new Date(now);
-      startDate.setHours(0, 0, 0, 0);
+      // Midnight IST, independent of the server timezone.
+      startDate = istStartOfDay(istDateOf(now));
       const duration = now.getTime() - startDate.getTime();
       prevEndDate = new Date(startDate.getTime());
       prevStartDate = new Date(startDate.getTime() - (duration > 0 ? duration : 86400000));
@@ -234,7 +237,7 @@ export class AnalyticsService {
     // Group registration trend by day
     const trendMap = new Map<string, { date: string; newUsers: number; verifiedUsers: number }>();
     for (const u of usersRaw) {
-      const dayKey = u.createdAt.toISOString().split('T')[0];
+      const dayKey = istDateOf(u.createdAt); // IST business day
       const existing = trendMap.get(dayKey) || { date: dayKey, newUsers: 0, verifiedUsers: 0 };
       existing.newUsers += 1;
       if (u.emailVerifiedAt != null) existing.verifiedUsers += 1;
@@ -437,7 +440,7 @@ export class AnalyticsService {
     // Daily trend
     const trendMap = new Map<string, { date: string; revenueRupees: number; count: number }>();
     for (const o of ordersRaw) {
-      const dayKey = o.createdAt.toISOString().split('T')[0];
+      const dayKey = istDateOf(o.createdAt); // IST business day
       const existing = trendMap.get(dayKey) || { date: dayKey, revenueRupees: 0, count: 0 };
       existing.revenueRupees += o.amount / 100;
       existing.count += 1;

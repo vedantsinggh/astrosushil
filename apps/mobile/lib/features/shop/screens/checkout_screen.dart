@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/locale_provider.dart';
-import '../../../shared/assets/app_assets.dart';
-import '../../../shared/theme/app_theme.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../providers/cart_provider.dart';
 import '../providers/shop_provider.dart';
+import '../widgets/shop_ui.dart';
 import 'order_confirmation_screen.dart';
 import 'shipping_addresses_screen.dart';
 
-/// Redesigned Checkout Screen for Astro Sushil Spiritual Shop
-/// Following the shared design system: Warm ivory parchment surfaces,
-/// address selector for physical items, digital delivery reassurance,
-/// transparent 18% GST breakdown, duplicate submission lock, and accessible touch targets.
+/// Review & Pay: the last checkout step ("Step 3 of 3" for physical or mixed
+/// carts, "Step 2 of 2" for digital-only carts). Shows the address chosen on
+/// the address step with a "Change" button back to it, a short item review,
+/// the price breakdown with a big total and one gold Pay button. The Pay
+/// button is locked while a payment is in progress.
+///
+/// The address itself is chosen on [ShippingAddressesScreen] in selection
+/// mode (step 2); this screen never picks one on its own.
 class CheckoutScreen extends ConsumerStatefulWidget {
-  const CheckoutScreen({super.key});
+  /// True when pushed by the address step, so "Change" simply pops back to it.
+  final bool openedFromAddressStep;
+
+  const CheckoutScreen({super.key, this.openedFromAddressStep = false});
 
   @override
   ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -28,17 +34,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadDefaultAddress();
       ref.read(cartProvider.notifier).recalculate();
     });
-  }
-
-  Future<void> _loadDefaultAddress() async {
-    final addresses = await ref.read(shippingAddressesProvider.future);
-    if (addresses.isNotEmpty && ref.read(cartProvider).selectedAddress == null) {
-      final defaultAddr = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
-      ref.read(cartProvider.notifier).selectAddress(defaultAddr);
-    }
   }
 
   Future<void> _handlePayment() async {
@@ -114,384 +111,260 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final l10n = context.l10n;
     final cartState = ref.watch(cartProvider);
     final calc = cartState.calculation;
+    final total = calc != null ? calc.formattedTotal : cartState.formattedLocalSubtotal;
 
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.midnightNavy,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          isHindi ? 'सुरक्षित चेकआउट' : 'Secure Checkout',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-      ),
-      body: SubtleCelestialBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_errorMessage != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // 1. Delivery Address Card (Mandatory for Physical Products)
-              if (cartState.requiresShipping) ...[
-                Text(
-                  l10n.deliveryAddress,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardSurfaceWarm,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: cartState.selectedAddress == null ? AppColors.error : AppColors.cardBorder,
+    return AstroPage(
+      title: isHindi ? 'सुरक्षित चेकआउट' : 'Secure Checkout',
+      bottomBar: ShopBottomBar(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (MediaQuery.textScalerOf(context).scale(1.0) < 1.5) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.totalAmount,
+                      style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
                     ),
                   ),
-                  child: cartState.selectedAddress != null
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    cartState.selectedAddress!.fullName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton.icon(
-                                  onPressed: () => _openAddressSelector(context),
-                                  icon: const Icon(Icons.edit_location_alt_outlined, size: 16, color: AppColors.primary),
-                                  label: Text(isHindi ? 'बदलें' : 'Change', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              cartState.selectedAddress!.formattedAddress,
-                              style: const TextStyle(fontSize: 13, color: AppColors.lightTextPrimary, height: 1.4),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Phone: ${cartState.selectedAddress!.phoneNumber}',
-                              style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    l10n.selectAddressPrompt,
-                                    style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              height: AppTouchTargets.minTouchTarget,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _openAddressSelector(context),
-                                icon: const Icon(Icons.add_location_alt_outlined, size: 18),
-                                label: Text(isHindi ? 'पता जोड़ें या चुनें' : 'Select or Add Address'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 20),
-              ] else ...[
-                // Digital Fulfillment Reassurance Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardSurfaceWarm,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
+                  Text(
+                    total,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.bolt_rounded, color: AppColors.gold, size: 24),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          l10n.digitalDeliveryReassurance,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: AppColors.primary,
-                            height: 1.4,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // 2. Order Items Review
-              Text(
-                '${isHindi ? "आइटम समीक्षा" : "Order Items"} (${cartState.itemCount})',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.cardSurfaceWarm,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: cartState.items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 18, color: AppColors.cardBorder),
-                  itemBuilder: (ctx, idx) {
-                    final item = cartState.items[idx];
-                    final bundledAsset = AppAssets.getProductAsset(
-                      item.product.slug.isNotEmpty ? item.product.slug : item.product.catalogId,
-                    );
-
-                    return Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            color: AppColors.cardSurfaceParchment,
-                            child: bundledAsset != null
-                                ? Image.asset(bundledAsset, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 20, color: AppColors.gold))
-                                : const Icon(Icons.image, size: 20, color: AppColors.gold),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.product.displayTitle(locale.languageCode),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                'Qty: ${item.quantity} ${item.variant != null ? "(${item.variant!.value})" : ""}',
-                                style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          item.formattedTotal,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 3. Payment Summary
-              Text(
-                isHindi ? 'भुगतान विवरण' : 'Payment Breakdown',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardSurfaceWarm,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Column(
-                  children: [
-                    _BreakdownRow(
-                      title: isHindi ? 'मूल मूल्य (Base Subtotal)' : 'Base Subtotal',
-                      value: calc != null ? calc.formattedSubtotal : cartState.formattedLocalSubtotal,
-                    ),
-                    const SizedBox(height: 8),
-                    _BreakdownRow(
-                      title: isHindi ? 'जीएसटी (18% सम्मिलित)' : 'GST (18% Inclusive)',
-                      value: calc != null ? calc.formattedTax : 'Included',
-                    ),
-                    const SizedBox(height: 8),
-                    _BreakdownRow(
-                      title: isHindi ? 'शिपिंग शुल्क' : 'Shipping Charges',
-                      value: calc != null ? calc.formattedShipping : (cartState.requiresShipping ? '₹99' : 'FREE'),
-                      isGreen: calc?.shippingAmountPaise == 0,
-                    ),
-                    const Divider(height: 20, color: AppColors.cardBorder),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          l10n.totalAmount,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
-                        ),
-                        Text(
-                          calc != null ? calc.formattedTotal : cartState.formattedLocalSubtotal,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19, color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 100),
+              const SizedBox(height: 10),
             ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.cardSurfaceWarm,
-          border: const Border(top: BorderSide(color: AppColors.cardBorder)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -3),
+            AstroPrimaryButton(
+              label: isHindi ? 'सुरक्षित भुगतान करें (Razorpay)' : 'Pay via Razorpay Secure',
+              icon: Icons.lock_outline,
+              isLoading: _isProcessing,
+              onPressed: _handlePayment,
             ),
           ],
         ),
-        child: SafeArea(
-          child: SizedBox(
-            width: double.infinity,
-            height: AppTouchTargets.minTouchTarget,
-            child: ElevatedButton(
-              onPressed: _isProcessing ? null : _handlePayment,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShopStepIndicator(
+            current: cartState.requiresShipping ? 3 : 2,
+            isHindi: isHindi,
+            includeAddress: cartState.requiresShipping,
+          ),
+          const SizedBox(height: 20),
+
+          if (_errorMessage != null) ...[
+            AstroSurfaceCard(
+              color: AppColors.errorBg,
+              borderColor: AppColors.errorBorder,
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.tintRoseText, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: AppColors.tintRoseText, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
-              child: _isProcessing
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // 1. Delivery address (required for physical products)
+          if (cartState.requiresShipping) ...[
+            AstroSectionHeading(l10n.deliveryAddress),
+            AstroSurfaceCard(
+              borderColor: cartState.selectedAddress == null ? AppColors.errorBorder : null,
+              child: cartState.selectedAddress != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.shield_outlined, size: 18),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            isHindi ? 'सुरक्षित भुगतान करें (Razorpay)' : 'Pay via Razorpay Secure',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const AstroIconSquare(icon: Icons.location_on_outlined, tint: AstroTint.coral),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    cartState.selectedAddress!.fullName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    cartState.selectedAddress!.formattedAddress,
+                                    style: const TextStyle(fontSize: 16, color: AppColors.textPrimary, height: 1.4),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Phone: ${cartState.selectedAddress!.phoneNumber}',
+                                    style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        AstroSecondaryButton(
+                          key: const ValueKey('checkout-change-address'),
+                          label: context.l10n.commonChange,
+                          icon: Icons.edit_location_alt_outlined,
+                          onPressed: () => _openAddressStep(context),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.selectAddressPrompt,
+                          style: const TextStyle(
+                              color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16, height: 1.4),
+                        ),
+                        const SizedBox(height: 12),
+                        AstroSecondaryButton(
+                          label: isHindi ? 'पता जोड़ें या चुनें' : 'Select or Add Address',
+                          icon: Icons.add_location_alt_outlined,
+                          onPressed: () => _openAddressStep(context),
                         ),
                       ],
                     ),
             ),
+            const SizedBox(height: 24),
+          ] else ...[
+            // Digital delivery reassurance
+            AstroSurfaceCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const AstroIconSquare(icon: Icons.download_done_rounded, tint: AstroTint.sage),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      l10n.digitalDeliveryReassurance,
+                      style: const TextStyle(fontSize: 16, color: AppColors.textPrimary, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // 2. Items
+          AstroSectionHeading('${isHindi ? "आइटम समीक्षा" : "Order Items"} (${cartState.itemCount})'),
+          AstroSurfaceCard(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            child: Column(
+              children: [
+                for (var idx = 0; idx < cartState.items.length; idx++) ...[
+                  if (idx > 0) const Divider(height: 1, color: AppColors.cardBorder),
+                  Builder(builder: (ctx) {
+                    final item = cartState.items[idx];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: ShopProductImage(
+                                assetKey: item.product.slug.isNotEmpty ? item.product.slug : item.product.catalogId,
+                                isPhysical: item.product.isPhysical,
+                                iconSize: 22,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.product.displayTitle(locale.languageCode),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.primary, height: 1.3),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Qty: ${item.quantity} ${item.variant != null ? "(${item.variant!.value})" : ""}',
+                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            item.formattedTotal,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 24),
+
+          // 3. Payment summary
+          AstroSectionHeading(isHindi ? 'भुगतान विवरण' : 'Payment Breakdown'),
+          AstroSurfaceCard(
+            child: Column(
+              children: [
+                ShopPriceRow(
+                  label: isHindi ? 'मूल मूल्य (Base Subtotal)' : 'Base Subtotal',
+                  value: calc != null ? calc.formattedSubtotal : cartState.formattedLocalSubtotal,
+                ),
+                ShopPriceRow(
+                  label: isHindi ? 'जीएसटी (18% सम्मिलित)' : 'GST (18% Inclusive)',
+                  value: calc != null ? calc.formattedTax : 'Included',
+                ),
+                ShopPriceRow(
+                  label: isHindi ? 'शिपिंग शुल्क' : 'Shipping Charges',
+                  value: calc != null ? calc.formattedShipping : (cartState.requiresShipping ? '₹99' : 'FREE'),
+                  valueColor: calc?.shippingAmountPaise == 0 ? kShopSuccessText : null,
+                ),
+                const Divider(height: 24, color: AppColors.cardBorder),
+                ShopTotalRow(label: l10n.totalAmount, value: total),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _openAddressSelector(BuildContext context) {
-    Navigator.of(context).push(
+  /// Back to the address step (step 2). When this screen was pushed by that
+  /// step, pop to it so the back stack stays Cart → Address → Pay. Otherwise
+  /// replace this screen with the address step, which pushes a fresh
+  /// Review & Pay screen once an address is chosen.
+  void _openAddressStep(BuildContext context) {
+    final navigator = Navigator.of(context);
+    if (widget.openedFromAddressStep && navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    navigator.pushReplacement(
       MaterialPageRoute(
         builder: (_) => const ShippingAddressesScreen(isSelectionMode: true),
       ),
-    );
-  }
-}
-
-class _BreakdownRow extends StatelessWidget {
-  final String title;
-  final String value;
-  final bool isGreen;
-
-  const _BreakdownRow({required this.title, required this.value, this.isGreen = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: const TextStyle(fontSize: 13, color: AppColors.lightTextSecondary)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: isGreen ? AppColors.success : AppColors.lightTextPrimary,
-          ),
-        ),
-      ],
     );
   }
 }

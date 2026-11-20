@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
@@ -14,14 +16,66 @@ extension AstroColorSchemeExtension on ColorScheme {
   Color get border => AppColors.border;
 }
 
+/// Platform-native scroll behaviour, driven by the *theme* platform (so
+/// tests and previews that set `ThemeData.platform` get the right feel):
+/// iOS / macOS bounce; Android clamps with the Material 3 stretch overscroll.
+/// Set on `MaterialApp.scrollBehavior`.
+class AstroScrollBehavior extends MaterialScrollBehavior {
+  const AstroScrollBehavior();
+
+  @override
+  TargetPlatform getPlatform(BuildContext context) => Theme.of(context).platform;
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    final p = getPlatform(context);
+    if (p == TargetPlatform.iOS || p == TargetPlatform.macOS) {
+      return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+    }
+    return const ClampingScrollPhysics();
+  }
+}
+
 /// Official Application Theme for Astro Sushil Mobile Application
 class AppTheme {
   AppTheme._();
+
+  /// Native page transitions: iOS / macOS slide with edge swipe-back;
+  /// Android uses predictive back (system back button and gesture keep
+  /// working); other platforms fade forwards.
+  static const PageTransitionsTheme pageTransitions = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+      TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
+    },
+  );
+
+  static bool get _cupertino =>
+      defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS;
+
+  /// Base text sizes for unstyled text (body >= 16, secondary >= 14,
+  /// captions >= 13). Brand families are applied per style.
+  static const TextTheme _lightTextTheme = TextTheme(
+    bodyLarge: TextStyle(fontSize: 17, height: 1.45, color: AppColors.textPrimary),
+    bodyMedium: TextStyle(fontSize: 16, height: 1.45, color: AppColors.textPrimary),
+    bodySmall: TextStyle(fontSize: 14, height: 1.4, color: AppColors.textSecondary),
+    labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    labelMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+    labelSmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+    titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+    titleSmall: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+  );
 
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      pageTransitionsTheme: pageTransitions,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.primary,
       colorScheme: const ColorScheme.dark(
@@ -115,8 +169,41 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      pageTransitionsTheme: pageTransitions,
+      textTheme: _lightTextTheme,
+      // iOS: soft grey press highlight; Android: Material ink ripples.
+      splashFactory: _cupertino ? NoSplash.splashFactory : InkSparkle.splashFactory,
+      highlightColor: AppColors.primary.withValues(alpha: 0.06),
       scaffoldBackgroundColor: AppColors.canvas,
       primaryColor: AppColors.primary,
+      cupertinoOverrideTheme: const NoDefaultCupertinoThemeData(
+        primaryColor: AppColors.accent,
+        scaffoldBackgroundColor: AppColors.canvas,
+        barBackgroundColor: AppColors.navBarFrost,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Colors.white : AppColors.textSecondary,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? AppColors.successText : AppColors.segmentedTrack,
+        ),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Colors.transparent : AppColors.cardBorder,
+        ),
+      ),
+      sliderTheme: const SliderThemeData(
+        activeTrackColor: AppColors.accent,
+        thumbColor: Colors.white,
+        inactiveTrackColor: AppColors.segmentedTrack,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.accent,
+          minimumSize: const Size(44, 44),
+          textStyle: AppTypography.navAction.copyWith(fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+      ),
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
@@ -132,12 +219,13 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.canvas,
         foregroundColor: AppColors.textPrimary,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
-        actionsIconTheme: IconThemeData(color: AppColors.textPrimary),
-        titleTextStyle: AppTypography.headlineLarge,
+        iconTheme: IconThemeData(color: AppColors.accent),
+        actionsIconTheme: IconThemeData(color: AppColors.accent),
+        titleTextStyle: AppTypography.navTitle,
       ),
       cardTheme: CardThemeData(
         color: AppColors.cardSurface,
@@ -220,8 +308,8 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.cardBorderSubtle,
-        thickness: 1,
+        color: AppColors.separator,
+        thickness: 0.5,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,

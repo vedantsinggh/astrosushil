@@ -1,685 +1,822 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/localization/locale_provider.dart';
+import '../../features/auth/models/user_model.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
+import '../../features/birth_profile/models/birth_profile_model.dart';
+import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/birth_profile_list_screen.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
-import '../../features/courses/screens/courses_hub_screen.dart';
+import '../../features/legal/screens/legal_documents_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/settings/screens/app_settings_screen.dart';
-import '../../features/reports/providers/career_report_provider.dart';
-import '../../features/shop/screens/shop_catalog_screen.dart';
 import '../../features/shop/screens/order_history_screen.dart';
-import '../../features/shop/screens/digital_downloads_screen.dart';
 import '../../features/shop/screens/shipping_addresses_screen.dart';
-import '../../shared/theme/app_colors.dart';
-import '../../shared/widgets/subtle_celestial_background.dart';
 import '../../features/support/screens/help_support_screen.dart';
-import '../../features/legal/screens/legal_documents_screen.dart';
-import 'consult_screen.dart';
-import 'reports_screen.dart';
+import '../../shared/screens/simple_screen_kit.dart';
+import '../../shared/theme/app_colors.dart';
+import '../../shared/theme/app_theme_tokens.dart';
+import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/astro_nav_bar.dart';
+import '../../shared/widgets/astro_sheets.dart';
+import '../providers/home_provider.dart';
 
-/// Screen shell for Account / Profile tab in Bottom Navigation
-class ProfileScreen extends ConsumerWidget {
+const int _kHomeTabIndex = 0;
+
+/// Soft per-row icon colours (iOS Settings style tinted squares).
+/// Material icons are used on purpose: cupertino_icons is not a dependency,
+/// so CupertinoIcons glyphs would render as empty boxes.
+class _RowColors {
+  static const profiles = Color(0xFF5B5BD6);
+  static const orders = Color(0xFFE08A1E);
+  static const addresses = Color(0xFF2F9E62);
+  static const notifications = Color(0xFFE5484D);
+  static const language = Color(0xFF3A7BEA);
+  static const settings = Color(0xFF7A8496);
+  static const help = Color(0xFF14A08C);
+  static const legal = Color(0xFF5E6B80);
+}
+
+/// Account tab, styled like a native iOS settings page:
+/// - large "Account" title that collapses into a compact bar on scroll
+/// - profile card: name, phone / email and the active birth profile
+///   ("Change"); guests get a "Sign in / Create account" card instead
+/// - short inset-grouped sections with tinted icon squares and chevrons
+/// - a red "Sign out" row (or "Exit guest mode" for guests)
+///
+/// Reports and bookings are not listed here: they have their own bottom
+/// tabs. Downloads live under My orders (order detail) and courses under
+/// Home → Courses → My Learning.
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
-  void _showLanguageSelector(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final activeLocale = ref.read(localeProvider);
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
 
-    showModalBottomSheet(
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _signingOut = false;
+
+  bool get _isHindi => Localizations.maybeLocaleOf(context)?.languageCode == 'hi';
+
+  void _push(Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Action sheets
+  // ---------------------------------------------------------------------------
+
+  Future<void> _showLanguageSelector() async {
+    final l10n = context.l10n;
+    final isHindiNow = ref.read(localeProvider).languageCode == 'hi';
+
+    final picked = await showAstroActionSheet<Locale>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.lightBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.selectLanguage,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _LanguageOptionTile(
-                title: l10n.languageEnglish,
-                subtitle: 'English',
-                isSelected: activeLocale.languageCode == 'en',
-                onTap: () {
-                  ref.read(localeProvider.notifier).setLocale(SupportedLocales.english);
-                  Navigator.of(ctx).pop();
-                },
-              ),
-              const SizedBox(height: 8),
-              _LanguageOptionTile(
-                title: l10n.languageHindi,
-                subtitle: 'देवनागरी (Devanagari)',
-                isSelected: activeLocale.languageCode == 'hi',
-                onTap: () {
-                  ref.read(localeProvider.notifier).setLocale(SupportedLocales.hindi);
-                  Navigator.of(ctx).pop();
-                },
-              ),
-            ],
-          ),
+      title: l10n.selectLanguage,
+      actions: [
+        AstroSheetAction(
+          key: const ValueKey('account-lang-en'),
+          label: l10n.languageEnglish,
+          value: SupportedLocales.english,
+          selected: !isHindiNow,
         ),
-      ),
+        AstroSheetAction(
+          key: const ValueKey('account-lang-hi'),
+          label: l10n.languageHindi,
+          value: SupportedLocales.hindi,
+          selected: isHindiNow,
+        ),
+      ],
+    );
+    if (picked != null && mounted) {
+      ref.read(localeProvider.notifier).setLocale(picked);
+    }
+  }
+
+  Future<void> _showProfileSwitcher() async {
+    final l10n = context.l10n;
+    final profiles = ref.read(birthProfilesListNotifierProvider).profiles;
+    final activeProfile = ref.read(selectedBirthProfileProvider);
+    const addValue = '__add_profile__';
+
+    final picked = await showAstroActionSheet<String>(
+      context: context,
+      title: l10n.switchProfile,
+      actions: [
+        for (final p in profiles)
+          AstroSheetAction(
+            key: ValueKey('account-switch-${p.id}'),
+            label: p.name,
+            value: p.id,
+            selected: p.id == activeProfile?.id,
+          ),
+        AstroSheetAction(
+          key: const ValueKey('account-switch-add'),
+          label: l10n.addBirthProfile,
+          value: addValue,
+          icon: Icons.add_rounded,
+        ),
+      ],
+    );
+    if (picked == null || !mounted) return;
+    if (picked == addValue) {
+      _push(const CreateBirthProfileScreen());
+    } else {
+      ref.read(selectedBirthProfileIdProvider.notifier).state = picked;
+    }
+  }
+
+  Future<void> _confirmSignOut(bool isGuest) async {
+    final l10n = context.l10n;
+    final isHindi = _isHindi;
+
+    final confirmed = await showAstroActionSheet<bool>(
+      context: context,
+      title: isGuest ? l10n.exitGuestModeConfirmTitle : l10n.signOutConfirmTitle,
+      message: isGuest
+          // Exiting guest mode also deletes the guest's birth details on
+          // this device (see AuthNotifier.exitGuestMode), so say so.
+          ? (isHindi
+              ? 'इस डिवाइस पर सहेजी गई गेस्ट जन्म जानकारी हट जाएगी।'
+              : 'The guest birth details saved on this device will be removed.')
+          : l10n.signOutConfirmMessage,
+      cancelLabel: l10n.cancel,
+      actions: [
+        AstroSheetAction(
+          key: const ValueKey('account-signout-confirm'),
+          label: isGuest ? (isHindi ? 'गेस्ट मोड छोड़ें' : 'Exit guest mode') : l10n.signOut,
+          value: true,
+          isDestructive: true,
+        ),
+      ],
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _signingOut = true);
+    final auth = ref.read(authStateProvider.notifier);
+    if (isGuest) {
+      await auth.exitGuestMode();
+    } else {
+      await auth.logout();
+    }
+    if (!mounted) return;
+    // The next person to sign in should start on Home, not on this tab.
+    ref.read(homeTabControllerProvider.notifier).state = _kHomeTabIndex;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      (route) => false,
     );
   }
 
-  void _showSignOutConfirmation(BuildContext context, WidgetRef ref, bool isGuest) {
-    final l10n = context.l10n;
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          isGuest ? l10n.exitGuestModeConfirmTitle : l10n.signOutConfirmTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
-        ),
-        content: Text(
-          isGuest ? l10n.exitGuestModeConfirmMessage : l10n.signOutConfirmMessage,
-          style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              if (isGuest) {
-                await ref.read(authStateProvider.notifier).exitGuestMode();
-              } else {
-                await ref.read(authStateProvider.notifier).logout();
-              }
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-                  (route) => false,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(isGuest ? l10n.signOut : l10n.signOut),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteCacheConfirmation(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          l10n.deleteCacheTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
-        ),
-        content: Text(
-          l10n.deleteCacheConfirm,
-          style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              await ref.read(careerReportNotifierProvider.notifier).clearAllLocalReportCache();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.deleteCacheSubtitle)),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
-    );
+  /// Shared adaptive large-title nav bar. As a tab root there is no back
+  /// button; when pushed as its own page the adaptive back button shows.
+  Widget _buildNavBar(String title) {
+    final isPushed = ModalRoute.of(context)?.canPop ?? false;
+    return AstroSliverNavBar(title: title, showBack: isPushed);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final authState = ref.watch(authStateProvider);
+    final isSignedIn = authState.isAuthenticated && authState.user != null;
     final isGuest = authState.isGuest;
-    final user = authState.user;
-    final currentLocale = ref.watch(localeProvider);
-    final isHindi = currentLocale.languageCode == 'hi';
+    // Follow the locale the app is actually rendered in (MaterialApp.locale
+    // is driven by localeProvider), so labels always match l10n strings.
+    final isHindi = Localizations.maybeLocaleOf(context)?.languageCode == 'hi';
+    final profilesState = ref.watch(birthProfilesListNotifierProvider);
+    final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    final email = isGuest ? l10n.guestModeTitle : (user?.email ?? l10n.accountTitle);
-    final initial = isGuest ? 'G' : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
+    String t(String en, String hi) => isHindi ? hi : en;
 
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      appBar: AppBar(
-        title: Text(
-          l10n.accountTitle,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. User Header Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardSurfaceWarm,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.cardBorder),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: isGuest ? AppColors.tertiary : AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.premiumAccent,
-                            width: 2,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            initial,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.premiumAccent,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.lightTextPrimary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isGuest
-                                    ? AppColors.premiumAccent.withValues(alpha: 0.2)
-                                    : AppColors.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                isGuest ? 'GUEST USER' : 'AUTHENTICATED USER',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                if (isGuest) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+      backgroundColor: AppColors.canvas,
+      body: CustomScrollView(
+        slivers: [
+          _buildNavBar(l10n.navAccount),
+          SliverSafeArea(
+            top: false,
+            sliver: SliverPadding(
+              // Same top gap / bottom clearance as the other tab roots.
+              padding: EdgeInsets.fromLTRB(
+                AstroMetrics.gutter,
+                8,
+                AstroMetrics.gutter,
+                32 + MediaQuery.paddingOf(context).bottom,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  // Comfortable reading width on tablets and in landscape.
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: AstroMetrics.maxContentWidth),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded, color: AppColors.premiumAccent, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.guestModeTitle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          l10n.guestModeSubtitle,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 12,
-                            height: 1.4,
+                        // 1. Who is signed in (or a clear way to sign in).
+                        if (isSignedIn)
+                          _ProfileCard(
+                            user: authState.user!,
+                            activeProfile: activeProfile,
+                            profilesState: profilesState,
+                            onChangeProfile: _showProfileSwitcher,
+                            onAddProfile: () => _push(const CreateBirthProfileScreen()),
+                            onRetryProfiles: () =>
+                                ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles(),
+                          )
+                        else
+                          _SignInCard(
+                            isGuest: isGuest,
+                            onSignIn: () => _push(const LoginScreen()),
+                            onCreateAccount: () => _push(const SignupScreen()),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
+                        const SizedBox(height: 28),
+
+                        // 2. Profiles and purchases. Orders and addresses
+                        //    need an account; guests see the card above.
+                        _InsetSection(
                           children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const SignupScreen()),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.premiumAccent,
-                                  foregroundColor: AppColors.primary,
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: Text(l10n.createAccount, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              ),
+                            _SettingsRow(
+                              key: const ValueKey('account-row-birth-profiles'),
+                              icon: Icons.people_alt_rounded,
+                              color: _RowColors.profiles,
+                              title: t('Birth profiles', 'जन्म प्रोफाइल'),
+                              value: isSignedIn ? null : activeProfile?.name,
+                              onTap: () => _push(const BirthProfileListScreen()),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                  );
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white54),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: Text(l10n.signIn, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            if (isSignedIn) ...[
+                              _SettingsRow(
+                                key: const ValueKey('account-row-orders'),
+                                icon: Icons.shopping_bag_rounded,
+                                color: _RowColors.orders,
+                                title: t('My orders', 'मेरे ऑर्डर'),
+                                onTap: () => _push(const OrderHistoryScreen()),
                               ),
+                              _SettingsRow(
+                                key: const ValueKey('account-row-addresses'),
+                                icon: Icons.location_on_rounded,
+                                color: _RowColors.addresses,
+                                title: t('Delivery addresses', 'डिलीवरी पते'),
+                                onTap: () => _push(const ShippingAddressesScreen()),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 28),
+
+                        // 3. App preferences.
+                        _InsetSection(
+                          children: [
+                            _SettingsRow(
+                              key: const ValueKey('account-row-notifications'),
+                              icon: Icons.notifications_rounded,
+                              color: _RowColors.notifications,
+                              title: t('Notifications', 'सूचनाएं'),
+                              onTap: () => _push(const NotificationsScreen()),
+                            ),
+                            _SettingsRow(
+                              key: const ValueKey('account-row-language'),
+                              icon: Icons.language_rounded,
+                              color: _RowColors.language,
+                              title: l10n.languageSetting,
+                              value: isHindi ? 'हिन्दी' : 'English',
+                              onTap: _showLanguageSelector,
+                            ),
+                            _SettingsRow(
+                              key: const ValueKey('account-row-settings'),
+                              icon: Icons.settings_rounded,
+                              color: _RowColors.settings,
+                              title: t('Settings', 'सेटिंग्स'),
+                              onTap: () => _push(const AppSettingsScreen()),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 28),
+
+                        // 4. Help. Policies stay here because neither the
+                        //    Help nor the Settings screen links to them.
+                        _InsetSection(
+                          children: [
+                            _SettingsRow(
+                              key: const ValueKey('account-row-help'),
+                              icon: Icons.support_agent_rounded,
+                              color: _RowColors.help,
+                              title: t('Help & Support', 'सहायता'),
+                              onTap: () => _push(const HelpSupportScreen()),
+                            ),
+                            _SettingsRow(
+                              key: const ValueKey('account-row-legal'),
+                              icon: Icons.description_rounded,
+                              color: _RowColors.legal,
+                              title: t('Policies & terms', 'नियम एवं नीतियां'),
+                              onTap: () => _push(const LegalDocumentsScreen()),
+                            ),
+                          ],
+                        ),
+
+                        // 5. Sign out / leave guest mode (iOS red text row).
+                        if (isSignedIn || isGuest) ...[
+                          const SizedBox(height: 28),
+                          _InsetSection(
+                            children: [
+                              _SignOutRow(
+                                key: const ValueKey('account-signout'),
+                                label: isGuest ? t('Exit guest mode', 'गेस्ट मोड छोड़ें') : l10n.signOut,
+                                busy: _signingOut,
+                                onTap: _signingOut ? null : () => _confirmSignOut(isGuest),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ],
-
-                const SizedBox(height: 22),
-
-                // 2. My Purchases & Commerce Hub
-                Text(
-                  isHindi ? 'खरीदारी एवं सेवाएं (My Purchases)' : 'My Purchases & Orders',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
                 ),
-                const SizedBox(height: 10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                // Spiritual Shop
-                _ProfileTile(
-                  icon: Icons.storefront_rounded,
-                  title: isHindi ? 'आध्यात्मिक शॉप' : 'Spiritual Shop',
-                  subtitle: isHindi ? 'अभिमंत्रित जड़ी-बूटी, पवित्र कला एवं वॉलपेपर' : 'Consecrated herbs, sacred art & wallpapers',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ShopCatalogScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
+// -----------------------------------------------------------------------------
+// Profile card (signed in)
+// -----------------------------------------------------------------------------
 
-                // My Orders
-                _ProfileTile(
-                  icon: Icons.receipt_long_outlined,
-                  title: isHindi ? 'मेरे आर्डर्स एवं रसीदें' : 'My Orders & Purchases',
-                  subtitle: isHindi ? 'सभी उत्पादों, रिपोर्ट एवं कोर्स का विवरण' : 'Track orders, shipping status & invoices',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
+const _kCardShadow = [
+  BoxShadow(color: Color(0x0F121440), blurRadius: 24, offset: Offset(0, 8)),
+  BoxShadow(color: Color(0x08121440), blurRadius: 4, offset: Offset(0, 1)),
+];
 
-                // My Digital Library
-                _ProfileTile(
-                  icon: Icons.download_for_offline_outlined,
-                  title: isHindi ? 'मेरी डिजिटल लाइब्रेरी' : 'My Digital Library',
-                  subtitle: isHindi ? 'खरीदे गए वॉलपेपर, कला एवं मंत्र डाउनलोड करें' : 'Purchased wallpapers, 4K art & secret mantras',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const DigitalDownloadsScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
+class _ProfileCard extends StatelessWidget {
+  final UserModel user;
+  final BirthProfileModel? activeProfile;
+  final BirthProfilesState profilesState;
+  final VoidCallback onChangeProfile;
+  final VoidCallback onAddProfile;
+  final VoidCallback onRetryProfiles;
 
-                // Saved Shipping Addresses
-                _ProfileTile(
-                  icon: Icons.location_on_outlined,
-                  title: isHindi ? 'सुरक्षित डिलीवरी पते' : 'Delivery Addresses',
-                  subtitle: isHindi ? 'भौतिक उत्पादों हेतु पते प्रबंधित करें' : 'Manage shipping addresses for physical items',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ShippingAddressesScreen()),
-                    );
-                  },
-                ),
+  const _ProfileCard({
+    required this.user,
+    required this.activeProfile,
+    required this.profilesState,
+    required this.onChangeProfile,
+    required this.onAddProfile,
+    required this.onRetryProfiles,
+  });
 
-                const SizedBox(height: 22),
+  static String _initials(String name) {
+    final parts = name.split(RegExp(r'[\s._@-]+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    final first = parts.first[0];
+    final second = parts.length > 1 ? parts[1][0] : '';
+    return (first + second).toUpperCase();
+  }
 
-                // 3. Learning & Consultations
-                Text(
-                  isHindi ? 'शिक्षा एवं परामर्श सेवाएं' : 'Learning & Consultations',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isHindi = Localizations.maybeLocaleOf(context)?.languageCode == 'hi';
+    String t(String en, String hi) => isHindi ? hi : en;
 
-                // My Learning (Purchased Courses)
-                _ProfileTile(
-                  icon: Icons.play_lesson_outlined,
-                  title: l10n.myLearningTab,
-                  subtitle: isHindi ? 'नामांकित मास्टरक्लास एवं प्रगति' : 'Enrolled masterclasses & watched progress',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CoursesHubScreen(initialTab: 1)),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
+    final fullName = user.fullName?.trim() ?? '';
+    final email = user.email.trim();
+    final phone = user.phoneNumber?.trim() ?? '';
+    final displayName = fullName.isNotEmpty
+        ? fullName
+        : (email.contains('@') ? email.split('@').first : (phone.isNotEmpty ? phone : email));
+    final contactLines = <String>[
+      if (phone.isNotEmpty && phone != displayName) phone,
+      if (email.isNotEmpty && email != displayName) email,
+    ];
 
-                // All Courses & Masterclasses
-                _ProfileTile(
-                  icon: Icons.school_outlined,
-                  title: l10n.coursesScreenTitle,
-                  subtitle: isHindi ? 'प्रामाणिक गुप्त नाड़ी एवं वैदिक ज्योतिष सीखें' : 'Explore authentic Gupta Nadi & Vedic courses',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CoursesHubScreen(initialTab: 0)),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
+    final profile = activeProfile;
+    final Widget profileSection;
+    if (profile != null) {
+      profileSection = _ProfileLine(
+        icon: Icons.account_circle_rounded,
+        label: t('Birth profile', 'जन्म प्रोफाइल'),
+        value: profile.name,
+        action: _PillButton(
+          key: const ValueKey('account-change-profile'),
+          label: l10n.homeChangeProfile,
+          onPressed: onChangeProfile,
+        ),
+      );
+    } else if (profilesState.isLoading) {
+      profileSection = Row(
+        children: [
+          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator.adaptive(strokeWidth: 2.5)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              t('Loading birth profile…', 'जन्म प्रोफाइल लोड हो रही है…'),
+              style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      );
+    } else if (profilesState.errorMessage != null) {
+      profileSection = _ProfileLine(
+        icon: Icons.error_rounded,
+        label: t('Birth profile', 'जन्म प्रोफाइल'),
+        value: t("Couldn't load", 'लोड नहीं हो सकी'),
+        action: _PillButton(
+          key: const ValueKey('account-profiles-retry'),
+          label: l10n.retry,
+          onPressed: onRetryProfiles,
+        ),
+      );
+    } else {
+      profileSection = _ProfileLine(
+        icon: Icons.person_add_alt_1_rounded,
+        label: t('Birth profile', 'जन्म प्रोफाइल'),
+        value: t('None yet', 'अभी कोई नहीं'),
+        action: _PillButton(
+          key: const ValueKey('account-add-profile'),
+          label: t('Add', 'जोड़ें'),
+          onPressed: onAddProfile,
+        ),
+      );
+    }
 
-                // My Consultations
-                _ProfileTile(
-                  icon: Icons.calendar_month_outlined,
-                  title: isHindi ? 'मेरे ज्योतिष परामर्श' : 'My Consultations & Appointments',
-                  subtitle: isHindi ? 'सुशील सर एवं विशेषज्ञ ज्योतिषियों से परामर्श' : 'Book and view consultation sessions',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ConsultScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // My Kundli Reports
-                _ProfileTile(
-                  icon: Icons.description_outlined,
-                  title: isHindi ? 'मेरी जन्म कुंडलियां एवं रिपोर्ट्स' : 'My Kundli Reports & Analysis',
-                  subtitle: isHindi ? 'विस्तृत पीडीएफ रिपोर्ट्स एवं भविष्यवाणियां' : 'Career, marriage & planetary reports',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 22),
-
-                // 4. Profiles & Astrology Section
-                Text(
-                  isHindi ? 'जन्म कुंडलियां एवं प्रोफाइल' : 'Saved Profiles & Astrology',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Saved Birth Profiles
-                _ProfileTile(
-                  icon: Icons.people_outline_rounded,
-                  title: l10n.savedProfilesTitle,
-                  subtitle: l10n.savedProfilesSubtitle,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const BirthProfileListScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Add New Profile
-                _ProfileTile(
-                  icon: Icons.add_circle_outline_rounded,
-                  title: l10n.addBirthProfile,
-                  subtitle: l10n.createProfilePrompt,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 22),
-
-                // 5. Preferences & Settings
-                Text(
-                  l10n.appSettingsTitle,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Language Tile
-                _ProfileTile(
-                  icon: Icons.translate_rounded,
-                  title: l10n.languageSetting,
-                  subtitle: currentLocale.languageCode == 'hi' ? l10n.languageHindi : l10n.languageEnglish,
-                  trailingText: currentLocale.languageCode == 'hi' ? 'हिन्दी' : 'English',
-                  onTap: () => _showLanguageSelector(context, ref),
-                ),
-                const SizedBox(height: 10),
-
-                // Settings & Preferences Full Hub
-                _ProfileTile(
-                  icon: Icons.settings_outlined,
-                  title: isHindi ? 'ऐप सेटिंग्स एवं नोटिफिकेशन' : 'App Settings & Notifications',
-                  subtitle: isHindi ? 'भाषा, गोचर अलर्ट, सुरक्षा एवं डेटा प्रबंधन' : 'Notification alerts, device permissions & security',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AppSettingsScreen()),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 22),
-
-                // 6. Support & Policies
-                Text(
-                  l10n.helpSupportTitle,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.lightTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // WhatsApp Support & FAQs
-                _ProfileTile(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: l10n.helpSupportTitle,
-                  subtitle: l10n.helpSupportSubtitle,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const HelpSupportScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Shipping & Return Policies
-                _ProfileTile(
-                  icon: Icons.local_shipping_outlined,
-                  title: isHindi ? 'शिपिंग एवं डिलीवरी नीति' : 'Shipping & Delivery Policy',
-                  subtitle: isHindi ? '48-72 घंटे में डिस्पैच, ₹2,000+ पर मुफ्त डिलीवरी' : 'Pan-India delivery details & tracking terms',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LegalDocumentsScreen(
-                          initialDocument: LegalDocumentType.shipping,
+    return Container(
+      key: const ValueKey('account-header'),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: _kCardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Row(
+              children: [
+                _GradientAvatar(initials: _initials(displayName)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MediaQuery.withClampedTextScaling(
+                        maxScaleFactor: 1.6,
+                        child: Text(
+                          displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.displayMedium.copyWith(
+                            fontSize: 22,
+                            height: 1.2,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                _ProfileTile(
-                  icon: Icons.assignment_return_outlined,
-                  title: isHindi ? 'रिफंड एवं वापसी नीति' : 'Refund & Cancellation Policy',
-                  subtitle: isHindi ? 'पारदर्शी एवं निष्पक्ष रिफंड नियम' : 'Terms for digital & physical returns',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LegalDocumentsScreen(
-                          initialDocument: LegalDocumentType.refund,
+                      for (final line in contactLines) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          line,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
                         ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 0.5, indent: 18, endIndent: 18, color: AppColors.cardBorder),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 14, 12),
+            child: profileSection,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Icon + small grey label + value, with an action that drops below the
+/// value on narrow screens or at large text sizes.
+class _ProfileLine extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Widget action;
+
+  const _ProfileLine({required this.icon, required this.label, required this.value, required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final textBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        final stacked = constraints.maxWidth / scale < 250;
+        final main = Row(
+          children: [
+            Icon(icon, size: 28, color: AppColors.secondary),
+            const SizedBox(width: 12),
+            Expanded(child: textBlock),
+            if (!stacked) ...[const SizedBox(width: 8), action],
+          ],
+        );
+        if (!stacked) return main;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            main,
+            const SizedBox(height: 8),
+            Padding(padding: const EdgeInsets.only(left: 40), child: action),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GradientAvatar extends StatelessWidget {
+  final String initials;
+  final IconData? icon;
+
+  const _GradientAvatar({this.initials = '', this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget content = icon != null
+        ? Icon(icon, size: 30, color: Colors.white)
+        : MediaQuery.withNoTextScaling(
+            child: Text(
+              initials,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: Colors.white,
+              ),
+            ),
+          );
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primary, Color(0xFF3F3D8F)],
+            ),
+            boxShadow: [BoxShadow(color: Color(0x33121440), blurRadius: 12, offset: Offset(0, 4))],
+          ),
+          child: Center(child: content),
+        ),
+      ),
+    );
+  }
+}
+
+/// Soft tinted pill used for "Change" / "Add" / "Try again" in the card.
+class _PillButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+
+  const _PillButton({super.key, required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 140),
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.secondary,
+          backgroundColor: AppColors.secondary.withValues(alpha: 0.10),
+          minimumSize: const Size(72, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: const StadiumBorder(),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Guest / signed-out card
+// -----------------------------------------------------------------------------
+
+class _SignInCard extends StatelessWidget {
+  final bool isGuest;
+  final VoidCallback onSignIn;
+  final VoidCallback onCreateAccount;
+
+  const _SignInCard({
+    required this.isGuest,
+    required this.onSignIn,
+    required this.onCreateAccount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isHindi = Localizations.maybeLocaleOf(context)?.languageCode == 'hi';
+
+    return Container(
+      key: const ValueKey('account-signin-card'),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: _kCardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const _GradientAvatar(icon: Icons.person_rounded),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.6,
+                    child: Text(
+                      isHindi ? 'साइन इन / नया खाता बनाएं' : 'Sign in / Create account',
+                      style: AppTypography.displayMedium.copyWith(
+                        fontSize: 22,
+                        height: 1.2,
+                        color: AppColors.textPrimary,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Privacy Policy
-                _ProfileTile(
-                  icon: Icons.shield_outlined,
-                  title: l10n.privacyPolicyTitle,
-                  subtitle: l10n.privacyPolicySubtitle,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LegalDocumentsScreen(
-                          initialDocument: LegalDocumentType.privacy,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Clear Cache
-                _ProfileTile(
-                  icon: Icons.cleaning_services_outlined,
-                  title: l10n.deleteCacheTitle,
-                  subtitle: l10n.deleteCacheSubtitle,
-                  onTap: () => _showDeleteCacheConfirmation(context, ref),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 7. Logout / Exit Guest Mode
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showSignOutConfirmation(context, ref, isGuest),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    icon: Icon(isGuest ? Icons.exit_to_app_rounded : Icons.logout_rounded, size: 20),
-                    label: Text(
-                      isGuest ? l10n.signOut : l10n.signOut,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
                   ),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isGuest
+                ? (isHindi
+                    ? 'आप गेस्ट के रूप में हैं। अपने ऑर्डर देखने और प्रोफाइल सहेजने के लिए साइन इन करें।'
+                    : 'You are using the app as a guest. Sign in to see your orders and keep your profiles safe.')
+                : (isHindi
+                    ? 'अपने ऑर्डर देखने और प्रोफाइल सहेजने के लिए साइन इन करें।'
+                    : 'Sign in to see your orders and keep your profiles safe.'),
+            style: const TextStyle(fontSize: 16, height: 1.4, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 18),
+          SimplePrimaryButton(
+            key: const ValueKey('account-signin'),
+            label: l10n.signIn,
+            onPressed: onSignIn,
+          ),
+          const SizedBox(height: 10),
+          SimpleSecondaryButton(
+            key: const ValueKey('account-create'),
+            label: l10n.createAccount,
+            onPressed: onCreateAccount,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-                const SizedBox(height: 24),
+// -----------------------------------------------------------------------------
+// Inset-grouped section and rows (iOS Settings look)
+// -----------------------------------------------------------------------------
+
+class _InsetSection extends StatelessWidget {
+  final List<Widget> children;
+
+  const _InsetSection({required this.children});
+
+  // Divider starts after the icon square, like iOS.
+  static const double _dividerIndent = 16 + 30 + 14;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0) {
+        items.add(const Divider(height: 0.5, thickness: 0.5, indent: _dividerIndent, color: AppColors.cardBorder));
+      }
+      items.add(children[i]);
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Color(0x0A121440), blurRadius: 16, offset: Offset(0, 4))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: AppColors.cardSurface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: items,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? value;
+  final VoidCallback onTap;
+
+  const _SettingsRow({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.onTap,
+    this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 54),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(icon, size: 18, color: Colors.white),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontSize: 17, height: 1.3, color: AppColors.textPrimary),
+                      ),
+                      // Values sit under the title (not beside it) so long
+                      // titles and large text never squeeze each other.
+                      if (value != null)
+                        Text(
+                          value!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded, size: 24, color: AppColors.textMuted),
               ],
             ),
           ),
@@ -689,91 +826,36 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String? trailingText;
-  final VoidCallback onTap;
+class _SignOutRow extends StatelessWidget {
+  final String label;
+  final bool busy;
+  final VoidCallback? onTap;
 
-  const _ProfileTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.trailingText,
-    required this.onTap,
-  });
+  const _SignOutRow({super.key, required this.label, required this.busy, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.cardSurfaceWarm,
-      borderRadius: BorderRadius.circular(14),
+    return Semantics(
+      button: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.cardBorder),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: AppColors.primary, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 54),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Center(
+              child: busy
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator.adaptive(strokeWidth: 2.5))
+                  : Text(
+                      label,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.tintRoseText,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.lightTextSecondary,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (trailingText != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  trailingText!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.lightTextMuted,
-                size: 20,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -781,46 +863,3 @@ class _ProfileTile extends StatelessWidget {
   }
 }
 
-class _LanguageOptionTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _LanguageOptionTile({
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isSelected ? AppColors.primary : AppColors.lightBorder,
-          width: isSelected ? 1.5 : 1.0,
-        ),
-      ),
-      leading: Icon(
-        isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-        color: isSelected ? AppColors.primary : AppColors.lightTextMuted,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: AppColors.lightTextPrimary,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
-      ),
-    );
-  }
-}

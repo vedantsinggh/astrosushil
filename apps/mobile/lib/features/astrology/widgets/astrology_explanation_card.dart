@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/widgets/astro_card.dart';
+import '../../../shared/theme/app_theme_tokens.dart';
+import '../../../shared/widgets/astro_lists.dart';
 
 /// Reusable beginner-friendly explanation card providing plain-language educational context
 /// in English and Hindi for core astrological tools and calculation results.
@@ -27,7 +28,8 @@ class AstrologyExplanationCard extends StatefulWidget {
         howToReadText = howToReadText ?? howToRead ?? '';
 
   @override
-  State<AstrologyExplanationCard> createState() => _AstrologyExplanationCardState();
+  State<AstrologyExplanationCard> createState() =>
+      _AstrologyExplanationCardState();
 }
 
 class _AstrologyExplanationCardState extends State<AstrologyExplanationCard> {
@@ -55,29 +57,20 @@ class _AstrologyExplanationCardState extends State<AstrologyExplanationCard> {
         expanded: _isExpanded,
         button: true,
         label: '${widget.title}. ${l10n.explainWhatDoesThisMean}',
-        child: AstroCard(
-          padding: EdgeInsets.zero,
+        child: Material(
+          type: MaterialType.transparency,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AstroMetrics.groupRadius),
+              color: AppColors.cardSurface,
+              boxShadow: AstroShadows.card,
               border: Border.all(
-                color: _isExpanded
-                    ? AppColors.premiumAccent.withValues(alpha: 0.6)
-                    : AppColors.lightBorder,
-                width: 1.2,
+                color: _isExpanded ? AppColors.goldBorder : const Color(0x0F121440),
+                width: _isExpanded ? 1 : 0.5,
               ),
-              gradient: _isExpanded
-                  ? LinearGradient(
-                      colors: [
-                        Colors.white,
-                        AppColors.premiumAccent.withValues(alpha: 0.04),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    )
-                  : null,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,27 +79,17 @@ class _AstrologyExplanationCardState extends State<AstrologyExplanationCard> {
                 // Header Row (Min 48dp height for accessible tap targets)
                 InkWell(
                   onTap: _toggleExpanded,
-                  borderRadius: BorderRadius.circular(16),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 52),
+                    constraints: const BoxConstraints(minHeight: 56),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       child: Row(
                         children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.lightbulb_outline_rounded,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                            ),
+                          const AstroIconSquare(
+                            icon: Icons.lightbulb_outline_rounded,
+                            tint: AstroTint.amber,
+                            size: 38,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -117,16 +100,17 @@ class _AstrologyExplanationCardState extends State<AstrologyExplanationCard> {
                                 Text(
                                   widget.title,
                                   style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
                                     color: AppColors.lightTextPrimary,
+                                    height: 1.25,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   l10n.explainWhatDoesThisMean,
                                   style: const TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.secondary,
                                   ),
@@ -140,8 +124,8 @@ class _AstrologyExplanationCardState extends State<AstrologyExplanationCard> {
                             duration: const Duration(milliseconds: 200),
                             child: const Icon(
                               Icons.keyboard_arrow_down_rounded,
-                              size: 24,
-                              color: AppColors.lightTextMuted,
+                              size: 28,
+                              color: AppColors.secondary,
                             ),
                           ),
                         ],
@@ -178,7 +162,8 @@ class _AstrologyExplanationCardState extends State<AstrologyExplanationCard> {
                         _SectionBlock(
                           icon: Icons.verified_user_outlined,
                           label: l10n.explainLimitations,
-                          text: widget.limitationsText ?? l10n.explainDisclaimer,
+                          text:
+                              widget.limitationsText ?? l10n.explainDisclaimer,
                           isMuted: true,
                         ),
                       ],
@@ -216,28 +201,31 @@ class _SectionBlock extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 15,
+              size: 18,
               color: isMuted ? AppColors.lightTextMuted : AppColors.primary,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.2,
-                color: isMuted ? AppColors.lightTextSecondary : AppColors.primary,
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: isMuted
+                      ? AppColors.lightTextSecondary
+                      : AppColors.primary,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           text,
           style: TextStyle(
-            fontSize: 13,
-            height: 1.45,
-            color: isMuted ? AppColors.lightTextMuted : AppColors.lightTextSecondary,
+            fontSize: isMuted ? 14 : 16,
+            height: 1.5,
+            color: AppColors.lightTextSecondary,
           ),
         ),
       ],

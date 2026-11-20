@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_gradients.dart';
-import '../../../shared/widgets/astro_app_bar.dart';
-import '../../../shared/widgets/subtle_celestial_background.dart';
-import '../../../shared/assets/app_assets.dart';
+import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
@@ -12,14 +8,10 @@ import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/strength_model.dart';
 import '../providers/astrology_provider.dart';
 import '../widgets/active_birth_profile_selector.dart';
-import '../widgets/astrology_data_table.dart';
+import '../widgets/adv_widgets.dart';
 import '../widgets/astrology_empty_state.dart';
 import '../widgets/astrology_error_state.dart';
 import '../widgets/astrology_loading_state.dart';
-import '../widgets/astrology_section_card.dart';
-import '../widgets/expandable_astrology_card.dart';
-import '../widgets/planet_chip.dart';
-import '../widgets/sign_chip.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../widgets/astrology_explanation_card.dart';
 
@@ -54,75 +46,61 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
   Widget build(BuildContext context) {
     final activeProfile = ref.watch(selectedBirthProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AstroAppBar(
-        title: 'Bhava Bala (भावबल)',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline_rounded, color: AppColors.midnightNavy),
-            tooltip: 'About Bhava Bala',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Bhava Bala evaluates the composite strength of all 12 astrological houses based on Lord strength, cusp direction, aspects, and occupants.',
-                  ),
-                  duration: Duration(seconds: 4),
+    return AstroPage(
+      title: 'Bhava Bala (भावबल)',
+      actions: [
+        AstroNavAction(
+          icon: Icons.info_outline_rounded,
+          tooltip: 'About Bhava Bala',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Bhava Bala evaluates the composite strength of all 12 astrological houses based on Lord strength, cusp direction, aspects, and occupants.',
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SubtleCelestialBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Profile Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: ActiveBirthProfileSelector(
-                  isDark: false,
-                  onProfileChanged: (_) {},
-                ),
+                duration: Duration(seconds: 4),
               ),
-
-              // Main Content
-              Expanded(
-                child: activeProfile == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: AstrologyEmptyState(
-                            title: 'No Active Birth Profile',
-                            message: 'Select or create a birth profile to calculate 12-house Bhava Bala potencies.',
-                            actionLabel: 'Add Birth Profile',
-                            onAction: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    : ref.watch(activeProfileBhavaBalaProvider).when(
-                          loading: () => const AstrologyLoadingState(
-                            message: 'Calculating 12-house Bhava Bala strengths & cusp potencies...',
-                          ),
-                          error: (err, stack) => AstrologyErrorState(
-                            error: err,
-                            customMessage: 'Failed to calculate Bhava Bala',
-                            onRetry: () => ref.invalidate(activeProfileStrengthProvider),
-                          ),
-                          data: (report) => report == null || report.houses.isEmpty
-                              ? const Center(child: Text('No Bhava Bala data available'))
-                              : _buildBhavaBalaContent(context, report),
-                        ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ActiveBirthProfileSelector(
+            isDark: false,
+            onProfileChanged: (_) {},
+          ),
+          const SizedBox(height: kAdvGap),
+          if (activeProfile == null)
+            AstrologyEmptyState(
+              title: 'No Active Birth Profile',
+              message: 'Select or create a birth profile to calculate 12-house Bhava Bala potencies.',
+              actionLabel: 'Add Birth Profile',
+              onAction: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateBirthProfileScreen()),
+                );
+              },
+            )
+          else
+            ref.watch(activeProfileBhavaBalaProvider).when(
+                  loading: () => const AstrologyLoadingState(
+                    message: 'Calculating 12-house Bhava Bala strengths & cusp potencies...',
+                  ),
+                  error: (err, stack) => AstrologyErrorState(
+                    error: err,
+                    customMessage: 'Failed to calculate Bhava Bala',
+                    onRetry: () => ref.invalidate(activeProfileStrengthProvider),
+                  ),
+                  data: (report) => report == null || report.houses.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Text('No Bhava Bala data available', style: kAdvBody, textAlign: TextAlign.center),
+                        )
+                      : _buildBhavaBalaContent(context, report),
+                ),
+        ],
       ),
     );
   }
@@ -144,12 +122,14 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
           'sign': selectedHouseData.sign,
           'lord': selectedHouseData.lord,
         },
-        'allHouses': report.houses.map((h) => {
-          'house': h.houseNumber,
-          'rupas': h.totalRupas,
-          'rank': h.rank,
-          'lord': h.lord,
-        }).toList(),
+        'allHouses': report.houses
+            .map((h) => {
+                  'house': h.houseNumber,
+                  'rupas': h.totalRupas,
+                  'rank': h.rank,
+                  'lord': h.lord,
+                })
+            .toList(),
       },
       importantValues: {
         'selectedHouseRupas': selectedHouseData.totalRupas,
@@ -165,233 +145,131 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
       orElse: () => houses.first,
     );
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Educational Explanation Card
-        AstrologyExplanationCard(
-          title: context.l10n.explainBhavaBalaTitle,
-          whatIsText: context.l10n.explainBhavaBalaWhatIs,
-          howToReadText: context.l10n.explainBhavaBalaHowToRead,
-        ),
-        const SizedBox(height: 14),
-
-        // 1. HORIZONTAL 12-HOUSE SELECTOR
+        // 1. 12-HOUSE SELECTOR
         _buildHouseSelector(houses),
+        const SizedBox(height: kAdvGap),
 
-        const SizedBox(height: 12),
+        // 2. AT-A-GLANCE: SELECTED HOUSE
+        _buildSelectedHouseHero(selectedHouseData),
+        const SizedBox(height: kAdvGap),
 
         // Sushil Sir Explainer Button
         SushilExplainerButton(
           contextBuilder: () => _buildExplanationContext(report, selectedHouseData),
           poseAsset: AppAssets.sushilExplaining,
         ),
-
-        const SizedBox(height: 14),
-
-        // 2. SELECTED HOUSE HERO CARD
-        _buildSelectedHouseHero(selectedHouseData),
-        const SizedBox(height: 14),
+        const SizedBox(height: kAdvGap),
 
         // 3. FOUR COMPONENT BREAKDOWN CARD
         _buildFourComponentsCard(selectedHouseData),
-        const SizedBox(height: 14),
+        const SizedBox(height: kAdvGap),
 
-        // 4. ALL 12 HOUSES RANKING TABLE
+        // 4. ALL 12 HOUSES RANKING (COLLAPSED)
         _buildHousesTable(houses),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
-        // 5. CLASSICAL BHAVA BALA GUIDE ACCORDION
-        const ExpandableAstrologyCard(
+        // 5. CLASSICAL BHAVA BALA GUIDE (COLLAPSED)
+        const AdvDetailsExpander(
           title: 'Bhava Bala Components Explained',
           subtitle: 'Classical Parashari factors determining house strength',
           icon: Icons.menu_book_rounded,
-          initiallyExpanded: false,
-          expandedChild: Text(
+          child: Text(
             '• Bhavadhipati Bala: The total Shadbala potency of the planetary lord governing the house.\n'
             '• Bhava Dig Bala: Directional strength conferred by the zodiacal sign presiding on the house cusp.\n'
             '• Bhava Drishti Bala: Net aspectual score resulting from benefic and malefic graha aspects on the cusp.\n'
             '• Bhava Occupant Bala: Direct strength contributed by planets resident within the house.',
-            style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.textDark),
+            style: kAdvBody,
           ),
+        ),
+        const SizedBox(height: kAdvGap),
+
+        // 6. LEARN MORE
+        AstrologyExplanationCard(
+          title: context.l10n.explainBhavaBalaTitle,
+          whatIsText: context.l10n.explainBhavaBalaWhatIs,
+          howToReadText: context.l10n.explainBhavaBalaHowToRead,
         ),
       ],
     );
   }
 
   Widget _buildHouseSelector(List<HouseBhavaBalaModel> houses) {
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: houses.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (ctx, index) {
-          final h = houses[index];
-          final isSelected = h.houseNumber == _selectedHouse;
-
-          return InkWell(
-            onTap: () => setState(() => _selectedHouse = h.houseNumber),
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.midnightNavy : AppColors.cardSurfaceWarm,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isSelected ? AppColors.gold : AppColors.cardBorder,
-                  width: isSelected ? 1.5 : 1.0,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Choose a house', style: kAdvTitle),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: houses.map((h) {
+            final isSelected = h.houseNumber == _selectedHouse;
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              child: Material(
+                color: isSelected ? AppColors.gold : AppColors.cardSurface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: isSelected ? AppColors.gold : AppColors.cardBorder),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => setState(() => _selectedHouse = h.houseNumber),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48, minWidth: 64),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'H-${h.houseNumber}',
+                            style: kAdvBody.copyWith(
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                              color: AppColors.primary,
+                              height: 1.2,
+                            ),
+                          ),
+                          Text(
+                            '#${h.rank}',
+                            style: kAdvSecondary.copyWith(color: AppColors.primary, height: 1.2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'H-${h.houseNumber}',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                      color: isSelected ? Colors.white : AppColors.textDark,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '#${h.rank}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? AppColors.gold : AppColors.deepIndigo,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
   Widget _buildSelectedHouseHero(HouseBhavaBalaModel h) {
-    final significance = h.houseNumber >= 1 && h.houseNumber <= 12
-        ? _houseSignificances[h.houseNumber - 1]
-        : '';
+    final significance = h.houseNumber >= 1 && h.houseNumber <= 12 ? _houseSignificances[h.houseNumber - 1] : '';
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: AppGradients.heroCosmic,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.midnightNavy.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return AdvSummaryCard(
+      label: 'H-${h.houseNumber} · Rank #${h.rank} of 12',
+      icon: Icons.home_work_rounded,
+      title: '${_getHouseOrdinal(h.houseNumber)} Bhava',
+      subtitle: 'Sign: ${h.sign} • Lord: ${h.lord}${significance.isNotEmpty ? '\n$significance' : ''}',
+      child: AdvStatGrid(
+        onDark: true,
+        stats: [
+          AdvStat(
+            label: 'Total Virupas',
+            value: '${h.totalShashtiamsas.toStringAsFixed(1)} V',
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.5)),
-                ),
-                child: Text(
-                  'H-${h.houseNumber}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.gold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_getHouseOrdinal(h.houseNumber)} Bhava',
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Sign: ${h.sign} • Lord: ${h.lord}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.goldLight),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  'RANK #${h.rank}',
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.gold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          Text(
-            significance,
-            style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppColors.lavenderMuted),
-          ),
-
-          const Divider(height: 22, color: Colors.white24),
-
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total Virupas', style: TextStyle(fontSize: 11, color: AppColors.lavenderMuted)),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${h.totalShashtiamsas.toStringAsFixed(1)} V',
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total Rupas', style: TextStyle(fontSize: 11, color: AppColors.lavenderMuted)),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${h.totalRupas.toStringAsFixed(2)} Rupas',
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.goldLight),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          AdvStat(
+            label: 'Total Rupas',
+            value: '${h.totalRupas.toStringAsFixed(2)} Rupas',
+            accent: AppColors.gold,
           ),
         ],
       ),
@@ -399,10 +277,11 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
   }
 
   Widget _buildFourComponentsCard(HouseBhavaBalaModel h) {
-    return AstrologySectionCard(
+    return AdvSection(
       title: 'Bhava Strength Breakdown',
       subtitle: 'Component contributions in Virupas',
       icon: Icons.pie_chart_outline_rounded,
+      tint: AstroTint.sage,
       child: Column(
         children: [
           _buildComponentBar('1. Bhavadhipati Bala (Lord ${h.lord})', h.bhavadhipatiBala, 450.0),
@@ -418,36 +297,34 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
     final double progress = (value / (benchmark > 0 ? benchmark : 1.0)).clamp(0.0, 1.0);
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        border: showBorder ? const Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.8)) : null,
+        border: showBorder ? const Border(bottom: BorderSide(color: AppColors.cardBorderSubtle)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
-                ),
+                child: Text(label, style: kAdvBody.copyWith(fontSize: 15, fontWeight: FontWeight.w600)),
               ),
+              const SizedBox(width: 8),
               Text(
                 '${value.toStringAsFixed(1)} V',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
+                style: kAdvBody.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 6,
+              minHeight: 8,
               backgroundColor: AppColors.cardSurfaceParchment,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.deepIndigo),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
             ),
           ),
         ],
@@ -456,37 +333,23 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
   }
 
   Widget _buildHousesTable(List<HouseBhavaBalaModel> houses) {
-    return AstrologySectionCard(
+    return AdvDetailsExpander(
       title: '12 Houses Potency Summary',
       subtitle: 'Comparative rankings across all Bhavas',
       icon: Icons.leaderboard_rounded,
-      child: AstrologyDataTable(
-        columns: const [
-          AstrologyTableColumn(header: 'House', flex: 2),
-          AstrologyTableColumn(header: 'Sign', flex: 3),
-          AstrologyTableColumn(header: 'Lord', flex: 2),
-          AstrologyTableColumn(header: 'Rupas', flex: 2, alignment: TextAlign.center),
-          AstrologyTableColumn(header: 'Rank', flex: 2, alignment: TextAlign.right),
-        ],
-        rows: houses.map((h) {
-          return [
-            Text(
-              'H-${h.houseNumber}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deepIndigo),
-            ),
-            SignChip(signName: h.sign, isCompact: true),
-            PlanetChip(planetName: h.lord, isCompact: true),
-            Text(
-              h.totalRupas.toStringAsFixed(2),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              '#${h.rank}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.midnightNavy),
-              textAlign: TextAlign.right,
-            ),
-          ];
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: houses.map((h) {
+          return AdvRowCard(
+            title: 'H-${h.houseNumber}',
+            highlight: h.houseNumber == _selectedHouse,
+            badge: AdvBadge('Rank #${h.rank}'),
+            facts: [
+              MapEntry('Sign', h.sign),
+              MapEntry('Lord', h.lord),
+              MapEntry('Rupas', h.totalRupas.toStringAsFixed(2)),
+            ],
+          );
         }).toList(),
       ),
     );
@@ -494,19 +357,32 @@ class _BhavaBalaScreenState extends ConsumerState<BhavaBalaScreen> {
 
   String _getHouseOrdinal(int num) {
     switch (num) {
-      case 1: return '1st (Tanu)';
-      case 2: return '2nd (Dhana)';
-      case 3: return '3rd (Sahaja)';
-      case 4: return '4th (Sukha)';
-      case 5: return '5th (Putra)';
-      case 6: return '6th (Ari)';
-      case 7: return '7th (Yuvati)';
-      case 8: return '8th (Randhra)';
-      case 9: return '9th (Dharma)';
-      case 10: return '10th (Karma)';
-      case 11: return '11th (Labha)';
-      case 12: return '12th (Vyaya)';
-      default: return '$num-th';
+      case 1:
+        return '1st (Tanu)';
+      case 2:
+        return '2nd (Dhana)';
+      case 3:
+        return '3rd (Sahaja)';
+      case 4:
+        return '4th (Sukha)';
+      case 5:
+        return '5th (Putra)';
+      case 6:
+        return '6th (Ari)';
+      case 7:
+        return '7th (Yuvati)';
+      case 8:
+        return '8th (Randhra)';
+      case 9:
+        return '9th (Dharma)';
+      case 10:
+        return '10th (Karma)';
+      case 11:
+        return '11th (Labha)';
+      case 12:
+        return '12th (Vyaya)';
+      default:
+        return '$num-th';
     }
   }
 }
