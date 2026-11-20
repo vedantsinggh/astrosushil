@@ -196,7 +196,7 @@ export class FulfillmentService {
 
   /**
    * Calculate aggregated item-level and order-level fulfillment status from unit states.
-   * Deterministic decision logic matching PHASE_1_5A_FULFILLMENT_DESIGN.md Section 10.
+   * Deterministic decision logic matching docs/architecture/FULFILLMENT_DESIGN.md Section 10.
    */
   public aggregateFulfillment(
     units: Array<{ id: string; orderItemId: string; status: FulfillmentUnitStatus }>

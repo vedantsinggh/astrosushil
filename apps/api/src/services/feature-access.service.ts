@@ -29,7 +29,6 @@ export class FeatureAccessService {
     GUPTA_NADI_DOSSIER: { name: 'Gupta Nadi BNN Rule Dossier', isFree: false, reportTypeKey: 'GUPTA_NADI_DOSSIER' },
     MARRIAGE_COMPATIBILITY: { name: 'Marriage & Relationship Compatibility', isFree: false, reportTypeKey: 'MARRIAGE_COMPATIBILITY' },
     CAREER_PROSITY: { name: 'Executive Career & Wealth Prosperity Dossier', isFree: false, reportTypeKey: 'CAREER_PROSITY' },
-    CAREER_PROSITY_REPORT: { name: 'Executive Career & Wealth Prosperity Dossier', isFree: false, reportTypeKey: 'CAREER_PROSITY' },
     HOROSCOPE_REPORT: { name: 'Personalised Horoscope & Yearly Transit Dossier 2026', isFree: false, reportTypeKey: 'HOROSCOPE' },
     HOROSCOPE: { name: 'Personalised Horoscope & Yearly Transit Dossier 2026', isFree: false, reportTypeKey: 'HOROSCOPE' },
     FINANCE_REPORT: { name: 'Personalised Finance & Wealth Dossier', isFree: false, reportTypeKey: 'FINANCE' },

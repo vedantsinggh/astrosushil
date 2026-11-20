@@ -89,7 +89,6 @@ describe('Reference Astrology Test Fixture Framework', () => {
 
         if (testCase.expected?.sunRashiIndex !== undefined) {
           const sun = chart.planets['SUN' as any];
-          console.log('DEBUG SUN:', JSON.stringify(sun), 'ayanamsaOffset:', chart.metadata?.config);
           expect(sun).toBeDefined();
           expect(sun?.rashiIndex).toBe(testCase.expected.sunRashiIndex);
         }

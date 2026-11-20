@@ -223,5 +223,3 @@ export const CORE_BLOCKS: Record<string, BlockRenderer> = {
   'chart-d10': vargaChart('D10'),
 };
 
-/** @deprecated kept for backwards compatibility of imports; use CORE_BLOCKS + module blocks. */
-export const BLOCKS = CORE_BLOCKS;

@@ -20,7 +20,6 @@ dependencies:
   url_launcher: ^6.3.0
   razorpay_flutter: ^1.4.7
   google_sign_in: ^7.2.0
-  cupertino_icons: ^2.0.0
 
 dev_dependencies:
   flutter_test:

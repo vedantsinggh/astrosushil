@@ -40,7 +40,8 @@ src/modules/jyoti/
 ├── context/
 │   └── astrology-context.builder.ts   # Retrieves real AstroChart data & formats compact LLM context
 ├── prompts/
-│   └── jyoti-system.prompt.ts        # System instruction prompt for Jyoti
+│   ├── jyoti.prompt.ts               # System instruction prompt for Jyoti
+│   └── sushil-explainer.prompt.ts    # Sushil explainer prompt
 ├── providers/
 │   ├── llm.provider.ts               # Abstract LLM provider interface
 │   └── openrouter.provider.ts        # OpenRouter Chat Completions REST API provider
