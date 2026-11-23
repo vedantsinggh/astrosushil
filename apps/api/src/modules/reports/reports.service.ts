@@ -67,6 +67,24 @@ export function resolveReportLanguage(reportType: string, requested?: ReportLang
  * answered with the other-language report or a free second edition. A request without
  * `language` simply gets the existing report.
  */
+/**
+ * The language a new report is created in. A report that was bought is created in the language
+ * chosen at purchase (stored on the order item); a request naming another language is refused.
+ * Without a purchase (an entitlement or a support grant) the requested language applies.
+ */
+export function reportLanguageForSlot(orderItem: { metadata?: unknown } | null | undefined, requested?: ReportLanguage): ReportLanguage {
+  if (!orderItem) return requested ?? DEFAULT_REPORT_LANGUAGE;
+  const purchased = normalizeReportLanguage((orderItem.metadata as { language?: unknown } | null | undefined)?.language);
+  if (requested && requested !== purchased) {
+    throw new AppError(
+      `This report was purchased in language "${purchased}" and cannot be generated in "${requested}".`,
+      409,
+      'REPORT_LANGUAGE_FIXED'
+    );
+  }
+  return purchased;
+}
+
 export function assertReportLanguageUnchanged(existing: { language?: string | null } | null | undefined, requested?: ReportLanguage): void {
   if (!existing || !requested) return;
   const stored = normalizeReportLanguage(existing.language);
@@ -289,8 +307,10 @@ export class ReportsService {
     }
 
     // 2. Validate entitlement / commerce order and claim fulfillment unit
-    const { order, targetFulfillmentUnit, existingReport: boundReport } =
+    const { order, targetOrderItem, targetFulfillmentUnit, existingReport: boundReport } =
       await this.validateAndClaimOrder(input.orderId, user, 'CAREER', input.birthProfileId);
+    // A purchased report is generated in the language chosen before payment.
+    const slotLanguage = reportLanguageForSlot(targetOrderItem, input.language);
 
     // The report already bound to this paid slot keeps its language.
     assertReportLanguageUnchanged(boundReport, input.language);
@@ -431,7 +451,7 @@ export class ReportsService {
 
     const reportId = crypto.randomUUID();
     const now = new Date();
-    const language = input.language ?? DEFAULT_REPORT_LANGUAGE;
+    const language = slotLanguage;
 
     const newReport = await prisma.report.create({
       data: {
@@ -948,13 +968,15 @@ export class ReportsService {
     }
 
     // 3. Entitlement / Commerce verification
-    const { order, targetFulfillmentUnit, existingReport: boundReport } = await this.validateAndClaimOrder(
+    const { order, targetOrderItem, targetFulfillmentUnit, existingReport: boundReport } = await this.validateAndClaimOrder(
       input.orderId,
       user,
       input.reportType,
       input.birthProfileId,
       input.partnerProfileId
     );
+    // A purchased report is generated in the language chosen before payment; checked before anything is created.
+    const slotLanguage = reportLanguageForSlot(targetOrderItem, input.language);
 
     // The report already bound to this paid slot keeps its language.
     assertReportLanguageUnchanged(boundReport, input.language);
@@ -1104,7 +1126,7 @@ export class ReportsService {
 
     const reportId = crypto.randomUUID();
     const now = new Date();
-    const language = input.language ?? DEFAULT_REPORT_LANGUAGE;
+    const language = slotLanguage;
     await prisma.report.create({
       data: {
         id: reportId,

@@ -389,6 +389,8 @@ All error responses adhere to a consistent JSON structure:
 
 ## 2.8 Paid Reports: report language (`/api/v1/reports`)
 
+**Language is chosen before payment.** `POST /api/v1/payments/create-order` takes the language of each report it buys: `items[].metadata.language` in the unified input, or top-level `language` with the legacy `reportType` input (`en` or `hi`; omitted means `en`). It is stored on the order item and fixed for that purchase. A language the report has no edition for is refused with `400 REPORT_LANGUAGE_NOT_AVAILABLE` before any charge. A report generated from that purchase is always in the purchased language; a create request that names a different language gets `409 REPORT_LANGUAGE_FIXED`. The `language` field on the report create endpoints chooses the language only when nothing was purchased (an entitlement or a support grant).
+
 This section documents only the report language. A report PDF is produced in English (`en`) or Hindi (`hi`). The customer chooses the language when the report is created; it is stored on the report (`reports.language`, default `en`) and never changes afterwards.
 
 - **Which languages a report has** is read from the report registry at request time (`ReportRegistry.languages`), never from a fixed list in the API. **`GET /api/v1/payments/catalog`** (public) returns it per report item as `languages`, so a client can offer the choice before payment:

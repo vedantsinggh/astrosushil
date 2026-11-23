@@ -13,6 +13,9 @@ export const createOrderSchema = z
     items: z.array(orderItemInputSchema).min(1).optional(),
     // Legacy single report order input
     reportType: z.nativeEnum(ReportType).optional(),
+    // Language of the report PDF for the legacy single-report input. In the unified input it is
+    // `items[].metadata.language`. Chosen before payment and fixed for that purchase; default "en".
+    language: z.enum(['en', 'hi']).optional(),
     idempotencyKey: z.string().min(4).max(128).optional(),
     notes: z.string().max(500).optional(),
   })

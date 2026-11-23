@@ -253,7 +253,7 @@ describe('Kundli Hindi report end to end', () => {
     expect(manifest.pdf?.qaPassed).toBe(true);
     expect(manifest.topics.filter((t) => t.provenance === 'deterministic')).toHaveLength(37);
     expect(manifest.topics.filter((t) => t.status === 'failed' || t.error)).toEqual([]);
-    expect(tex).toContain('संपूर्ण व्यक्तिगत कुंडली');
+    expect(tex).toContain('प्रीमियम व्यक्तिगत कुंडली');
     expect(tex).toContain('अवकहड़ा चक्र');
     expect(tex).not.toContain('Avakahada Chakra');
   }, 600000);

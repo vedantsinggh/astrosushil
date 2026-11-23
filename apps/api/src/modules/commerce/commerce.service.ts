@@ -6,10 +6,13 @@ import { AppError, NotFoundError, ValidationError, ForbiddenError } from '../../
 import { logger } from '../../utils/logger';
 import { Prisma, OrderStatus, PaymentStatus, RefundStatus, ReportType, OrderItemType, FulfillmentType, EntitlementStatus, FulfillmentUnitStatus } from '@prisma/client';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
+import { normalizeReportLanguage, platformReportLanguages, REPORT_LANGUAGES } from '../../services/platform-report.runner';
 
 export interface CreateOrderParams {
   items?: Array<{ catalogId: string; quantity?: number; metadata?: Record<string, any> }>;
   reportType?: ReportType; // Legacy support
+  /** Report language for the legacy single-report input (unified input: `items[].metadata.language`). */
+  language?: string;
   idempotencyKey?: string;
   notes?: string;
 }
@@ -78,7 +81,7 @@ export class CommerceService {
       if (!catalogItem) {
         throw new ValidationError(`Unsupported report type for pricing: ${input.reportType}`);
       }
-      requestedItems = [{ catalogId: catalogItem.id, quantity: 1 }];
+      requestedItems = [{ catalogId: catalogItem.id, quantity: 1, ...(input.language ? { metadata: { language: input.language } } : {}) }];
     }
 
     if (!requestedItems || requestedItems.length === 0) {
@@ -87,6 +90,27 @@ export class CommerceService {
 
     // 3. Authoritative server calculation
     const calculated: CalculatedOrder = commerceCatalog.calculateOrder(requestedItems);
+
+    // The language of a report is chosen before payment and fixed for that purchase (as on the website).
+    // It is stored on the order item; a language the report has no edition for is refused before any charge.
+    for (const ci of calculated.items) {
+      const reportType = ci.catalogItem.legacyReportType;
+      if (ci.catalogItem.itemType !== OrderItemType.REPORT || !reportType) continue;
+      const requested = ci.metadata?.language;
+      if (requested !== undefined && !REPORT_LANGUAGES.includes(requested)) {
+        throw new ValidationError(`Unsupported report language "${String(requested)}". Use one of: ${REPORT_LANGUAGES.join(', ')}.`);
+      }
+      const language = normalizeReportLanguage(requested);
+      const available = platformReportLanguages(reportType);
+      if (!available.includes(language)) {
+        throw new AppError(
+          `The ${reportType} report is not available in language "${language}". Available: ${available.join(', ') || 'none'}.`,
+          400,
+          'REPORT_LANGUAGE_NOT_AVAILABLE'
+        );
+      }
+      ci.metadata = { ...(ci.metadata ?? {}), language };
+    }
 
     // If all items belong to a single report type, preserve legacy reportType on order for backward compatibility
     if (!legacyReportType && calculated.items.length === 1 && calculated.items[0].catalogItem.legacyReportType) {

@@ -1,6 +1,6 @@
 # Hindi reports and horoscope: design
 
-**Status:** approved approach, build in progress on `staging`.
+**Status:** every report has a Hindi edition on `staging`; four have been generated with the real model.
 **Last updated:** 2026-11-24
 
 ## Why
@@ -44,9 +44,27 @@ No astrology rule changes. The LLM still only words what the engine computed.
 5. The remaining reports.
 6. Daily horoscope.
 
-## Validator rules not yet covered in Hindi
+## Validator rules not fully covered in Hindi
 
-None recorded yet. This list is filled in as each validator is extended.
+Every prose-reading rule has a Hindi form with the same code and severity. These are partial:
+
+| Rule | Limit in Hindi |
+|---|---|
+| `UNSUPPORTED_JUDGEMENT`, `JUDGEMENT_CLASS_MISMATCH` | Backing by a restated claim compares only numbers, planets, signs, a closed glossary of chart words and yoga names; claims stay English. It fails closed: a judgement that cannot be matched is rejected. |
+| `DERIVED_TERM_UNSUPPORTED` | Dispositor, kendra and exchange have no single unambiguous Hindi word; only the chart-specific forms are caught. |
+| `INVENTED_RULE_PHRASING` (warning) | Hindi is verb-final, so the pattern is adverb then verb within one clause. |
+| `AGE_NOT_IN_EVIDENCE` (warning) | Only explicit forms such as "N वर्ष की आयु". |
+| `MEDICAL_CERTAINTY` | Named illnesses only; no general form for "diagnose". |
+| `REFERENCE_IDENTITY_LEAK` | "पुनीत" is omitted because it is an ordinary adjective. |
+
+"प्रदान करता है" ("grants") counts as an overstatement in Hindi, as in English; the Hindi prompt asks for "संकेत देता है".
+
+## Known gaps
+
+- Three report families keep their table labels in their own files and not in the shared glossary, so the same heading can be worded differently in two reports.
+- The Hindi yoga tables in Kundli and Fortune Plus list the planets forming a yoga where English prints the engine's condition sentences, which exist in English only.
+- The migration adding `reports.language` has not been applied to any database.
+- The mobile app does not send a language yet.
 
 ## How to give a report a Hindi edition
 
@@ -61,8 +79,11 @@ None recorded yet. This list is filled in as each validator is extended.
 | Report | Language | Model calls | Tokens in / out | Estimated cost | Date |
 |---|---|---|---|---|---|
 | Planetary Summary (11 narrative topics, 17 pages) | Hindi | 5 | 10,865 / 3,711 | $0.0083 (about Rs 0.75) | 2026-11-24 |
+| Basic Kundli (17 narrative topics, 34 pages) | Hindi | 9 | 22,673 / 8,447 | $0.0183 (about Rs 1.6) | 2026-11-24 |
+| Couple Matching (54 narrative topics, 57 pages) | Hindi | 15 | 63,682 / 19,159 | $0.0447 (about Rs 4) | 2026-11-24 |
+| Fortune Plus (72 narrative topics, 77 pages) | Hindi | 24 | 99,940 / 31,433 | $0.0769 (about Rs 7) | 2026-11-24 |
 
-All 11 topics passed validation on the first attempt on `gemini-3.1-flash-lite`.
+Estimates from list prices, not provider billing. All four completed with PDF QA passing and no failed topic. Fortune Plus needed one escalation to `gemini-3.8-flash` (one topic was rejected for an overstatement, then for answering in English). The other ten reports have only been run offline in Hindi.
 
 ## Defects found and fixed
 

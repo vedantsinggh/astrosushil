@@ -393,3 +393,21 @@ describe('report language: HTTP contract', () => {
     expect(items.filter((i) => !i.legacyReportType).every((i) => !('languages' in i))).toBe(true);
   });
 });
+
+describe('report language is chosen before payment', () => {
+  it('uses the language stored on the order item and refuses another one', async () => {
+    const { reportLanguageForSlot } = await import('../../src/modules/reports/reports.service');
+    expect(reportLanguageForSlot({ metadata: { language: 'hi' } })).toBe('hi');
+    expect(reportLanguageForSlot({ metadata: { language: 'hi' } }, 'hi')).toBe('hi');
+    expect(reportLanguageForSlot({ metadata: { birthProfileId: 'x' } })).toBe('en');
+    expect(reportLanguageForSlot({ metadata: null }, 'en')).toBe('en');
+    expect(() => reportLanguageForSlot({ metadata: { language: 'hi' } }, 'en')).toThrow(/purchased in language "hi"/);
+    expect(() => reportLanguageForSlot({ metadata: {} }, 'hi')).toThrow(/purchased in language "en"/);
+  });
+
+  it('lets the request choose only when nothing was purchased (entitlement or support grant)', async () => {
+    const { reportLanguageForSlot } = await import('../../src/modules/reports/reports.service');
+    expect(reportLanguageForSlot(undefined, 'hi')).toBe('hi');
+    expect(reportLanguageForSlot(null)).toBe('en');
+  });
+});

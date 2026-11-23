@@ -232,7 +232,7 @@ describe('offline Hindi runs', () => {
     const deterministic = manifest.topics.filter((t) => t.provenance === 'deterministic');
     expect(deterministic).toHaveLength(17);
     for (const t of deterministic) expect(t.status, t.topicId).toBe('deterministic');
-    expect(tex).toContain('कार्यक्षेत्र रिपोर्ट');
+    expect(tex).toContain('करियर रिपोर्ट');
     expect(tex).toContain(label('hi', 'Career links'));
     expect(tex).not.toContain('\\THd{Career links}');
     expect(tex).not.toContain('\\THd{Factor}');

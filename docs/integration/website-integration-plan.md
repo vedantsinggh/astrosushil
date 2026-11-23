@@ -38,6 +38,9 @@ Cloned read-only at `/home/pilot/Projects/astrosushil-website/` (outside this re
 - The daily horoscope must be available in Hindi and English from day one.
 - Kalsarpa and Pitra dosha sections are removed from the free kundli.
 - The free match-making page becomes real (it shows a hardcoded result today).
+- The report language is chosen before payment and is fixed for that purchase, as on the website. One purchase gives one language.
+- Report prices are the website's current prices (to be read from the website data).
+- Hindi report titles use the market terms ("करियर रिपोर्ट", "प्रीमियम व्यक्तिगत कुंडली").
 - Report delivery keeps the website's current behaviour: a "within 48 hours" confirmation and delivery after the configured delay (default 24 hours).
 
 **Commerce**
