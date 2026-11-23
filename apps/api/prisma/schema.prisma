@@ -33,6 +33,12 @@ model User {
   lessonProgress         LessonProgress[]
   shippingAddresses      ShippingAddress[]
   digitalEntitlements    DigitalProductEntitlement[]
+  cart                   Cart? // shop (website integration)
+  wishlistItems          WishlistItem[] // shop (website integration)
+  couponAssignments      CouponAssignment[] // shop (website integration)
+  couponRedemptions      CouponRedemption[] // shop (website integration)
+  customerProfile        CustomerProfile? // shop (website integration)
+  staffProfile           StaffProfile?
 
   @@index([email])
   @@index([phoneNumber])
@@ -138,6 +144,11 @@ model Order {
   dispatchedAt         DateTime?
   deliveredAt          DateTime?
   digitalEntitlements  DigitalProductEntitlement[]
+  shopOrder            ShopOrder? // shop (website integration)
+  paidCurrency         String                      @default("INR") // money (website integration): currency charged at the gateway; `amount`/`currency` stay the INR base
+  paidAmountMinor      Int? // money: amount charged in paidCurrency minor units; null = same as `amount` (INR)
+  exchangeRate         Decimal?                    @db.Decimal(20, 10) // money: units of paidCurrency per 1 INR used for this order
+  paymentMethod        SalePaymentMethod           @default(RAZORPAY) // money: COD only for migrated website orders
 
   @@index([userId])
   @@index([status])
@@ -157,6 +168,7 @@ model OrderItem {
   unitPrice         Int // Price per unit in paise
   taxRate           Int                    @default(1800) // Tax rate in basis points (1800 = 18.00%)
   taxAmount         Int                    @default(0) // Tax in paise for this line item
+  taxInclusive      Boolean                @default(true) // money (website integration): GST inside the price (true) or added on top (false)
   totalAmount       Int // Final total in paise (unitPrice * quantity + taxAmount - discount)
   currency          String                 @default("INR")
   fulfillmentType   FulfillmentType        @default(DIGITAL)
@@ -544,6 +556,35 @@ model ConsultationBooking {
   fulfillmentUnitId String?               @unique
   fulfillmentUnit   FulfillmentUnit?      @relation(fields: [fulfillmentUnitId], references: [id], onDelete: Restrict)
 
+  // --- bookings (website integration): docs/integration/modules/bookings.md. All money is INR paise unless named otherwise.
+  legacyId           String?               @unique // MongoDB _id of the website booking
+  consultationTypeId String? // ConsultationType the booking was made for (consultationId stays the commerce catalog id)
+  source             BookingSource         @default(USER)
+  paymentMethod      BookingPaymentMethod?
+  pricePaise         Int? // price of the chosen mode before discount and GST handling
+  discountType       BookingDiscountType?
+  discountValue      Int? // FLAT: paise. PERCENTAGE: basis points (1250 = 12.5%)
+  discountPaise      Int                   @default(0)
+  gstRateBasisPoints Int?
+  gstType            ConsultationGstType?
+  taxablePaise       Int? // value before GST
+  gstPaise           Int?
+  amountPaise        Int? // total payable in INR, GST included
+  paidCurrency       String? // currency actually charged when not INR (migrated website bookings)
+  paidAmountMinor    Int? // amount charged in paidCurrency minor units
+  exchangeRate       Decimal?              @db.Decimal(20, 10) // units of paidCurrency per 1 INR
+  priceLabel         String?
+  note               String? // note the admin wrote for the customer (website `note`); shown to the customer
+  invoiceNumber      String? // INV-AS/<n>, set by the invoice module
+  reminderSentAt     DateTime?
+  createdByAdminId   String?
+  deletedAt          DateTime? // admin "delete" (website isDeleted): hidden everywhere and the time is free again
+  deletedById        String?
+  consultationType   ConsultationType?     @relation(fields: [consultationTypeId], references: [id], onDelete: SetNull)
+  adminNotes         BookingAdminNote[]
+
+  @@index([consultationTypeId])
+  @@index([slotStartTimeUtc])
   @@index([userId])
   @@index([date, status])
   @@index([practitionerId, date])
@@ -684,6 +725,7 @@ model Course {
   sections     CourseSection[]
   lessons      CourseLesson[]
   entitlements CourseEntitlement[]
+  links        CourseLink[] // shop (website integration)
 
   @@index([isPublished, isFeatured])
   @@map("courses")
@@ -780,6 +822,8 @@ enum ProductType {
   DIGITAL_ART
   DIGITAL_BUNDLE
   PHYSICAL
+  DIGITAL // shop (website integration): website type "digital"
+  SERVICE // shop (website integration): website type "service"
 }
 
 model Product {
@@ -804,6 +848,35 @@ model Product {
   metadata         Json? // asset keys, included items for bundles, audio voice notes
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+  // shop (website integration): the website's product fields. Defaults keep the seeded products as they were.
+  legacyId         String?          @unique
+  categoryId       String?
+  shortDescription String?
+  thumbnailUrl     String?
+  thumbnailKey     String?
+  discountType     ShopDiscountType @default(PERCENTAGE)
+  discountValue    Int              @default(0) // basis points for PERCENTAGE, paise for FIXED
+  sku              String?
+  hasVariants      Boolean          @default(false)
+  gstEnabled       Boolean          @default(true)
+  gstRateBp        Int              @default(1800)
+  gstInclusive     Boolean          @default(true)
+  isPublished      Boolean          @default(true)
+  isFeatured       Boolean          @default(false)
+  isTrending       Boolean          @default(false)
+  isBestSeller     Boolean          @default(false)
+  rating           Float            @default(0)
+  reviewsCount     Int              @default(0)
+  metaTitle        String?
+  metaDescription  String?
+  keywords         String[]         @default([])
+  weightGrams      Int?
+  dimensions       Json?
+  managedByAdmin   Boolean          @default(false) // true once created or edited in the admin: the code seed then leaves the row alone
+  categoryRef      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variantRows      ProductVariant[]
+  cartItems        CartItem[]
+  wishlistItems    WishlistItem[]
 
   entitlements DigitalProductEntitlement[]
 
@@ -828,6 +901,9 @@ model ShippingAddress {
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  legacyId     String?         @unique // shop (website integration)
+  landmark     String? // shop (website integration)
+  type         ShopAddressType @default(HOME) // shop (website integration)
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders Order[]
@@ -847,6 +923,10 @@ model DigitalProductEntitlement {
   lastDownloadedAt DateTime?
   assetKey         String? // Storage key or download path
   bundleAssets     Json? // Array of asset objects for bundle { name, key, type }
+  legacyId         String?           @unique // shop (website integration): website `downloads` _id
+  variantId        String? // shop (website integration): purchased variant
+  orderItemId      String? // shop (website integration): order line that granted this download
+  assetName        String? // shop (website integration): file name shown to the customer
   expiresAt        DateTime?
   grantedAt        DateTime          @default(now())
   createdAt        DateTime          @default(now())
@@ -1008,3 +1088,936 @@ model RashiDailyHoroscope {
   @@index([date])
   @@map("rashi_daily_horoscopes")
 }
+
+// ===== content (website integration) =====
+// Website CMS content (modules/content, docs/integration/modules/content.md). `legacyId` is the
+// MongoDB _id of the migrated website document. Closed value sets (banner type/page, blog status,
+// testimonial type, media section/type) are stored as the website's own strings and enforced by
+// the zod schemas in modules/content/content.schemas.ts.
+
+/// Website `banners`. type: Slider | Page. page: Homepage | About | Contact | Services.
+/// buttons: [{ text, link }].
+model Banner {
+  id          String   @id @default(uuid())
+  legacyId    String?  @unique
+  title       String?
+  subtitle    String?
+  description String?
+  imageUrl    String?
+  imageKey    String?
+  type        String
+  buttons     Json     @default("[]")
+  page        String   @default("Homepage")
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([page, type, isActive, order])
+  @@map("banners")
+}
+
+/// Website `blogs`. content is sanitised HTML. status: draft | published. images: [{ url, key }].
+model BlogPost {
+  id                 String    @id @default(uuid())
+  legacyId           String?   @unique
+  title              String
+  slug               String    @unique
+  shortDescription   String
+  content            String
+  category           String
+  tags               String[]  @default([])
+  authorName         String?
+  authorAvatarUrl    String?
+  authorAvatarKey    String?
+  thumbnailUrl       String?
+  thumbnailKey       String?
+  images             Json      @default("[]")
+  seoMetaTitle       String?
+  seoMetaDescription String?
+  seoKeywords        String[]  @default([])
+  status             String    @default("draft")
+  isFeatured         Boolean   @default(false)
+  views              Int       @default(0)
+  publishedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([category])
+  @@map("blog_posts")
+}
+
+/// Website `faqs`. page is a free string chosen by the admin (for example "home", "consultation").
+model Faq {
+  id          String   @id @default(uuid())
+  legacyId    String?  @unique
+  question    String
+  answer      String
+  page        String
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([page, isActive, order])
+  @@map("faqs")
+}
+
+/// Website `testimonials`. type: text | video. rating 1..5.
+model Testimonial {
+  id          String   @id @default(uuid())
+  legacyId    String?  @unique
+  name        String
+  designation String?
+  message     String
+  rating      Int      @default(5)
+  imageUrl    String?
+  imageKey    String?
+  serviceName String?
+  tagline     String?
+  type        String   @default("text")
+  videoUrl    String?
+  page        String   @default("home")
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([page, isActive, order])
+  @@map("testimonials")
+}
+
+/// Website `media`. section: podcast | celebrity | wishes. type: video | image.
+/// podcast: mediaUrl is a YouTube link (no mediaKey). celebrity: uploaded video + thumbnail.
+/// wishes: the uploaded image is stored in thumbnailUrl/thumbnailKey.
+model MediaItem {
+  id           String   @id @default(uuid())
+  legacyId     String?  @unique
+  title        String
+  description  String   @default("")
+  section      String
+  type         String   @default("image")
+  mediaUrl     String?
+  mediaKey     String?
+  thumbnailUrl String?
+  thumbnailKey String?
+  tag          String   @default("")
+  personName   String   @default("")
+  background   String   @default("")
+  isActive     Boolean  @default(true)
+  order        Int      @default(0)
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([section, isActive, order])
+  @@map("media_items")
+}
+
+/// Website `contacts` (contact-us inquiries). remarks is the admin's note.
+model ContactInquiry {
+  id        String   @id @default(uuid())
+  legacyId  String?  @unique
+  name      String
+  email     String   @default("")
+  phone     String?
+  subject   String?
+  message   String
+  remarks   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("contact_inquiries")
+}
+
+/// Website `seos`: meta tags per page. name is the lower-case page key.
+model SeoPage {
+  id              String   @id @default(uuid())
+  legacyId        String?  @unique
+  name            String   @unique
+  metaTitle       String
+  metaDescription String
+  imageUrl        String?
+  imageKey        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("seo_pages")
+}
+
+/// Website `settings`: exactly one row (id "site"). data holds the sections validated by
+/// modules/content/content.schemas.ts. Never holds payment, SMTP or SMS credentials.
+model SiteSetting {
+  id          String   @id @default("site")
+  legacyId    String?  @unique
+  data        Json     @default("{}")
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("site_settings")
+}
+// ===== end content =====
+
+// ===== rbac (website integration) =====
+// Editable staff roles (docs/integration/modules/rbac.md). The permission catalogue stays in code
+// (modules/admin/rbac/permission.catalog.ts); a role stores catalogue keys only.
+
+enum AdminRoleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StaffStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// A staff role. `permissions` holds keys from the code catalogue. `isSuperAdmin` grants every
+/// permission without reading `permissions`. `legacyRole` is the value written to User.role for the
+/// role's active members (the coarse tier the rest of the API and the access token still use).
+model AdminRole {
+  id           String          @id @default(uuid())
+  name         String          @unique
+  slug         String          @unique
+  description  String?
+  permissions  String[]        @default([])
+  isSuperAdmin Boolean         @default(false)
+  isSystem     Boolean         @default(false)
+  legacyRole   Role            @default(SUPPORT)
+  status       AdminRoleStatus @default(ACTIVE)
+  createdById  String?
+  legacyId     String?         @unique
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  staff        StaffProfile[]
+
+  @@index([status])
+  @@map("admin_roles")
+}
+
+/// The staff side of a User: role link, staff status, soft delete and the website admin's profile fields.
+model StaffProfile {
+  id            String      @id @default(uuid())
+  userId        String      @unique
+  roleId        String?
+  status        StaffStatus @default(ACTIVE)
+  isDeleted     Boolean     @default(false)
+  deletedAt     DateTime?
+  username      String?     @unique
+  phoneNumber   String?
+  designation   String?
+  website       String?
+  portfolioLink String?
+  profilePhoto  String?
+  address       String?
+  city          String?
+  state         String?
+  postalCode    String?
+  lastLoginAt   DateTime?
+  createdById   String?
+  legacyId      String?     @unique
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          AdminRole?  @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@index([roleId])
+  @@index([status, isDeleted])
+  @@map("staff_profiles")
+}
+// ===== end rbac =====
+
+// ===== shop (website integration) =====
+// Categories, product variants, saved cart, wishlist, coupons, website-shape product orders,
+// external course links and the website's customer profile fields.
+// Spec and mapping from the website's MongoDB collections: docs/integration/modules/shop.md
+
+enum ShopCategoryProductType {
+  PHYSICAL
+  DIGITAL
+}
+
+enum ShopDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ShopCouponDiscountType {
+  PERCENTAGE
+  FLAT
+}
+
+enum ShopCouponAudience {
+  GLOBAL
+  INDIVIDUAL
+}
+
+enum ShopCouponRedemptionStatus {
+  RESERVED
+  REDEEMED
+  RELEASED
+}
+
+enum ShopOrderStatus {
+  PAYMENT_PENDING
+  PLACED
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  PAYMENT_FAILED
+}
+
+enum ShopAddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+enum CourseLinkStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// Website `categories` collection: a tree (parentId), one product type per category.
+model ProductCategory {
+  id          String                  @id @default(uuid())
+  legacyId    String?                 @unique
+  name        String
+  slug        String                  @unique
+  description String                  @default("")
+  parentId    String?
+  productType ShopCategoryProductType @default(PHYSICAL)
+  imageUrl    String?
+  imageKey    String?
+  isActive    Boolean                 @default(true)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  parent   ProductCategory?  @relation("ProductCategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children ProductCategory[] @relation("ProductCategoryTree")
+  products Product[]
+
+  @@index([parentId])
+  @@index([productType, isActive])
+  @@map("product_categories")
+}
+
+/// Website `products.variants[]`. `code` is the stable id used by the seeded catalogue and the app
+/// (e.g. "size-large"); admin-created variants are addressed by `id`.
+/// `downloadKey` is a private storage key and is never returned by a public endpoint.
+model ProductVariant {
+  id              String   @id @default(uuid())
+  legacyId        String?  @unique
+  productId       String
+  code            String?
+  name            String
+  value           String
+  mrp             Int // paise
+  price           Int // paise, derived from mrp and the product's discount
+  stock           Int      @default(0)
+  downloadKey     String?
+  downloadName    String?
+  metaTitle       String?
+  metaDescription String?
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, code])
+  @@index([productId, sortOrder])
+  @@map("product_variants")
+}
+
+/// Website `carts` collection: one saved cart per customer. Only what the customer chose is stored
+/// (product, variant, quantity, coupon code); prices and totals are recomputed on every read.
+model Cart {
+  id         String   @id @default(uuid())
+  legacyId   String?  @unique
+  userId     String   @unique
+  couponCode String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  cartId     String
+  productId  String
+  /// Variant id, or "" for a product without variants (keeps the unique index usable).
+  variantKey String   @default("")
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId, variantKey])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+/// Website `wishlists.products[]`, one row per customer and product.
+model WishlistItem {
+  id        String   @id @default(uuid())
+  legacyId  String?  @unique
+  userId    String
+  productId String
+  addedAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
+/// Website `coupons` collection. `discountValue` is basis points for PERCENTAGE (1050 = 10.5%)
+/// and paise for FLAT. `usedCount` counts REDEEMED redemptions only.
+model Coupon {
+  id               String                 @id @default(uuid())
+  legacyId         String?                @unique
+  code             String                 @unique
+  description      String?
+  discountType     ShopCouponDiscountType
+  discountValue    Int
+  maxDiscountPaise Int?
+  minOrderPaise    Int                    @default(0)
+  usageLimit       Int?
+  usedCount        Int                    @default(0)
+  validFrom        DateTime               @default(now())
+  validTill        DateTime
+  audience         ShopCouponAudience     @default(GLOBAL)
+  oneTimePerUser   Boolean                @default(true)
+  isActive         Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  assignments CouponAssignment[]
+  redemptions CouponRedemption[]
+
+  @@index([isActive, validFrom, validTill])
+  @@map("coupons")
+}
+
+/// Website `coupons.assignedUsers[]`.
+model CouponAssignment {
+  id        String   @id @default(uuid())
+  couponId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, userId])
+  @@index([userId])
+  @@map("coupon_assignments")
+}
+
+/// Website `coupons.usedBy[]`, plus the hold taken at checkout. A use is RESERVED when the order is
+/// created (under a row lock on the coupon), REDEEMED in the same transaction that marks the order
+/// paid, RELEASED when the order is cancelled, fails or the hold expires.
+model CouponRedemption {
+  id            String                     @id @default(uuid())
+  couponId      String
+  userId        String?
+  orderId       String?                    @unique
+  status        ShopCouponRedemptionStatus @default(RESERVED)
+  discountPaise Int                        @default(0)
+  reservedUntil DateTime?
+  usedAt        DateTime?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([couponId, status])
+  @@index([userId, couponId])
+  @@map("coupon_redemptions")
+}
+
+/// Website `orders` collection: the product-order view of an `orders` row (1:1). Money, payment and
+/// item rows stay on Order/OrderItem; this row holds the website order status, the shipping address
+/// snapshot and the coupon. Status mapping: docs/integration/modules/shop.md.
+model ShopOrder {
+  id                  String          @id @default(uuid())
+  legacyId            String?         @unique
+  orderId             String          @unique
+  status              ShopOrderStatus @default(PAYMENT_PENDING)
+  /// "physical" when any item ships, else "digital" (website `orderType`).
+  orderType           String          @default("physical")
+  /// "cart": checkout of the saved cart (the cart is emptied when the order is paid). "direct": the app's stateless order.
+  source              String          @default("cart")
+  addressId           String?
+  shippingAddress     Json?
+  couponCode          String?
+  couponDiscountPaise Int             @default(0)
+  /// Sum of unit price x quantity as listed (website `subTotal`), paise.
+  itemsTotalPaise     Int             @default(0)
+  shippingPaise       Int             @default(0)
+  /// GST added on top of listed prices (exclusive-type items only), paise.
+  taxPaise            Int             @default(0)
+  /// Set when stock ran out between checkout and payment: [{ productId, variantId, missing }].
+  stockShortfall      Json?
+  /// True once stock was taken and coupon use recorded for the paid order (idempotency marker).
+  paidEffectsApplied  Boolean         @default(false)
+  stockRestored       Boolean         @default(false)
+  cancelledAt         DateTime?
+  cancelledBy         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@map("shop_orders")
+}
+
+/// Website `downloads` collection is NOT a new table: a purchased digital item is a
+/// DigitalProductEntitlement (extended with variantId/orderItemId).
+
+/// Website `courses` collection: a catalogue of links to an outside course platform. Separate from
+/// `courses` (real enrolment with lessons, used by the app); `courseId` optionally ties a link to it.
+model CourseLink {
+  id                   String           @id @default(uuid())
+  legacyId             String?          @unique
+  courseId             String?
+  title                String
+  slug                 String           @unique
+  shortDescription     String?
+  category             String?
+  tags                 String[]         @default([])
+  instructorName       String?
+  language             String?
+  level                CourseLevel?
+  pricePaise           Int
+  originalPricePaise   Int?
+  discountPercentage   Int?
+  currency             String           @default("INR")
+  isFree               Boolean          @default(false)
+  rating               Float            @default(0)
+  totalReviews         Int              @default(0)
+  totalLessons         Int?
+  totalDurationMinutes Int?
+  thumbnailUrl         String?
+  thumbnailKey         String?
+  previewVideo         String?
+  platformName         String?
+  redirectUrl          String
+  clickCount           Int              @default(0)
+  isFeatured           Boolean          @default(false)
+  status               CourseLinkStatus @default(ACTIVE)
+  metaTitle            String?
+  metaDescription      String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@index([status, isFeatured])
+  @@map("course_links")
+}
+
+/// Website `users` profile fields that `users` here does not have (the Customers admin page edits them).
+model CustomerProfile {
+  id           String   @id @default(uuid())
+  legacyId     String?  @unique
+  userId       String   @unique
+  firstName    String?
+  lastName     String?
+  username     String?  @unique
+  dob          String?
+  gender       String?
+  birthPlace   String?
+  birthTime    String?
+  bio          String?
+  profilePhoto String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customer_profiles")
+}
+// ===== end shop =====
+
+// ===== money (website integration) =====
+// Transactions ledger, shared invoice number series and its counter.
+// See docs/integration/modules/money.md. No Prisma relations to models owned by others:
+// `orderId` / `userId` are plain indexed columns joined in code.
+
+/// How a sale was paid. COD exists only so migrated website orders can be represented; it is never offered.
+enum SalePaymentMethod {
+  RAZORPAY
+  MANUAL
+  COD
+}
+
+/// Website `transactionType`: order | consultation | report.
+enum LedgerTransactionType {
+  ORDER
+  CONSULTATION
+  REPORT
+}
+
+/// Website transaction `status`: pending | success | failed.
+enum LedgerTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+/// Website `invoiceAllocationStatus`: pending | allocated | not_required.
+enum InvoiceAllocationStatus {
+  PENDING
+  ALLOCATED
+  NOT_REQUIRED
+}
+
+/// One row per payment attempt (website collection `transactions`).
+/// Component amounts are INR paise; `amountMinor` is what the customer paid, in `currency` minor units.
+model PaymentTransaction {
+  id               String                  @id @default(uuid())
+  legacyId         String?                 @unique
+  /// MongoDB _id of the website order / booking / report order this payment belongs to (fallback invoice labels use it).
+  legacySourceId   String?
+  userId           String
+  orderId          String?
+  type             LedgerTransactionType
+  /// Amount paid in `currency` minor units (paise, cents, whole yen).
+  amountMinor      Int
+  currency         String                  @default("INR")
+  baseCurrency     String                  @default("INR")
+  /// INR value of the sale in paise (website `baseAmount`).
+  baseAmountPaise  Int                     @default(0)
+  subtotalPaise    Int                     @default(0)
+  shippingPaise    Int                     @default(0)
+  /// All GST in the sale (inclusive and exclusive), INR paise.
+  taxPaise         Int                     @default(0)
+  /// Basis points; 0 when the sale has no single rate (see order items).
+  taxRateBp        Int                     @default(0)
+  taxInclusive     Boolean                 @default(false)
+  discountPaise    Int                     @default(0)
+  /// Units of `currency` per 1 INR used for this payment.
+  exchangeRate     Decimal                 @default(1) @db.Decimal(20, 10)
+  method           SalePaymentMethod
+  status           LedgerTransactionStatus @default(PENDING)
+  /// Razorpay payment id (website `transactionId`).
+  gatewayPaymentId String?
+  gatewayOrderId   String?
+  /// Allow-listed fields of the gateway payment entity; never card, contact or e-mail data.
+  rawResponse      Json?
+  placeOfSupply    String?
+  customerName     String?
+  /// Website values that have no column here, kept verbatim for audit (migrated rows only).
+  legacyData       Json?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([gatewayOrderId])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@map("payment_transactions")
+}
+
+/// Single row per series (`key` = "INV-AS"). Created only by the documented initialisation; never by code paths that sell.
+model InvoiceCounter {
+  key           String   @id
+  lastValue     BigInt
+  initializedBy String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("invoice_counters")
+}
+
+/// One invoice per paid sale. `sequence` is set only for numbers allocated here (unique);
+/// migrated website invoices keep their stored `number` exactly, with `sequence` null,
+/// because the website data contains duplicate and malformed numbers.
+model Invoice {
+  id          String                  @id @default(uuid())
+  /// MongoDB _id of the website order / booking / report order the number was stored on.
+  legacyId    String?                 @unique
+  orderId     String?                 @unique
+  saleType    LedgerTransactionType
+  number      String?
+  sequence    BigInt?                 @unique
+  status      InvoiceAllocationStatus @default(PENDING)
+  allocatedAt DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([number])
+  @@index([status])
+  @@map("invoices")
+}
+// ===== end money =====
+
+// ===== messaging (website integration) =====
+enum OutboundMessageChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+}
+
+enum OutboundMessageStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+/// Outbox and delivery log of every event message sent by SMS, WhatsApp or e-mail
+/// (services/messaging/outbox.service.ts). One row per event + entity + audience +
+/// channel; `dedupeKey` is unique, so raising the same event again (retry, crash,
+/// duplicate webhook) can never create a second message. `notBefore` delays a send
+/// (report-ready goes out REPORT_SEND_DELAY_HOURS after completion). OTPs are never
+/// stored here: they are sent inline and exist only as a hash in otp_verifications.
+model OutboundMessage {
+  id                String                 @id @default(uuid())
+  dedupeKey         String                 @unique
+  event             String
+  entityId          String?
+  userId            String?
+  audience          String                 @default("CUSTOMER")
+  channel           OutboundMessageChannel
+  recipient         String
+  payload           Json
+  status            OutboundMessageStatus  @default(PENDING)
+  attempts          Int                    @default(0)
+  maxAttempts       Int                    @default(4)
+  notBefore         DateTime               @default(now())
+  lockedAt          DateTime?
+  lastError         String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([status, notBefore])
+  @@index([event, entityId])
+  @@index([userId])
+  @@map("outbound_messages")
+}
+
+/// One row per ACCEPTED OTP send, per scope ("IDENTIFIER" = phone/e-mail, "IP").
+/// The send rate limit counts these rows; they are never deleted by a new request,
+/// only by the age-based clean-up, so requesting again cannot reset the limit.
+/// `keyHash` is a SHA-256 of the identifier or IP address, never the raw value.
+model OtpSendLog {
+  id        String   @id @default(uuid())
+  scope     String
+  keyHash   String
+  createdAt DateTime @default(now())
+
+  @@index([scope, keyHash, createdAt])
+  @@index([createdAt])
+  @@map("otp_send_logs")
+}
+// ===== end messaging =====
+
+// ===== bookings (website integration) =====
+// Admin-editable consultation types, availability and the booking extras.
+// See docs/integration/modules/bookings.md.
+//
+// Timezone rule: every wall-clock value here (minutes since midnight, calendar dates) is Indian
+// Standard Time (Asia/Kolkata, fixed UTC+05:30, no DST). Instants are stored in UTC.
+//
+// The lead's migration must also add, by hand, the constraint Prisma cannot express:
+//   ALTER TABLE "appointment_slots" ADD CONSTRAINT "appointment_slots_no_overlap"
+//     EXCLUDE USING gist (tsrange("startTimeUtc", "endTimeUtc", '[)') WITH &&)
+//     WHERE (status IN ('RESERVED', 'BOOKED'));
+
+/// Website `consultation.type`: normal | special.
+enum ConsultationTypeKind {
+  NORMAL
+  SPECIAL
+}
+
+/// Website `modes[].gst.type`: inclusive (price already contains GST) | exclusive (GST is added on top).
+enum ConsultationGstType {
+  INCLUSIVE
+  EXCLUSIVE
+}
+
+/// Website `bookingSource`: user | admin.
+enum BookingSource {
+  USER
+  ADMIN
+}
+
+enum BookingPaymentMethod {
+  RAZORPAY
+  MANUAL
+}
+
+/// Website `discountType`: FLAT | PERCENTAGE.
+enum BookingDiscountType {
+  FLAT
+  PERCENTAGE
+}
+
+/// Website `adminNotes[].action`: reschedule | plan_change. The others are ours.
+enum BookingAdminNoteAction {
+  RESCHEDULE
+  PLAN_CHANGE
+  NOTE
+  MANUAL_BOOKING
+  DELETE
+}
+
+/// A consultation offered for booking (website collection `consultations`).
+model ConsultationType {
+  id              String               @id @default(uuid())
+  legacyId        String?              @unique
+  title           String
+  kind            ConsultationTypeKind @default(NORMAL)
+  description     String?
+  includes        String[]
+  durationMinutes Int
+  /// Minimum notice: the earliest bookable IST date is today + responseDays.
+  responseDays    Int                  @default(0)
+  priceLabel      String?
+  note            String?
+  isActive        Boolean              @default(true)
+  /// Admin delete. Rows are kept so past bookings and orders still resolve.
+  deletedAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  modes        ConsultationTypeMode[]
+  blockedDates ConsultationTypeBlockedDate[]
+  bookings     ConsultationBooking[]
+
+  @@index([isActive, deletedAt])
+  @@map("consultation_types")
+}
+
+/// One priced way of taking a consultation (website `consultations.modes[]`).
+/// `catalogId` is the commerce catalogue id of this type + mode and never changes.
+model ConsultationTypeMode {
+  id                 String              @id @default(uuid())
+  typeId             String
+  mode               ConsultationMode
+  catalogId          String              @unique
+  pricePaise         Int
+  gstEnabled         Boolean             @default(true)
+  gstRateBasisPoints Int                 @default(0)
+  gstType            ConsultationGstType @default(INCLUSIVE)
+  /// false after the admin removes the mode; the row stays so the catalog id is never reused.
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  type ConsultationType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+
+  @@unique([typeId, mode])
+  @@map("consultation_type_modes")
+}
+
+/// A date on which one consultation type cannot be booked (what the website's
+/// `consultation.unavailableDates` was meant to be; its endpoints never saved it).
+model ConsultationTypeBlockedDate {
+  id        String   @id @default(uuid())
+  typeId    String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  type ConsultationType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+
+  @@unique([typeId, date])
+  @@map("consultation_type_blocked_dates")
+}
+
+/// The astrologer's working hours (website collection `availabilities`, a single document).
+/// One row, id "default". Minutes are minutes since 00:00 IST.
+model AvailabilitySetting {
+  id                  String   @id @default("default")
+  legacyId            String?  @unique
+  startMinute         Int
+  endMinute           Int
+  /// Slot length used when no consultation type is given (website `slotDuration`).
+  slotDurationMinutes Int
+  gapMinutes          Int      @default(0)
+  /// Optional daily break; no slot may overlap it. Not on the website.
+  breakStartMinute    Int?
+  breakEndMinute      Int?
+  /// Weekly days off, 0 = Sunday ... 6 = Saturday. Not on the website.
+  blockedWeekdays     Int[]
+  /// How far ahead customers may book; null = no limit. Not on the website.
+  bookingHorizonDays  Int?
+  updatedById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("availability_settings")
+}
+
+/// Per-date exceptions (website collection `schedules`): a fully blocked day and/or blocked slots.
+model ScheduleDay {
+  id        String   @id @default(uuid())
+  legacyId  String?  @unique
+  date      DateTime @unique @db.Date
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  blockedSlots ScheduleBlockedSlot[]
+
+  @@index([isBlocked, date])
+  @@map("schedule_days")
+}
+
+/// A blocked time range on one date (website `schedules.blockedSlots[]`, "HH:mm-HH:mm").
+model ScheduleBlockedSlot {
+  id          String   @id @default(uuid())
+  dayId       String
+  startMinute Int
+  endMinute   Int
+  createdAt   DateTime @default(now())
+
+  day ScheduleDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@unique([dayId, startMinute, endMinute])
+  @@map("schedule_blocked_slots")
+}
+
+/// Staff-only history of a booking (website `bookings.adminNotes[]`). Never returned to the customer.
+model BookingAdminNote {
+  id          String                 @id @default(uuid())
+  bookingId   String
+  action      BookingAdminNoteAction
+  note        String?
+  /// What changed, e.g. { from: { date, startTime }, to: { date, startTime } }.
+  changes     Json?
+  /// Name of the staff member at the time of writing (snapshot, as on the website).
+  addedByName String?
+  addedById   String?
+  createdAt   DateTime               @default(now())
+
+  booking ConsultationBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@map("booking_admin_notes")
+}
+// ===== end bookings =====
