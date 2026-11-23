@@ -6,6 +6,7 @@
  * cross-topic repetition.
  */
 import { GeneratedTopicPayload, ValidationIssue } from '../contracts';
+import { devanagariShare, findHindiOverstatement, hasDevanagari, HINDI_PREDICTIVE_CONTEXT, HINDI_RULES, HINDI_STOPWORDS, matchHindiRule, misdefinesAshtakavargaHindi } from './hindi-lexicon';
 import { findOverstatement, misdefinesAshtakavarga, PREDICTIVE_CONTEXT } from './judgement-lexicon';
 
 interface Rule {
@@ -41,7 +42,12 @@ export function splitSentences(text: string): string[] {
 export interface EditorialOptions {
   /** True for topics that opted in to interpretation results (stricter severities). */
   interpretationTopic?: boolean;
+  /** Language of the edition. A Hindi edition must be written in Devanagari. */
+  language?: 'en' | 'hi';
 }
+
+/** Below this share of Devanagari letters a Hindi passage counts as written in the wrong language or script. */
+const MIN_DEVANAGARI_SHARE = 0.7;
 
 export function validateEditorial(payload: GeneratedTopicPayload, opts: EditorialOptions = {}): ValidationIssue[] {
   const text = topicText(payload);
@@ -50,8 +56,37 @@ export function validateEditorial(payload: GeneratedTopicPayload, opts: Editoria
     const m = r.pattern.exec(text);
     if (m) issues.push({ severity: r.severity, code: r.code, message: `${r.message}: "${m[0]}"` });
   }
+  const hindi = hasDevanagari(text);
+  if (hindi) {
+    for (const r of HINDI_RULES) {
+      const hit = matchHindiRule(r, text);
+      if (hit && !issues.some((i) => i.code === r.code)) issues.push({ severity: r.severity, code: r.code, message: `${r.message}: "${hit}"` });
+    }
+  }
+  if (opts.language === 'hi') {
+    for (const part of [payload.lead, ...payload.paragraphs, ...payload.bullets, payload.takeaway ?? '']) {
+      if (part.trim().length >= 20 && devanagariShare(part) < MIN_DEVANAGARI_SHARE) {
+        issues.push({ severity: 'error', code: 'WRONG_LANGUAGE', message: `A Hindi edition must be written in Hindi (Devanagari): "${part.slice(0, 80)}"` });
+        break;
+      }
+    }
+  }
   const guarantee = RULES.find((r) => r.code === 'GUARANTEE')!.pattern;
+  const hindiGuarantee = HINDI_RULES.find((r) => r.code === 'GUARANTEE')!;
   for (const s of splitSentences(text)) {
+    if (hindi) {
+      const overHi = findHindiOverstatement(s);
+      if (overHi && !matchHindiRule(hindiGuarantee, s)) {
+        const severity = opts.interpretationTopic || HINDI_PREDICTIVE_CONTEXT.test(s) ? 'error' : 'warning';
+        issues.push({ severity, code: 'OVERSTATEMENT', message: `Overstated or guaranteed outcome ("${overHi[0]}"): "${s.slice(0, 120)}"` });
+      }
+      if (misdefinesAshtakavargaHindi(s)) {
+        issues.push({
+          severity: 'error', code: 'ASHTAKAVARGA_MISDEFINED',
+          message: `Ashtakavarga bindus are natal points from the eight contributors, not support from transiting planets: "${s.slice(0, 120)}"`,
+        });
+      }
+    }
     // Overstatement lexicon (audit V7): a yoga, dasha or transit is a potential, never a promise.
     // A denied term ("rather than effortless gains", "does not ensure") is not an overstatement.
     const over = findOverstatement(s);
@@ -70,8 +105,8 @@ export function validateEditorial(payload: GeneratedTopicPayload, opts: Editoria
   }
   // Intra-topic duplicated sentences.
   const seen = new Set<string>();
-  for (const s of text.split(/(?<=[.!?])\s+/)) {
-    const k = s.toLowerCase().replace(/[^a-z ]/g, '').trim();
+  for (const s of splitSentences(text)) {
+    const k = normKey(s);
     if (k.length > 40 && seen.has(k)) {
       issues.push({ severity: 'warning', code: 'REPEATED_SENTENCE', message: `Repeated: "${s.slice(0, 80)}"` });
     }
@@ -90,6 +125,7 @@ const STOPWORDS = new Set([
   'which', 'who', 'whom', 'what', 'where', 'when', 'while', 'than', 'then', 'so', 'such', 'can', 'may', 'might', 'will', 'would',
   'should', 'could', 'has', 'have', 'had', 'do', 'does', 'did', 'not', 'no', 'also', 'more', 'most', 'very', 'about', 'through',
   'over', 'under', 'within', 'across', 'how', 'here', 'own', 'one', 'often', 'tends', 'tend', 'suggests', 'suggest',
+  ...HINDI_STOPWORDS,
 ]);
 
 function stem(w: string): string {
@@ -208,12 +244,14 @@ export function findNearDuplicates(payloads: GeneratedTopicPayload[], options: R
  * sentences used in more than one topic. Same shape as before; near duplicates
  * are grouped under the earlier sentence.
  */
-const normKey = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
+function normKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z\u0900-\u097F ]/g, '').replace(/\s+/g, ' ').trim();
+}
 
 export function findCrossTopicRepetition(payloads: GeneratedTopicPayload[]): Array<{ sentence: string; topics: string[] }> {
   const index = new Map<string, Set<string>>();
   for (const p of payloads) {
-    for (const s of topicText(p).split(/(?<=[.!?])\s+/)) {
+    for (const s of splitSentences(topicText(p))) {
       const k = normKey(s);
       if (k.length < 60) continue;
       if (!index.has(k)) index.set(k, new Set());

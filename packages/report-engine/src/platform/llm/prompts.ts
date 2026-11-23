@@ -5,6 +5,7 @@
  * Bump PROMPT_VERSION whenever the wording below changes — it is part of the
  * topic cache key, so stale narrative is regenerated rather than reused.
  */
+import { DIGNITY_HI, PLANET_HI, SIGN_HI } from '../i18n/hindi';
 import { EvidenceItem, ReportDefinition, ReportTopic } from '../contracts';
 import type { InterpretationView } from '../validation/interpretation-validator';
 
@@ -57,6 +58,15 @@ export const GLOSSARY: ReadonlyArray<{ term: string; definition: string }> = [
 export const INTERPRETATION_TOPIC_INSTRUCTION =
   "Every evaluative sentence (strong, weak, supportive, demanding, favourable, mixed, and the like) must be backed by a claim that cites an interp.* ID and restates that result's conclusion. If a result is 'mixed', say plainly that it cuts both ways. Never add a judgement, strength word or rule that is not listed in INTERPRETATIONS. Do not present an empty or unaspected house as an advantage. A fact's own wording (e.g. 'functionally challenging', 'dignity: neutral') may be restated in a claim that cites that fact. Write every date in one form, day month year (e.g. 20 Nov 2026), never as 2026-11-20 or November 20, 2026; when an INTERPRETATIONS line gives a date, use that date. CLAIMS FOR THIS TOPIC: a claim that cites an interp.* ID must use that line's conclusion (the text before the first ' — ') copied word for word as its statement, followed by its class (e.g. '... This is mixed: it cuts both ways.'); a claim that cites a fact must copy that EVIDENCE label word for word. Include one such claim for every INTERPRETATIONS line marked REQUIRED and for every interp.* result you rely on. When a prose sentence gives a judgement, keep the key words of the cited conclusion (planet, house, sign, lord) so the two can be matched, but write it as natural, warm prose rather than repeating the claim; for a mixed result say so in varied ways that include 'mixed', 'both', 'while' or 'yet' (use the phrase 'cuts both ways' at most once per topic). Outside such sentences do not use evaluative words about chart factors at all (strong, weak, supportive, supported, balanced, neutral, demanding, favourable, mixed): describe instead what the placement asks of the reader.";
 
+/** Chart vocabulary given to the model for a Hindi edition, from the same glossary the tables use. */
+const HINDI_PROMPT_TERMS = [
+  ...Object.entries(PLANET_HI).map(([en, hi]) => `${en} = ${hi}`),
+  ...Object.entries(SIGN_HI).map(([en, hi]) => `${en} = ${hi}`),
+  ...Object.entries(DIGNITY_HI).map(([en, hi]) => `${en.toLowerCase().replace(/_/g, ' ')} = ${hi}`),
+  'retrograde = वक्री', 'combust = अस्त', 'house = भाव', 'sign = राशि', 'aspect = दृष्टि', 'conjunction = युति', 'lord = स्वामी',
+  'nakshatra = नक्षत्र', 'pada = चरण', 'divisional chart = वर्ग कुंडली', 'birth chart = जन्म कुंडली', 'transit = गोचर', 'period = दशा',
+].join('; ');
+
 export const SYSTEM_PROMPT = `You are the writing voice of Astro Sushil (astrologer Sushil Kumaar Singh), preparing a premium, personalised Vedic astrology report.
 
 ROLE AND LIMITS
@@ -100,6 +110,7 @@ export function buildBatchPrompt(input: BatchPromptInput): string {
   lines.push(`REPORT: ${definition.title} — ${definition.subtitle}`);
   if (definition.language === 'hi') {
     lines.push('LANGUAGE: Write lead, paragraphs, bullets and takeaway in natural, warm Hindi (Devanagari script). Keep each claim "statement" in English, quoting the chart fact exactly as given in the evidence label, so it can be audited.');
+    lines.push(`HINDI TERMS: The evidence is in English. In the Hindi prose use these words for it, and never spell an English term in Devanagari letters: ${HINDI_PROMPT_TERMS}.`);
   }
   lines.push(`REPORT-SPECIFIC GUIDANCE:\n${definition.writingGuidance.map((g) => `- ${g}`).join('\n')}`);
   lines.push(`SECTION: ${input.sectionTitle}`);

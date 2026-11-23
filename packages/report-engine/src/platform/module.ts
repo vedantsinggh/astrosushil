@@ -10,6 +10,7 @@
 import type { InterpretationPack } from '@astro/prediction-engine';
 import { ReportDefinitionInput } from './contracts';
 import { AddEvidence, EvidenceRegistry } from './evidence/evidence-registry';
+import { HindiEdition } from './i18n/hindi';
 import { BlockRenderer } from './render/blocks';
 import { ChartSnapshot } from './snapshot/chart-snapshot';
 
@@ -39,6 +40,11 @@ export interface ReportModule {
    * (platform/interpretation/register.ts). Modules without it behave exactly as before.
    */
   interpretation?: { pack: InterpretationPack };
+  /**
+   * Hindi display text for this report. When present the report can be generated in Hindi
+   * (`language: 'hi'`); structure, evidence and objectives are those of `definition`.
+   */
+  hindi?: HindiEdition;
   status: ImplementationStatus;
   statusEvidence: string;
 }

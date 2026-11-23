@@ -48,6 +48,24 @@ No astrology rule changes. The LLM still only words what the engine computed.
 
 None recorded yet. This list is filled in as each validator is extended.
 
+## How to give a report a Hindi edition
+
+1. Add `reports/<id>/<id>.hindi.ts` exporting a `HindiEdition` (`platform/i18n/hindi.ts`): Hindi title, subtitle, description, and Hindi text for every section (title, kicker, intro) and every topic (title, subtitle). Set it as `hindi` on the module. An incomplete edition is a startup error.
+2. In the same file call `registerHindiLabels({...})` with the fixed labels of the report's blocks (table headings, captions, method notes), keyed by the English text.
+3. In each block the report uses, take `const lang = blockLang(ctx)` and pass every printed word through the glossary: `label`, `planetLabel`, `signLabel`, `nakshatraLabel`, `dignityLabel`, `planetAbbr`, or `pick(lang, en, hi)` for a sentence built from values. Numbers, evidence ids and calculations must be identical in both languages.
+4. Objectives, evidence ids and writing guidance stay in English: they are instructions to the model, and claims are audited in English.
+5. Add tests: the edition is complete, each block's Hindi output has the same numbers and evidence ids as the English one and no English words, and an offline Hindi run of the report passes PDF QA.
+
 ## Measured cost
 
-Not measured yet.
+| Report | Language | Model calls | Tokens in / out | Estimated cost | Date |
+|---|---|---|---|---|---|
+| Planetary Summary (11 narrative topics, 17 pages) | Hindi | 5 | 10,865 / 3,711 | $0.0083 (about Rs 0.75) | 2026-11-24 |
+
+All 11 topics passed validation on the first attempt on `gemini-3.1-flash-lite`.
+
+## Defects found and fixed
+
+- The model writes some nukta letters (ड़, ढ़) as single precomposed characters (U+0958 to U+095F). The Devanagari font switch did not recognise them and the page failed to compile. `tex()` now normalises text to NFC, which splits them into letter plus nukta.
+- Without a glossary the model transliterated English dignity terms ("ग्रेट फ्रेंड"). The prompt for a Hindi edition now lists the Hindi chart vocabulary from the same glossary the tables use.
+- Pictures are matched on English titles, so the Hindi edition is planned from the English definition and carries the same pictures.

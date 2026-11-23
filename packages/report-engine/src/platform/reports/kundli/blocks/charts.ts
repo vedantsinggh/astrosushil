@@ -1,9 +1,10 @@
 /** Chart and position blocks: South Indian D1, Moon chart, divisional charts, planet/house/varga/aspect tables. */
 import { VargaType } from '@astro/astrology-engine';
-import { BlockContext, BlockOutput, northChart } from '../../../render/blocks';
+import { BlockContext, blockLang, BlockOutput, northChart } from '../../../render/blocks';
 import { tex } from '../../../render/latex';
 import { ordinal, planetName, SIGNS } from '../../../evidence/evidence-registry';
 import { kundliExt } from '../extend';
+import { dignityLabel, label, nakshatraLabel, planetLabel, signLabel } from '../../../i18n/hindi';
 import { ABBR, dataTable, degMin, dignityText, list, PLANET_ORDER, planetOf, SIGN_SHORT } from './common';
 
 /** Fixed sign cells of the South Indian chart: [column, row] from bottom-left, sign 1 = Aries. */
@@ -141,25 +142,28 @@ export function kundliVargaTable(ctx: BlockContext): BlockOutput {
 
 export function kundliPlanetTable(ctx: BlockContext): BlockOutput {
   const { natal } = ctx.snapshot;
+  const lang = blockLang(ctx);
   const asc = natal.ascendant;
+  const dignity = (d: string) => (lang === 'hi' ? dignityLabel(lang, String(d)) : dignityText(d));
   const rows: string[][] = [[
-    '\\textbf{Ascendant}', tex(asc.sign), degMin(asc.degree), `${tex(asc.nakshatra)} ${asc.pada}`, tex(planetName(asc.lord)),
-    '--', '1', '--', '--', '--',
+    `\\textbf{${tex(label(lang, 'Ascendant'))}}`, tex(signLabel(lang, asc.sign)), degMin(asc.degree), `${tex(nakshatraLabel(lang, asc.nakshatra))} ${asc.pada}`,
+    tex(planetLabel(lang, planetName(asc.lord))), '--', '1', '--', '--', '--',
   ]];
   for (const n of PLANET_ORDER) {
     const p = planetOf(natal, n);
-    const flags = [p.retrograde ? 'R' : '', p.combust ? 'C' : ''].filter(Boolean).join(' ') || '--';
+    const flags = [p.retrograde ? label(lang, 'R') : '', p.combust ? label(lang, 'C') : ''].filter(Boolean).join(' ') || '--';
     const signLord = planetName(natal.houses.find((h) => h.rashiIndex === p.rashiIndex)!.lord);
     rows.push([
-      `\\textbf{${n}}`, tex(p.sign), degMin(p.degree), `${tex(p.nakshatra)} ${p.pada}`, tex(signLord), tex(planetName(p.nakshatraLord)),
-      String(p.house), tex(dignityText(p.dignity)), flags, typeof p.speedLongitude === 'number' ? p.speedLongitude.toFixed(3) : '--',
+      `\\textbf{${tex(planetLabel(lang, n))}}`, tex(signLabel(lang, p.sign)), degMin(p.degree), `${tex(nakshatraLabel(lang, p.nakshatra))} ${p.pada}`,
+      tex(planetLabel(lang, signLord)), tex(planetLabel(lang, planetName(p.nakshatraLord))),
+      String(p.house), tex(dignity(p.dignity)), flags, typeof p.speedLongitude === 'number' ? p.speedLongitude.toFixed(3) : '--',
     ]);
   }
   return {
     tex: dataTable('>{\\raggedright\\arraybackslash}p{0.1\\linewidth}>{\\raggedright\\arraybackslash}p{0.085\\linewidth}rl>{\\raggedright\\arraybackslash}p{0.07\\linewidth}>{\\raggedright\\arraybackslash}p{0.07\\linewidth}c>{\\raggedright\\arraybackslash}Xcr',
-      ['Planet', 'Sign', 'Degree', 'Nakshatra / pada', 'Sign lord', 'Nak. lord', 'House', 'Dignity', 'R / C', '°/day'], rows, { fontPt: 7.9, tabcolsep: '3pt' }),
+      ['Planet', 'Sign', 'Degree', 'Nakshatra / pada', 'Sign lord', 'Nak. lord', 'House', 'Dignity', 'R / C', '°/day'].map((h) => label(lang, h)), rows, { fontPt: 7.9, tabcolsep: '3pt' }),
     evidenceIds: PLANET_ORDER.flatMap((n) => [`planet.${n.toLowerCase()}.d1.sign`, `planet.${n.toLowerCase()}.d1.degree`, `planet.${n.toLowerCase()}.d1.nakshatra`, `planet.${n.toLowerCase()}.d1.dignity`]),
-    method: 'Degree within the sign. R = retrograde, C = combust (within the classical distance of the Sun). Speed is daily motion in longitude; negative means retrograde. Rahu and Ketu are mean nodes and always retrograde.',
+    method: label(lang, 'Degree within the sign. R = retrograde, C = combust (within the classical distance of the Sun). Speed is daily motion in longitude; negative means retrograde. Rahu and Ketu are mean nodes and always retrograde.'),
   };
 }
 

@@ -10,6 +10,8 @@ import { EvidenceRegistry, ordinal, planetName, SIGNS } from '../evidence/eviden
 import { ChartSnapshot } from '../snapshot/chart-snapshot';
 import { formatDate, tex } from './latex';
 
+import { label, planetAbbr, ReportLanguage } from '../i18n/hindi';
+
 export interface BlockContext {
   snapshot: ChartSnapshot;
   registry: EvidenceRegistry;
@@ -17,7 +19,12 @@ export interface BlockContext {
   partner?: ChartSnapshot;
   /** Report-specific computed data from the module's `extend` hook. */
   ext: Record<string, unknown>;
+  /** Language of labels and notes (English when absent). */
+  lang?: ReportLanguage;
 }
+
+/** The language a block labels itself in. */
+export const blockLang = (ctx: BlockContext): ReportLanguage => ctx.lang ?? 'en';
 
 export interface BlockOutput {
   tex: string;
@@ -38,19 +45,23 @@ export function northChart(houses: Array<{ sign: number; lines: string[] }>, sca
   return `\\NorthChart{${scale}}${houses.map((h) => `{${cell(h)}}`).join('')}`;
 }
 
+/** Chart abbreviation of a planet in the block's language. */
+const abbr = (lang: ReportLanguage, planet: string) => (lang === 'hi' ? planetAbbr(lang, planet) : ABBR[planet]);
+
 export function d1Chart(ctx: BlockContext): BlockOutput {
   const { natal } = ctx.snapshot;
+  const lang = blockLang(ctx);
   const houses = natal.houses.map((h) => ({
     sign: h.rashiIndex,
     lines: natal.planets
       .filter((p) => p.house === h.number)
-      .map((p) => `${ABBR[planetName(p.name)]} ${Math.floor(p.degree)}°${p.retrograde ? ' R' : ''}`),
+      .map((p) => `${abbr(lang, planetName(p.name))} ${Math.floor(p.degree)}°${p.retrograde ? ` ${label(lang, 'R')}` : ''}`),
   }));
-  houses[0].lines.unshift('Asc');
+  houses[0].lines.unshift(label(lang, 'Asc'));
   return {
     tex: `\\begin{center}${northChart(houses)}\\end{center}`,
     evidenceIds: ['asc.d1.sign', ...natal.planets.map((p) => `planet.${planetName(p.name).toLowerCase()}.d1.house`)],
-    method: 'North Indian style. Numbers are signs (1 = Aries … 12 = Pisces); the top diamond is the 1st house. R = retrograde.',
+    method: label(lang, 'North Indian style. Numbers are signs (1 = Aries … 12 = Pisces); the top diamond is the 1st house. R = retrograde.'),
   };
 }
 

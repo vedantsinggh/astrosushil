@@ -25,7 +25,8 @@ import { LlmCallRecord, LlmNarrator, TopicOutcome } from './llm/narrator';
 import { PROMPT_VERSION } from './llm/prompts';
 import { runPdfQa } from './qa/pdf-qa';
 import { ReportModule } from './module';
-import { ReportRegistry, validateModule } from './registry';
+import { ReportLanguage } from './i18n/hindi';
+import { localizedDefinition, ReportRegistry } from './registry';
 import { CORE_BLOCKS } from './render/blocks';
 import { assembleDocument, compileLatex, ResolvedTopic } from './render/document';
 import { planIllustrations, signForRashiIndex } from './render/illustrations';
@@ -43,6 +44,8 @@ export interface GenerateReportRequest {
   narrator: LlmNarrator;
   /** Evaluation date for dashas/transits (defaults to today). */
   asOf?: Date;
+  /** Report language. Defaults to the definition's own; `REPORT_LANGUAGE_NOT_AVAILABLE` when the report has no such edition. */
+  language?: ReportLanguage;
   /** Topic IDs whose cached narrative should be discarded and regenerated. */
   regenerateTopics?: string[];
   reportId?: string;
@@ -158,7 +161,7 @@ const FORBIDDEN_IN_PDF = [/arun pandit/i, /gemsmantra/i, /puneet/i, /lorem ipsum
 
 export async function generateReport(req: GenerateReportRequest): Promise<GenerateReportResult> {
   const module = req.module ?? ReportRegistry.entry(req.definitionId).module;
-  const def = validateModule(module);
+  const def = localizedDefinition(module, req.language);
   const reportId = req.reportId ?? `rpt_${randomUUID()}`;
   const callsBefore = req.narrator.calls.length;
   if (def.requires.partner && !req.partner) throw new Error('SNAPSHOT_INPUT_INVALID: this report requires partner birth details');
@@ -190,7 +193,7 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
     : undefined;
   const variantOf = new Map<string, string>();
   const blocks = { ...CORE_BLOCKS, ...(module.blocks ?? {}) };
-  const blockCtx = { snapshot, registry, partner, ext };
+  const blockCtx = { snapshot, registry, partner, ext, lang: def.language };
 
   const topicEntries: TopicManifestEntry[] = [];
   const resolvedSections: Array<{ section: (typeof def.sections)[number]; topics: ResolvedTopic[] }> = [];
@@ -312,7 +315,8 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
     llmProviderLabel: req.llmProviderLabel ?? 'Google Gemini',
     sections: resolvedSections,
     // Pictures are chosen by fixed rules from titles and the native's Ascendant and Moon signs.
-    illustrations: planIllustrations(def, {
+    // Pictures are matched on the English titles, so both editions of a report carry the same pictures.
+    illustrations: planIllustrations(def.language === 'hi' && module.hindi ? localizedDefinition(module) : def, {
       lagna: signForRashiIndex(snapshot.natal.ascendant.rashiIndex),
       moon: signForRashiIndex(snapshot.natal.planets.find((p) => p.name === 'MOON')?.rashiIndex),
     }),

@@ -23,6 +23,8 @@ import { RAHU_KETU_TRANSIT_MODULE } from './reports/rahu-ketu-transit';
 import { SATURN_MODULE } from './reports/saturn';
 import { VARSHPHAL_MODULE } from './reports/varshphal';
 
+import { applyHindiEdition, ReportLanguage } from './i18n/hindi';
+
 export const MODULES: ReportModule[] = [LOVE_MODULE, CAREER_MODULE, KUNDLI_MODULE, FINANCE_MODULE, COUPLE_MATCHING_MODULE, VARSHPHAL_MODULE, HOROSCOPE_ANNUAL_MODULE,
   SATURN_MODULE, JUPITER_TRANSIT_MODULE, RAHU_KETU_TRANSIT_MODULE,
   FORTUNE_MODULE, FORTUNE_PLUS_MODULE, BABY_NAME_MODULE, PLANETARY_SUMMARY_MODULE];
@@ -52,6 +54,20 @@ export function validateModule(module: ReportModule): ReportDefinition {
   return def;
 }
 
+/** Languages a module can be generated in. A definition written in Hindi serves Hindi only. */
+export function moduleLanguages(module: ReportModule): ReportLanguage[] {
+  const own = ReportDefinitionSchema.parse(module.definition).language;
+  return own === 'hi' ? ['hi'] : module.hindi ? ['en', 'hi'] : ['en'];
+}
+
+/** The validated definition of a module in the requested language (its own language when none is requested). */
+export function localizedDefinition(module: ReportModule, language?: ReportLanguage): ReportDefinition {
+  const def = validateModule(module);
+  if (!language || language === def.language) return def;
+  if (language === 'hi' && module.hindi) return applyHindiEdition(def, module.hindi);
+  throw new Error(`REPORT_LANGUAGE_NOT_AVAILABLE: ${def.id} is not available in ${language}`);
+}
+
 /** Every ReportType value a definition serves: its primary type plus any aliases. */
 export function servedReportTypes(def: ReportDefinition): string[] {
   return [def.reportType, ...def.additionalReportTypes];
@@ -74,6 +90,7 @@ const ENTRIES = new Map<string, RegistryEntry>();
 for (const module of MODULES) {
   const definition = validateModule(module);
   if (ENTRIES.has(definition.id)) throw new Error(`Duplicate report id ${definition.id}`);
+  if (module.hindi) applyHindiEdition(definition, module.hindi); // an incomplete Hindi edition is a startup error
   ENTRIES.set(definition.id, { definition, module, status: module.status, statusEvidence: module.statusEvidence });
 }
 const BY_REPORT_TYPE = indexReportTypes([...ENTRIES.values()].map((e) => e.definition));
@@ -87,8 +104,13 @@ export const ReportRegistry = {
     if (!e) throw new Error(`REPORT_DEFINITION_NOT_FOUND: ${id}`);
     return e;
   },
-  get(id: string): ReportDefinition {
-    return this.entry(id).definition;
+  get(id: string, language?: ReportLanguage): ReportDefinition {
+    const e = this.entry(id);
+    return language ? localizedDefinition(e.module, language) : e.definition;
+  },
+  /** Languages a report can be generated in. */
+  languages(id: string): ReportLanguage[] {
+    return moduleLanguages(this.entry(id).module);
   },
   /** The definition serving a ReportType, matching its primary type or an alias in `additionalReportTypes`. */
   byReportType(reportType: string): ReportDefinition | undefined {

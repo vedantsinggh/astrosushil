@@ -60,6 +60,7 @@ async function main() {
     partner,
     narrator,
     asOf: asOf ? new Date(`${asOf}T00:00:00Z`) : undefined,
+    language: arg('language') as 'en' | 'hi' | undefined,
     regenerateTopics: arg('regenerate')?.split(','),
     llmProviderLabel: providerName === 'gemini' ? 'Google Gemini' : 'offline test provider (no AI used)',
   });

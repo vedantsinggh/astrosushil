@@ -27,6 +27,8 @@ export interface TopicCacheKeyParts {
    */
   interpretationFingerprint?: string;
   interpretationPromptVersion?: string;
+  /** Set ONLY for a non-English edition, so English keys stay byte-identical. */
+  language?: string;
 }
 
 export function topicCacheKey(parts: TopicCacheKeyParts): string {

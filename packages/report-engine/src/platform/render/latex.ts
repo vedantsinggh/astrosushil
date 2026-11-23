@@ -15,7 +15,10 @@ const MAP: Record<string, string> = {
 
 export function tex(text: string | number | undefined | null): string {
   if (text === undefined || text === null) return '';
+  // NFC also splits the precomposed nukta letters (U+0958 to U+095F, e.g. ड़ ढ़) into letter + nukta,
+  // the form the Devanagari font switch recognises; left precomposed they break the page.
   return String(text)
+    .normalize('NFC')
     .replace(/[\\{}$&#%_^~]/g, (c) => MAP[c])
     .replace(/"([^"]*)"/g, '``$1\'\'')
     .replace(/—/g, '---')

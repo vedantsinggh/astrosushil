@@ -6,9 +6,11 @@
 import { ReportModule } from '../../module';
 import { kundliPlanetTable } from '../kundli/blocks/charts';
 import { PLANETARY_SUMMARY_DEFINITION } from './planetary-summary.definition';
+import { PLANETARY_SUMMARY_HINDI } from './planetary-summary.hindi';
 
 export const PLANETARY_SUMMARY_MODULE: ReportModule = {
   definition: PLANETARY_SUMMARY_DEFINITION,
+  hindi: PLANETARY_SUMMARY_HINDI,
   blocks: {
     'planetary-summary-planet-table': kundliPlanetTable,
   },

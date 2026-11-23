@@ -233,6 +233,7 @@ export class LlmNarrator {
       model: this.config.model,
       generationConfig: { temperature: this.temperatureFor(topic), maxOutputTokens: this.maxOutputTokensFor(topic) },
     };
+    if (ctx.definition.language !== 'en') parts.language = ctx.definition.language;
     if (isInterpretationTopic(topic)) {
       parts.interpretationFingerprint = ctx.registry.fingerprint(topicInterpretationItems(topic, ctx.registry));
       parts.interpretationPromptVersion = INTERPRETATION_PROMPT_VERSION;
@@ -267,7 +268,7 @@ export class LlmNarrator {
       validation.issues.push(...extra);
       validation.passed = !validation.issues.some((i) => i.severity === 'error');
     }
-    const editorialIssues = validateEditorial(payload, { interpretationTopic: optedIn });
+    const editorialIssues = validateEditorial(payload, { interpretationTopic: optedIn, language: ctx.definition.language });
     const ok = validation.passed && !editorialIssues.some((i) => i.severity === 'error');
     return { validation, editorialIssues, ok };
   }
