@@ -17,6 +17,10 @@ class StorageKeys {
   static const String isGuestMode = 'is_guest_mode';
   static const String guestBirthProfile = 'guest_birth_profile';
   static const String appLocale = 'app_locale';
+
+  /// Language the customer last chose for the daily horoscope (`en` or `hi`).
+  /// Separate from [appLocale]: changing one never changes the other.
+  static const String horoscopeLanguage = 'horoscope_language';
 }
 
 /// Production implementation using FlutterSecureStorage

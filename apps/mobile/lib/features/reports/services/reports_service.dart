@@ -10,15 +10,22 @@ class ReportsService {
 
   ReportsService({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  /// Request authoritative server order creation for a report SKU
+  /// Request authoritative server order creation for a report SKU.
+  ///
+  /// [language] (`en` or `hi`) is the language of the report PDF. It is chosen
+  /// before payment and fixed for this purchase; the server reads an omitted
+  /// language as English and refuses one the report has no edition for
+  /// (`REPORT_LANGUAGE_NOT_AVAILABLE`) before any charge.
   Future<ReportPaymentOrder> createReportOrder({
     required String reportType,
+    String? language,
     String? idempotencyKey,
   }) async {
     final response = await _apiClient.post(
       '/payments/create-order',
       data: {
         'reportType': reportType,
+        if (language != null) 'language': language,
         if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
       },
     );
@@ -129,7 +136,12 @@ class ReportsService {
     return UserReportItemModel.fromJson(response);
   }
 
-  /// Initiate asynchronous report generation job (all tiers)
+  /// Initiate asynchronous report generation job (all tiers).
+  ///
+  /// No language is sent on purpose: the server makes a bought report in the
+  /// language chosen at purchase, regenerates an existing report in its stored
+  /// language, and answers `409 REPORT_LANGUAGE_FIXED` to a request naming a
+  /// different one. The language used is in the response (`language`).
   Future<Map<String, dynamic>> createReportJob({
     required String birthProfileId,
     required String reportType,

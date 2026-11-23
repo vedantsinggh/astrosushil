@@ -9,6 +9,7 @@ import 'package:astro_mobile/core/network/api_client.dart';
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/features/birth_profile/screens/create_birth_profile_screen.dart';
+import 'package:astro_mobile/features/reports/models/report_catalog_model.dart';
 import 'package:astro_mobile/features/reports/models/user_report_item_model.dart';
 import 'package:astro_mobile/features/reports/providers/report_catalog_provider.dart';
 import 'package:astro_mobile/features/reports/providers/reports_provider.dart';
@@ -51,7 +52,7 @@ final _partner = BirthProfileModel(
 );
 
 UserReportItemModel _report(String id, String type, String status,
-        {int progress = 0, String? err, String? partnerId, String? partnerName}) =>
+        {int progress = 0, String? err, String? partnerId, String? partnerName, String? language}) =>
     UserReportItemModel(
       id: id,
       userId: 'u_1',
@@ -65,6 +66,7 @@ UserReportItemModel _report(String id, String type, String status,
       createdAt: DateTime(2026, 3, 15, 10, 30),
       partnerProfileId: partnerId,
       partnerName: partnerName,
+      language: language,
     );
 
 final _ready = _report('rep_ready', 'KUNDLI', 'COMPLETED', progress: 100);
@@ -128,12 +130,15 @@ void main() {
     bool catalogError = false,
     bool pushed = false,
     ReportsTab? initialTab,
+    Map<String, dynamic>? catalogResponse,
   }) {
     final ps = profiles ?? [_profile, _partner];
     return ProviderScope(
       overrides: [
         if (catalogError)
           reportCatalogProvider.overrideWith((ref) async => throw Exception('offline'))
+        else if (catalogResponse != null)
+          reportCatalogProvider.overrideWith((ref) async => parseReportCatalog(catalogResponse))
         else
           reportCatalogTestOverride,
         birthProfilesListNotifierProvider.overrideWith((ref) => _Profiles(ps)),
@@ -242,6 +247,82 @@ void main() {
     expect(detail.priceText, '₹299');
     expect(detail.pricePaise, 29900);
     expect(detail.initialProfile.id, 'bp_1');
+  });
+
+  testWidgets('the languages offered before payment come from the catalogue', (tester) async {
+    await setSize(tester);
+    Map<String, dynamic> item(String type, List<String> languages) => {
+          'id': 'report-${type.toLowerCase()}',
+          'itemType': 'REPORT',
+          'title': '$type report',
+          'pricePaise': 29900,
+          'currency': 'INR',
+          'isActive': true,
+          'legacyReportType': type,
+          'languages': languages,
+        };
+    await tester.pumpWidget(app(
+      catalogResponse: {
+        'items': [
+          item('KUNDLI', ['en', 'hi']),
+          item('CAREER', ['en']),
+        ],
+      },
+    ));
+    await tester.pumpAndSettle();
+
+    final kundli = find.byKey(const ValueKey('report-offer-KUNDLI'));
+    await reveal(tester, kundli);
+    await tester.tap(kundli);
+    await tester.pumpAndSettle();
+    expect(tester.widget<ReportDetailScreen>(find.byType(ReportDetailScreen)).availableLanguages, ['en', 'hi']);
+    expect(find.byKey(const ValueKey('report_language_hi')), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(ReportDetailScreen))).pop();
+    await tester.pumpAndSettle();
+
+    final career = find.byKey(const ValueKey('report-offer-CAREER'));
+    await reveal(tester, career);
+    await tester.tap(career);
+    await tester.pumpAndSettle();
+    expect(tester.widget<ReportDetailScreen>(find.byType(ReportDetailScreen)).availableLanguages, ['en']);
+    // Hindi is not offered for a report the catalogue lists in English only.
+    expect(find.byKey(const ValueKey('report_language_hi')), findsNothing);
+  });
+
+  testWidgets('My reports shows the language each report was bought in', (tester) async {
+    await setSize(tester);
+    final hindi = _report('rep_hi', 'KUNDLI', 'COMPLETED', progress: 100, language: 'hi');
+    final english = _report('rep_en', 'CAREER', 'ANALYZING', progress: 45, language: 'en');
+    await tester.pumpWidget(app(reports: [hindi, english, _failed]));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('my-report-rep_hi')),
+        matching: find.text('Language: हिन्दी (Hindi)'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: find.byKey(const ValueKey('my-report-rep_en')), matching: find.text('Language: English')),
+      findsOneWidget,
+    );
+    // The server did not state a language for this one: none is invented.
+    expect(find.byKey(const ValueKey('my-report-language-rep_fail')), findsNothing);
+  });
+
+  testWidgets('an opened report shows its language', (tester) async {
+    await setSize(tester);
+    await tester.pumpWidget(app(reports: [_report('rep_hi', 'KUNDLI', 'COMPLETED', progress: 100, language: 'hi')]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('my-report-open-rep_hi')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(tester.widget<ReportPdfViewerScreen>(find.byType(ReportPdfViewerScreen)).language, 'hi');
+    expect(tester.widget<Text>(find.byKey(const ValueKey('report-pdf-language'))).data, 'Language: हिन्दी (Hindi)');
   });
 
   testWidgets('Open report opens the PDF viewer for that report', (tester) async {

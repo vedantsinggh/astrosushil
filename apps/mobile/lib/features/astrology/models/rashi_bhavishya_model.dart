@@ -22,6 +22,8 @@ int _int(Map<String, dynamic> json, String key, String what) {
   throw FormatException('Rashi Bhavishya response is missing $what.$key');
 }
 
+String? _optionalName(Object? raw) => raw is String && raw.trim().isNotEmpty ? raw : null;
+
 List<String> _strings(Object? raw) => raw is List ? raw.whereType<String>().toList() : const <String>[];
 
 class RashiInfoModel {
@@ -31,12 +33,16 @@ class RashiInfoModel {
   final String element;
   final String ruler;
 
+  /// Hindi name of the sign; present in a Hindi response only.
+  final String? hindiName;
+
   const RashiInfoModel({
     required this.index,
     required this.sanskritName,
     required this.englishName,
     required this.element,
     required this.ruler,
+    this.hindiName,
   });
 
   factory RashiInfoModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +54,7 @@ class RashiInfoModel {
       englishName: _str(json, 'englishName', 'rashi'),
       element: json['element'] as String? ?? '',
       ruler: json['ruler'] as String? ?? '',
+      hindiName: _optionalName(json['hindiName']),
     );
   }
 
@@ -57,6 +64,7 @@ class RashiInfoModel {
         'englishName': englishName,
         'element': element,
         'ruler': ruler,
+        if (hindiName != null) 'hindiName': hindiName,
       };
 }
 
@@ -65,15 +73,24 @@ class RashiSignRef {
   final String sanskritName;
   final String englishName;
 
-  const RashiSignRef({required this.index, required this.sanskritName, required this.englishName});
+  /// Hindi name of the sign; present in a Hindi response only.
+  final String? hindiName;
+
+  const RashiSignRef({required this.index, required this.sanskritName, required this.englishName, this.hindiName});
 
   factory RashiSignRef.fromJson(Map<String, dynamic> json) => RashiSignRef(
         index: _int(json, 'index', 'sign'),
         sanskritName: _str(json, 'sanskritName', 'sign'),
         englishName: _str(json, 'englishName', 'sign'),
+        hindiName: _optionalName(json['hindiName']),
       );
 
-  Map<String, dynamic> toJson() => {'index': index, 'sanskritName': sanskritName, 'englishName': englishName};
+  Map<String, dynamic> toJson() => {
+        'index': index,
+        'sanskritName': sanskritName,
+        'englishName': englishName,
+        if (hindiName != null) 'hindiName': hindiName,
+      };
 }
 
 class RashiSignChange {
@@ -426,6 +443,12 @@ class RashiBhavishyaModel {
 
   bool get isDeterministicFallback => narrativeSource == 'deterministic';
 
+  /// Language of this response as stated by the API (`en` or `hi`): the
+  /// narrative and the reader-facing names (planets, panchang, method).
+  final String language;
+
+  bool get isHindi => language == 'hi';
+
   const RashiBhavishyaModel({
     required this.date,
     required this.rashi,
@@ -436,6 +459,7 @@ class RashiBhavishyaModel {
     required this.source,
     required this.isDevelopmentFixture,
     this.narrativeSource = 'validated-llm',
+    this.language = 'en',
   });
 
   factory RashiBhavishyaModel.fromJson(Map<String, dynamic> json) {
@@ -445,17 +469,22 @@ class RashiBhavishyaModel {
       throw const FormatException('Rashi Bhavishya response is missing date');
     }
     final generation = data['generation'] is Map ? Map<String, dynamic>.from(data['generation'] as Map) : const <String, dynamic>{};
+    final prediction = RashiBhavishyaPredictionModel.fromJson(_map(data['prediction'], 'prediction'));
+    final language = data['language'];
     return RashiBhavishyaModel(
       date: date,
       rashi: RashiInfoModel.fromJson(_map(data['rashi'], 'rashi')),
       facts: RashiFactsModel.fromJson(_map(data['facts'], 'facts')),
-      prediction: RashiBhavishyaPredictionModel.fromJson(_map(data['prediction'], 'prediction')),
+      prediction: prediction,
       method: RashiMethodModel.fromJson(_map(data['method'], 'method')),
       generationProvider: generation['provider'] as String? ?? '',
       source: data['source'] as String? ?? '',
       // A missing flag is treated as non-genuine content (fail closed).
       isDevelopmentFixture: data['isDevelopmentFixture'] as bool? ?? true,
       narrativeSource: data['narrativeSource'] as String? ?? 'validated-llm',
+      // Responses from before the language field existed are English; the
+      // narrative's own language is used when the response does not state one.
+      language: language is String && language.isNotEmpty ? language : prediction.language,
     );
   }
 
@@ -469,5 +498,6 @@ class RashiBhavishyaModel {
         'source': source,
         'isDevelopmentFixture': isDevelopmentFixture,
         'narrativeSource': narrativeSource,
+        'language': language,
       };
 }

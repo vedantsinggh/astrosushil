@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../models/report_language.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/report_ui.dart';
 import '../../../shared/widgets/astro_nav_bar.dart';
@@ -15,12 +16,17 @@ class ReportPdfViewerScreen extends ConsumerStatefulWidget {
   final String clientName;
   final Uint8List? initialBytes;
 
+  /// Language the report was bought in (`en` or `hi`), shown in the header.
+  /// Null when it is not known.
+  final String? language;
+
   const ReportPdfViewerScreen({
     super.key,
     required this.reportId,
     required this.reportTitle,
     required this.clientName,
     this.initialBytes,
+    this.language,
   });
 
   @override
@@ -118,6 +124,7 @@ class _ReportPdfViewerScreenState extends ConsumerState<ReportPdfViewerScreen> {
                 title: widget.reportTitle,
                 clientName: widget.clientName,
                 compact: compact,
+                languageLabel: reportLanguageLine(context.l10n, widget.language),
               ),
               Expanded(child: _buildBody(context, filename)),
             ],

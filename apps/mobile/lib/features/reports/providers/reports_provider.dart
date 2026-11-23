@@ -117,6 +117,10 @@ class ReportGenerationState {
   final Uint8List? pdfBytes;
   final String? errorMessage;
 
+  /// Machine-readable code of the last failure (e.g. `REPORT_LANGUAGE_FIXED`),
+  /// when the server gave one. Cleared together with [errorMessage].
+  final String? errorCode;
+
   const ReportGenerationState({
     this.isLoading = false,
     this.isPolling = false,
@@ -124,6 +128,7 @@ class ReportGenerationState {
     this.status,
     this.pdfBytes,
     this.errorMessage,
+    this.errorCode,
   });
 
   ReportGenerationState copyWith({
@@ -133,6 +138,7 @@ class ReportGenerationState {
     UserReportItemModel? status,
     Uint8List? pdfBytes,
     String? errorMessage,
+    String? errorCode,
   }) {
     return ReportGenerationState(
       isLoading: isLoading ?? this.isLoading,
@@ -141,6 +147,7 @@ class ReportGenerationState {
       status: status ?? this.status,
       pdfBytes: pdfBytes ?? this.pdfBytes,
       errorMessage: errorMessage,
+      errorCode: errorCode,
     );
   }
 }
@@ -228,7 +235,7 @@ class ReportGenerationNotifier extends StateNotifier<ReportGenerationState>
       startPolling(reportId);
       return reportId;
     } on AppException catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.message);
+      state = state.copyWith(isLoading: false, errorMessage: e.message, errorCode: e.code);
       return null;
     } catch (e) {
       state = state.copyWith(

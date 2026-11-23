@@ -570,5 +570,13 @@
   "core2ConsultTabBookings": "मेरी बुकिंग",
   "core2ConsultTabsLabel": "परामर्श अनुभाग",
   "core2ConsultBookingsEmptyTitle": "अभी कोई बुकिंग नहीं",
-  "core2ConsultBookingsEmptyBody": "सुशील जी के साथ बुक किए गए सत्र यहाँ दिखेंगे।"
+  "core2ConsultBookingsEmptyBody": "सुशील जी के साथ बुक किए गए सत्र यहाँ दिखेंगे।",
+  "reportLanguageStepTitle": "रिपोर्ट की भाषा",
+  "reportLanguageChooseHint": "अपनी PDF रिपोर्ट की भाषा चुनें। भुगतान के बाद इसे बदला नहीं जा सकता।",
+  "reportLanguageLine": "भाषा: {language}",
+  "reportLanguageNotAvailableBeforePayment": "यह रिपोर्ट अभी {language} में उपलब्ध नहीं है। कोई भुगतान नहीं लिया गया है।",
+  "reportLanguageNotAvailable": "यह रिपोर्ट अभी उस भाषा में उपलब्ध नहीं है।",
+  "reportLanguageFixed": "इस रिपोर्ट की भाषा खरीदते समय तय हो गई थी और इसे बदला नहीं जा सकता।",
+  "horoscopeLanguageLabel": "राशिफल की भाषा",
+  "horoscopeHindiNarrativeUnavailable": "विस्तृत विवरण अभी केवल अंग्रेज़ी में उपलब्ध है।"
 }

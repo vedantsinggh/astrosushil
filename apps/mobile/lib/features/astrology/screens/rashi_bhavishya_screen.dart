@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/localization/content_language.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_image.dart';
 import '../../../shared/widgets/astro_loader/astro_loader.dart';
@@ -152,6 +154,9 @@ class RashiBhavishyaScreen extends ConsumerWidget {
   Widget _buildForSign(BuildContext context, WidgetRef ref, int index, int? userMoon, bool isHindi) {
     final rashi = _rashis[index - 1];
     final predictionAsync = ref.watch(todayRashiBhavishyaProvider(index));
+    // The customer's horoscope language; kept apart from the app language.
+    final language = ref.watch(horoscopeLanguageProvider);
+    final l10n = context.l10n;
     final data = predictionAsync.valueOrNull;
     final genuine = (data != null && !data.isDevelopmentFixture) ? data : null;
 
@@ -166,6 +171,20 @@ class RashiBhavishyaScreen extends ConsumerWidget {
           onPrev: () => ref.read(selectedRashiIndexProvider.notifier).state = index == 1 ? 12 : index - 1,
           onNext: () => ref.read(selectedRashiIndexProvider.notifier).state = index == 12 ? 1 : index + 1,
           onReset: () => ref.read(selectedRashiIndexProvider.notifier).state = null,
+        ),
+        const SizedBox(height: 12),
+        Semantics(
+          container: true,
+          label: l10n.horoscopeLanguageLabel,
+          child: AstroSegmentedControl<String>(
+            key: const ValueKey('horoscope-language'),
+            segments: [
+              for (final code in ContentLanguage.all)
+                AstroSegment(value: code, label: ContentLanguage.displayName(l10n, code)),
+            ],
+            selected: language,
+            onChanged: (code) => ref.read(horoscopeLanguageProvider.notifier).setLanguage(code),
+          ),
         ),
         const SizedBox(height: 12),
         if (genuine != null) ...[
@@ -190,7 +209,13 @@ class RashiBhavishyaScreen extends ConsumerWidget {
                       ? 'इस राशि का आज का प्रामाणिक भविष्यफल अभी उपलब्ध नहीं है।'
                       : 'A verified daily prediction for this rashi is not available yet.',
                 )
-              : _RashiContent(model: d, rashi: rashi, isHindi: isHindi),
+              // A Hindi horoscope is shown with Hindi labels whatever the app language is.
+              : _RashiContent(
+                  model: d,
+                  rashi: rashi,
+                  isHindi: isHindi || d.isHindi,
+                  hindiNarrativeMissing: language == ContentLanguage.hindi && d.prediction.language != ContentLanguage.hindi,
+                ),
         ),
         const SizedBox(height: 24),
       ],
@@ -358,11 +383,20 @@ class _RashiContent extends StatelessWidget {
   final RashiBhavishyaModel model;
   final _RashiMeta rashi;
   final bool isHindi;
-  const _RashiContent({required this.model, required this.rashi, required this.isHindi});
+
+  /// Hindi was asked for but the narrative that came back is not in Hindi.
+  final bool hindiNarrativeMissing;
+
+  const _RashiContent({
+    required this.model,
+    required this.rashi,
+    required this.isHindi,
+    this.hindiNarrativeMissing = false,
+  });
 
   String _planet(RashiPlanetTransit p) => isHindi ? (_planetHindi[p.planet] ?? p.name) : p.name;
 
-  String _signName(RashiSignRef s) => isHindi ? _rashis[s.index - 1].hindi : s.englishName;
+  String _signName(RashiSignRef s) => isHindi ? (s.hindiName ?? _rashis[s.index - 1].hindi) : s.englishName;
 
   String _house(int h) => isHindi ? 'भाव $h' : '${_ordinal(h)} house';
 
@@ -404,12 +438,12 @@ class _RashiContent extends StatelessWidget {
           _SectionCard(section: s, hideLead: s.lead.trim() == model.prediction.summary.trim()),
           const SizedBox(height: 12),
         ],
-        if (isHindi && model.prediction.language != 'hi')
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
+        if (hindiNarrativeMissing)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              'विस्तृत विवरण अभी केवल अंग्रेज़ी में उपलब्ध है।',
-              style: TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
+              context.l10n.horoscopeHindiNarrativeUnavailable,
+              style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary),
             ),
           ),
         _TransitTable(

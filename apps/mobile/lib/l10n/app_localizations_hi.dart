@@ -1694,4 +1694,36 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get core2ConsultBookingsEmptyBody =>
       'सुशील जी के साथ बुक किए गए सत्र यहाँ दिखेंगे।';
+
+  @override
+  String get reportLanguageStepTitle => 'रिपोर्ट की भाषा';
+
+  @override
+  String get reportLanguageChooseHint =>
+      'अपनी PDF रिपोर्ट की भाषा चुनें। भुगतान के बाद इसे बदला नहीं जा सकता।';
+
+  @override
+  String reportLanguageLine(String language) {
+    return 'भाषा: $language';
+  }
+
+  @override
+  String reportLanguageNotAvailableBeforePayment(String language) {
+    return 'यह रिपोर्ट अभी $language में उपलब्ध नहीं है। कोई भुगतान नहीं लिया गया है।';
+  }
+
+  @override
+  String get reportLanguageNotAvailable =>
+      'यह रिपोर्ट अभी उस भाषा में उपलब्ध नहीं है।';
+
+  @override
+  String get reportLanguageFixed =>
+      'इस रिपोर्ट की भाषा खरीदते समय तय हो गई थी और इसे बदला नहीं जा सकता।';
+
+  @override
+  String get horoscopeLanguageLabel => 'राशिफल की भाषा';
+
+  @override
+  String get horoscopeHindiNarrativeUnavailable =>
+      'विस्तृत विवरण अभी केवल अंग्रेज़ी में उपलब्ध है।';
 }

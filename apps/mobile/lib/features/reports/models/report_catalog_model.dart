@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../../../core/localization/content_language.dart';
+
 /// A report offering from the server-authoritative commerce catalogue
 /// (`GET /payments/catalog?itemType=REPORT`). Titles, descriptions and
 /// prices shown to users come only from here.
@@ -12,6 +14,10 @@ class ReportCatalogItem {
   final bool isActive;
   final String reportType;
 
+  /// Languages the report PDF can be bought in (`en`, `hi`), exactly as the
+  /// server catalogue lists them. Empty when the catalogue names none.
+  final List<String> languages;
+
   const ReportCatalogItem({
     required this.id,
     required this.title,
@@ -20,6 +26,7 @@ class ReportCatalogItem {
     required this.currency,
     required this.isActive,
     required this.reportType,
+    this.languages = const [],
   });
 
   /// Returns null for entries that cannot be sold to the user (missing
@@ -41,7 +48,19 @@ class ReportCatalogItem {
       currency: json['currency'] as String? ?? 'INR',
       isActive: json['isActive'] as bool? ?? false,
       reportType: reportType,
+      languages: _parseLanguages(json['languages']),
     );
+  }
+
+  /// Only languages this app knows, in the server's order, without repeats.
+  static List<String> _parseLanguages(Object? raw) {
+    if (raw is! List) return const [];
+    final result = <String>[];
+    for (final entry in raw) {
+      final code = ContentLanguage.tryParse(entry);
+      if (code != null && !result.contains(code)) result.add(code);
+    }
+    return List.unmodifiable(result);
   }
 
   /// Price formatted with Indian digit grouping, e.g. ₹2,99,999.

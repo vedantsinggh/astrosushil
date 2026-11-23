@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/localization/content_language.dart';
 import '../../../core/utils/app_date_time.dart';
 
 /// Representation of a user's generated or queued report dossier
@@ -27,6 +28,10 @@ class UserReportItemModel {
   final String? partnerProfileId;
   final String? partnerName;
 
+  /// Language of the report PDF (`en` or `hi`) as stated by the server. It is
+  /// fixed when the report is bought. Null when the server did not state it.
+  final String? language;
+
   const UserReportItemModel({
     required this.id,
     required this.userId,
@@ -47,6 +52,7 @@ class UserReportItemModel {
     required this.profileName,
     this.partnerProfileId,
     this.partnerName,
+    this.language,
   });
 
   factory UserReportItemModel.fromJson(Map<String, dynamic> json) {
@@ -78,6 +84,7 @@ class UserReportItemModel {
       profileName: bp?['name'] as String? ?? '',
       partnerProfileId: meta?['partnerProfileId'] as String?,
       partnerName: meta?['partnerName'] as String?,
+      language: ContentLanguage.tryParse(json['language']),
     );
   }
 

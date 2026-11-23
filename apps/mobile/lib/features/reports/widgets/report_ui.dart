@@ -516,12 +516,17 @@ class ReportPdfHeader extends StatelessWidget {
   /// One-line title, used when vertical space is short (landscape, very large text).
   final bool compact;
 
+  /// "Language: Hindi" line for the language the report was bought in.
+  /// Omitted when the language is not known.
+  final String? languageLabel;
+
   const ReportPdfHeader({
     super.key,
     required this.title,
     required this.clientName,
     this.onDark = true,
     this.compact = false,
+    this.languageLabel,
   });
 
   @override
@@ -545,7 +550,8 @@ class ReportPdfHeader extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            clientName,
+            // Short on height: the language shares the name's single line.
+            compact && languageLabel != null ? '$clientName · $languageLabel' : clientName,
             maxLines: compact ? 1 : null,
             overflow: compact ? TextOverflow.ellipsis : null,
             style: TextStyle(
@@ -554,6 +560,18 @@ class ReportPdfHeader extends StatelessWidget {
               color: onDark ? AppColors.gold : AppColors.textSecondary,
             ),
           ),
+          if (!compact && languageLabel != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              languageLabel!,
+              key: const ValueKey('report-pdf-language'),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: onDark ? AppColors.textInverseSecondary : AppColors.textSecondary,
+              ),
+            ),
+          ],
         ],
       ),
     );

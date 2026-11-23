@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:astro_mobile/core/errors/app_exception.dart';
 import 'package:astro_mobile/core/network/api_client.dart';
 import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
@@ -88,6 +89,12 @@ class MockReportsService extends ReportsService {
 
   int createReportOrderCalls = 0;
   String? lastCreatedReportType;
+
+  /// Language sent with each order, in call order.
+  final List<String?> orderLanguages = [];
+
+  /// When set, order creation fails with this API error.
+  AppException? orderCreationError;
   int verifyReportPaymentCalls = 0;
   int createReportJobCalls = 0;
   String? lastJobOrderId;
@@ -98,10 +105,13 @@ class MockReportsService extends ReportsService {
   @override
   Future<ReportPaymentOrder> createReportOrder({
     required String reportType,
+    String? language,
     String? idempotencyKey,
   }) async {
     createReportOrderCalls++;
     lastCreatedReportType = reportType;
+    orderLanguages.add(language);
+    if (orderCreationError != null) throw orderCreationError!;
     if (shouldFailOrderCreation) {
       throw Exception('Payment gateway unavailable');
     }
@@ -185,6 +195,8 @@ class MockReportsService extends ReportsService {
       'progress': 0,
       'reportType': reportType,
       'orderId': orderId,
+      // The server makes the report in the language of the purchase.
+      if (orderLanguages.isNotEmpty && orderLanguages.last != null) 'language': orderLanguages.last,
     };
   }
 
@@ -693,6 +705,201 @@ void main() {
       mockRazorpayService.triggerCancel();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
+    });
+  });
+
+  group('Report language is chosen before payment', () {
+    ReportDetailScreen kundli({List<String>? languages}) {
+      return languages == null
+          ? ReportDetailScreen(
+              reportType: 'KUNDLI',
+              title: 'Janma Kundli Report',
+              tagline: 'VEDIC BIRTH CHART',
+              description: 'Full analysis.',
+              priceText: '₹299',
+              pricePaise: 29900,
+              icon: Icons.auto_awesome,
+              accentColor: Colors.amber,
+              initialProfile: testProfile1,
+              includedSections: const ['Section A'],
+            )
+          : ReportDetailScreen(
+              reportType: 'KUNDLI',
+              title: 'Janma Kundli Report',
+              tagline: 'VEDIC BIRTH CHART',
+              description: 'Full analysis.',
+              priceText: '₹299',
+              pricePaise: 29900,
+              icon: Icons.auto_awesome,
+              accentColor: Colors.amber,
+              initialProfile: testProfile1,
+              includedSections: const ['Section A'],
+              availableLanguages: languages,
+            );
+    }
+
+    Finder summaryLanguage(String name) =>
+        find.descendant(of: find.byKey(const ValueKey('report_summary_language')), matching: find.text(name));
+
+    Future<void> pumpDetail(
+      WidgetTester tester,
+      MockReportsService service,
+      MockRazorpayCheckoutService razorpay,
+      Widget screen,
+    ) async {
+      setupViewport(tester);
+      await tester.pumpWidget(createTestWidget(mockService: service, mockRazorpayService: razorpay, child: screen));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    /// Centres the Hindi option clear of the pinned bars, then picks it.
+    Future<void> chooseHindi(WidgetTester tester) async {
+      final hindi = find.byKey(const ValueKey('report_language_hi'));
+      await Scrollable.ensureVisible(tester.element(hindi), alignment: 0.5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(hindi);
+      await tester.pump();
+    }
+
+    Future<void> tapPurchase(WidgetTester tester) async {
+      final purchaseButton = find.byKey(const Key('report_purchase_button'));
+      await tester.ensureVisible(purchaseButton);
+      await tester.tap(purchaseButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    testWidgets('English-only report: no choice is offered, the summary says English and the order is English',
+        (tester) async {
+      final service = MockReportsService();
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const ['en']));
+
+      expect(find.byKey(const ValueKey('report_language_card')), findsNothing);
+      expect(find.byKey(const ValueKey('report_language_hi')), findsNothing);
+      expect(find.text('Step 1 of 3'), findsOneWidget);
+      expect(summaryLanguage('English'), findsOneWidget);
+
+      await tapPurchase(tester);
+      expect(service.orderLanguages, ['en']);
+      expect(razorpay.openCheckoutCalls, 1);
+    });
+
+    testWidgets('a catalogue without languages offers no Hindi and buys in English', (tester) async {
+      final service = MockReportsService();
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const []));
+
+      expect(find.byKey(const ValueKey('report_language_card')), findsNothing);
+      expect(summaryLanguage('English'), findsOneWidget);
+
+      await tapPurchase(tester);
+      expect(service.orderLanguages, ['en']);
+    });
+
+    testWidgets('English and Hindi on offer: English is preselected', (tester) async {
+      final service = MockReportsService();
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const ['en', 'hi']));
+
+      expect(find.byKey(const ValueKey('report_language_card')), findsOneWidget);
+      expect(find.text('Step 2 of 4'), findsOneWidget);
+      expect(find.text('Choose the language of your PDF report. It cannot be changed after payment.'), findsOneWidget);
+      expect(summaryLanguage('English'), findsOneWidget);
+
+      await tapPurchase(tester);
+      expect(service.orderLanguages, ['en']);
+    });
+
+    testWidgets('choosing Hindi shows Hindi in the summary before payment, orders in Hindi and shows it afterwards',
+        (tester) async {
+      final service = MockReportsService();
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const ['en', 'hi']));
+
+      await chooseHindi(tester);
+
+      // Visible in the purchase summary before any order exists.
+      expect(summaryLanguage('हिन्दी (Hindi)'), findsOneWidget);
+      expect(service.createReportOrderCalls, 0);
+
+      await tapPurchase(tester);
+      expect(service.orderLanguages, ['hi']);
+      expect(razorpay.openCheckoutCalls, 1);
+
+      // While the purchase is running the choice is closed.
+      await tester.tap(find.byKey(const ValueKey('report_language_en')), warnIfMissed: false);
+      await tester.pump();
+      expect(summaryLanguage('हिन्दी (Hindi)'), findsOneWidget);
+
+      razorpay.triggerSuccess();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(service.createReportJobCalls, 1);
+      expect(find.byType(ReportGenerationScreen), findsOneWidget);
+      expect(find.text('Language: हिन्दी (Hindi)'), findsOneWidget);
+    });
+
+    testWidgets('after a cancelled payment the language can be changed and the new order uses it', (tester) async {
+      final service = MockReportsService()..shouldFailVerification = true; // the earlier order stays unpaid
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const ['en', 'hi']));
+
+      await tapPurchase(tester);
+      razorpay.triggerCancel();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await chooseHindi(tester);
+
+      await tapPurchase(tester);
+      expect(service.orderLanguages, ['en', 'hi']);
+    });
+
+    testWidgets('an earlier order that turns out to be paid keeps the language it was bought in', (tester) async {
+      // getPaymentOrderStatus reports the first (English) order as PAID.
+      final service = MockReportsService();
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const ['en', 'hi']));
+
+      await tapPurchase(tester);
+      razorpay.triggerCancel();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await chooseHindi(tester);
+      await tapPurchase(tester);
+
+      // No second order and no second charge: the paid English order is used.
+      expect(service.orderLanguages, ['en']);
+      expect(razorpay.openCheckoutCalls, 1);
+      expect(service.createReportJobCalls, 1);
+      expect(find.byType(ReportGenerationScreen), findsOneWidget);
+      expect(find.text('Language: English'), findsOneWidget);
+    });
+
+    testWidgets('REPORT_LANGUAGE_NOT_AVAILABLE: a clear message, no checkout', (tester) async {
+      final service = MockReportsService()
+        ..orderCreationError = const ServerException(
+          'The KUNDLI report is not available in language "hi". Available: en.',
+          code: 'REPORT_LANGUAGE_NOT_AVAILABLE',
+        );
+      final razorpay = MockRazorpayCheckoutService();
+      await pumpDetail(tester, service, razorpay, kundli(languages: const ['en', 'hi']));
+
+      await chooseHindi(tester);
+      await tapPurchase(tester);
+
+      expect(
+        find.text('This report is not available in हिन्दी (Hindi) right now. No payment was taken.'),
+        findsWidgets,
+      );
+      expect(find.textContaining('Order Creation Failed'), findsNothing);
+      expect(razorpay.openCheckoutCalls, 0);
+      expect(service.createReportJobCalls, 0);
     });
   });
 }

@@ -4,6 +4,7 @@ import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
 import '../../../shared/widgets/astro_loader/astro_solar_system_animation.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
+import '../models/report_language.dart';
 import '../models/user_report_item_model.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/report_ui.dart';
@@ -17,6 +18,10 @@ class ReportGenerationScreen extends ConsumerStatefulWidget {
   final BirthProfileModel profile;
   final BirthProfileModel? partnerProfile;
 
+  /// Language the report was bought in, when the caller knows it. The
+  /// language in the server's status for this report takes precedence.
+  final String? language;
+
   const ReportGenerationScreen({
     super.key,
     required this.reportId,
@@ -24,6 +29,7 @@ class ReportGenerationScreen extends ConsumerStatefulWidget {
     required this.reportTitle,
     required this.profile,
     this.partnerProfile,
+    this.language,
   });
 
   @override
@@ -32,6 +38,14 @@ class ReportGenerationScreen extends ConsumerStatefulWidget {
 
 class _ReportGenerationScreenState extends ConsumerState<ReportGenerationScreen> {
   bool _hasAutoNavigated = false;
+
+  /// Language of this report: from the server's status for this report, else
+  /// what the caller passed.
+  String? get _reportLanguage {
+    final status = ref.read(reportGenerationNotifierProvider).status;
+    if (status != null && status.id == widget.reportId && status.language != null) return status.language;
+    return widget.language;
+  }
 
   @override
   void initState() {
@@ -56,6 +70,7 @@ class _ReportGenerationScreenState extends ConsumerState<ReportGenerationScreen>
               clientName: widget.partnerProfile != null
                   ? '${widget.profile.name} & ${widget.partnerProfile!.name}'
                   : widget.profile.name,
+              language: _reportLanguage,
             ),
           ),
         );
@@ -112,6 +127,7 @@ class _ReportGenerationScreenState extends ConsumerState<ReportGenerationScreen>
   ) {
     final statusModel = ref.read(reportGenerationNotifierProvider).status;
     final stageDesc = statusModel?.stageDescription ?? _getStageDesc(stage);
+    final languageLine = reportLanguageLine(context.l10n, _reportLanguage);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,6 +184,17 @@ class _ReportGenerationScreenState extends ConsumerState<ReportGenerationScreen>
                         color: AppColors.textSecondaryDark,
                       ),
                     ),
+                    if (languageLine != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        languageLine,
+                        key: const ValueKey('report-generation-language'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondaryDark,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -194,11 +221,12 @@ class _ReportGenerationScreenState extends ConsumerState<ReportGenerationScreen>
   }
 
   Widget _buildCompletedView(BuildContext context, String clientLabel) {
+    final languageLine = reportLanguageLine(context.l10n, _reportLanguage);
     return ReportStatusMessage(
       icon: Icons.check_circle_rounded,
       iconColor: AppColors.tintSageText,
       title: 'Your report is ready',
-      message: 'Made for $clientLabel.',
+      message: languageLine == null ? 'Made for $clientLabel.' : 'Made for $clientLabel.\n$languageLine',
       actionLabel: context.l10n.reportActionViewPdf,
       actionIcon: Icons.picture_as_pdf_rounded,
       onAction: () {
@@ -208,6 +236,7 @@ class _ReportGenerationScreenState extends ConsumerState<ReportGenerationScreen>
               reportId: widget.reportId,
               reportTitle: widget.reportTitle,
               clientName: clientLabel,
+              language: _reportLanguage,
             ),
           ),
         );

@@ -4,6 +4,7 @@ import '../../features/birth_profile/models/birth_profile_model.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/reports/models/report_catalog_model.dart';
+import '../../features/reports/models/report_language.dart';
 import '../../features/reports/models/user_report_item_model.dart';
 import '../../features/reports/providers/report_catalog_provider.dart';
 import '../../features/reports/providers/reports_provider.dart';
@@ -330,6 +331,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         accentColor: offer.color,
         initialProfile: profile,
         includedSections: offer.sections,
+        // The language choice offered before payment comes from the catalogue.
+        availableLanguages: item.languages,
       ),
     );
   }
@@ -340,6 +343,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         reportId: report.id,
         reportTitle: report.displayTitle,
         clientName: _forNames(report),
+        language: report.language,
       ),
     );
   }
@@ -370,6 +374,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         reportTitle: report.displayTitle,
         profile: profile,
         partnerProfile: _profileById(profiles, report.partnerProfileId),
+        language: report.language,
       ),
     );
   }
@@ -387,7 +392,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     setState(() => _retryingReportId = null);
 
     if (newId == null) {
-      final message = ref.read(reportGenerationNotifierProvider).errorMessage ??
+      final genState = ref.read(reportGenerationNotifierProvider);
+      final message = reportLanguageErrorText(context.l10n, genState.errorCode) ??
+          genState.errorMessage ??
           'Unable to start report generation. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       return;
@@ -403,6 +410,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         reportTitle: report.displayTitle,
         profile: profile,
         partnerProfile: _profileById(profiles, report.partnerProfileId),
+        // A regenerated report keeps the language it was bought in.
+        language: report.language,
       ),
     );
   }
@@ -655,6 +664,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final date = AppDateTime.formatLocal(report.createdAt, 'd MMM yyyy');
     final names = _forNames(report);
     final isRetrying = _retryingReportId == report.id;
+    final languageLine = reportLanguageLine(context.l10n, report.language);
 
     final _StatusStyle status;
     final Widget action;
@@ -726,6 +736,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         names.isEmpty ? date : '${_t('For', 'के लिए:')} $names · $date',
                         style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textSecondary),
                       ),
+                      if (languageLine != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          languageLine,
+                          key: ValueKey('my-report-language-${report.id}'),
+                          style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textSecondary),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       _StatusChip(style: status),
                     ],

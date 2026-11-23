@@ -1700,4 +1700,36 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get core2ConsultBookingsEmptyBody =>
       'Sessions you book with Sushil Sir are shown here.';
+
+  @override
+  String get reportLanguageStepTitle => 'Report language';
+
+  @override
+  String get reportLanguageChooseHint =>
+      'Choose the language of your PDF report. It cannot be changed after payment.';
+
+  @override
+  String reportLanguageLine(String language) {
+    return 'Language: $language';
+  }
+
+  @override
+  String reportLanguageNotAvailableBeforePayment(String language) {
+    return 'This report is not available in $language right now. No payment was taken.';
+  }
+
+  @override
+  String get reportLanguageNotAvailable =>
+      'This report is not available in that language right now.';
+
+  @override
+  String get reportLanguageFixed =>
+      'The language of this report was fixed when it was bought and cannot be changed.';
+
+  @override
+  String get horoscopeLanguageLabel => 'Horoscope language';
+
+  @override
+  String get horoscopeHindiNarrativeUnavailable =>
+      'The detailed text is available only in English right now.';
 }

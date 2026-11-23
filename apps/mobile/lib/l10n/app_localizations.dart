@@ -3199,6 +3199,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sessions you book with Sushil Sir are shown here.'**
   String get core2ConsultBookingsEmptyBody;
+
+  /// Report purchase: heading of the language step, and the label of the language row in the price summary
+  ///
+  /// In en, this message translates to:
+  /// **'Report language'**
+  String get reportLanguageStepTitle;
+
+  /// Report purchase: text under the language choice, shown before payment
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the language of your PDF report. It cannot be changed after payment.'**
+  String get reportLanguageChooseHint;
+
+  /// Language of a bought report, shown on the report in My reports and on the report screens
+  ///
+  /// In en, this message translates to:
+  /// **'Language: {language}'**
+  String reportLanguageLine(String language);
+
+  /// Report purchase: the server refused the chosen language before any charge
+  ///
+  /// In en, this message translates to:
+  /// **'This report is not available in {language} right now. No payment was taken.'**
+  String reportLanguageNotAvailableBeforePayment(String language);
+
+  /// Report generation: the server has no edition of the report in the requested language
+  ///
+  /// In en, this message translates to:
+  /// **'This report is not available in that language right now.'**
+  String get reportLanguageNotAvailable;
+
+  /// Report generation: the server refused a language different from the purchased one
+  ///
+  /// In en, this message translates to:
+  /// **'The language of this report was fixed when it was bought and cannot be changed.'**
+  String get reportLanguageFixed;
+
+  /// Accessibility label of the English / Hindi switch on the daily horoscope screen
+  ///
+  /// In en, this message translates to:
+  /// **'Horoscope language'**
+  String get horoscopeLanguageLabel;
+
+  /// Daily horoscope: Hindi was chosen but the narrative returned is in English
+  ///
+  /// In en, this message translates to:
+  /// **'The detailed text is available only in English right now.'**
+  String get horoscopeHindiNarrativeUnavailable;
 }
 
 class _AppLocalizationsDelegate

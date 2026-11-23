@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_required_gate.dart';
 import '../../../core/auth/feature_access_service.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/localization/content_language.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
 import '../models/user_report_item_model.dart';
+import '../models/report_language.dart';
 import '../models/report_purchase_models.dart';
 import '../services/razorpay_checkout_service.dart';
 import '../providers/reports_provider.dart';
@@ -28,6 +31,11 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
   final BirthProfileModel initialProfile;
   final List<String> includedSections;
 
+  /// Languages the server catalogue lists for this report (`en`, `hi`). The
+  /// customer is offered a choice only between these; Hindi is never offered
+  /// unless the catalogue names it.
+  final List<String> availableLanguages;
+
   const ReportDetailScreen({
     super.key,
     required this.reportType,
@@ -40,6 +48,7 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
     required this.accentColor,
     required this.initialProfile,
     required this.includedSections,
+    this.availableLanguages = const [ContentLanguage.english],
   });
 
   @override
@@ -55,10 +64,34 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   String? _purchaseError;
   IRazorpayCheckoutService? _razorpayService;
 
+  /// Language of the report being bought. Chosen before payment, sent with
+  /// the order and fixed for that purchase.
+  late String _language;
+
+  /// Language the active order was created with.
+  String? _orderLanguage;
+
+  /// Languages the customer can choose between (catalogue order).
+  List<String> get _languageChoices {
+    final result = <String>[];
+    for (final raw in widget.availableLanguages) {
+      final code = ContentLanguage.tryParse(raw);
+      if (code != null && !result.contains(code)) result.add(code);
+    }
+    return result;
+  }
+
+  /// The choice is closed while a purchase is running and once the active
+  /// order is paid: a paid order keeps its language.
+  bool get _languageLocked => _isSubmitting || (_activeOrder?.isPaid ?? false);
+
   @override
   void initState() {
     super.initState();
     _selectedProfile = widget.initialProfile;
+    // English by default; another language only when English is not on offer.
+    final choices = _languageChoices;
+    _language = choices.isEmpty || choices.contains(ContentLanguage.english) ? ContentLanguage.english : choices.first;
   }
 
   @override
@@ -180,6 +213,12 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               if (statusResp['status'] == 'PAID' || statusResp['paymentStatus'] == 'CAPTURED') {
                 order = ReportPaymentOrder.fromJson(statusResp);
                 _activeOrder = order;
+                // That payment was for the language chosen when the order was
+                // made; show it, whatever was selected since.
+                final paidLanguage = _orderLanguage;
+                if (paidLanguage != null && paidLanguage != _language && mounted) {
+                  setState(() => _language = paidLanguage);
+                }
               }
             } catch (_) {
               // Ignore status check blips, proceed with standard order handling
@@ -190,15 +229,26 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           if (order == null || !order.isPaid) {
             final idempotencyKey =
                 'ord_rep_${widget.reportType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}';
+            final orderLanguage = _language;
             try {
               order = await reportsService.createReportOrder(
                 reportType: widget.reportType,
+                language: orderLanguage,
                 idempotencyKey: idempotencyKey,
               );
               _activeOrder = order;
+              _orderLanguage = orderLanguage;
             } catch (e) {
               if (mounted) {
-                final errStr = e.toString().replaceAll('Exception: ', '');
+                // The server refuses a language the report has no edition for
+                // before any charge.
+                final languageError = reportLanguageErrorText(
+                  context.l10n,
+                  e is AppException ? e.code : null,
+                  language: orderLanguage,
+                  beforePayment: true,
+                );
+                final errStr = languageError ?? e.toString().replaceAll('Exception: ', '');
                 setState(() {
                   _isSubmitting = false;
                   _purchaseStep = ReportPurchaseStep.orderCreationFailed;
@@ -206,7 +256,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Order Creation Failed: $errStr'),
+                    content: Text(languageError ?? 'Order Creation Failed: $errStr'),
                     backgroundColor: AppColors.error,
                   ),
                 );
@@ -394,6 +444,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         });
 
         if (reportId != null) {
+          // The server states the language of the report it started; the
+          // language of the order is the same by contract.
+          final reportLanguage =
+              ref.read(reportGenerationNotifierProvider).status?.language ?? _orderLanguage ?? _language;
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => ReportGenerationScreen(
@@ -402,11 +456,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 reportTitle: widget.title,
                 profile: _selectedProfile,
                 partnerProfile: _selectedPartnerProfile,
+                language: reportLanguage,
               ),
             ),
           );
         } else {
-          final err = ref.read(reportGenerationNotifierProvider).errorMessage ?? 'Failed to start report generation.';
+          final genState = ref.read(reportGenerationNotifierProvider);
+          final err = reportLanguageErrorText(context.l10n, genState.errorCode) ??
+              genState.errorMessage ??
+              'Failed to start report generation.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Payment verified, but report generation initiation failed: $err'),
@@ -465,6 +523,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final isRetry = _purchaseStep == ReportPurchaseStep.orderCreationFailed ||
         _purchaseStep == ReportPurchaseStep.paymentFailed ||
         _purchaseStep == ReportPurchaseStep.verificationFailed;
+    // The language step is shown only when there is a choice to make.
+    final languageChoices = _languageChoices;
+    final showLanguageStep = languageChoices.length > 1;
+    final totalSteps = showLanguageStep ? 4 : 3;
+    var step = 1;
 
     return AstroPage(
       title: context.l10n.reportDetailTitle,
@@ -482,15 +545,21 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ],
 
           const SizedBox(height: 8),
-          const ReportStepHeading(step: 1, total: 3, title: 'Who is this report for?'),
+          ReportStepHeading(step: step++, total: totalSteps, title: 'Who is this report for?'),
           _buildProfileCard(profiles),
 
+          if (showLanguageStep) ...[
+            const SizedBox(height: 28),
+            ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportLanguageStepTitle),
+            _buildLanguageCard(languageChoices),
+          ],
+
           const SizedBox(height: 28),
-          ReportStepHeading(step: 2, total: 3, title: context.l10n.reportIncludedSections),
+          ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportIncludedSections),
           _buildIncludedSectionsCard(),
 
           const SizedBox(height: 28),
-          ReportStepHeading(step: 3, total: 3, title: context.l10n.reportPriceBreakdown),
+          ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportPriceBreakdown),
           _buildPriceCard(subtotalPaise, gstPaise),
 
           // Error status notice if any
@@ -651,7 +720,43 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
+  /// The English / Hindi choice, made before payment.
+  Widget _buildLanguageCard(List<String> choices) {
+    final l10n = context.l10n;
+    return ReportCard(
+      key: const ValueKey('report_language_card'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            container: true,
+            label: l10n.reportLanguageStepTitle,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final code in choices)
+                  AstroPill(
+                    key: ValueKey('report_language_$code'),
+                    label: ContentLanguage.displayName(l10n, code),
+                    selected: code == _language,
+                    onTap: _languageLocked ? null : () => setState(() => _language = code),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            l10n.reportLanguageChooseHint,
+            style: const TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildExistingReportCard(UserReportItemModel existing) {
+    final existingLanguage = reportLanguageLine(context.l10n, existing.language);
     return ReportCard(
       borderColor: AppColors.successBorder,
       child: Column(
@@ -663,14 +768,26 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               const AstroIconSquare(icon: Icons.check_circle_rounded, tint: AstroTint.sage),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  context.l10n.reportExistingCompletedNotice(_selectedProfile.name),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimaryDark,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.reportExistingCompletedNotice(_selectedProfile.name),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimaryDark,
+                      ),
+                    ),
+                    if (existingLanguage != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        existingLanguage,
+                        style: const TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -686,6 +803,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     reportId: existing.id,
                     reportTitle: widget.title,
                     clientName: _selectedProfile.name,
+                    language: existing.language,
                   ),
                 ),
               );
@@ -821,6 +939,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     return ReportCard(
       child: Column(
         children: [
+          // What is being bought: the language is part of the purchase.
+          KeyedSubtree(
+            key: const ValueKey('report_summary_language'),
+            child: row(
+              context.l10n.reportLanguageStepTitle,
+              ContentLanguage.displayName(context.l10n, _language),
+            ),
+          ),
           row('Base Price', '₹${(subtotalPaise / 100.0).toStringAsFixed(2)}'),
           row(context.l10n.reportGstIncluded, '₹${(gstPaise / 100.0).toStringAsFixed(2)}'),
           const Divider(height: 20, color: AppColors.cardBorderSubtle),

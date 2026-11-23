@@ -637,5 +637,21 @@
   "core2ConsultBookingsEmptyTitle": "No bookings yet",
   "@core2ConsultBookingsEmptyTitle": {"description": "Consult > My bookings empty state title"},
   "core2ConsultBookingsEmptyBody": "Sessions you book with Sushil Sir are shown here.",
-  "@core2ConsultBookingsEmptyBody": {"description": "Consult > My bookings empty state text"}
+  "@core2ConsultBookingsEmptyBody": {"description": "Consult > My bookings empty state text"},
+  "reportLanguageStepTitle": "Report language",
+  "@reportLanguageStepTitle": {"description": "Report purchase: heading of the language step, and the label of the language row in the price summary"},
+  "reportLanguageChooseHint": "Choose the language of your PDF report. It cannot be changed after payment.",
+  "@reportLanguageChooseHint": {"description": "Report purchase: text under the language choice, shown before payment"},
+  "reportLanguageLine": "Language: {language}",
+  "@reportLanguageLine": {"description": "Language of a bought report, shown on the report in My reports and on the report screens", "placeholders": {"language": {"type": "String"}}},
+  "reportLanguageNotAvailableBeforePayment": "This report is not available in {language} right now. No payment was taken.",
+  "@reportLanguageNotAvailableBeforePayment": {"description": "Report purchase: the server refused the chosen language before any charge", "placeholders": {"language": {"type": "String"}}},
+  "reportLanguageNotAvailable": "This report is not available in that language right now.",
+  "@reportLanguageNotAvailable": {"description": "Report generation: the server has no edition of the report in the requested language"},
+  "reportLanguageFixed": "The language of this report was fixed when it was bought and cannot be changed.",
+  "@reportLanguageFixed": {"description": "Report generation: the server refused a language different from the purchased one"},
+  "horoscopeLanguageLabel": "Horoscope language",
+  "@horoscopeLanguageLabel": {"description": "Accessibility label of the English / Hindi switch on the daily horoscope screen"},
+  "horoscopeHindiNarrativeUnavailable": "The detailed text is available only in English right now.",
+  "@horoscopeHindiNarrativeUnavailable": {"description": "Daily horoscope: Hindi was chosen but the narrative returned is in English"}
 }
