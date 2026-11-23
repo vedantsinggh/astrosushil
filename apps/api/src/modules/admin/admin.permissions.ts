@@ -31,7 +31,89 @@ export type Permission =
   | 'live_sessions:delete'
   | 'orders:read'
   | 'orders:fulfill'
-  | 'products:manage';
+  | 'products:manage'
+  // Website integration (docs/integration/website-integration-plan.md): one key per action of the
+  // website admin's permission catalogue, in this file's module:action style.
+  | 'banners:read'
+  | 'banners:create'
+  | 'banners:update'
+  | 'banners:delete'
+  | 'categories:read'
+  | 'categories:create'
+  | 'categories:update'
+  | 'categories:delete'
+  | 'courses:read'
+  | 'courses:create'
+  | 'courses:update'
+  | 'courses:delete'
+  | 'consultations:read'
+  | 'consultations:create'
+  | 'consultations:update'
+  | 'consultations:delete'
+  | 'bookings:read'
+  | 'bookings:create'
+  | 'bookings:update'
+  | 'bookings:delete'
+  | 'coupons:read'
+  | 'coupons:create'
+  | 'coupons:update'
+  | 'coupons:delete'
+  | 'blogs:read'
+  | 'blogs:create'
+  | 'blogs:update'
+  | 'blogs:delete'
+  | 'faqs:read'
+  | 'faqs:create'
+  | 'faqs:update'
+  | 'faqs:delete'
+  | 'testimonials:read'
+  | 'testimonials:create'
+  | 'testimonials:update'
+  | 'testimonials:delete'
+  | 'pdf_reports:read'
+  | 'pdf_reports:create'
+  | 'pdf_reports:update'
+  | 'pdf_reports:delete'
+  | 'media:read'
+  | 'media:create'
+  | 'media:update'
+  | 'media:delete'
+  | 'seo:read'
+  | 'seo:create'
+  | 'seo:update'
+  | 'seo:delete'
+  | 'roles:read'
+  | 'roles:create'
+  | 'roles:update'
+  | 'roles:delete'
+  | 'staff:read'
+  | 'staff:create'
+  | 'staff:update'
+  | 'staff:delete'
+  | 'products:read'
+  | 'products:create'
+  | 'products:update'
+  | 'products:delete'
+  | 'orders:update'
+  | 'orders:export'
+  | 'report_orders:read'
+  | 'report_orders:update'
+  | 'transactions:read'
+  | 'transactions:export'
+  | 'gst_report:read'
+  | 'gst_report:export'
+  | 'customers:read'
+  | 'customers:update'
+  | 'customers:delete'
+  | 'contacts:read'
+  | 'contacts:update'
+  | 'contacts:delete'
+  | 'availability:read'
+  | 'availability:update'
+  | 'settings:read'
+  | 'settings:update'
+  | 'permissions:read'
+  | 'uploads:create';
 
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   SUPER_ADMIN: [
@@ -66,6 +148,87 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'orders:read',
     'orders:fulfill',
     'products:manage',
+    // Website integration.
+    'banners:read',
+    'banners:create',
+    'banners:update',
+    'banners:delete',
+    'categories:read',
+    'categories:create',
+    'categories:update',
+    'categories:delete',
+    'courses:read',
+    'courses:create',
+    'courses:update',
+    'courses:delete',
+    'consultations:read',
+    'consultations:create',
+    'consultations:update',
+    'consultations:delete',
+    'bookings:read',
+    'bookings:create',
+    'bookings:update',
+    'bookings:delete',
+    'coupons:read',
+    'coupons:create',
+    'coupons:update',
+    'coupons:delete',
+    'blogs:read',
+    'blogs:create',
+    'blogs:update',
+    'blogs:delete',
+    'faqs:read',
+    'faqs:create',
+    'faqs:update',
+    'faqs:delete',
+    'testimonials:read',
+    'testimonials:create',
+    'testimonials:update',
+    'testimonials:delete',
+    'pdf_reports:read',
+    'pdf_reports:create',
+    'pdf_reports:update',
+    'pdf_reports:delete',
+    'media:read',
+    'media:create',
+    'media:update',
+    'media:delete',
+    'seo:read',
+    'seo:create',
+    'seo:update',
+    'seo:delete',
+    'roles:read',
+    'roles:create',
+    'roles:update',
+    'roles:delete',
+    'staff:read',
+    'staff:create',
+    'staff:update',
+    'staff:delete',
+    'products:read',
+    'products:create',
+    'products:update',
+    'products:delete',
+    'orders:update',
+    'orders:export',
+    'report_orders:read',
+    'report_orders:update',
+    'transactions:read',
+    'transactions:export',
+    'gst_report:read',
+    'gst_report:export',
+    'customers:read',
+    'customers:update',
+    'customers:delete',
+    'contacts:read',
+    'contacts:update',
+    'contacts:delete',
+    'availability:read',
+    'availability:update',
+    'settings:read',
+    'settings:update',
+    'permissions:read',
+    'uploads:create',
   ],
   ADMIN: [
     'dashboard:read',
@@ -96,6 +259,78 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'orders:read',
     'orders:fulfill',
     'products:manage',
+    // Website integration: everything except roles, permissions and staff (as the website seeds its Admin role).
+    'banners:read',
+    'banners:create',
+    'banners:update',
+    'banners:delete',
+    'categories:read',
+    'categories:create',
+    'categories:update',
+    'categories:delete',
+    'courses:read',
+    'courses:create',
+    'courses:update',
+    'courses:delete',
+    'consultations:read',
+    'consultations:create',
+    'consultations:update',
+    'consultations:delete',
+    'bookings:read',
+    'bookings:create',
+    'bookings:update',
+    'bookings:delete',
+    'coupons:read',
+    'coupons:create',
+    'coupons:update',
+    'coupons:delete',
+    'blogs:read',
+    'blogs:create',
+    'blogs:update',
+    'blogs:delete',
+    'faqs:read',
+    'faqs:create',
+    'faqs:update',
+    'faqs:delete',
+    'testimonials:read',
+    'testimonials:create',
+    'testimonials:update',
+    'testimonials:delete',
+    'pdf_reports:read',
+    'pdf_reports:create',
+    'pdf_reports:update',
+    'pdf_reports:delete',
+    'media:read',
+    'media:create',
+    'media:update',
+    'media:delete',
+    'seo:read',
+    'seo:create',
+    'seo:update',
+    'seo:delete',
+    'products:read',
+    'products:create',
+    'products:update',
+    'products:delete',
+    'orders:update',
+    'orders:export',
+    'report_orders:read',
+    'report_orders:update',
+    'transactions:read',
+    'transactions:export',
+    'gst_report:read',
+    'gst_report:export',
+    'customers:read',
+    'customers:update',
+    'customers:delete',
+    'contacts:read',
+    'contacts:update',
+    'contacts:delete',
+    'availability:read',
+    'availability:update',
+    'settings:read',
+    'settings:update',
+    'uploads:create',
   ],
   SUPPORT: [
     'dashboard:read',
