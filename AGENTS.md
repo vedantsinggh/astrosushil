@@ -109,6 +109,7 @@ astro-platform/
 1. **Admin Panel Scope Freeze**:
    - The Admin Panel (`apps/admin`) is **FEATURE COMPLETE** as of Phase 12.
    - Do **NOT** propose or build new Admin features in future phases unless required by a security issue, critical bug, or explicit human product specification.
+   - **Exception (owner decision, 2026-11-24):** the freeze is lifted for the website integration. Every screen of the existing website admin is to be built here, as specified in `docs/integration/website-integration-plan.md`. Admin features outside that plan remain frozen.
 
 2. **Mandatory Server-Side RBAC**:
    - Frontend UI visibility checks (`hasPermission`) are strictly for UX.
@@ -119,4 +120,5 @@ astro-platform/
 
 4. **No Destructive Operations**:
    - Permanent hard-deletion of Users, Birth Profiles, or Reports via the Admin UI is prohibited. State changes must use soft flags (`SUSPENDED`, `CANCELLED`, `FAILED`).
+   - **Exception (owner decision, 2026-11-24):** deletion of customers and bookings from the admin works as it does on the existing website admin, so the migrated admin behaves the same. Each such deletion must still be recorded through `adminService.logAction`.
 
