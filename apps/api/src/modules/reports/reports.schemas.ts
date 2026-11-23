@@ -12,6 +12,7 @@ export const createReportSchema = z.object({
   birthProfileId: z.string().uuid({ message: 'birthProfileId must be a valid UUID' }),
   reportType: z.enum([
     'KUNDLI',
+    'KUNDLI_BASIC',
     'PLANETARY_SUMMARY',
     'CAREER',
     'CAREER_PROSITY',

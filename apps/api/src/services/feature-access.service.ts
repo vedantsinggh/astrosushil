@@ -25,6 +25,7 @@ export class FeatureAccessService {
     JYOTI_AI: { name: 'Jyoti AI Astrological Assistant', isFree: false },
     CAREER_REPORT: { name: 'Career Report Generation', isFree: false, reportTypeKey: 'CAREER' },
     KUNDLI_REPORT: { name: 'Full Kundli Analysis Report', isFree: false, reportTypeKey: 'KUNDLI' },
+    KUNDLI_BASIC_REPORT: { name: 'Basic Kundli Report', isFree: false, reportTypeKey: 'KUNDLI_BASIC' },
     PLANETARY_SUMMARY_REPORT: { name: 'Planetary Summary Report', isFree: false, reportTypeKey: 'PLANETARY_SUMMARY' },
     GUPTA_NADI_DOSSIER: { name: 'Gupta Nadi BNN Rule Dossier', isFree: false, reportTypeKey: 'GUPTA_NADI_DOSSIER' },
     MARRIAGE_COMPATIBILITY: { name: 'Marriage & Relationship Compatibility', isFree: false, reportTypeKey: 'MARRIAGE_COMPATIBILITY' },

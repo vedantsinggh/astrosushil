@@ -113,6 +113,7 @@ export class ReportsService {
   ): Promise<{ order?: any; targetOrderItem?: any; targetFulfillmentUnit?: any; existingReport?: any }> {
     const REPORT_TYPE_TO_FEATURE: Record<string, string> = {
       KUNDLI: 'KUNDLI_REPORT',
+      KUNDLI_BASIC: 'KUNDLI_BASIC_REPORT',
       PLANETARY_SUMMARY: 'PLANETARY_SUMMARY_REPORT',
       CAREER: 'CAREER_REPORT',
       CAREER_PROSITY: 'CAREER_PROSITY',

@@ -7,6 +7,8 @@ export interface CatalogItem {
   title: string;
   description: string;
   pricePaise: number; // Stored in integer paise (e.g. 49900 = ₹499.00)
+  /** Price before the offer (shown struck through), in paise before GST; display only. */
+  originalPricePaise?: number;
   currency: string;
   taxRateBasisPoints: number; // 1800 = 18.00% GST, 300 = 3.00% GST
   taxIncluded: boolean;
@@ -43,12 +45,34 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     legacyReportType: ReportType.KUNDLI,
     metadataSchema: { requiredFields: ['birthProfileId'] },
   },
+  'report-kundli-basic': {
+    id: 'report-kundli-basic',
+    itemType: OrderItemType.REPORT,
+    title: 'Basic Kundli',
+    description: 'The essentials of your Kundli: birth particulars, the Lagna and Navamsa charts, planetary positions, your Vimshottari periods, a reading of each of the nine planets and practical guidance.',
+    // Website price (astrosushil.com, read 2026-11-24): ₹299 + 18% GST, charged on top. Stored here as the
+    // GST-inclusive amount the customer pays, which gives the same net (₹299) and the same GST.
+    pricePaise: 35282, // ₹352.82 = ₹299 + GST (website "Basic Horoscope")
+    originalPricePaise: 79900,
+    currency: 'INR',
+    taxRateBasisPoints: 1800,
+    taxIncluded: true,
+    fulfillmentType: FulfillmentType.DIGITAL,
+    isActive: true,
+    minQuantity: 1,
+    maxQuantity: 1,
+    legacyReportType: ReportType.KUNDLI_BASIC,
+    metadataSchema: { requiredFields: ['birthProfileId'] },
+  },
   'report-planetary-summary': {
     id: 'report-planetary-summary',
     itemType: OrderItemType.REPORT,
     title: 'Planetary Dynamics & Dignity Summary',
     description: 'Your birth chart (D1) and planet table with a short personal reading of each of the nine planets: sign, house, nakshatra, dignity, and retrograde or combust state.',
-    pricePaise: 19900, // ₹199
+    // Website price (astrosushil.com, read 2026-11-24): ₹199 + 18% GST, charged on top. Stored here as the
+    // GST-inclusive amount the customer pays, which gives the same net (₹199) and the same GST.
+    pricePaise: 23482, // ₹234.82 = ₹199 + GST (website "Mini Horoscope")
+    originalPricePaise: 49900,
     currency: 'INR',
     taxRateBasisPoints: 1800,
     taxIncluded: true,
@@ -80,9 +104,11 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     itemType: OrderItemType.REPORT,
     title: 'Marriage & Relationship Compatibility Report',
     description: 'Ashtakoota 36-Guna Kundli Milan, 7th house partner dynamics, and planetary harmony evaluation.',
-    pricePaise: 49900, // ₹499
+    // Website price (astrosushil.com, read 2026-11-24): ₹999 with GST rate 0 (website "Match Making").
+    pricePaise: 99900, // ₹999
+    originalPricePaise: 199900,
     currency: 'INR',
-    taxRateBasisPoints: 1800,
+    taxRateBasisPoints: 0,
     taxIncluded: true,
     fulfillmentType: FulfillmentType.DIGITAL,
     isActive: true,
@@ -176,12 +202,15 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     itemType: OrderItemType.REPORT,
     title: 'Personalised Fortune Report Plus (Comprehensive Edition)',
     description: 'Comprehensive 25-chapter Vedic numerology and astrological life dossier including Success/Connection/Maturity numbers, 4 Life Pinnacles, 4 birth charts (D1, D9, Chandra, Lal Kitab), 9-planet house attributes, Manglik dosh, Sade Sati timeline, classical yogas, marriage timing, and consecrated remedies.',
-    pricePaise: 0, // Pending commercial sign-off
+    // Website price (astrosushil.com, read 2026-11-24): ₹699 + 18% GST, charged on top. Stored here as the
+    // GST-inclusive amount the customer pays, which gives the same net (₹699) and the same GST.
+    pricePaise: 82482, // ₹824.82 = ₹699 + GST (website "Pro Horoscope")
+    originalPricePaise: 149900,
     currency: 'INR',
     taxRateBasisPoints: 1800,
     taxIncluded: true,
     fulfillmentType: FulfillmentType.DIGITAL,
-    isActive: false,
+    isActive: true,
     minQuantity: 1,
     maxQuantity: 1,
     legacyReportType: ReportType.FORTUNE_PLUS,

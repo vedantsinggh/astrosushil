@@ -5,9 +5,11 @@ import { logger } from '../utils/logger';
 
 export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
   KUNDLI: 29900,                 // ₹299
-  PLANETARY_SUMMARY: 19900,      // ₹199
+  // Website prices (astrosushil.com, 2026-11-24), GST-inclusive amount paid: see commerce.catalog.ts.
+  KUNDLI_BASIC: 35282,           // ₹299 + GST
+  PLANETARY_SUMMARY: 23482,      // ₹199 + GST
   CAREER: 49900,                 // ₹499
-  MARRIAGE_COMPATIBILITY: 49900, // ₹499
+  MARRIAGE_COMPATIBILITY: 99900, // ₹999 (GST rate 0 on the website)
   CAREER_PROSITY: 69900,         // ₹699
   CHILDBIRTH_FAMILY: 49900,      // ₹499
   GUPTA_NADI_DOSSIER: 99900,     // ₹999
@@ -16,11 +18,11 @@ export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
   LOVE: 49900,                   // ₹499
   FORTUNE: 49900,                // ₹499
   SATURN: 49900,                 // ₹499
+  FORTUNE_PLUS: 82482,           // ₹699 + GST
   // UNRESOLVED PRICING - RELEASE BLOCKER: Pending formal commercial sign-off
   JUPITER_TRANSIT: 0,
   RAHU_KETU_TRANSIT: 0,
   VARSHPHAL: 0,
-  FORTUNE_PLUS: 0,
   BABY_NAME: 0,
 };
 
