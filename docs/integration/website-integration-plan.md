@@ -41,6 +41,9 @@ Cloned read-only at `/home/pilot/Projects/astrosushil-website/` (outside this re
 - The report language is chosen before payment and is fixed for that purchase, as on the website. One purchase gives one language.
 - Report prices are the website's current prices (to be read from the website data).
 - Hindi report titles use the market terms ("करियर रिपोर्ट", "प्रीमियम व्यक्तिगत कुंडली").
+- Reports do not mention AI, a language model or any provider (owner decision, 2026-11-24).
+- Website prices as read from the site's public report list on 2026-11-24: Mini Horoscope Rs 199 + 18% GST, Basic Horoscope Rs 299 + 18% GST, Pro Horoscope Rs 699 + 18% GST, Match Making Rs 999 with GST rate 0. Original (struck-through) prices: Rs 499, 799, 1,499 and 1,999.
+- Ashlesha pada 1 name syllable is "Di"; the Hindi Saturn report keeps the period name "लघु पनौती".
 - Report delivery keeps the website's current behaviour: a "within 48 hours" confirmation and delivery after the configured delay (default 24 hours).
 
 **Commerce**
