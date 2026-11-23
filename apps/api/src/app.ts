@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from 'fastify';
+import multipart from '@fastify/multipart';
 import crypto from 'crypto';
 import { registerCors } from './plugins/cors';
 import { registerHelmet } from './plugins/helmet';
@@ -9,6 +10,7 @@ import { registerRoutes } from './routes';
 import { globalErrorHandler } from './errors/error-handler';
 import { config } from './config';
 import { LOG_REDACT_KEYS } from './utils/logger';
+import { MAX_UPLOAD_BYTES } from './services/storage/upload-policy';
 
 export function buildApp(): FastifyInstance {
   const app = Fastify({
@@ -88,6 +90,11 @@ export function buildApp(): FastifyInstance {
   app.register(registerJwt);
   app.register(registerRateLimit);
   app.register(registerSwagger);
+  // multipart/form-data for file uploads (modules/uploads). One file per request; the per-purpose
+  // size cap is applied by the upload route, this is only the absolute ceiling.
+  app.register(multipart, {
+    limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10, fieldSize: 16 * 1024, parts: 12 },
+  });
   app.register(registerRoutes);
 
   return app;

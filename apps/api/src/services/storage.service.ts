@@ -1,12 +1,26 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { logger } from '../utils/logger';
+import { S3ObjectClient } from './storage/s3-client';
+import { encodeKeyPath } from './storage/sigv4';
+import { awsBucketHost, knownAwsBucket, publicObjectAcl, resolveStorageTarget, S3Target } from './storage/storage-config';
+
+/**
+ * `private` (the default): never publicly readable; reachable only through a short-lived signed URL
+ * handed out after an ownership / purchase check (report PDFs, paid digital files, invoices).
+ * `public`: readable by anyone at a plain URL (banners, blog and product images).
+ */
+export type ObjectVisibility = 'public' | 'private';
 
 export interface ObjectStorageUploadInput {
   key: string;
   body: Buffer;
   contentType?: string;
   metadata?: Record<string, string>;
+  /** Defaults to `private`. */
+  visibility?: ObjectVisibility;
+  cacheControl?: string;
 }
 
 export interface ObjectStorageUploadResult {
@@ -22,38 +36,63 @@ export interface ObjectMetadata {
   lastModified?: Date;
 }
 
+export interface SignedDownloadOptions {
+  /** Makes the browser save the file under this name (remote stores only). */
+  downloadFileName?: string;
+}
+
+/** Path (under the API base URL) that serves `public` objects from local disk outside production. */
+export const LOCAL_PUBLIC_ROUTE_PREFIX = '/api/v1/uploads/local/';
+
+const LOCAL_CONTENT_TYPES: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
+  '.zip': 'application/zip',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+/**
+ * One storage abstraction for the whole backend. The remote store is S3-compatible and chosen by
+ * environment (AWS S3 or Cloudflare R2, see ./storage/storage-config.ts); without one, files go to
+ * local disk, which is refused in production.
+ */
 export class StorageService {
   private get localFallbackDir(): string {
     return path.resolve(process.env.STORAGE_LOCAL_DIR || '/tmp/astro-sushil/storage');
   }
 
   private ensureConfiguredInProduction(): void {
-    if (process.env.NODE_ENV === 'production' && !this.r2Config) {
+    if (process.env.NODE_ENV === 'production' && !this.remoteTarget) {
       throw new Error(
-        'STORAGE_CONFIGURATION_ERROR: Cloudflare R2 / S3 object storage credentials must be configured in production. Ephemeral local disk fallback is disabled in production.'
+        'STORAGE_CONFIGURATION_ERROR: AWS S3 / Cloudflare R2 object storage credentials must be configured in production. Ephemeral local disk fallback is disabled in production.'
       );
     }
   }
 
-  private get r2Config() {
-    const accountId = process.env.R2_ACCOUNT_ID || process.env.S3_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY;
-    const bucketName = process.env.R2_BUCKET_NAME || process.env.S3_BUCKET_NAME || 'astro-sushil-reports';
-    const region = process.env.R2_REGION || process.env.S3_REGION || 'auto';
+  private get remoteTarget(): S3Target | null {
+    return resolveStorageTarget(process.env);
+  }
 
-    if (accountId && accessKeyId && secretAccessKey) {
-      return {
-        accountId,
-        accessKeyId,
-        secretAccessKey,
-        bucketName,
-        region,
-        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-        host: `${bucketName}.${accountId}.r2.cloudflarestorage.com`,
-      };
-    }
-    return null;
+  private get remoteClient(): S3ObjectClient | null {
+    const target = this.remoteTarget;
+    return target ? new S3ObjectClient(target) : null;
+  }
+
+  /** `aws`, `r2` or `local`: which store is active for this process. */
+  public get providerName(): 'aws' | 'r2' | 'local' {
+    return this.remoteTarget?.provider || 'local';
+  }
+
+  private get publicApiBaseUrl(): string {
+    return (process.env.PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
   }
 
   private get signingSecretKey(): string {
@@ -74,59 +113,32 @@ export class StorageService {
   }
 
   /**
-   * Uploads binary object (e.g. PDF report) to private Cloudflare R2 object storage
-   * or local fallback directory.
+   * Uploads a binary object (report PDF, admin upload) to the configured object store or to the
+   * local fallback directory. Objects are private unless `visibility: 'public'` is passed.
    */
   public async upload(input: ObjectStorageUploadInput): Promise<ObjectStorageUploadResult> {
     this.validateKey(input.key);
     this.ensureConfiguredInProduction();
     const checksum = crypto.createHash('sha256').update(input.body).digest('hex');
     const contentType = input.contentType || 'application/pdf';
-    const config = this.r2Config;
+    const client = this.remoteClient;
 
-    if (config) {
-      // Cloudflare R2 S3 API PutObject
-      const url = `https://${config.host}/${input.key}`;
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, ''); // YYYYMMDDTHHMMSSZ
-      const dateStamp = dateIso.slice(0, 8); // YYYYMMDD
-
-      const payloadHash = checksum;
-      const headers: Record<string, string> = {
-        'host': config.host,
-        'x-amz-date': dateIso,
-        'x-amz-content-sha256': payloadHash,
-        'content-type': contentType,
-        'content-length': input.body.length.toString(),
-      };
-
-      const authorization = this.computeS3V4Signature({
-        method: 'PUT',
-        path: `/${input.key}`,
-        headers,
-        payloadHash,
-        dateIso,
-        dateStamp,
-        config,
+    if (client) {
+      await client.putObject({
+        key: input.key,
+        body: input.body,
+        contentType,
+        // A public ACL is only ever attached on explicit request; private objects carry none.
+        acl: input.visibility === 'public' ? publicObjectAcl(process.env) : null,
+        cacheControl: input.cacheControl,
+        payloadHash: checksum,
       });
-
-      headers['Authorization'] = authorization;
-
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers,
-        body: new Uint8Array(input.body),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error(`R2 Object Storage upload failed (${res.status}): ${errText || res.statusText}`);
-      }
 
       return {
         key: input.key,
         fileSize: input.body.length,
         checksum,
-        location: url,
+        location: client.objectUrl(input.key),
       };
     }
 
@@ -144,68 +156,108 @@ export class StorageService {
   }
 
   /**
-   * Generates a short-lived signed download URL for private report viewing.
+   * Plain URL of an object stored with `visibility: 'public'`. With a remote store this is the
+   * bucket URL (the same shape the website stored: https://<bucket>.s3.<region>.amazonaws.com/<key>);
+   * on local disk it is a development-only route of this API.
    */
-  public async getSignedDownloadUrl(key: string, expiresInSeconds: number = 900): Promise<string> {
+  public getPublicUrl(key: string): string {
     this.validateKey(key);
     this.ensureConfiguredInProduction();
-    const config = this.r2Config;
+    const client = this.remoteClient;
+    if (client) return client.objectUrl(key);
+    return `${this.publicApiBaseUrl}${LOCAL_PUBLIC_ROUTE_PREFIX}${encodeKeyPath(key)}`;
+  }
+
+  /**
+   * Turns a stored reference into an object key of OUR store, or null when it points elsewhere.
+   * Accepts a bare key, or an absolute URL of the configured bucket (the website stored absolute
+   * URLs, sometimes without the key): virtual-hosted and path-style AWS URLs of the website bucket,
+   * the active remote store's host, and the local development route. Query strings are ignored.
+   */
+  public resolveKey(urlOrKey: string | null | undefined): string | null {
+    if (!urlOrKey || typeof urlOrKey !== 'string') return null;
+    const value = urlOrKey.trim();
+    if (!value) return null;
+
+    let key: string;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) {
+      let url: URL;
+      try {
+        url = new URL(value.startsWith('//') ? `https:${value}` : value);
+      } catch {
+        return null;
+      }
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+      const host = url.host.toLowerCase();
+      let rawPath: string | null = null;
+
+      const bucketHosts = new Set<string>();
+      const pathStyle: Array<{ host: string; bucket: string }> = [];
+      const target = this.remoteTarget;
+      if (target) bucketHosts.add(target.host.toLowerCase());
+      const aws = knownAwsBucket(process.env);
+      if (aws) {
+        bucketHosts.add(awsBucketHost(aws.bucket, aws.region).toLowerCase());
+        bucketHosts.add(`${aws.bucket}.s3.amazonaws.com`.toLowerCase());
+        bucketHosts.add(`${aws.bucket}.s3-${aws.region}.amazonaws.com`.toLowerCase());
+        pathStyle.push({ host: `s3.${aws.region}.amazonaws.com`, bucket: aws.bucket });
+        pathStyle.push({ host: 's3.amazonaws.com', bucket: aws.bucket });
+      }
+
+      if (bucketHosts.has(host)) {
+        rawPath = url.pathname.replace(/^\/+/, '');
+      } else {
+        const style = pathStyle.find((p) => p.host === host && url.pathname.startsWith(`/${p.bucket}/`));
+        if (style) {
+          rawPath = url.pathname.slice(style.bucket.length + 2);
+        } else {
+          let apiHost: string | null = null;
+          try {
+            apiHost = new URL(this.publicApiBaseUrl).host.toLowerCase();
+          } catch {
+            apiHost = null;
+          }
+          if (apiHost && host === apiHost && url.pathname.startsWith(LOCAL_PUBLIC_ROUTE_PREFIX)) {
+            rawPath = url.pathname.slice(LOCAL_PUBLIC_ROUTE_PREFIX.length);
+          }
+        }
+      }
+      if (rawPath === null) return null;
+      try {
+        key = rawPath.split('/').map((segment) => decodeURIComponent(segment)).join('/');
+      } catch {
+        return null;
+      }
+    } else {
+      key = value;
+    }
+
+    try {
+      this.validateKey(key);
+    } catch {
+      return null;
+    }
+    return key;
+  }
+
+  /**
+   * Generates a short-lived signed download URL for a private object.
+   */
+  public async getSignedDownloadUrl(key: string, expiresInSeconds: number = 900, options: SignedDownloadOptions = {}): Promise<string> {
+    this.validateKey(key);
+    this.ensureConfiguredInProduction();
+    const client = this.remoteClient;
     const expiresAtMs = Date.now() + expiresInSeconds * 1000;
 
-    if (config) {
-      // Cloudflare R2 Presigned S3 GET URL
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = dateIso.slice(0, 8);
-      const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
-
-      const queryParams: Record<string, string> = {
-        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-        'X-Amz-Credential': `${config.accessKeyId}/${credentialScope}`,
-        'X-Amz-Date': dateIso,
-        'X-Amz-Expires': expiresInSeconds.toString(),
-        'X-Amz-SignedHeaders': 'host',
-      };
-
-      const canonicalQueryString = Object.keys(queryParams)
-        .sort()
-        .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(queryParams[k])}`)
-        .join('&');
-
-      const canonicalHeaders = `host:${config.host}\n`;
-      const signedHeaders = 'host';
-      const payloadHash = 'UNSIGNED-PAYLOAD';
-
-      const canonicalRequest = [
-        'GET',
-        `/${inputPathEncoder(key)}`,
-        canonicalQueryString,
-        canonicalHeaders,
-        signedHeaders,
-        payloadHash,
-      ].join('\n');
-
-      const stringToSign = [
-        'AWS4-HMAC-SHA256',
-        dateIso,
-        credentialScope,
-        crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
-      ].join('\n');
-
-      const kDate = crypto.createHmac('sha256', `AWS4${config.secretAccessKey}`).update(dateStamp).digest();
-      const kRegion = crypto.createHmac('sha256', kDate).update(config.region).digest();
-      const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
-      const kSigning = crypto.createHmac('sha256', kService).update('aws4_request').digest();
-      const signature = crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
-
-      return `https://${config.host}/${inputPathEncoder(key)}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+    if (client) {
+      return client.presignGetUrl(key, expiresInSeconds, options);
     }
 
     // Local / Backend Tokenized Signed URL Fallback
-    const baseUrl = process.env.PUBLIC_API_URL || 'http://localhost:3000';
     const payload = `${key}:${expiresAtMs}`;
     const token = crypto.createHmac('sha256', this.signingSecretKey).update(payload).digest('hex');
 
-    return `${baseUrl}/api/v1/reports/download-secure?key=${encodeURIComponent(key)}&expires=${expiresAtMs}&token=${token}`;
+    return `${this.publicApiBaseUrl}/api/v1/reports/download-secure?key=${encodeURIComponent(key)}&expires=${expiresAtMs}&token=${token}`;
   }
 
   /**
@@ -229,36 +281,17 @@ export class StorageService {
   }
 
   /**
-   * Deletes object from Cloudflare R2 or local disk storage.
+   * Deletes an object from the object store or local disk storage.
    */
   public async delete(key: string): Promise<void> {
     this.validateKey(key);
     this.ensureConfiguredInProduction();
-    const config = this.r2Config;
-    if (config) {
-      const url = `https://${config.host}/${key}`;
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = dateIso.slice(0, 8);
-      const payloadHash = crypto.createHash('sha256').update('').digest('hex');
-
-      const headers: Record<string, string> = {
-        'host': config.host,
-        'x-amz-date': dateIso,
-        'x-amz-content-sha256': payloadHash,
-      };
-
-      const authorization = this.computeS3V4Signature({
-        method: 'DELETE',
-        path: `/${key}`,
-        headers,
-        payloadHash,
-        dateIso,
-        dateStamp,
-        config,
-      });
-
-      headers['Authorization'] = authorization;
-      await fetch(url, { method: 'DELETE', headers });
+    const client = this.remoteClient;
+    if (client) {
+      const accepted = await client.deleteObject(key);
+      if (!accepted) {
+        logger.warn({ storageKey: key }, 'Object storage refused a delete request');
+      }
       return;
     }
 
@@ -269,37 +302,25 @@ export class StorageService {
   }
 
   /**
-   * Checks if object exists in Cloudflare R2 or local disk storage.
+   * Removes public read access from an existing object (the website uploaded everything, paid
+   * files included, with a public-read ACL). No-op on local disk.
+   */
+  public async makePrivate(key: string): Promise<void> {
+    this.validateKey(key);
+    this.ensureConfiguredInProduction();
+    const client = this.remoteClient;
+    if (client) await client.putObjectAcl(key, 'private');
+  }
+
+  /**
+   * Checks if an object exists in the object store or local disk storage.
    */
   public async exists(key: string): Promise<boolean> {
     this.validateKey(key);
     this.ensureConfiguredInProduction();
-    const config = this.r2Config;
-    if (config) {
-      const url = `https://${config.host}/${key}`;
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = dateIso.slice(0, 8);
-      const payloadHash = crypto.createHash('sha256').update('').digest('hex');
-
-      const headers: Record<string, string> = {
-        'host': config.host,
-        'x-amz-date': dateIso,
-        'x-amz-content-sha256': payloadHash,
-      };
-
-      const authorization = this.computeS3V4Signature({
-        method: 'HEAD',
-        path: `/${key}`,
-        headers,
-        payloadHash,
-        dateIso,
-        dateStamp,
-        config,
-      });
-
-      headers['Authorization'] = authorization;
-      const res = await fetch(url, { method: 'HEAD', headers });
-      return res.ok;
+    const client = this.remoteClient;
+    if (client) {
+      return (await client.headObject(key)) !== null;
     }
 
     const localFilePath = path.join(this.localFallbackDir, key);
@@ -307,47 +328,14 @@ export class StorageService {
   }
 
   /**
-   * Gets metadata for object in Cloudflare R2 or local disk storage.
+   * Gets metadata for an object in the object store or local disk storage.
    */
   public async getMetadata(key: string): Promise<ObjectMetadata | null> {
     this.validateKey(key);
     this.ensureConfiguredInProduction();
-    const config = this.r2Config;
-    if (config) {
-      const url = `https://${config.host}/${key}`;
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = dateIso.slice(0, 8);
-      const payloadHash = crypto.createHash('sha256').update('').digest('hex');
-
-      const headers: Record<string, string> = {
-        'host': config.host,
-        'x-amz-date': dateIso,
-        'x-amz-content-sha256': payloadHash,
-      };
-
-      const authorization = this.computeS3V4Signature({
-        method: 'HEAD',
-        path: `/${key}`,
-        headers,
-        payloadHash,
-        dateIso,
-        dateStamp,
-        config,
-      });
-
-      headers['Authorization'] = authorization;
-      const res = await fetch(url, { method: 'HEAD', headers });
-      if (!res.ok) return null;
-
-      const sizeStr = res.headers.get('content-length');
-      const contentType = res.headers.get('content-type') || undefined;
-      const lastModifiedStr = res.headers.get('last-modified');
-
-      return {
-        size: sizeStr ? parseInt(sizeStr, 10) : 0,
-        contentType,
-        lastModified: lastModifiedStr ? new Date(lastModifiedStr) : undefined,
-      };
+    const client = this.remoteClient;
+    if (client) {
+      return client.headObject(key);
     }
 
     const localFilePath = path.join(this.localFallbackDir, key);
@@ -356,47 +344,20 @@ export class StorageService {
     const stats = fs.statSync(localFilePath);
     return {
       size: stats.size,
-      contentType: 'application/pdf',
+      contentType: LOCAL_CONTENT_TYPES[path.extname(key).toLowerCase()] || 'application/pdf',
       lastModified: stats.mtime,
     };
   }
 
   /**
-   * Downloads raw buffer of an object from Cloudflare R2 or local disk.
+   * Downloads the raw buffer of an object from the object store or local disk.
    */
   public async downloadBuffer(key: string): Promise<Buffer> {
     this.validateKey(key);
     this.ensureConfiguredInProduction();
-    const config = this.r2Config;
-    if (config) {
-      const url = `https://${config.host}/${key}`;
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = dateIso.slice(0, 8);
-      const payloadHash = crypto.createHash('sha256').update('').digest('hex');
-
-      const headers: Record<string, string> = {
-        'host': config.host,
-        'x-amz-date': dateIso,
-        'x-amz-content-sha256': payloadHash,
-      };
-
-      const authorization = this.computeS3V4Signature({
-        method: 'GET',
-        path: `/${key}`,
-        headers,
-        payloadHash,
-        dateIso,
-        dateStamp,
-        config,
-      });
-
-      headers['Authorization'] = authorization;
-      const res = await fetch(url, { method: 'GET', headers });
-      if (!res.ok) {
-        throw new Error(`Failed to download object from R2 (${res.status}): ${res.statusText}`);
-      }
-      const arrayBuffer = await res.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+    const client = this.remoteClient;
+    if (client) {
+      return client.getObject(key);
     }
 
     const localFilePath = path.join(this.localFallbackDir, key);
@@ -414,39 +375,12 @@ export class StorageService {
   }
 
   /**
-   * Lists object storage keys under local fallback directory or R2 bucket
+   * Lists object storage keys under the local fallback directory or the remote bucket
    */
   public async listKeys(prefix = 'reports'): Promise<string[]> {
-    const config = this.r2Config;
-    if (config) {
-      const url = `https://${config.host}/?list-type=2&prefix=${encodeURIComponent(prefix)}`;
-      const dateIso = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const dateStamp = dateIso.slice(0, 8);
-      const payloadHash = crypto.createHash('sha256').update('').digest('hex');
-
-      const headers: Record<string, string> = {
-        'host': config.host,
-        'x-amz-date': dateIso,
-        'x-amz-content-sha256': payloadHash,
-      };
-
-      const authorization = this.computeS3V4Signature({
-        method: 'GET',
-        path: '/',
-        headers,
-        payloadHash,
-        dateIso,
-        dateStamp,
-        config,
-      });
-
-      headers['Authorization'] = authorization;
-      const res = await fetch(url, { method: 'GET', headers });
-      if (!res.ok) return [];
-
-      const xml = await res.text().catch(() => '');
-      const keyMatches = xml.match(/<Key>(.*?)<\/Key>/g) || [];
-      return keyMatches.map((k) => k.replace(/<\/?Key>/g, ''));
+    const client = this.remoteClient;
+    if (client) {
+      return client.listKeys(prefix);
     }
 
     const baseDir = path.join(this.localFallbackDir, prefix);
@@ -469,75 +403,28 @@ export class StorageService {
   }
 
   /**
-   * Safely cleans up orphaned object keys that are not registered in PostgreSQL
+   * Safely cleans up orphaned report objects that are not registered in PostgreSQL.
+   *
+   * Only keys shaped like our report PDFs (`reports/<owner>/<file>`) are candidates. The website's
+   * S3 bucket also holds its own files directly under `reports/` (report cover images such as
+   * `reports/CAREER-REPORT.webp`); those are never ours to delete.
    */
   public async cleanupOrphanedObjects(validKeysSet: Set<string>): Promise<{ deletedCount: number; deletedKeys: string[] }> {
     const allKeys = await this.listKeys('reports');
-    const orphanedKeys = allKeys.filter((k) => !validKeysSet.has(k));
+    const orphanedKeys = allKeys.filter((k) => /^reports\/[^/]+\/.+/.test(k) && !validKeysSet.has(k));
     const deletedKeys: string[] = [];
 
     for (const key of orphanedKeys) {
       try {
         await this.delete(key);
         deletedKeys.push(key);
-      } catch (err: any) {
-        console.error(`[STORAGE_CLEANUP] Failed to delete orphaned key ${key}: ${err?.message}`);
+      } catch (err) {
+        logger.error({ storageKey: key, err }, 'Failed to delete orphaned storage object');
       }
     }
 
     return { deletedCount: deletedKeys.length, deletedKeys };
   }
-
-  private computeS3V4Signature(params: {
-    method: string;
-    path: string;
-    headers: Record<string, string>;
-    payloadHash: string;
-    dateIso: string;
-    dateStamp: string;
-    config: { accountId: string; accessKeyId: string; secretAccessKey: string; bucketName: string; region: string; host: string };
-  }): string {
-    const { method, path, headers, payloadHash, dateIso, dateStamp, config } = params;
-    const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
-
-    const sortedHeaderKeys = Object.keys(headers)
-      .map((k) => k.toLowerCase())
-      .sort();
-
-    const canonicalHeaders = sortedHeaderKeys
-      .map((k) => `${k}:${headers[k].trim()}\n`)
-      .join('');
-
-    const signedHeaders = sortedHeaderKeys.join(';');
-
-    const canonicalRequest = [
-      method,
-      path,
-      '', // canonical query string
-      canonicalHeaders,
-      signedHeaders,
-      payloadHash,
-    ].join('\n');
-
-    const stringToSign = [
-      'AWS4-HMAC-SHA256',
-      dateIso,
-      credentialScope,
-      crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
-    ].join('\n');
-
-    const kDate = crypto.createHmac('sha256', `AWS4${config.secretAccessKey}`).update(dateStamp).digest();
-    const kRegion = crypto.createHmac('sha256', kDate).update(config.region).digest();
-    const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
-    const kSigning = crypto.createHmac('sha256', kService).update('aws4_request').digest();
-    const signature = crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
-
-    return `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  }
-}
-
-function inputPathEncoder(pathStr: string): string {
-  return pathStr.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
 
 export const storageService = new StorageService();
