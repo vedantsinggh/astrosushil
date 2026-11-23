@@ -25,6 +25,8 @@ import {
 } from '@prisma/client';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { logger } from '../../utils/logger';
+import { settleOrderPaid } from '../commerce/money/settlement';
+import { assertGatewayPaymentMatches } from '../products/payment-check';
 
 export interface ListCoursesFilters {
   search?: string;
@@ -1193,6 +1195,10 @@ export class CoursesService {
       }
     }
 
+    // Read the payment back from the gateway and compare order id, amount and currency with the
+    // stored order before it is marked paid (website integration: money module contract).
+    const gatewayRaw = order.status === OrderStatus.PAID ? null : await assertGatewayPaymentMatches(order, input.razorpayPaymentId);
+
     // Transactionally update order, create fulfillment units, grant entitlement, and reconcile
     const result = await prisma.$transaction(async (tx) => {
       // 1. Lock Order FIRST (Global Lock Hierarchy)
@@ -1258,6 +1264,14 @@ export class CoursesService {
       if (courseUnitId) {
         await fulfillmentService.reconcileFulfillmentUnit(order.id, courseUnitId, tx);
       }
+
+      // 8. Money: ledger row -> SUCCESS and the invoice number, in this same transaction
+      // (safe to repeat: an order already settled keeps its row and number).
+      await settleOrderPaid(tx, order.id, {
+        gatewayPaymentId: input.razorpayPaymentId,
+        gatewayOrderId: order.razorpayOrderId,
+        raw: gatewayRaw ?? undefined,
+      });
 
       return entitlement;
     });

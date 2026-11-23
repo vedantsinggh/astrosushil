@@ -1,10 +1,13 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { productsService } from './products.service';
-import { ShippingAddressInput, shippingAddressSchema } from './products.schemas';
+import { ShippingAddressInput, shippingAddressSchema, updateShippingAddressSchema } from './products.schemas';
+import { requireActiveCustomer } from './shop-http';
 
 export async function accountRoutes(fastify: FastifyInstance) {
   // All account routes require authentication
   fastify.addHook('onRequest', fastify.authenticate);
+  // A customer blocked by an admin cannot use the account area (website finding 12).
+  fastify.addHook('preHandler', requireActiveCustomer);
 
   /**
    * GET /api/v1/account/summary
@@ -128,6 +131,7 @@ export async function accountRoutes(fastify: FastifyInstance) {
 
   fastify.put(
     '/addresses/:id',
+    { schema: updateShippingAddressSchema },
     async (
       request: FastifyRequest<{ Params: { id: string }; Body: Partial<ShippingAddressInput> }>,
       reply: FastifyReply
@@ -138,6 +142,24 @@ export async function accountRoutes(fastify: FastifyInstance) {
         statusCode: 200,
         success: true,
         message: 'Shipping address updated successfully',
+        data: address,
+      });
+    }
+  );
+
+  /**
+   * PATCH /api/v1/account/addresses/:id/default
+   * Make one of the caller's own addresses the default (website `PATCH /address/:id/default`).
+   */
+  fastify.patch(
+    '/addresses/:id/default',
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const user = request.user as { id: string };
+      const address = await productsService.setDefaultShippingAddress(user.id, request.params.id);
+      return reply.status(200).send({
+        statusCode: 200,
+        success: true,
+        message: 'Default set',
         data: address,
       });
     }

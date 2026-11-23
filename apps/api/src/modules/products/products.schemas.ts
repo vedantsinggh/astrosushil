@@ -4,6 +4,10 @@ export interface ListProductsQuery {
   search?: string;
   limit?: number;
   offset?: number;
+  /** Website filters: product type, page number (alternative to offset), featured only. */
+  type?: string;
+  page?: number;
+  featured?: boolean | string;
 }
 
 export interface CartItemInput {
@@ -41,6 +45,9 @@ export interface ShippingAddressInput {
   postalCode: string;
   country?: string;
   isDefault?: boolean;
+  /** Website address fields. */
+  landmark?: string;
+  type?: string; // home | work | other
 }
 
 export interface AdminUpdateFulfillmentInput {
@@ -72,6 +79,9 @@ export const listProductsSchema = {
       search: { type: 'string' },
       limit: { type: 'integer', default: 20 },
       offset: { type: 'integer', default: 0 },
+      type: { type: 'string', enum: ['physical', 'digital', 'service'] },
+      page: { type: 'integer', minimum: 1 },
+      featured: { type: 'boolean' },
     },
   },
 };
@@ -143,14 +153,36 @@ export const shippingAddressSchema = {
     required: ['fullName', 'phoneNumber', 'addressLine1', 'city', 'state', 'postalCode'],
     properties: {
       fullName: { type: 'string', minLength: 2 },
-      phoneNumber: { type: 'string', minLength: 10 },
+      phoneNumber: { type: 'string', minLength: 7, maxLength: 20 },
       addressLine1: { type: 'string', minLength: 5 },
       addressLine2: { type: 'string' },
       city: { type: 'string', minLength: 2 },
       state: { type: 'string', minLength: 2 },
-      postalCode: { type: 'string', minLength: 5, maxLength: 10 },
+      postalCode: { type: 'string', minLength: 4, maxLength: 12 },
       country: { type: 'string', default: 'India' },
       isDefault: { type: 'boolean', default: false },
+      landmark: { type: 'string', maxLength: 200 },
+      type: { type: 'string', enum: ['home', 'work', 'other', 'HOME', 'WORK', 'OTHER'] },
+    },
+  },
+};
+
+/** Update: any subset of the address fields. The service writes only these fields, whatever else is sent. */
+export const updateShippingAddressSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      fullName: { type: 'string', minLength: 2 },
+      phoneNumber: { type: 'string', minLength: 7, maxLength: 20 },
+      addressLine1: { type: 'string', minLength: 5 },
+      addressLine2: { type: 'string' },
+      city: { type: 'string', minLength: 2 },
+      state: { type: 'string', minLength: 2 },
+      postalCode: { type: 'string', minLength: 4, maxLength: 12 },
+      country: { type: 'string' },
+      isDefault: { type: 'boolean' },
+      landmark: { type: 'string', maxLength: 200 },
+      type: { type: 'string', enum: ['home', 'work', 'other', 'HOME', 'WORK', 'OTHER'] },
     },
   },
 };

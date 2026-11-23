@@ -23,10 +23,12 @@ export async function productsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/',
     {
+      onRequest: [fastify.authenticateOptional],
       schema: listProductsSchema,
     },
-    async (request: FastifyRequest<{ Querystring: ListProductsQuery }>, reply: FastifyReply) => {
-      const result = await productsService.listProducts(request.query);
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // A logged-in customer also gets isInCart / isInWishlist on each product (as on the website).
+      const result = await productsService.listProducts(request.query as ListProductsQuery, request.user?.id ?? null);
       return reply.status(200).send({
         statusCode: 200,
         success: true,
@@ -127,6 +129,23 @@ export async function productsRoutes(fastify: FastifyInstance) {
         success: true,
         message: result.message,
         data: result,
+      });
+    }
+  );
+
+  /**
+   * GET /api/v1/products/slug/:slug
+   * Website path for product details by slug (same safe view as /:idOrSlug).
+   */
+  fastify.get(
+    '/slug/:slug',
+    async (request: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) => {
+      const product = await productsService.getProductDetails(request.params.slug);
+      return reply.status(200).send({
+        statusCode: 200,
+        success: true,
+        message: 'Product fetched successfully',
+        data: product,
       });
     }
   );

@@ -16,9 +16,22 @@ import { notificationsRoutes } from '../modules/notifications/notifications.rout
 import { jyotiRoutes } from '../modules/jyoti/jyoti.routes';
 import { locationsRoutes } from '../modules/locations/locations.routes';
 import { consultationsRoutes } from '../modules/consultations/consultations.routes';
+import { bookingsAdminRoutes } from '../modules/bookings/bookings.admin.routes';
 import { coursesRoutes } from '../modules/courses/courses.routes';
 import { productsRoutes } from '../modules/products/products.routes';
 import { accountRoutes } from '../modules/products/account.routes';
+import { categoriesRoutes, adminCategoriesRoutes } from '../modules/categories/categories.routes';
+import { adminProductsRoutes } from '../modules/products/products.admin.routes';
+import { cartRoutes } from '../modules/cart/cart.routes';
+import { wishlistRoutes } from '../modules/wishlist/wishlist.routes';
+import { couponsRoutes, adminCouponsRoutes } from '../modules/coupons/coupons.routes';
+import { shopOrdersRoutes, adminShopOrdersRoutes } from '../modules/shop-orders/shop-orders.routes';
+import { courseLinksRoutes, adminCourseLinksRoutes } from '../modules/courses/course-links.routes';
+import { adminCustomersRoutes } from '../modules/customers/customers.routes';
+import { uploadsRoutes } from '../modules/uploads/uploads.routes';
+import { contentRoutes } from '../modules/content/content.routes';
+import { transactionsRoutes } from '../modules/transactions/transactions.routes';
+import { invoicesRoutes } from '../modules/invoices/invoices.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -42,12 +55,30 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(reportsRoutes, { prefix: '/reports' });
       await v1.register(consultationsRoutes, { prefix: '/consultations' });
       await v1.register(consultationsRoutes, { prefix: '/consultation' });
+      await v1.register(bookingsAdminRoutes); // /admin/consultation-types, /admin/availability, /admin/bookings
       await v1.register(coursesRoutes, { prefix: '/courses' });
       await v1.register(coursesRoutes, { prefix: '/course' });
       await v1.register(productsRoutes, { prefix: '/products' });
       await v1.register(productsRoutes, { prefix: '/shop' });
       await v1.register(accountRoutes, { prefix: '/account' });
+      // shop (website integration): docs/integration/modules/shop.md
+      await v1.register(categoriesRoutes, { prefix: '/categories' });
+      await v1.register(cartRoutes, { prefix: '/cart' });
+      await v1.register(wishlistRoutes, { prefix: '/wishlist' });
+      await v1.register(couponsRoutes, { prefix: '/coupons' });
+      await v1.register(shopOrdersRoutes, { prefix: '/orders' });
+      await v1.register(courseLinksRoutes, { prefix: '/course-links' });
+      await v1.register(adminCategoriesRoutes, { prefix: '/admin' }); // /admin/categories
+      await v1.register(adminProductsRoutes, { prefix: '/admin' }); // /admin/shop-products
+      await v1.register(adminCouponsRoutes, { prefix: '/admin' }); // /admin/coupons
+      await v1.register(adminShopOrdersRoutes, { prefix: '/admin' }); // /admin/shop-orders
+      await v1.register(adminCourseLinksRoutes, { prefix: '/admin' }); // /admin/course-links
+      await v1.register(adminCustomersRoutes, { prefix: '/admin' }); // /admin/customers
       await v1.register(adminRoutes, { prefix: '/admin' });
+      await v1.register(uploadsRoutes); // POST /admin/uploads, GET /uploads/local/* (dev only)
+      await v1.register(contentRoutes); // website CMS: public /banners /blogs /faqs /testimonial /media /inquiry /seo /settings, admin /admin/<same>
+      await v1.register(transactionsRoutes); // GET /admin/transactions, /admin/gst-report (+ /export)
+      await v1.register(invoicesRoutes); // GET /invoices/orders/:orderId, /admin/invoices/*
       await v1.register(notificationsRoutes, { prefix: '/notifications' });
       await v1.register(jyotiRoutes, { prefix: '/jyoti' });
     },

@@ -28,6 +28,39 @@ import {
   AdminUpdateStockInput,
   AdminGrantEntitlementInput,
 } from './products.schemas';
+import { Prisma, ShopAddressType } from '@prisma/client';
+import { storageService } from '../../services/storage.service';
+import { getUploadedFileSignedUrl, resolveManagedKey } from '../../services/storage/storage-refs';
+import { PRODUCT_INCLUDE, ProductRow, ResolvedLine, resolveLine, toPublicProduct, websiteType } from './product-view';
+import { priceCart, PricedCart, PricedLine, resolveShippingPolicy } from './shop-pricing';
+import { typeFilter } from './products.admin.service';
+import { buildDraft, shopOrdersService, snapshotAddress } from '../shop-orders/shop-orders.service';
+import { settleOrderPaid } from '../commerce/money/settlement';
+import { transactionsService } from '../transactions/transactions.service';
+import { assertGatewayPaymentMatches } from './payment-check';
+
+/** Lifetime of a download link, in seconds. */
+export const DOWNLOAD_LINK_TTL_SECONDS = 15 * 60;
+
+/**
+ * Storage key behind a stored download reference. Website data stores the full public S3 URL of a
+ * file; the object key is the part after the bucket host. Anything else is used as it is.
+ */
+export function storageKeyOf(reference: string): string {
+  const marker = '.amazonaws.com/';
+  const at = reference.indexOf(marker);
+  if (/^https?:\/\//i.test(reference) && at !== -1) {
+    return decodeURIComponent(reference.slice(at + marker.length).split('?')[0]);
+  }
+  return reference;
+}
+
+function toAddressType(value: string | undefined): ShopAddressType | undefined {
+  if (value === undefined) return undefined;
+  const upper = value.toUpperCase();
+  if (upper in ShopAddressType) return upper as ShopAddressType;
+  throw new ValidationError('Address type must be home, work or other');
+}
 
 export class ProductsService {
   private seeded = false;
@@ -39,7 +72,15 @@ export class ProductsService {
     if (this.seeded) return;
     try {
       for (const item of VERIFIED_PRODUCTS) {
-        await prisma.product.upsert({
+        // The seed is the starting catalogue. Once a product has been created or edited in the
+        // admin (managedByAdmin) the seed leaves it alone, and it never resets stock: stock is
+        // live data, reduced by paid orders.
+        const current = await prisma.product.findUnique({
+          where: { slug: item.slug },
+          select: { id: true, managedByAdmin: true },
+        });
+        if (current?.managedByAdmin) continue;
+        const row = await prisma.product.upsert({
           where: { slug: item.slug },
           update: {
             catalogId: item.catalogId,
@@ -52,7 +93,7 @@ export class ProductsService {
             mrp: item.mrp,
             price: item.price,
             currency: item.currency,
-            stock: item.stock,
+            hasVariants: Boolean(item.variants?.length),
             isAvailable: item.isAvailable,
             requiresShipping: item.requiresShipping,
             imageUrl: item.imageUrl,
@@ -79,8 +120,26 @@ export class ProductsService {
             galleryImages: (item.galleryImages as any) ?? undefined,
             variants: (item.variants as any) ?? undefined,
             metadata: (item.metadata as any) ?? undefined,
+            hasVariants: Boolean(item.variants?.length),
           },
         });
+        // Seeded variants also live in product_variants, addressed by their seed id (`code`).
+        for (const [index, variant] of (item.variants ?? []).entries()) {
+          await prisma.productVariant.upsert({
+            where: { productId_code: { productId: row.id, code: variant.id } },
+            update: { name: variant.name, value: variant.value, mrp: variant.mrp, price: variant.price, sortOrder: index },
+            create: {
+              productId: row.id,
+              code: variant.id,
+              name: variant.name,
+              value: variant.value,
+              mrp: variant.mrp,
+              price: variant.price,
+              stock: variant.stock,
+              sortOrder: index,
+            },
+          });
+        }
       }
       this.seeded = true;
       logger.info('Verified shop products synchronized to database successfully');
@@ -92,36 +151,65 @@ export class ProductsService {
   /**
    * List products with filtering and pagination
    */
-  public async listProducts(query: ListProductsQuery) {
+  public async listProducts(query: ListProductsQuery, userId?: string | null) {
     await this.ensureProductsSeeded();
 
-    const where: any = { isAvailable: true };
+    // Public catalogue: published and available products only.
+    const where: Prisma.ProductWhereInput = { isAvailable: true, isPublished: true };
+    const and: Prisma.ProductWhereInput[] = [];
     if (query.category) {
-      where.category = query.category;
+      // The app sends a category code ("DIGITAL_ART"); the website sends one or more category ids.
+      const values = String(query.category).split(',').map((s) => s.trim()).filter(Boolean);
+      and.push({
+        OR: [{ category: { in: values } }, { categoryId: { in: values } }, { categoryRef: { slug: { in: values } } }],
+      });
     }
     if (query.productType) {
+      if (!(query.productType in ProductType)) {
+        throw new ValidationError(`Unknown product type: "${query.productType}"`);
+      }
       where.productType = query.productType as ProductType;
     }
-    if (query.search) {
-      where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { hindiTitle: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
-      ];
+    if (query.type === 'physical' || query.type === 'digital' || query.type === 'service') {
+      and.push(typeFilter(query.type));
     }
+    if (query.featured === true || query.featured === 'true') {
+      where.isFeatured = true;
+    }
+    if (query.search) {
+      and.push({
+        OR: [
+          { title: { contains: query.search, mode: 'insensitive' } },
+          { hindiTitle: { contains: query.search, mode: 'insensitive' } },
+          { description: { contains: query.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (and.length) where.AND = and;
 
     const limit = query.limit ? Math.min(Math.max(query.limit, 1), 50) : 20;
-    const offset = query.offset ? Math.max(query.offset, 0) : 0;
+    const offset = query.page ? (Math.max(query.page, 1) - 1) * limit : query.offset ? Math.max(query.offset, 0) : 0;
 
-    const [products, total] = await Promise.all([
+    const [rows, total, cartItems, wishlistItems] = await Promise.all([
       prisma.product.findMany({
         where,
         take: limit,
         skip: offset,
         orderBy: [{ requiresShipping: 'desc' }, { createdAt: 'desc' }],
+        include: PRODUCT_INCLUDE,
       }),
       prisma.product.count({ where }),
+      userId ? prisma.cartItem.findMany({ where: { cart: { userId } }, select: { productId: true } }) : Promise.resolve([]),
+      userId ? prisma.wishlistItem.findMany({ where: { userId }, select: { productId: true } }) : Promise.resolve([]),
     ]);
+
+    const inCart = new Set(cartItems.map((i) => i.productId));
+    const inWishlist = new Set(wishlistItems.map((i) => i.productId));
+    const products = rows.map((row) => ({
+      ...toPublicProduct(row),
+      isInCart: inCart.has(row.id),
+      isInWishlist: inWishlist.has(row.id),
+    }));
 
     return {
       products,
@@ -129,13 +217,15 @@ export class ProductsService {
         total,
         limit,
         offset,
+        page: Math.floor(offset / limit) + 1,
         hasMore: offset + limit < total,
       },
     };
   }
 
   /**
-   * Get product details by ID or slug
+   * Get product details by ID, slug or catalog id. Unpublished products are not found, and the
+   * response never carries the location of a downloadable file (website security finding 4).
    */
   public async getProductDetails(idOrSlug: string) {
     await this.ensureProductsSeeded();
@@ -143,49 +233,44 @@ export class ProductsService {
     const product = await prisma.product.findFirst({
       where: {
         OR: [{ id: idOrSlug }, { slug: idOrSlug }, { catalogId: idOrSlug }],
+        isPublished: true,
       },
+      include: PRODUCT_INCLUDE,
     });
 
     if (!product) {
       throw new NotFoundError(`Product not found: "${idOrSlug}"`);
     }
 
-    return product;
+    return toPublicProduct(product);
   }
 
   /**
-   * Calculate cart server-authoritatively.
-   * Completely immune to client-submitted prices, discounts, or tax rates.
+   * Prices a list of chosen products from the catalogue as it is now. Shared by the stateless
+   * `cart/calculate` endpoint and the app's order creation, on the same engine as the saved cart.
    */
-  public async calculateCart(userId: string | null, input: CalculateCartInput) {
-    await this.ensureProductsSeeded();
-
-    if (!input.items || !Array.isArray(input.items) || input.items.length === 0) {
+  private async priceSelections(
+    items: CalculateCartInput['items']
+  ): Promise<{ lines: Array<{ resolved: ResolvedLine; priced: PricedLine; requestedVariantId: string | null }>; priced: PricedCart }> {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       throw new ValidationError('At least one product must be in the cart');
     }
-
-    if (input.items.length > 50) {
+    if (items.length > 50) {
       throw new ValidationError('Cart exceeds maximum allowed item count (50 items)');
     }
 
-    let calculatedItems: any[] = [];
-    let itemsSubtotalPaise = 0;
-    let itemsTaxPaise = 0;
-    let itemsTotalPaise = 0;
-    let hasPhysicalItems = false;
-    let physicalSubtotalPaise = 0;
-
-    for (const item of input.items) {
-      const product = await prisma.product.findFirst({
+    const resolvedLines: Array<{ resolved: ResolvedLine; quantity: number; requestedVariantId: string | null }> = [];
+    for (const item of items) {
+      const product: ProductRow | null = await prisma.product.findFirst({
         where: {
           OR: [{ id: item.productId }, { slug: item.productId }, { catalogId: item.productId }],
+          isPublished: true,
         },
+        include: PRODUCT_INCLUDE,
       });
-
       if (!product) {
         throw new ValidationError(`Product not found: "${item.productId}"`);
       }
-
       if (!product.isAvailable) {
         throw new ValidationError(`Product "${product.title}" is currently unavailable`);
       }
@@ -195,80 +280,67 @@ export class ProductsService {
         throw new ValidationError(`Invalid quantity for "${product.title}". Must be between 1 and 50`);
       }
 
-      // Check stock if physical product with tracked inventory
-      if (product.requiresShipping && product.stock >= 0) {
-        if (qty > product.stock) {
-          throw new ValidationError(
-            `Requested quantity (${qty}) exceeds available stock (${product.stock}) for "${product.title}"`
-          );
-        }
-      }
-
-      // Resolve unit price: check if variant is selected
-      let unitPrice = product.price;
-      let variantName: string | null = null;
-
-      if (item.variantId && Array.isArray(product.variants)) {
-        const variant = (product.variants as any[]).find(
-          (v) => v.id === item.variantId || (item.variantId && v.value?.toLowerCase() === item.variantId.toLowerCase())
+      // As before: an unknown or missing variant falls back to the product's own price.
+      const resolved = resolveLine(product, item.variantId ?? null, { requireVariant: false })!;
+      if (resolved.availableStock !== null && qty > resolved.availableStock) {
+        throw new ValidationError(
+          `Requested quantity (${qty}) exceeds available stock (${resolved.availableStock}) for "${product.title}"`
         );
-        if (variant && typeof variant.price === 'number') {
-          unitPrice = variant.price;
-          variantName = `${variant.name}: ${variant.value}`;
-        }
       }
-
-      const lineGross = unitPrice * qty;
-      const taxRateBasisPoints = 1800; // 18% inclusive GST
-      const lineNet = Math.round((lineGross * 10000) / (10000 + taxRateBasisPoints));
-      const lineTax = lineGross - lineNet;
-
-      if (product.requiresShipping) {
-        hasPhysicalItems = true;
-        physicalSubtotalPaise += lineGross;
-      }
-
-      calculatedItems.push({
-        productId: product.id,
-        catalogId: product.catalogId,
-        slug: product.slug,
-        title: product.title,
-        hindiTitle: product.hindiTitle,
-        imageUrl: product.imageUrl,
-        productType: product.productType,
-        requiresShipping: product.requiresShipping,
-        variantId: item.variantId || null,
-        variantName,
-        quantity: qty,
-        unitPrice,
-        taxRate: taxRateBasisPoints,
-        subtotal: lineNet,
-        taxAmount: lineTax,
-        totalAmount: lineGross,
-      });
-
-      itemsSubtotalPaise += lineNet;
-      itemsTaxPaise += lineTax;
-      itemsTotalPaise += lineGross;
+      resolvedLines.push({ resolved, quantity: qty, requestedVariantId: item.variantId || null });
     }
 
-    // Shipping calculation:
-    // If physical items exist:
-    // - Free shipping threshold: physical order >= ₹2,000 (200000 paise)
-    // - Otherwise standard shipping: ₹99 (9900 paise)
-    // If all digital: ₹0 shipping
-    let shippingAmountPaise = 0;
-    let eligibleForFreeShipping = false;
+    const priced = priceCart(
+      resolvedLines.map((line, index) => ({
+        key: String(index),
+        unitPricePaise: line.resolved.unitPricePaise,
+        quantity: line.quantity,
+        gst: line.resolved.gst,
+        physical: line.resolved.physical,
+      })),
+      { shipping: resolveShippingPolicy() }
+    );
 
-    if (hasPhysicalItems) {
-      if (physicalSubtotalPaise >= 200000) {
-        shippingAmountPaise = 0;
-        eligibleForFreeShipping = true;
-      } else {
-        shippingAmountPaise = 9900;
-        eligibleForFreeShipping = false;
-      }
-    }
+    return {
+      lines: resolvedLines.map((line, index) => ({
+        resolved: line.resolved,
+        priced: priced.lines[index],
+        requestedVariantId: line.requestedVariantId,
+      })),
+      priced,
+    };
+  }
+
+  /**
+   * Calculate cart server-authoritatively.
+   * Completely immune to client-submitted prices, discounts, or tax rates.
+   */
+  public async calculateCart(userId: string | null, input: CalculateCartInput) {
+    await this.ensureProductsSeeded();
+
+    const { lines, priced } = await this.priceSelections(input.items);
+
+    // Per-product GST (seeded products: 18% inclusive) and the shop's shipping rule, both from the
+    // shared price engine (shop-pricing.ts). `subtotal` is the taxable value, as before.
+    const calculatedItems = lines.map(({ resolved, priced: line, requestedVariantId }) => ({
+      productId: resolved.product.id,
+      catalogId: resolved.product.catalogId,
+      slug: resolved.product.slug,
+      title: resolved.product.title,
+      hindiTitle: resolved.product.hindiTitle,
+      imageUrl: resolved.product.imageUrl,
+      productType: resolved.product.productType,
+      requiresShipping: resolved.product.requiresShipping,
+      variantId: requestedVariantId,
+      variantName: resolved.variantLabel,
+      quantity: line.quantity,
+      unitPrice: line.unitPricePaise,
+      taxRate: line.taxRateBp,
+      taxType: line.taxInclusive ? 'inclusive' : 'exclusive',
+      subtotal: line.taxablePaise,
+      taxAmount: line.taxPaise,
+      totalAmount: line.payablePaise,
+    }));
 
     // Validate shipping address if provided
     let shippingAddress: any = null;
@@ -278,18 +350,16 @@ export class ProductsService {
       });
     }
 
-    const finalPayablePaise = itemsTotalPaise + shippingAmountPaise;
-
     return {
       items: calculatedItems,
-      subtotal: itemsSubtotalPaise,
-      taxAmount: itemsTaxPaise,
-      shippingAmount: shippingAmountPaise,
+      subtotal: priced.taxablePaise,
+      taxAmount: priced.taxTotalPaise,
+      shippingAmount: priced.shippingPaise,
       discountAmount: 0,
-      totalAmount: finalPayablePaise,
+      totalAmount: priced.totalPaise,
       currency: 'INR',
-      requiresShipping: hasPhysicalItems,
-      eligibleForFreeShipping,
+      requiresShipping: priced.hasPhysical,
+      eligibleForFreeShipping: priced.freeShipping,
       shippingAddress,
     };
   }
@@ -330,82 +400,40 @@ export class ProductsService {
     }
 
     // 2. Authoritative server calculation
-    const calculated = await this.calculateCart(user.id, {
-      items: input.items,
-      shippingAddressId: input.shippingAddressId,
-    });
+    const { lines, priced } = await this.priceSelections(input.items);
 
     // 3. Physical fulfillment validation: shipping address is mandatory if order has physical items
-    if (calculated.requiresShipping && !input.shippingAddressId) {
+    if (priced.hasPhysical && !input.shippingAddressId) {
       throw new ValidationError('A valid shipping address is required for orders containing physical products');
     }
 
-    if (calculated.requiresShipping && input.shippingAddressId) {
-      const address = await prisma.shippingAddress.findFirst({
+    let shippingAddressRow: Awaited<ReturnType<typeof prisma.shippingAddress.findFirst>> = null;
+    if (priced.hasPhysical && input.shippingAddressId) {
+      shippingAddressRow = await prisma.shippingAddress.findFirst({
         where: { id: input.shippingAddressId, userId: user.id },
       });
-      if (!address) {
+      if (!shippingAddressRow) {
         throw new ValidationError('Selected shipping address was not found or does not belong to this account');
       }
     }
 
-    // 4. Create Gateway Order
-    const rzOrder = await paymentService.createRazorpayOrder(
-      calculated.totalAmount,
-      calculated.currency,
-      `shop_${Date.now()}`
+    // 4-5. One order-creation path for the app and the website: the priced lines go to the shop
+    // order service as a typed draft (gateway order, Order + OrderItems, ShopOrder in one transaction).
+    const created = await shopOrdersService.createFromDraft(
+      buildDraft({
+        userId: user.id,
+        source: 'direct',
+        lines,
+        priced,
+        couponCode: null,
+        shippingAddressId: shippingAddressRow?.id ?? null,
+        // The address is copied onto the order, so later edits to the saved address do not change it.
+        shippingAddress: shippingAddressRow ? snapshotAddress(shippingAddressRow) : null,
+        idempotencyKey: input.idempotencyKey,
+        notes: input.notes,
+      })
     );
-
-    // 5. Persist unified Order and OrderItems in single transaction
-    const order = await prisma.$transaction(async (tx) => {
-      const createdOrder = await tx.order.create({
-        data: {
-          userId: user.id,
-          razorpayOrderId: rzOrder.id,
-          amount: calculated.totalAmount,
-          subtotal: calculated.subtotal,
-          taxAmount: calculated.taxAmount,
-          shippingAmount: calculated.shippingAmount,
-          shippingAddressId: input.shippingAddressId || null,
-          discountAmount: 0,
-          currency: calculated.currency,
-          status: OrderStatus.PENDING,
-          paymentStatus: PaymentStatus.PENDING,
-          fulfillmentStatus: FulfillmentStatus.UNFULFILLED,
-          idempotencyKey: input.idempotencyKey || null,
-          notes: input.notes || null,
-          items: {
-            create: calculated.items.map((item) => ({
-              itemType: OrderItemType.PRODUCT,
-              catalogId: item.catalogId,
-              title: item.title,
-              description: item.variantName ? `${item.title} (${item.variantName})` : item.title,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              taxRate: item.taxRate,
-              taxAmount: item.taxAmount,
-              totalAmount: item.totalAmount,
-              currency: calculated.currency,
-              fulfillmentType: item.requiresShipping ? FulfillmentType.PHYSICAL : FulfillmentType.DIGITAL,
-              metadata: {
-                productId: item.productId,
-                slug: item.slug,
-                variantId: item.variantId,
-                variantName: item.variantName,
-                productType: item.productType,
-                imageUrl: item.imageUrl,
-              },
-            })),
-          },
-        },
-        include: {
-          items: true,
-          shippingAddress: true,
-        },
-      });
-
-      return createdOrder;
-    });
+    const order = { ...created, shippingAddress: shippingAddressRow };
 
     logger.info(
       { userId: user.id, orderId: order.id, razorpayOrderId: order.razorpayOrderId, amount: order.amount },
@@ -449,9 +477,23 @@ export class ProductsService {
       throw new NotFoundError('Order not found');
     }
 
+    // The payment must belong to the order the caller names (website security finding 2): the order
+    // is found by the gateway order id stored for it, and an order id sent alongside must match.
+    if (input.orderId && input.orderId !== order.id) {
+      throw new NotFoundError('Order not found');
+    }
+
     // Idempotent replay: if already PAID, return cleanly
     if (order.status === OrderStatus.PAID) {
       logger.info({ orderId: order.id, userId: user.id }, 'Shop payment already verified (Idempotent replay)');
+      // The gateway webhook can mark the order paid before the customer's browser gets here. Until
+      // the webhook itself calls `applyPaidEffects`, its own product step has taken the stock but
+      // knows nothing of the coupon, the saved cart, variants or the website status: finish those
+      // here. A no-op once the effects are recorded on the shop order.
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "orders" WHERE id = ${order.id} FOR UPDATE`;
+        await shopOrdersService.applyPaidEffects(tx, order.id, { stockAlreadyTaken: true });
+      });
       const entitlements = await prisma.digitalProductEntitlement.findMany({
         where: { orderId: order.id },
         include: { product: true },
@@ -482,8 +524,14 @@ export class ProductsService {
           paymentStatus: PaymentStatus.FAILED,
         },
       });
+      await shopOrdersService.markPaymentFailed(order.id);
+      await transactionsService.markOrderFailed(order.id);
       throw new ValidationError('Invalid payment signature');
     }
+
+    // Read the payment back from the gateway and compare order id, amount and currency with the
+    // stored order before anything is marked paid.
+    const gatewayRaw = await assertGatewayPaymentMatches(order, input.razorpayPaymentId);
 
     // Fulfill order in atomic transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -496,6 +544,20 @@ export class ProductsService {
       await tx.$queryRaw`
         SELECT id FROM "order_items" WHERE "orderId" = ${order.id} ORDER BY id ASC FOR UPDATE;
       `;
+
+      // Claim once: under the row lock, an order the webhook (or a parallel request) already paid
+      // is returned as it is, and one cancelled meanwhile is refused.
+      const locked = await tx.order.findUnique({ where: { id: order.id }, select: { status: true } });
+      if (locked?.status === OrderStatus.PAID) {
+        const current = await tx.order.findUnique({
+          where: { id: order.id },
+          include: { items: true, shippingAddress: true },
+        });
+        return { updatedOrder: current!, createdEntitlements: [] };
+      }
+      if (locked?.status === OrderStatus.CANCELLED) {
+        throw new ValidationError('Cannot verify payment for a cancelled order');
+      }
 
       // 3. Atomically transition order to PAID, CAPTURED, paidAt = clock_timestamp(), version = version + 1
       await tx.$executeRaw`
@@ -513,78 +575,26 @@ export class ProductsService {
       // 4. Create fulfillment units idempotently
       await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
 
-      // 5. Fulfill items
-      const createdEntitlements: any[] = [];
-
-      for (const item of order.items) {
-        if (item.itemType === OrderItemType.PRODUCT) {
-          const product = await tx.product.findFirst({
-            where: {
-              OR: [{ catalogId: item.catalogId }, { id: item.catalogId }, { slug: item.catalogId }],
-            },
-          });
-
-          if (product) {
-            if (product.requiresShipping) {
-              // Physical product: safely decrement stock if stock tracking enabled
-              if (product.stock > 0) {
-                await tx.product.update({
-                  where: { id: product.id },
-                  data: {
-                    stock: { decrement: Math.min(item.quantity, product.stock) },
-                  },
-                });
-              }
-            } else {
-              // Digital product: find fulfillment unit and grant digital entitlement
-              const digitalUnits = await tx.$queryRaw<Array<{ id: string }>>`
-                SELECT id FROM "fulfillment_units"
-                WHERE "orderItemId" = ${item.id} AND "obligationType" = 'DIGITAL_PRODUCT'::"ObligationType"
-                ORDER BY "unitIndex" ASC
-                LIMIT 1;
-              `;
-              const digitalUnitId = digitalUnits[0]?.id;
-
-              const existingEntitlement = await tx.digitalProductEntitlement.findFirst({
-                where: {
-                  userId: order.userId,
-                  productId: product.id,
-                  orderId: order.id,
-                },
-              });
-
-              if (!existingEntitlement) {
-                const entitlement = await tx.digitalProductEntitlement.create({
-                  data: {
-                    userId: order.userId,
-                    productId: product.id,
-                    orderId: order.id,
-                    fulfillmentUnitId: digitalUnitId || null,
-                    source: EntitlementSource.PURCHASE,
-                    status: EntitlementStatus.ACTIVE,
-                    assetKey: (product.metadata as any)?.digitalAssetKey || product.imageUrl,
-                    bundleAssets: (product.metadata as any)?.bundleAssets || null,
-                  },
-                  include: { product: true },
-                });
-                createdEntitlements.push(entitlement);
-              } else if (!existingEntitlement.fulfillmentUnitId && digitalUnitId) {
-                await tx.digitalProductEntitlement.update({
-                  where: { id: existingEntitlement.id },
-                  data: { fulfillmentUnitId: digitalUnitId },
-                });
-              }
-
-              if (digitalUnitId) {
-                await fulfillmentService.reconcileFulfillmentUnit(order.id, digitalUnitId, tx);
-              }
-            }
-          }
-        }
-      }
+      // 5. Fulfill items: stock taken atomically, one download per digital line (per variant),
+      // coupon use recorded, saved cart emptied. Runs once per order.
+      const effects = await shopOrdersService.applyPaidEffects(tx, order.id);
+      const createdEntitlements = effects.entitlementIds.length
+        ? await tx.digitalProductEntitlement.findMany({
+            where: { id: { in: effects.entitlementIds } },
+            include: { product: true },
+          })
+        : [];
 
       // 6. Reconcile overall order fulfillment status
       await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+
+      // 7. Money: ledger row -> SUCCESS and the invoice number, in this same transaction.
+      await settleOrderPaid(
+        tx,
+        order.id,
+        { gatewayPaymentId: input.razorpayPaymentId, gatewayOrderId: input.razorpayOrderId, raw: gatewayRaw ?? undefined },
+        { placeOfSupplyState: order.shippingAddress?.state ?? null }
+      );
 
       const updatedOrder = await tx.order.findUnique({
         where: { id: order.id },
@@ -599,6 +609,10 @@ export class ProductsService {
       'Shop payment verified and fulfillment completed successfully'
     );
 
+    // Website channels (e-mail / SMS / WhatsApp "order confirmed"), then the app's push and in-app
+    // notice with websiteChannels off so the customer is not messaged twice for one sale.
+    await shopOrdersService.notifyOrderStatus(result.updatedOrder.id);
+
     // Non-blocking notification dispatch
     try {
       await notificationService.sendNotification({
@@ -606,6 +620,7 @@ export class ProductsService {
         type: 'PAYMENT_SUCCESS',
         entityId: result.updatedOrder.id,
         route: 'OPEN_PAYMENTS',
+        websiteChannels: false,
         templateData: {
           amountRupees: (result.updatedOrder.amount / 100).toFixed(2),
           orderId: result.updatedOrder.id,
@@ -629,31 +644,44 @@ export class ProductsService {
   public async getMyDigitalDownloads(userId: string) {
     const entitlements = await prisma.digitalProductEntitlement.findMany({
       where: { userId },
-      include: { product: true, order: true },
+      include: { product: { include: { variantRows: true } }, order: true },
       orderBy: { grantedAt: 'desc' },
     });
 
-    return entitlements.map((ent) => ({
-      id: ent.id,
-      productId: ent.productId,
-      orderId: ent.orderId,
-      productTitle: ent.product.title,
-      productHindiTitle: ent.product.hindiTitle,
-      productType: ent.product.productType,
-      category: ent.product.category,
-      imageUrl: ent.product.imageUrl,
-      status: ent.status,
-      downloadCount: ent.downloadCount,
-      lastDownloadedAt: ent.lastDownloadedAt,
-      grantedAt: ent.grantedAt,
-      expiresAt: ent.expiresAt,
-      bundleAssets: ent.bundleAssets,
-      hasBundleAssets: Array.isArray(ent.bundleAssets) && (ent.bundleAssets as any[]).length > 0,
-    }));
+    // The storage key of a file is never part of this list: a link is issued per download.
+    return entitlements.map((ent) => {
+      const variant = ent.variantId ? ent.product.variantRows.find((v) => v.id === ent.variantId) : undefined;
+      const bundle = Array.isArray(ent.bundleAssets) ? (ent.bundleAssets as Array<{ name?: string; type?: string }>) : [];
+      return {
+        id: ent.id,
+        productId: ent.productId,
+        productSlug: ent.product.slug,
+        orderId: ent.orderId,
+        variantId: ent.variantId,
+        variantName: variant ? variant.value || variant.name : null,
+        productTitle: ent.product.title,
+        productName: ent.assetName ?? ent.product.title,
+        productHindiTitle: ent.product.hindiTitle,
+        productType: ent.product.productType,
+        category: ent.product.category,
+        imageUrl: ent.product.imageUrl,
+        thumbnail: ent.product.thumbnailUrl ?? ent.product.imageUrl,
+        status: ent.status,
+        downloadCount: ent.downloadCount,
+        totalDownloads: ent.downloadCount,
+        lastDownloadedAt: ent.lastDownloadedAt,
+        grantedAt: ent.grantedAt,
+        expiresAt: ent.expiresAt,
+        bundleAssets: bundle.map((asset) => ({ name: asset?.name ?? null, type: asset?.type ?? null })),
+        hasBundleAssets: bundle.length > 0,
+      };
+    });
   }
 
   /**
-   * Generate secure expiring signed download link for digital asset
+   * Issue a short-lived signed link for a purchased file, after checking that the entitlement
+   * belongs to the caller and is active. The file itself stays private in storage; the website
+   * returned its permanent public S3 address instead.
    */
   public async getSecureDownloadUrl(userId: string, entitlementId: string, assetIndex?: number) {
     const entitlement = await prisma.digitalProductEntitlement.findFirst({
@@ -673,9 +701,10 @@ export class ProductsService {
       throw new ForbiddenError('Digital download entitlement has expired');
     }
 
-    // Determine target asset
+    // Determine target asset: the file of the purchased variant (kept on the entitlement when it
+    // was granted), or one file of a bundle.
     let targetAssetKey = entitlement.assetKey || entitlement.product.imageUrl;
-    let targetAssetName = entitlement.product.title;
+    let targetAssetName = entitlement.assetName || entitlement.product.title;
 
     if (
       Array.isArray(entitlement.bundleAssets) &&
@@ -689,6 +718,16 @@ export class ProductsService {
       }
     }
 
+    if (!targetAssetKey) {
+      throw new NotFoundError('The file for this purchase is not available yet');
+    }
+
+    // Files uploaded through the upload endpoint (and website-era files) go through the upload
+    // helper; the seeded catalogue's own keys ("digital/...") are signed directly.
+    const downloadUrl = resolveManagedKey(targetAssetKey)
+      ? await getUploadedFileSignedUrl(targetAssetKey, DOWNLOAD_LINK_TTL_SECONDS)
+      : await storageService.getSignedDownloadUrl(storageKeyOf(targetAssetKey), DOWNLOAD_LINK_TTL_SECONDS);
+
     // Atomically increment download count
     await prisma.digitalProductEntitlement.update({
       where: { id: entitlement.id },
@@ -698,27 +737,19 @@ export class ProductsService {
       },
     });
 
-    // Generate signed HMAC token with 15-minute expiry
-    const expiryTimestamp = Math.floor(Date.now() / 1000) + 15 * 60; // 15 mins
-    const secret = process.env.JWT_SECRET || 'astro-sushil-secure-token-secret';
-    const payload = `${entitlement.id}:${targetAssetKey}:${expiryTimestamp}`;
-    const token = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-
-    const downloadUrl = `https://downloads.astrosushil.com/secure/${entitlement.id}?token=${token}&expires=${expiryTimestamp}&asset=${encodeURIComponent(
-      targetAssetKey || ''
-    )}`;
-
     return {
       entitlementId: entitlement.id,
       assetName: targetAssetName,
       downloadUrl,
-      expiresAt: new Date(expiryTimestamp * 1000).toISOString(),
+      file: downloadUrl,
+      expiresAt: new Date(Date.now() + DOWNLOAD_LINK_TTL_SECONDS * 1000).toISOString(),
       downloadCount: entitlement.downloadCount + 1,
     };
   }
 
   /**
-   * Shipping Address CRUD
+   * Shipping Address CRUD. Every lookup and write carries the caller's user id, so one customer
+   * can never read, change, delete or default another customer's address (website finding 6).
    */
   public async getShippingAddresses(userId: string) {
     return prisma.shippingAddress.findMany({
@@ -728,63 +759,85 @@ export class ProductsService {
   }
 
   public async createShippingAddress(userId: string, data: ShippingAddressInput) {
-    if (data.isDefault) {
-      await prisma.shippingAddress.updateMany({
-        where: { userId },
-        data: { isDefault: false },
+    const type = toAddressType(data.type);
+    return prisma.$transaction(async (tx) => {
+      // The first address of an account is its default.
+      const makeDefault = Boolean(data.isDefault) || (await tx.shippingAddress.count({ where: { userId } })) === 0;
+      if (makeDefault) {
+        await tx.shippingAddress.updateMany({ where: { userId }, data: { isDefault: false } });
+      }
+      return tx.shippingAddress.create({
+        data: {
+          userId,
+          fullName: data.fullName,
+          phoneNumber: data.phoneNumber,
+          addressLine1: data.addressLine1,
+          addressLine2: data.addressLine2 || null,
+          landmark: data.landmark || null,
+          city: data.city,
+          state: data.state,
+          postalCode: data.postalCode,
+          country: data.country || 'India',
+          ...(type ? { type } : {}),
+          isDefault: makeDefault,
+        },
       });
-    }
-
-    return prisma.shippingAddress.create({
-      data: {
-        userId,
-        fullName: data.fullName,
-        phoneNumber: data.phoneNumber,
-        addressLine1: data.addressLine1,
-        addressLine2: data.addressLine2 || null,
-        city: data.city,
-        state: data.state,
-        postalCode: data.postalCode,
-        country: data.country || 'India',
-        isDefault: data.isDefault || false,
-      },
     });
   }
 
   public async updateShippingAddress(userId: string, addressId: string, data: Partial<ShippingAddressInput>) {
-    const existing = await prisma.shippingAddress.findFirst({
-      where: { id: addressId, userId },
-    });
-    if (!existing) {
-      throw new NotFoundError('Shipping address not found');
-    }
+    const type = toAddressType(data.type);
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.shippingAddress.findFirst({ where: { id: addressId, userId } });
+      if (!existing) {
+        throw new NotFoundError('Shipping address not found');
+      }
 
-    if (data.isDefault) {
-      await prisma.shippingAddress.updateMany({
-        where: { userId },
-        data: { isDefault: false },
+      if (data.isDefault) {
+        await tx.shippingAddress.updateMany({ where: { userId }, data: { isDefault: false } });
+      }
+
+      // Only the address fields may be written: never userId or id, whatever the body contains.
+      await tx.shippingAddress.updateMany({
+        where: { id: addressId, userId },
+        data: {
+          ...(data.fullName !== undefined ? { fullName: data.fullName } : {}),
+          ...(data.phoneNumber !== undefined ? { phoneNumber: data.phoneNumber } : {}),
+          ...(data.addressLine1 !== undefined ? { addressLine1: data.addressLine1 } : {}),
+          ...(data.addressLine2 !== undefined ? { addressLine2: data.addressLine2 || null } : {}),
+          ...(data.landmark !== undefined ? { landmark: data.landmark || null } : {}),
+          ...(data.city !== undefined ? { city: data.city } : {}),
+          ...(data.state !== undefined ? { state: data.state } : {}),
+          ...(data.postalCode !== undefined ? { postalCode: data.postalCode } : {}),
+          ...(data.country !== undefined ? { country: data.country } : {}),
+          ...(type ? { type } : {}),
+          ...(data.isDefault !== undefined ? { isDefault: Boolean(data.isDefault) } : {}),
+        },
       });
-    }
+      return tx.shippingAddress.findFirstOrThrow({ where: { id: addressId, userId } });
+    });
+  }
 
-    return prisma.shippingAddress.update({
-      where: { id: addressId },
-      data: {
-        ...data,
-      },
+  /** Website `PATCH /address/:id/default`. */
+  public async setDefaultShippingAddress(userId: string, addressId: string) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.shippingAddress.findFirst({ where: { id: addressId, userId } });
+      if (!existing) {
+        throw new NotFoundError('Shipping address not found');
+      }
+      await tx.shippingAddress.updateMany({ where: { userId }, data: { isDefault: false } });
+      await tx.shippingAddress.updateMany({ where: { id: addressId, userId }, data: { isDefault: true } });
+      return { ...existing, isDefault: true };
     });
   }
 
   public async deleteShippingAddress(userId: string, addressId: string) {
-    const existing = await prisma.shippingAddress.findFirst({
+    const deleted = await prisma.shippingAddress.deleteMany({
       where: { id: addressId, userId },
     });
-    if (!existing) {
+    if (deleted.count === 0) {
       throw new NotFoundError('Shipping address not found');
     }
-
-    await prisma.shippingAddress.delete({
-      where: { id: addressId },
-    });
 
     return { success: true };
   }
