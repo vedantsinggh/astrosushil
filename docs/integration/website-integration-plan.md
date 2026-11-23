@@ -34,7 +34,7 @@ Cloned read-only at `/home/pilot/Projects/astrosushil-website/` (outside this re
 
 **Astrology and reports**
 - The paid astrology vendor is replaced by our own kundli, match-making, horoscope and report APIs. Place search moves from Google Places to ours.
-- Reports must be available in Hindi and English from day one.
+- Reports must be available in Hindi and English from day one: all 14 report types. Hindi is written directly by the model and passes the same checks as English (no translate-after step). A Hindi report may cost up to Rs 20 in LLM usage; English stays under Rs 10. Design: `docs/integration/hindi-reports-design.md`.
 - The daily horoscope must be available in Hindi and English from day one.
 - Kalsarpa and Pitra dosha sections are removed from the free kundli.
 - The free match-making page becomes real (it shows a hardcoded result today).
@@ -99,14 +99,14 @@ Cloned read-only at `/home/pilot/Projects/astrosushil-website/` (outside this re
 
 The vendor assumes Indian time for every birth. Our engine resolves the real timezone, so results for births outside India will differ, correctly.
 
-### Mapping of the four paid reports (proposal, not decided)
+### Mapping of the four paid reports (decided 2026-11-24)
 
-| Website product | Proposed replacement | Why |
-|---|---|---|
-| Mini horoscope | Planetary Summary (about 17 pages) | Short: chart, planet table, one reading per planet |
-| Basic horoscope | Kundli (about 83 pages) | The full birth chart report |
-| Pro horoscope | Fortune Plus (about 83 pages) | The most complete life reading |
-| Match-making | Couple Matching (about 78 pages) | Same purpose |
+| Website product | Replacement |
+|---|---|
+| Mini horoscope | Planetary Summary (about 17 pages) |
+| Basic horoscope | A shorter Kundli (about 40 pages), to be defined |
+| Pro horoscope | Fortune Plus (about 83 pages) |
+| Match-making | Couple Matching (about 78 pages) |
 
 ## Phases
 
@@ -132,7 +132,7 @@ The vendor assumes Indian time for every birth. Our engine resolves the real tim
 
 ## Open questions
 
-- Final mapping of the four paid reports.
+- Which Kundli topics make up the shorter "basic" Kundli.
 - The vendor subscription is handled by the owner and does not drive the schedule.
 
 ## Security findings on the website
