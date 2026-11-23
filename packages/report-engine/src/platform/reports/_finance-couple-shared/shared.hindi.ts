@@ -105,11 +105,11 @@ export function karakaText(lang: Lang, code: string): string {
  * Name syllables of the 27 nakshatras by pada, in the order of the engine's
  * NAKSHATRA_NAMAKSHARAS. Keyed by nakshatra and pada because the Roman
  * spelling alone is ambiguous ("Ta" is टा in Purva Phalguni and ता in Swati).
- * Ashlesha pada 1 follows the engine's "De" (tradition gives डी).
+ * Ashlesha pada 1 is "Di" (डी), as in the engine since 2026-11-24.
  */
 const NAMAKSHARA_HI: string[][] = [
   ['चू', 'चे', 'चो', 'ला'], ['ली', 'लू', 'ले', 'लो'], ['अ', 'ई', 'उ', 'ए'], ['ओ', 'वा', 'वी', 'वू'], ['वे', 'वो', 'का', 'की'],
-  ['कू', 'घ', 'ङ', 'छ'], ['के', 'को', 'हा', 'ही'], ['हू', 'हे', 'हो', 'डा'], ['डे', 'डू', 'डे', 'डो'], ['मा', 'मी', 'मू', 'मे'],
+  ['कू', 'घ', 'ङ', 'छ'], ['के', 'को', 'हा', 'ही'], ['हू', 'हे', 'हो', 'डा'], ['डी', 'डू', 'डे', 'डो'], ['मा', 'मी', 'मू', 'मे'],
   ['मो', 'टा', 'टी', 'टू'], ['टे', 'टो', 'पा', 'पी'], ['पू', 'ष', 'ण', 'ठ'], ['पे', 'पो', 'रा', 'री'], ['रू', 'रे', 'रो', 'ता'],
   ['ती', 'तू', 'ते', 'तो'], ['ना', 'नी', 'नू', 'ने'], ['नो', 'या', 'यी', 'यू'], ['ये', 'यो', 'भा', 'भी'], ['भू', 'धा', 'फा', 'ढा'],
   ['भे', 'भो', 'जा', 'जी'], ['खी', 'खू', 'खे', 'खो'], ['गा', 'गी', 'गू', 'गे'], ['गो', 'सा', 'सी', 'सू'], ['से', 'सो', 'दा', 'दी'],

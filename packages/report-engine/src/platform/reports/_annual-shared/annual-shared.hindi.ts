@@ -171,7 +171,7 @@ const YONI_GENDER_HI: Record<string, string> = { male: 'नर', female: 'मा
 export const NAMAKSHARA_HI: Record<string, [string, string, string, string]> = {
   Ashwini: ['चू', 'चे', 'चो', 'ला'], Bharani: ['ली', 'लू', 'ले', 'लो'], Krittika: ['अ', 'ई', 'उ', 'ए'], Rohini: ['ओ', 'वा', 'वी', 'वू'],
   Mrigashira: ['वे', 'वो', 'का', 'की'], Ardra: ['कू', 'घ', 'ङ', 'छ'], Punarvasu: ['के', 'को', 'हा', 'ही'], Pushya: ['हू', 'हे', 'हो', 'डा'],
-  Ashlesha: ['डे', 'डू', 'डे', 'डो'], Magha: ['मा', 'मी', 'मू', 'मे'], 'Purva Phalguni': ['मो', 'टा', 'टी', 'टू'],
+  Ashlesha: ['डी', 'डू', 'डे', 'डो'], Magha: ['मा', 'मी', 'मू', 'मे'], 'Purva Phalguni': ['मो', 'टा', 'टी', 'टू'],
   'Uttara Phalguni': ['टे', 'टो', 'पा', 'पी'], Hasta: ['पू', 'ष', 'ण', 'ठ'], Chitra: ['पे', 'पो', 'रा', 'री'], Swati: ['रू', 'रे', 'रो', 'ता'],
   Vishakha: ['ती', 'तू', 'ते', 'तो'], Anuradha: ['ना', 'नी', 'नू', 'ने'], Jyeshtha: ['नो', 'या', 'यी', 'यू'], Mula: ['ये', 'यो', 'भा', 'भी'],
   'Purva Ashadha': ['भू', 'धा', 'फा', 'ढा'], 'Uttara Ashadha': ['भे', 'भो', 'जा', 'जी'], Shravana: ['खी', 'खू', 'खे', 'खो'],

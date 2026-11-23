@@ -101,8 +101,13 @@ With blessings,\par\vspace{2mm}
 `;
 }
 
-export function philosophyPage(llmProviderLabel: string, language: EditorialLang = 'en'): string {
-  if (language === 'hi') return philosophyPageHi(llmProviderLabel);
+/**
+ * The philosophy page. By the owner's decision (2026-11-24) a report does not mention how its text
+ * was written or name any provider; `_llmProviderLabel` is accepted for compatibility and not printed
+ * (the provider and model are recorded in the manifest).
+ */
+export function philosophyPage(_llmProviderLabel: string, language: EditorialLang = 'en'): string {
+  if (language === 'hi') return philosophyPageHi();
   return String.raw`\markboth{Our Philosophy}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}BEFORE YOU BEGIN}\par\vspace{2mm}
@@ -117,8 +122,8 @@ export function philosophyPage(llmProviderLabel: string, language: EditorialLang
 \begin{asCard}\CardTitle{Not a substitute for professional advice}
 {\fontsize{9.5}{13.5}\selectfont This report is for self-reflection and guidance. It is not medical, psychological, legal, financial or investment advice, and it does not promise any outcome. For decisions in those areas, please consult a qualified professional.\par}\end{asCard}
 \vspace{2mm}
-\begin{asCard}\CardTitle{How this report was made, and your data}
-{\fontsize{9.5}{13.5}\selectfont All astronomical calculations (planetary positions, houses, divisional charts, periods and transit dates) are computed by Astro Sushil's own calculation engine (sidereal zodiac, Lahiri ayanamsa, whole-sign houses, mean lunar nodes). The personalised narrative was then written with the help of an AI language model operated by a third-party provider (${tex(llmProviderLabel)}). Only derived chart facts --- such as “Venus in the 7th house” --- were shared with that model; your name, date, time and place of birth were not. Every chart statement in the narrative was automatically checked against the calculated chart before inclusion.\par}\end{asCard}
+\begin{asCard}\CardTitle{How this report was calculated}
+{\fontsize{9.5}{13.5}\selectfont All astronomical calculations (planetary positions, houses, divisional charts, periods and transit dates) are computed by Astro Sushil's own calculation engine (sidereal zodiac, Lahiri ayanamsa, whole-sign houses, mean lunar nodes). Every chart statement in this report was checked against the calculated chart before inclusion.\par}\end{asCard}
 \clearpage
 `;
 }
@@ -240,7 +245,7 @@ function authorNotePageHi(def: ReportDefinition): string {
 `;
 }
 
-function philosophyPageHi(llmProviderLabel: string): string {
+function philosophyPageHi(): string {
   return String.raw`\markboth{हमारा दर्शन}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}आरंभ से पहले}\par\vspace{2mm}
@@ -255,8 +260,8 @@ function philosophyPageHi(llmProviderLabel: string): string {
 \begin{asCard}\CardTitle{पेशेवर सलाह का विकल्प नहीं}
 {\fontsize{9.8}{14.5}\selectfont यह रिपोर्ट आत्म-चिंतन और मार्गदर्शन के लिए है। यह चिकित्सीय, मनोवैज्ञानिक, कानूनी, वित्तीय या निवेश संबंधी सलाह नहीं है, और किसी परिणाम का वादा नहीं करती। ऐसे निर्णयों के लिए कृपया किसी योग्य विशेषज्ञ से परामर्श लें।\par}\end{asCard}
 \vspace{2mm}
-\begin{asCard}\CardTitle{यह रिपोर्ट कैसे बनी, और आपका डेटा}
-{\fontsize{9.8}{14.5}\selectfont सभी गणनाएँ (अंकशास्त्रीय अंक, ग्रहों की स्थितियाँ, भाव, वर्ग-कुंडलियाँ, अवधियाँ और गोचर तिथियाँ) एस्ट्रो सुशील के अपने गणना-इंजन से की गई हैं (निरयण राशिचक्र, लाहिड़ी अयनांश, पूर्ण-राशि भाव, मध्यम राहु-केतु)। इसके बाद व्यक्तिगत विवरण एक तृतीय-पक्ष प्रदाता (${tex(llmProviderLabel)}) द्वारा संचालित AI भाषा मॉडल की सहायता से लिखा गया। उस मॉडल के साथ केवल गणना से प्राप्त तथ्य --- जैसे “मूलांक 1 है” --- साझा किए गए; आपका नाम, जन्म तिथि, समय और स्थान साझा नहीं किए गए। विवरण का हर ज्योतिषीय और अंकशास्त्रीय कथन रिपोर्ट में शामिल करने से पहले गणना किए गए तथ्यों से स्वचालित रूप से जाँचा गया।\par}\end{asCard}
+\begin{asCard}\CardTitle{इस रिपोर्ट की गणना कैसे हुई}
+{\fontsize{9.8}{14.5}\selectfont सभी गणनाएँ (अंकशास्त्रीय अंक, ग्रहों की स्थितियाँ, भाव, वर्ग-कुंडलियाँ, अवधियाँ और गोचर तिथियाँ) एस्ट्रो सुशील के अपने गणना-इंजन से की गई हैं (निरयण राशिचक्र, लाहिड़ी अयनांश, पूर्ण-राशि भाव, मध्यम राहु-केतु)। इस रिपोर्ट का हर ज्योतिषीय और अंकशास्त्रीय कथन शामिल करने से पहले गणना किए गए तथ्यों से जाँचा गया।\par}\end{asCard}
 \clearpage
 `;
 }

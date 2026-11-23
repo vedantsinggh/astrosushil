@@ -32,7 +32,8 @@ export const NAKSHATRA_NAMAKSHARAS: Record<number, [string, string, string, stri
   6: ['Ku', 'Gha', 'Ng', 'Chha'],       // Ardra
   7: ['Ke', 'Ko', 'Ha', 'Hi'],          // Punarvasu
   8: ['Hu', 'He', 'Ho', 'Da'],          // Pushya
-  9: ['De', 'Du', 'De', 'Do'],          // Ashlesha
+  // Pada 1 is "Di" (डी); it was wrongly "De", the same as pada 3. Corrected by the owner's decision, 2026-11-24.
+  9: ['Di', 'Du', 'De', 'Do'],          // Ashlesha
   10: ['Ma', 'Mi', 'Mu', 'Me'],         // Magha
   11: ['Mo', 'Ta', 'Ti', 'Tu'],         // Purva Phalguni
   12: ['Te', 'To', 'Pa', 'Pi'],         // Uttara Phalguni
