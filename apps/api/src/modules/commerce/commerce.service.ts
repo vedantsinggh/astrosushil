@@ -7,6 +7,10 @@ import { logger } from '../../utils/logger';
 import { Prisma, OrderStatus, PaymentStatus, RefundStatus, ReportType, OrderItemType, FulfillmentType, EntitlementStatus, FulfillmentUnitStatus } from '@prisma/client';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { normalizeReportLanguage, platformReportLanguages, REPORT_LANGUAGES } from '../../services/platform-report.runner';
+import { calculateSale } from './money/tax';
+import { quoteCheckout } from './money/checkout';
+import { settleOrderPaid } from './money/settlement';
+import { transactionsService } from '../transactions/transactions.service';
 
 export interface CreateOrderParams {
   items?: Array<{ catalogId: string; quantity?: number; metadata?: Record<string, any> }>;
@@ -15,6 +19,17 @@ export interface CreateOrderParams {
   language?: string;
   idempotencyKey?: string;
   notes?: string;
+  /**
+   * Currency to charge at the gateway (INR when omitted). Prices stay INR; the amount is converted
+   * with the server-side exchange rate. See ./money/currency.ts for the accepted list.
+   */
+  currency?: string;
+  /**
+   * Hook for coupons (another module): order-level discount in INR paise, already validated and
+   * capped by that module. It is spread over the items pro rata before each item's GST is worked
+   * out (./money/tax.ts). Never taken from the request body.
+   */
+  discountPaise?: number;
 }
 
 export interface VerifyPaymentParams {
@@ -63,6 +78,9 @@ export class CommerceService {
           razorpayOrderId: existing.razorpayOrderId,
           amount: existing.amount,
           currency: existing.currency,
+          paidCurrency: existing.paidCurrency,
+          paidAmountMinor: existing.paidAmountMinor ?? existing.amount,
+          exchangeRate: existing.exchangeRate ? existing.exchangeRate.toString() : '1',
           status: existing.status,
           paymentStatus: existing.paymentStatus,
           items: existing.items,
@@ -117,10 +135,33 @@ export class CommerceService {
       legacyReportType = calculated.items[0].catalogItem.legacyReportType;
     }
 
+    // 3b. GST and totals from the money engine (./money/tax.ts): each item's own GST config
+    // (inclusive backs the tax out of the price, exclusive adds it on top), with any order-level
+    // discount spread over the items first. For the tax-inclusive catalogue without a discount this
+    // gives the same figures as commerceCatalog.calculateOrder.
+    const sale = calculateSale({
+      lines: calculated.items.map((ci, index) => ({
+        key: String(index),
+        unitPricePaise: ci.unitPrice,
+        quantity: ci.quantity,
+        gst: {
+          enabled: ci.taxRate > 0,
+          rateBp: ci.taxRate,
+          type: ci.catalogItem.taxIncluded ? 'inclusive' : 'exclusive',
+        },
+      })),
+      discountPaise: input.discountPaise ?? 0,
+    });
+    const netSubtotal = sale.lines.reduce((sum, line) => sum + line.basePaise, 0);
+
+    // 3c. What the gateway charges: the INR total converted at the server-side rate when the
+    // customer pays in another currency. An unsupported currency is refused here.
+    const quote = await quoteCheckout(sale.totalPaise, input.currency);
+
     // 4. Create Gateway Order with trusted server amount
     const rzOrder = await paymentService.createRazorpayOrder(
-      calculated.totalAmount,
-      calculated.currency,
+      quote.amountMinor,
+      quote.currency,
       `rcpt_${Date.now()}`
     );
 
@@ -130,18 +171,21 @@ export class CommerceService {
         data: {
           userId: user.id,
           razorpayOrderId: rzOrder.id,
-          amount: calculated.totalAmount,
-          subtotal: calculated.subtotal,
-          taxAmount: calculated.taxAmount,
-          discountAmount: calculated.discountAmount,
+          amount: sale.totalPaise, // INR base amount
+          subtotal: netSubtotal,
+          taxAmount: sale.totalTaxPaise,
+          discountAmount: sale.discountPaise,
           currency: calculated.currency,
+          paidCurrency: quote.currency,
+          paidAmountMinor: quote.amountMinor,
+          exchangeRate: quote.exchangeRate,
           status: OrderStatus.PENDING,
           paymentStatus: PaymentStatus.PENDING,
           idempotencyKey: input.idempotencyKey || null,
           reportType: legacyReportType || null,
           notes: input.notes || null,
           items: {
-            create: calculated.items.map((ci) => ({
+            create: calculated.items.map((ci, index) => ({
               itemType: ci.catalogItem.itemType,
               catalogId: ci.catalogItem.id,
               title: ci.catalogItem.title,
@@ -149,8 +193,9 @@ export class CommerceService {
               quantity: ci.quantity,
               unitPrice: ci.unitPrice,
               taxRate: ci.taxRate,
-              taxAmount: ci.taxAmount,
-              totalAmount: ci.totalAmount,
+              taxAmount: sale.lines[index].taxPaise,
+              taxInclusive: sale.lines[index].type === 'inclusive',
+              totalAmount: sale.lines[index].totalPaise,
               currency: calculated.currency,
               fulfillmentType: ci.catalogItem.fulfillmentType,
               metadata: ci.metadata ? (ci.metadata as any) : undefined,
@@ -161,6 +206,9 @@ export class CommerceService {
           items: true,
         },
       });
+
+      // Ledger: one PENDING transaction per payment attempt, written with the order.
+      await transactionsService.recordAttempt(tx, createdOrder);
 
       return createdOrder;
     });
@@ -177,6 +225,9 @@ export class CommerceService {
       subtotal: order.subtotal,
       taxAmount: order.taxAmount,
       currency: order.currency,
+      paidCurrency: order.paidCurrency,
+      paidAmountMinor: order.paidAmountMinor ?? order.amount,
+      exchangeRate: order.exchangeRate ? order.exchangeRate.toString() : '1',
       status: order.status,
       paymentStatus: order.paymentStatus,
       reportType: order.reportType,
@@ -235,11 +286,44 @@ export class CommerceService {
           paymentStatus: PaymentStatus.FAILED,
         },
       });
+      await transactionsService.markOrderFailed(order.id);
       logger.warn(
         { orderId: order.id, userId: user.id, razorpayOrderId: input.razorpayOrderId },
         'Payment signature verification failed'
       );
       throw new ValidationError('Invalid payment signature');
+    }
+
+    // The signature only proves that the gateway issued this payment id for this gateway order id.
+    // Read the payment back and compare what was actually paid with the stored order: gateway
+    // order id, amount and currency. Nothing is marked paid (or failed) on a mismatch.
+    const expectedAmount = order.paidAmountMinor ?? order.amount;
+    const expectedCurrency = order.paidCurrency || order.currency;
+    const gatewayPayment = await paymentService.fetchRazorpayPayment(input.razorpayPaymentId);
+    if (gatewayPayment) {
+      const settled = gatewayPayment.status === 'captured' || gatewayPayment.status === 'authorized';
+      if (
+        gatewayPayment.id !== input.razorpayPaymentId ||
+        gatewayPayment.orderId !== order.razorpayOrderId ||
+        gatewayPayment.amount !== expectedAmount ||
+        gatewayPayment.currency.toUpperCase() !== expectedCurrency.toUpperCase() ||
+        !settled
+      ) {
+        logger.error(
+          {
+            orderId: order.id,
+            razorpayPaymentId: input.razorpayPaymentId,
+            expectedAmount,
+            expectedCurrency,
+            actualAmount: gatewayPayment.amount,
+            actualCurrency: gatewayPayment.currency,
+            orderIdMatches: gatewayPayment.orderId === order.razorpayOrderId,
+            paymentStatus: gatewayPayment.status,
+          },
+          'Payment does not match the order; verification refused'
+        );
+        throw new AppError('Payment does not match this order', 400, 'PAYMENT_MISMATCH');
+      }
     }
 
     // Atomic transaction for Order state transition, fulfillment units creation, and audit trail
@@ -300,6 +384,14 @@ export class CommerceService {
 
       // 5. Reconcile order fulfillment status (keeps commercial status = PAID)
       await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+
+      // 6. Money: ledger transaction -> SUCCESS and the invoice number, in this same transaction
+      // (the order row is locked above, so verify and the webhook cannot both claim the payment).
+      await settleOrderPaid(tx, order.id, {
+        gatewayPaymentId: input.razorpayPaymentId,
+        gatewayOrderId: input.razorpayOrderId,
+        raw: gatewayPayment?.raw,
+      });
 
       const paidOrder = await tx.order.findUnique({
         where: { id: order.id },
@@ -585,6 +677,12 @@ export class CommerceService {
 
     if (!order.razorpayPaymentId) {
       throw new ValidationError('Cannot refund an order without a captured payment ID');
+    }
+
+    // Refund amounts here are INR paise. An order charged in another currency cannot be refunded
+    // through this path: the gateway would read the figure in the paid currency's units.
+    if ((order.paidCurrency || 'INR') !== 'INR') {
+      throw new AppError('Refunds are not available for orders paid in a foreign currency', 400, 'REFUND_UNSUPPORTED_CURRENCY');
     }
 
     // Calculate existing processed/pending refunds (excluding FAILED)

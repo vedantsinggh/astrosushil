@@ -44,9 +44,75 @@ export interface RazorpayRefundResult {
   isTestMode?: boolean;
 }
 
+/** A payment as the gateway reports it (GET /v1/payments/:id). */
+export interface RazorpayPaymentResult {
+  id: string;
+  orderId: string | null;
+  /** In the currency's smallest unit. */
+  amount: number;
+  currency: string;
+  status: string;
+  captured: boolean;
+  /** The gateway's payment entity, for the ledger (stored through an allow-list only). */
+  raw: Record<string, unknown>;
+}
+
 export class PaymentService {
   /**
+   * Reads a payment back from Razorpay so checkout verification can compare the gateway's own
+   * order id, amount and currency with the stored order.
+   *
+   * Returns null only outside production, when no credentials are configured or the gateway cannot
+   * be reached (local development and CI use mock payments that do not exist at the gateway).
+   * In production a payment that cannot be read is an error.
+   */
+  public async fetchRazorpayPayment(paymentId: string): Promise<RazorpayPaymentResult | null> {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const isProduction = config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+
+    if (!keyId || !keySecret) {
+      if (isProduction) {
+        throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured in production environment');
+      }
+      return null;
+    }
+
+    try {
+      const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, {
+        method: 'GET',
+        headers: { Authorization: `Basic ${auth}` },
+      });
+      if (!response.ok) {
+        logger.error({ status: response.status }, 'Razorpay payment lookup failed');
+        if (isProduction) {
+          throw new Error(`Razorpay payment lookup failed: ${response.statusText}`);
+        }
+        return null;
+      }
+      const data = (await response.json()) as Record<string, unknown>;
+      return {
+        id: String(data.id ?? ''),
+        orderId: typeof data.order_id === 'string' ? data.order_id : null,
+        amount: Number(data.amount),
+        currency: String(data.currency ?? ''),
+        status: String(data.status ?? ''),
+        captured: data.captured === true,
+        raw: data,
+      };
+    } catch (err: unknown) {
+      logger.error({ err: err instanceof Error ? err.message : 'unknown' }, 'Error contacting Razorpay payments API');
+      if (isProduction) {
+        throw err;
+      }
+      return null;
+    }
+  }
+
+  /**
    * Server-side creation of Razorpay Order using trusted calculated amount.
+   * `amountPaise` is the amount in the smallest unit of `currency` (paise, cents, whole yen).
    */
   public async createRazorpayOrder(
     amountPaise: number,

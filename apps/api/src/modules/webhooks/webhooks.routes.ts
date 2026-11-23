@@ -5,6 +5,8 @@ import { paymentService } from '../../services/payment.service';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
+import { settleOrderPaid } from '../commerce/money/settlement';
+import { transactionsService } from '../transactions/transactions.service';
 import { OrderStatus, PaymentStatus, RefundStatus, BookingStatus, SlotStatus, ConsultationMode, FulfillmentStatus, FulfillmentUnitStatus, OrderItemType, FulfillmentType, EntitlementSource, EntitlementStatus } from '@prisma/client';
 
 export async function webhooksRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
@@ -80,30 +82,47 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
             });
 
             if (order) {
+              // What the gateway was asked to charge: the paid currency and its minor-unit amount
+              // (orders paid in INR have no separate paid amount; `amount` is it).
+              const expectedAmount = order.paidAmountMinor ?? order.amount;
+              const expectedCurrency = order.paidCurrency || order.currency;
+              const isProductionEnv = config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production';
+
+              // 0. In production a capture event must state its amount and currency.
+              if (isProductionEnv && (typeof capturedAmount !== 'number' || !paymentCurrency)) {
+                logger.error({ orderId: order.id }, 'Webhook payment.captured without amount or currency: Rejecting capture transition');
+                return reply.status(400).send({
+                  error: {
+                    code: 'PAYMENT_AMOUNT_MISSING',
+                    message: 'Captured payment amount and currency are required',
+                  },
+                });
+              }
+
               // 1. Verify amount matches server order amount strictly
-              if (capturedAmount !== undefined && capturedAmount !== null && order.amount !== capturedAmount) {
+              if (capturedAmount !== undefined && capturedAmount !== null && expectedAmount !== capturedAmount) {
                 logger.error(
-                  { orderId: order.id, expected: order.amount, actual: capturedAmount },
+                  { orderId: order.id, expected: expectedAmount, actual: capturedAmount },
                   'Webhook payment amount mismatch: Rejecting capture transition'
                 );
                 return reply.status(400).send({
                   error: {
                     code: 'PAYMENT_AMOUNT_MISMATCH',
-                    message: `Captured payment amount (${capturedAmount}) does not match order amount (${order.amount})`,
+                    message: `Captured payment amount (${capturedAmount}) does not match order amount (${expectedAmount})`,
                   },
                 });
               }
 
               // 2. Verify currency matches server order currency strictly
-              if (paymentCurrency && order.currency !== paymentCurrency) {
+              if (paymentCurrency && expectedCurrency !== paymentCurrency) {
                 logger.error(
-                  { orderId: order.id, expected: order.currency, actual: paymentCurrency },
+                  { orderId: order.id, expected: expectedCurrency, actual: paymentCurrency },
                   'Webhook payment currency mismatch: Rejecting capture transition'
                 );
                 return reply.status(400).send({
                   error: {
                     code: 'PAYMENT_CURRENCY_MISMATCH',
-                    message: `Captured payment currency (${paymentCurrency}) does not match order currency (${order.currency})`,
+                    message: `Captured payment currency (${paymentCurrency}) does not match order currency (${expectedCurrency})`,
                   },
                 });
               }
@@ -153,6 +172,14 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                 // Atomically create fulfillment units for this order
                 await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
                 await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
+
+                // Money: ledger transaction -> SUCCESS and the invoice number, in this same
+                // transaction. The order row lock above lets only one of verify / webhook claim it.
+                await settleOrderPaid(tx, order.id, {
+                  gatewayPaymentId: razorpayPaymentId || null,
+                  gatewayOrderId: razorpayOrderId,
+                  raw: payload.payload?.payment?.entity,
+                });
               });
 
               logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked PAID via webhook payment.captured');
@@ -304,6 +331,10 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                   status: OrderStatus.FAILED,
                   paymentStatus: PaymentStatus.FAILED,
                 },
+              });
+              await transactionsService.markOrderFailed(order.id, {
+                gatewayPaymentId: payload.payload?.payment?.entity?.id,
+                raw: payload.payload?.payment?.entity,
               });
               logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked FAILED via webhook payment.failed');
 

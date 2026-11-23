@@ -18,6 +18,9 @@ export const createOrderSchema = z
     language: z.enum(['en', 'hi']).optional(),
     idempotencyKey: z.string().min(4).max(128).optional(),
     notes: z.string().max(500).optional(),
+    // Currency to charge (default INR). Validated against the supported list in the commerce layer;
+    // the exchange rate is always looked up on the server and is not an input.
+    currency: z.string().trim().min(3).max(3).optional(),
   })
   .refine(
     (data) => (data.items && data.items.length > 0) || !!data.reportType,

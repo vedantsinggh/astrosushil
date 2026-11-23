@@ -3,7 +3,8 @@ import { CreateOrderInput, VerifyPaymentInput, RefundOrderInput } from './paymen
 
 export class PaymentsService {
   public async createOrder(input: CreateOrderInput, user: { id: string }) {
-    return commerceService.createOrder(input as CreateOrderParams, user);
+    // `discountPaise` is a server-side hook for the coupon module and is never read from the request.
+    return commerceService.createOrder({ ...(input as CreateOrderParams), discountPaise: undefined }, user);
   }
 
   public async verifyPayment(input: VerifyPaymentInput, user: { id: string; role?: string }) {
