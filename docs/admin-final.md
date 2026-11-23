@@ -61,6 +61,14 @@ The Astro Sushil Admin Panel provides centralized operations, user profile inspe
 - Filterable log of all administrative actions by admin ID, target resource, action type, IP address, and date range.
 - Read-only table inaccessible to restricted roles.
 
+### 2.10 Staff Roles, Permissions & Staff Accounts (website integration, 2026-11-24)
+- **Roles are stored in the database** (`AdminRole`) and can be created, edited, activated, deactivated and deleted. Three system roles are seeded: Super Admin, Admin and Support, with the permissions the former fixed roles had.
+- **The permission list stays in code** (`apps/api/src/modules/admin/rbac/permission.catalog.ts`). A role can hold only keys from it.
+- **`checkPermission('module:action')`** now reads the acting user's role from the database on each request (10-second cache, cleared on every role or staff change). A super admin passes every check. An inactive role grants nothing.
+- **Staff accounts** (`StaffProfile`): list, create, edit profile, change role, suspend or activate, reset password, remove (soft delete). All audited.
+- **API only for now.** The screens for roles and staff are a later phase. The existing Admin Staff page and its endpoints keep working.
+- Endpoints, guards, seed and data mapping: `docs/integration/modules/rbac.md`.
+
 ---
 
 ## 3. Security Controls & Guidelines

@@ -24,21 +24,12 @@ import {
   analyticsQuerySchema,
   analyticsExportQuerySchema,
 } from './admin.schemas';
-import { hasPermission, Permission } from './admin.permissions';
-import { AuthorizationError } from '../../errors/app-error';
+import { checkPermission } from './rbac/check-permission';
+import { rbacRoutes } from './rbac/rbac.routes';
 
 export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
-  // Helper hook for checking specific permission
-  const checkPermission = (perm: Permission) => {
-    return async (request: FastifyRequest) => {
-      if (!request.user || !request.user.role) {
-        throw new AuthorizationError('Authentication required');
-      }
-      if (!hasPermission(request.user.role, perm)) {
-        throw new AuthorizationError(`Role '${request.user.role}' lacks '${perm}' permission`);
-      }
-    };
-  };
+  // `checkPermission('module:action')` resolves the acting user's role from the database
+  // (./rbac/check-permission.ts); it is no longer a lookup in the static role map.
 
   // 1. PUBLIC ADMIN LOGIN
   fastify.post('/auth/login', {
@@ -96,6 +87,9 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         return reply.status(200).send(result);
       },
     });
+
+    // Roles, permission catalogue, staff accounts, own profile and password (./rbac/rbac.routes.ts)
+    await protectedRoutes.register(rbacRoutes);
 
     // Dashboard
     protectedRoutes.get('/dashboard', {

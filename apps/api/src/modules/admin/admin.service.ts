@@ -6,6 +6,8 @@ import { TokenService } from '../../services/token.service';
 import { config } from '../../config';
 import { AuthenticationError, AuthorizationError, NotFoundError, AppError, ValidationError } from '../../errors/app-error';
 import { getPermissionsForRole, hasPermission } from './admin.permissions';
+import { resolveStaffAccess } from './rbac/rbac.resolver';
+import { assertStaffAccountUsable, linkUserToSystemRole, recordStaffLogin } from './rbac/staff-link';
 import { ChartCalculator, normalizeAstroChart, AstrologyConfig } from '@astro/astrology-engine';
 import { mapBirthProfileToBirthDetails } from '../astrology/birth-details.mapper';
 
@@ -96,6 +98,18 @@ export class AdminService {
       throw new AuthenticationError('Invalid administrative credentials');
     }
 
+    // Role and permissions come from the database (staff profile -> role), never from the token.
+    const access = await resolveStaffAccess(user.id, { fresh: true });
+    if (access.denyReason === 'ACCOUNT_REMOVED') {
+      throw new AuthorizationError('This account has been removed');
+    }
+    if (access.denyReason === 'ACCOUNT_SUSPENDED') {
+      throw new AuthorizationError('Your account is suspended. Contact a Super Admin.');
+    }
+    if (access.denyReason === 'ROLE_INACTIVE' || access.denyReason === 'NO_ROLE') {
+      throw new AuthorizationError('Your role is inactive or missing. Contact a Super Admin.');
+    }
+
     if (!ADMIN_ROLES.includes(user.role)) {
       throw new AuthorizationError('Access denied: User is not authorized for administrative access');
     }
@@ -108,6 +122,7 @@ export class AdminService {
     const accessToken = signJwt({ sub: user.id, role: user.role });
     const refreshToken = TokenService.generateRawRefreshToken();
     await TokenService.saveRefreshToken(user.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
+    await recordStaffLogin(user.id);
 
     await this.logAction({
       adminId: user.id,
@@ -126,8 +141,10 @@ export class AdminService {
         fullName: user.fullName,
         role: user.role,
         createdAt: user.createdAt.toISOString(),
+        staffRole: access.role,
+        isSuperAdmin: access.isSuperAdmin,
       },
-      permissions: getPermissionsForRole(user.role),
+      permissions: access.permissions,
       tokens: {
         accessToken,
         refreshToken,
@@ -156,12 +173,16 @@ export class AdminService {
       throw new NotFoundError('Admin user profile not found');
     }
 
+    const access = await resolveStaffAccess(user.id);
+
     return {
       id: user.id,
       email: user.email || '',
       fullName: user.fullName,
       role: user.role,
-      permissions: getPermissionsForRole(user.role),
+      staffRole: access.role,
+      isSuperAdmin: access.isSuperAdmin,
+      permissions: access.permissions,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
@@ -263,6 +284,8 @@ export class AdminService {
         emailVerifiedAt: new Date(),
       },
     });
+    // Staff profile on the matching system role, so the account shows up in staff management.
+    await linkUserToSystemRole(newAdmin.id, input.role, adminUser.id);
 
     await this.logAction({
       adminId: adminUser.id,
@@ -1115,11 +1138,16 @@ export class AdminService {
       }
     }
 
+    // A staff account removed or suspended through the staff endpoints is not revived from here.
+    await assertStaffAccountUsable(targetUserId);
+
     const previousRole = targetUser.role;
     const updatedUser = await prisma.user.update({
       where: { id: targetUserId },
       data: { role: newRole as any },
     });
+    // Move (or create) the staff profile onto the matching system role.
+    await linkUserToSystemRole(targetUserId, newRole, adminUser.id);
 
     await this.logAction({
       adminId: adminUser.id,

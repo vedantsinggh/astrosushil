@@ -115,6 +115,18 @@ export type Permission =
   | 'permissions:read'
   | 'uploads:create';
 
+/**
+ * Default permissions of the three seeded system roles (docs/integration/modules/rbac.md).
+ *
+ * Roles are editable in the database now: `checkPermission` (./rbac/check-permission.ts) resolves
+ * the acting user's role from there, and this map is no longer consulted on a request once the
+ * roles are seeded. It is still the source of (a) the permissions the system roles are seeded with
+ * and (b) the fallback for an admin whose role row does not exist yet.
+ *
+ * A new key must be added to the `Permission` union above, to the catalogue in
+ * ./rbac/permission.catalog.ts (label and group; the build fails until both agree) and to
+ * SUPER_ADMIN below (a unit test checks SUPER_ADMIN lists every catalogue key).
+ */
 const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
   SUPER_ADMIN: [
     'dashboard:read',
