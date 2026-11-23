@@ -8,6 +8,30 @@ import {
   cancelBookingSchema,
   adminUpdateBookingSchema,
 } from './consultations.schemas';
+import { consultationTypesService, ConsultationTypeView } from './consultation-types.service';
+import { publicConsultationTypesQuerySchema } from './consultation-types.schemas';
+import { availabilityService } from '../availability/availability.service';
+import { blockedDatesQuerySchema } from '../availability/availability.schemas';
+import { bookingsService } from '../bookings/bookings.service';
+import { bookingIdParamSchema } from '../bookings/bookings.schemas';
+
+/** A consultation type as the website shows it: one entry with its priced modes. */
+function publicType(type: ConsultationTypeView) {
+  return {
+    id: type.id,
+    title: type.title,
+    type: type.type,
+    description: type.description,
+    responseDays: type.responseDays,
+    includes: type.includes,
+    durationMinutes: type.durationMinutes,
+    priceLabel: type.priceLabel,
+    note: type.note,
+    isActive: type.isActive,
+    unavailableDates: type.unavailableDates,
+    modes: type.modes,
+  };
+}
 
 export async function consultationsRoutes(fastify: FastifyInstance) {
   // ---------------------------------------------------------------------------
@@ -19,6 +43,7 @@ export async function consultationsRoutes(fastify: FastifyInstance) {
    * List all verified consultation tiers
    */
   fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
+    await consultationTypesService.refresh();
     const consultations = consultationsService.listConsultations();
     return reply.status(200).send({
       statusCode: 200,
@@ -49,10 +74,55 @@ export async function consultationsRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * GET /api/v1/consultations/types?type=normal|special
+   * Consultation types grouped as on the website: one entry per type with its modes and
+   * prices, cheapest first (website GET /consultation)
+   */
+  fastify.get('/types', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = publicConsultationTypesQuerySchema.parse(request.query);
+    await consultationTypesService.refresh();
+    return reply.status(200).send({
+      statusCode: 200,
+      success: true,
+      message: 'Consultations fetched',
+      data: consultationTypesService.listPublic(query.type).map(publicType),
+    });
+  });
+
+  /**
+   * GET /api/v1/consultations/types/:id
+   * One consultation type with its modes (website GET /consultation/:id)
+   */
+  fastify.get('/types/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    await consultationTypesService.refresh();
+    return reply.status(200).send({
+      statusCode: 200,
+      success: true,
+      message: 'Consultation fetched',
+      data: publicType(consultationTypesService.getPublic(request.params.id)),
+    });
+  });
+
+  /**
+   * GET /api/v1/consultations/blocked-dates?month=&year=
+   * Fully blocked dates of a month, for the booking calendar (website GET /availability/blocked-dates)
+   */
+  fastify.get('/blocked-dates', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { month, year } = blockedDatesQuerySchema.parse(request.query);
+    return reply.status(200).send({
+      statusCode: 200,
+      success: true,
+      message: 'Blocked dates fetched',
+      data: await availabilityService.getBlockedDates(month, year),
+    });
+  });
+
+  /**
    * GET /api/v1/consultations/:id
    * Get consultation tier details
    */
   fastify.get('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    await consultationTypesService.refresh();
     const consultation = consultationsService.getConsultationById(request.params.id);
     return reply.status(200).send({
       statusCode: 200,
@@ -118,6 +188,22 @@ export async function consultationsRoutes(fastify: FastifyInstance) {
         success: true,
         message: 'Bookings fetched',
         data: bookings,
+      });
+    });
+
+    /**
+     * GET /api/v1/consultations/my-bookings/:id/invoice
+     * Invoice data of the caller's own paid booking (website GET /booking/my-bookings/:bookingId/invoice)
+     */
+    authenticated.get('/my-bookings/:id/invoice', async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = bookingIdParamSchema.parse(request.params);
+      const invoice = await bookingsService.getInvoiceData(id, request.user.id);
+
+      return reply.status(200).send({
+        statusCode: 200,
+        success: true,
+        message: 'Booking invoice data fetched',
+        data: invoice,
       });
     });
 

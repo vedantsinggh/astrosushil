@@ -1,28 +1,41 @@
 import { getRazorpayPublicKeyId } from '../payments/razorpay-public-key';
 import { prisma } from '../../services/prisma.service';
-import { COMMERCE_CATALOG, CatalogItem } from '../commerce/commerce.catalog';
 import { commerceService } from '../commerce/commerce.service';
 import { paymentService } from '../../services/payment.service';
 import { notificationService } from '../notifications/notification.service';
 import { liveSessionService, AdminUser } from '../admin/live-session.service';
-import { calendarDaysBetween, isCalendarDate, istDateOf } from '../../utils/business-time';
 import {
+  AppError,
   NotFoundError,
   ValidationError,
   ConflictError,
-  AuthorizationError,
 } from '../../errors/app-error';
 import {
   ConsultationMode,
   BookingStatus,
-  SlotStatus,
-  OrderItemType,
-  PaymentStatus,
   FulfillmentStatus,
-  ObligationType,
 } from '@prisma/client';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
+import { settleOrderPaid } from '../commerce/money/settlement';
 import { logger } from '../../utils/logger';
+import { availabilityService } from '../availability/availability.service';
+import {
+  formatTimeOfDay,
+  istInstant,
+  normaliseCalendarDate,
+  parseSlotInput,
+  parseTimeOfDay,
+} from '../availability/availability.time';
+import {
+  claimSlot,
+  PRACTITIONER_ID,
+  PRACTITIONER_NAME,
+  releaseAllExpiredHolds,
+  releaseSlot,
+  RESERVATION_HOLD_MINUTES,
+} from '../bookings/slot-hold';
+import { computeGst } from './consultation-gst';
+import { consultationTypesService, ResolvedOffering } from './consultation-types.service';
 
 export interface SlotInterval {
   startTime: string; // HH:mm
@@ -52,57 +65,63 @@ export interface VerifyConsultationPaymentInput {
 }
 
 export class ConsultationsService {
-  private readonly defaultPractitionerId = 'astro-sushil';
-  private readonly defaultPractitionerName = 'Astro Sushil';
-  private readonly reservationTimeoutMinutes = 15;
+  private readonly defaultPractitionerId = PRACTITIONER_ID;
+  private readonly defaultPractitionerName = PRACTITIONER_NAME;
+  private readonly reservationTimeoutMinutes = RESERVATION_HOLD_MINUTES;
 
   /**
-   * List all active consultation offerings with verified pricing and details
+   * One bookable offering (a consultation type in one mode) in the shape the mobile app reads.
+   * `id` is the commerce catalog id; `pricePaise` is what the customer pays, GST included.
    */
-  public listConsultations() {
-    const items = Object.values(COMMERCE_CATALOG)
-      .filter((item) => item.itemType === OrderItemType.CONSULTATION && item.isActive)
-      .map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        pricePaise: item.pricePaise,
-        priceWithGst: item.pricePaise / 100,
-        currency: item.currency,
-        durationMinutes: item.durationMinutes || 30,
-        mode: item.consultationMode || 'AUDIO',
-        responseDays: item.responseDays || 7,
-        taxIncluded: item.taxIncluded,
-        taxRateBasisPoints: item.taxRateBasisPoints,
-        practitionerName: this.defaultPractitionerName,
-      }));
-
-    return items;
+  private toOffering(offering: ResolvedOffering) {
+    const { type, mode, pricing } = offering;
+    return {
+      id: mode.catalogId,
+      title: type.title,
+      description: type.description ?? '',
+      pricePaise: pricing.totalPaise,
+      priceWithGst: pricing.totalPaise / 100,
+      currency: 'INR',
+      durationMinutes: type.durationMinutes,
+      mode: mode.mode,
+      responseDays: type.responseDays,
+      taxIncluded: mode.gst.type === 'INCLUSIVE',
+      taxRateBasisPoints: pricing.rateBasisPoints,
+      practitionerName: this.defaultPractitionerName,
+      // Added with admin-editable consultation types (website fields).
+      consultationTypeId: type.id === mode.catalogId ? null : type.id,
+      type: type.type,
+      includes: type.includes,
+      priceLabel: type.priceLabel,
+      note: type.note,
+      basePricePaise: mode.pricePaise,
+      gstPaise: pricing.gstPaise,
+      unavailableDates: type.unavailableDates,
+    };
   }
 
   /**
-   * Get single consultation offering by ID
+   * List all active consultation offerings with verified pricing and details: one entry per
+   * consultation type and mode. Reads the in-memory snapshot; async callers refresh it first.
+   */
+  public listConsultations() {
+    return consultationTypesService
+      .all()
+      .filter((type) => type.isActive)
+      .flatMap((type) =>
+        type.modes.map((mode) =>
+          this.toOffering({ type, mode, pricing: computeGst(mode.pricePaise, mode.gst) })
+        )
+      )
+      .sort((a, b) => a.pricePaise - b.pricePaise);
+  }
+
+  /**
+   * Get single consultation offering by its catalog id (or by consultation type id when the
+   * type has one mode)
    */
   public getConsultationById(consultationId: string) {
-    const item = COMMERCE_CATALOG[consultationId];
-    if (!item || item.itemType !== OrderItemType.CONSULTATION || !item.isActive) {
-      throw new NotFoundError(`Consultation offering '${consultationId}' not found`);
-    }
-
-    return {
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      pricePaise: item.pricePaise,
-      priceWithGst: item.pricePaise / 100,
-      currency: item.currency,
-      durationMinutes: item.durationMinutes || 30,
-      mode: item.consultationMode || 'AUDIO',
-      responseDays: item.responseDays || 7,
-      taxIncluded: item.taxIncluded,
-      taxRateBasisPoints: item.taxRateBasisPoints,
-      practitionerName: this.defaultPractitionerName,
-    };
+    return this.toOffering(consultationTypesService.resolveOffering(consultationId));
   }
 
   /**
@@ -118,100 +137,28 @@ export class ConsultationsService {
     slots: SlotInterval[];
     message?: string;
   }> {
-    const tier = this.getConsultationById(options.consultationId);
-    const dateStr = options.date;
-    if (!isCalendarDate(dateStr)) {
-      throw new ValidationError('Invalid date format. Expected YYYY-MM-DD');
-    }
-    // Slot dates are IST calendar dates (business timezone). Count notice days
-    // from today's IST date, not from the server's local midnight.
-    const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
-    const diffDays = calendarDaysBetween(istDateOf(new Date()), dateStr);
+    const dateStr = normaliseCalendarDate(options.date);
+    await consultationTypesService.refresh();
+    const { type } = consultationTypesService.resolveOffering(options.consultationId);
 
-    // Notice window check: target date must be at least responseDays in future
-    if (diffDays < tier.responseDays) {
-      return {
-        available: false,
-        date: dateStr,
-        slots: [],
-        message: `This day is blocked. Minimum booking notice for ${tier.title} is ${tier.responseDays} day(s).`,
-      };
-    }
-
-    // Booking horizon check (e.g. 60 days)
-    if (diffDays > 60) {
-      return {
-        available: false,
-        date: dateStr,
-        slots: [],
-        message: 'This day is blocked. Booking horizon is up to 60 days in advance.',
-      };
-    }
-
-    // Day of week check (Sunday blocked for regular consultations)
-    const dayOfWeek = targetDate.getUTCDay(); // 0 is Sunday
-    if (dayOfWeek === 0) {
-      return {
-        available: false,
-        date: dateStr,
-        slots: [],
-        message: 'This day is blocked. Sunday is reserved for special temple rituals.',
-      };
-    }
-
-    // Clean up expired reservations first
-    await this.releaseExpiredReservations();
-
-    // Generate base working hour slots
-    // Morning: 11:00 to 14:00 | Afternoon: 15:00 to 19:00
-    const duration = tier.durationMinutes;
-    const baseSlots = this._generateStandardSlots(duration);
-
-    // Fetch occupied slots from database for this date & practitioner
-    const occupiedSlots = await prisma.appointmentSlot.findMany({
-      where: {
-        practitionerId: this.defaultPractitionerId,
-        date: dateStr,
-        OR: [
-          { status: SlotStatus.BOOKED },
-          { status: SlotStatus.BLOCKED },
-          {
-            status: SlotStatus.RESERVED,
-            lockedUntil: { gt: new Date() },
-          },
-        ],
+    // Working hours, blocked days and slots, bookings and live payment holds of every
+    // consultation type, and the notice period: see AvailabilityService.listCustomerSlots.
+    return availabilityService.listCustomerSlots(
+      {
+        title: type.title,
+        durationMinutes: type.durationMinutes,
+        responseDays: type.responseDays,
+        unavailableDates: type.unavailableDates,
       },
-      select: { startTime: true },
-    });
-
-    const occupiedTimes = new Set(occupiedSlots.map((s) => s.startTime));
-
-    // Also check bookings directly in case of legacy records
-    const occupiedBookings = await prisma.consultationBooking.findMany({
-      where: {
-        practitionerId: this.defaultPractitionerId,
-        date: dateStr,
-        status: { in: [BookingStatus.CONFIRMED, BookingStatus.RESCHEDULED] },
-      },
-      select: { startTime: true },
-    });
-
-    for (const b of occupiedBookings) {
-      occupiedTimes.add(b.startTime);
-    }
-
-    const availableSlots = baseSlots.filter((slot) => !occupiedTimes.has(slot.startTime));
-
-    return {
-      available: availableSlots.length > 0,
-      date: dateStr,
-      slots: availableSlots,
-      message: availableSlots.length > 0 ? 'Slots fetched' : 'All slots on this date are fully booked',
-    };
+      dateStr
+    );
   }
 
   /**
-   * Concurrency-safe atomic consultation booking creation
+   * Concurrency-safe atomic consultation booking creation.
+   *
+   * The slot is held from this moment (status RESERVED, for `reservationTimeoutMinutes`), before
+   * the customer pays, so two customers can never both pay for the same or an overlapping time.
    */
   public async bookConsultation(
     userId: string,
@@ -219,19 +166,34 @@ export class ConsultationsService {
   ) {
     // Fail fast before reserving a slot or creating an order if checkout cannot be configured.
     const razorpayKeyId = getRazorpayPublicKeyId();
-    const tier = this.getConsultationById(input.consultationId);
-    const dateStr = input.date;
+
+    // Price the booking from the database, never from a stale snapshot.
+    await consultationTypesService.refresh({ force: true });
+    const offering = consultationTypesService.resolveOffering(input.consultationId, input.mode);
+    const tier = this.toOffering(offering);
+    const dateStr = normaliseCalendarDate(input.date);
     const duration = tier.durationMinutes;
 
-    const startTime = typeof input.slot === 'string' ? input.slot : input.slot.startTime;
-    const endTime =
-      typeof input.slot === 'object' && input.slot.endTime
-        ? input.slot.endTime
-        : this._calculateEndTime(startTime, duration);
+    const range = parseSlotInput(input.slot, duration);
+    const startTime = formatTimeOfDay(range.startMinute);
+    const endTime = formatTimeOfDay(range.endMinute);
 
-    // Compute UTC timestamps for slot (assuming Asia/Kolkata +05:30)
-    const slotStartTimeUtc = this._parseTimeToUtc(dateStr, startTime);
-    const slotEndTimeUtc = this._parseTimeToUtc(dateStr, endTime);
+    // The slot must be one the customer would be offered: inside working hours, the type's own
+    // length, not blocked, not inside the notice period.
+    await availabilityService.assertCustomerCanBook(
+      {
+        title: offering.type.title,
+        durationMinutes: duration,
+        responseDays: offering.type.responseDays,
+        unavailableDates: offering.type.unavailableDates,
+      },
+      dateStr,
+      range
+    );
+
+    // UTC timestamps of the slot (IST wall clock, fixed +05:30)
+    const slotStartTimeUtc = istInstant(dateStr, range.startMinute);
+    const slotEndTimeUtc = istInstant(dateStr, range.endMinute);
 
     // Check user profile or info
     const user = await prisma.user.findUnique({
@@ -264,66 +226,18 @@ export class ConsultationsService {
     await this._acquireRedisLock(redisLockKey, userId, this.reservationTimeoutMinutes * 60);
 
     try {
-      // Execute atomic database reservation transaction
-      const result = await prisma.$transaction(async (tx) => {
-        // 1. Check existing active booking on this slot
-        const existingBooking = await tx.consultationBooking.findFirst({
-          where: {
-            practitionerId: this.defaultPractitionerId,
-            date: dateStr,
-            startTime,
-            status: {
-              in: [
-                BookingStatus.CONFIRMED,
-                BookingStatus.RESCHEDULED,
-                BookingStatus.PENDING_PAYMENT,
-              ],
-            },
-            OR: [
-              { reservationExpiresAt: null },
-              { reservationExpiresAt: { gt: new Date() } },
-            ],
-          },
-        });
-
-        if (existingBooking) {
-          throw new ConflictError(
-            'This consultation slot has already been reserved or booked. Please select another slot.'
-          );
-        }
-
-        // 2. Lock or create appointment slot
-        const existingSlot = await tx.appointmentSlot.findUnique({
-          where: {
-            practitionerId_date_startTime: {
-              practitionerId: this.defaultPractitionerId,
-              date: dateStr,
-              startTime,
-            },
-          },
-        });
-
-        if (
-          existingSlot &&
-          (existingSlot.status === SlotStatus.BOOKED ||
-            existingSlot.status === SlotStatus.BLOCKED ||
-            (existingSlot.status === SlotStatus.RESERVED &&
-              existingSlot.lockedUntil &&
-              existingSlot.lockedUntil > new Date()))
-        ) {
-          throw new ConflictError(
-            'This consultation slot has already been reserved or booked. Please select another slot.'
-          );
-        }
-
-        // 3. Create the ConsultationBooking in PENDING_PAYMENT state
-        const booking = await tx.consultationBooking.create({
+      // 1. Atomically create the PENDING_PAYMENT booking and hold its slot. claimSlot serialises
+      //    calendar changes, releases expired holds and refuses any overlap with a booking or a
+      //    live hold of any consultation type.
+      const booking = await prisma.$transaction(async (tx) => {
+        const created = await tx.consultationBooking.create({
           data: {
             userId,
             birthProfileId: input.birthProfileId || null,
             consultationId: tier.id,
+            consultationTypeId: tier.consultationTypeId,
             title: tier.title,
-            mode: input.mode,
+            mode: offering.mode.mode,
             durationMinutes: duration,
             date: dateStr,
             startTime,
@@ -339,37 +253,34 @@ export class ConsultationsService {
             customerEmail,
             primaryQuestion: input.notes || null,
             reservationExpiresAt: expiresAt,
+            source: 'USER',
+            paymentMethod: 'RAZORPAY',
+            pricePaise: offering.mode.pricePaise,
+            gstRateBasisPoints: offering.pricing.rateBasisPoints,
+            gstType: offering.pricing.type,
+            taxablePaise: offering.pricing.taxablePaise,
+            gstPaise: offering.pricing.gstPaise,
+            amountPaise: offering.pricing.totalPaise,
+            priceLabel: offering.type.priceLabel,
           },
         });
 
-        // 4. Upsert AppointmentSlot setting status = RESERVED
-        if (existingSlot) {
-          await tx.appointmentSlot.update({
-            where: { id: existingSlot.id },
-            data: {
-              status: SlotStatus.RESERVED,
-              bookingId: booking.id,
-              lockedUntil: expiresAt,
-            },
-          });
-        } else {
-          await tx.appointmentSlot.create({
-            data: {
-              practitionerId: this.defaultPractitionerId,
-              date: dateStr,
-              startTime,
-              endTime,
-              startTimeUtc: slotStartTimeUtc,
-              endTimeUtc: slotEndTimeUtc,
-              status: SlotStatus.RESERVED,
-              bookingId: booking.id,
-              lockedUntil: expiresAt,
-            },
-          });
-        }
+        await claimSlot(tx, {
+          bookingId: created.id,
+          date: dateStr,
+          range,
+          status: 'RESERVED',
+          lockedUntil: expiresAt,
+        });
 
-        // 5. Create Order using unified CommerceService
-        const order = await commerceService.createOrder(
+        return created;
+      });
+
+      // 2. Create Order using unified CommerceService (the existing payment path). Done after
+      //    the hold is committed so the calendar lock is not kept during the gateway call.
+      let order: Awaited<ReturnType<typeof commerceService.createOrder>>;
+      try {
+        order = await commerceService.createOrder(
           {
             items: [
               {
@@ -379,7 +290,7 @@ export class ConsultationsService {
                   bookingId: booking.id,
                   date: dateStr,
                   startTime,
-                  mode: input.mode,
+                  mode: offering.mode.mode,
                   birthProfileId: input.birthProfileId,
                 },
               },
@@ -389,28 +300,72 @@ export class ConsultationsService {
           { id: userId }
         );
 
-        // 6. Link Order with Booking
-        const updatedBooking = await tx.consultationBooking.update({
-          where: { id: booking.id },
-          data: { orderId: order.orderId },
-        });
+        // The customer must be charged exactly the consultation's price with its GST (inclusive:
+        // the price; exclusive: price + GST). The website charged the bare price for exclusive
+        // GST in INR; here a mismatch stops the booking instead of under- or over-charging.
+        if (order.amount !== offering.pricing.totalPaise) {
+          logger.error(
+            { bookingId: booking.id, catalogId: tier.id, orderAmount: order.amount, expected: offering.pricing.totalPaise },
+            '[ConsultationsService] Commerce order amount differs from the consultation price'
+          );
+          throw new AppError(
+            'This consultation cannot be booked right now. Please try again later.',
+            500,
+            'CONSULTATION_PRICE_MISMATCH'
+          );
+        }
+      } catch (err) {
+        await this.abandonReservation(booking.id, 'ORDER_CREATION_FAILED');
+        throw err;
+      }
 
-        return {
-          booking: updatedBooking,
-          order,
-          razorpayConfig: {
-            key: razorpayKeyId,
-            orderId: order.razorpayOrderId,
-            amount: order.amount,
-            currency: order.currency,
-          },
-        };
+      // 3. Link Order with Booking
+      const paid = order as { paidCurrency?: string; paidAmountMinor?: number; exchangeRate?: string };
+      const chargedCurrency = paid.paidCurrency || order.currency;
+      const chargedAmount = paid.paidAmountMinor ?? order.amount;
+      const updatedBooking = await prisma.consultationBooking.update({
+        where: { id: booking.id },
+        data: {
+          orderId: order.orderId,
+          // Only when the customer is charged in another currency (money module's quote).
+          ...(chargedCurrency !== 'INR'
+            ? { paidCurrency: chargedCurrency, paidAmountMinor: chargedAmount, exchangeRate: paid.exchangeRate ?? null }
+            : {}),
+        },
       });
 
-      return result;
+      return {
+        booking: this.withoutStaffFields(updatedBooking),
+        order,
+        razorpayConfig: {
+          key: razorpayKeyId,
+          orderId: order.razorpayOrderId,
+          amount: chargedAmount,
+          currency: chargedCurrency,
+        },
+      };
     } catch (err) {
       await this._releaseRedisLock(redisLockKey);
       throw err;
+    }
+  }
+
+  /** Give up a reservation that could not reach checkout: cancel it and free its slot. */
+  private async abandonReservation(bookingId: string, reason: string) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.consultationBooking.updateMany({
+          where: { id: bookingId, status: BookingStatus.PENDING_PAYMENT },
+          data: { status: BookingStatus.CANCELLED, cancellationReason: reason, cancelledAt: new Date() },
+        });
+        await releaseSlot(tx, bookingId);
+      });
+    } catch (err) {
+      // The hold expires by itself after reservationTimeoutMinutes.
+      logger.warn(
+        { bookingId, err: err instanceof Error ? err.message : String(err) },
+        '[ConsultationsService] Could not release an abandoned reservation'
+      );
     }
   }
 
@@ -435,8 +390,26 @@ export class ConsultationsService {
       throw new NotFoundError(`Booking '${input.bookingId}' not found`);
     }
 
+    if (booking.deletedAt) {
+      throw new NotFoundError(`Booking '${input.bookingId}' not found`);
+    }
+
     if (booking.status === BookingStatus.CONFIRMED) {
       return { success: true, booking, message: 'Booking already confirmed' };
+    }
+
+    // The payment must be the one created for THIS booking: a valid signature for some other
+    // (cheaper) Razorpay order must not confirm it.
+    if (!booking.order || booking.order.razorpayOrderId !== input.razorpayOrderId) {
+      throw new ValidationError('Order ID mismatch');
+    }
+
+    // Only an unpaid reservation can be confirmed. One whose hold has just expired is still
+    // accepted here: the slot is re-claimed below and the confirmation fails if it was taken.
+    const reservationExpired =
+      booking.status === BookingStatus.CANCELLED && booking.cancellationReason === 'RESERVATION_EXPIRED';
+    if (booking.status !== BookingStatus.PENDING_PAYMENT && !reservationExpired) {
+      throw new ValidationError(`Cannot confirm a booking with status '${booking.status}'`);
     }
 
     // Verify HMAC signature
@@ -450,6 +423,39 @@ export class ConsultationsService {
       throw new ValidationError('Invalid Razorpay payment signature');
     }
 
+    // The signature only proves that the gateway issued this payment id for this gateway order
+    // id. Read the payment back and compare what was actually paid with the stored order
+    // (gateway order id, amount, currency), as commerceService.verifyPayment does. Nothing is
+    // marked paid on a mismatch.
+    const expectedAmount = booking.order.paidAmountMinor ?? booking.order.amount;
+    const expectedCurrency = booking.order.paidCurrency || booking.order.currency;
+    const gatewayPayment = await paymentService.fetchRazorpayPayment(input.razorpayPaymentId);
+    if (gatewayPayment) {
+      const settled = gatewayPayment.status === 'captured' || gatewayPayment.status === 'authorized';
+      if (
+        gatewayPayment.id !== input.razorpayPaymentId ||
+        gatewayPayment.orderId !== booking.order.razorpayOrderId ||
+        gatewayPayment.amount !== expectedAmount ||
+        gatewayPayment.currency.toUpperCase() !== expectedCurrency.toUpperCase() ||
+        !settled
+      ) {
+        logger.error(
+          {
+            bookingId: booking.id,
+            orderId: booking.orderId,
+            expectedAmount,
+            expectedCurrency,
+            actualAmount: gatewayPayment.amount,
+            actualCurrency: gatewayPayment.currency,
+            orderIdMatches: gatewayPayment.orderId === booking.order.razorpayOrderId,
+            paymentStatus: gatewayPayment.status,
+          },
+          '[ConsultationsService] Payment does not match the booking order; verification refused'
+        );
+        throw new AppError('Payment does not match this order', 400, 'PAYMENT_MISMATCH');
+      }
+    }
+
     const meetingLink =
       booking.mode === ConsultationMode.IN_PERSON
         ? null
@@ -460,9 +466,19 @@ export class ConsultationsService {
         ? 'Astro Sushil Vedic Centre, Sector 18, Noida / Delhi NCR'
         : null;
 
+    const slotRange = {
+      startMinute: parseTimeOfDay(booking.startTime),
+      endMinute: parseTimeOfDay(booking.endTime),
+    };
+
     // Transactionally confirm booking and update order
     const confirmedBooking = await prisma.$transaction(async (tx) => {
       let consultUnitId: string | null = null;
+      let invoiceNumber: string | null = null;
+
+      // 0. Take the slot for good. Refuses if, after this booking's hold expired, the time
+      //    went to someone else; nothing below is written in that case.
+      await claimSlot(tx, { bookingId: booking.id, date: booking.date, range: slotRange, status: 'BOOKED' });
 
       // 1. Update order and create fulfillment units
       if (booking.orderId) {
@@ -489,6 +505,15 @@ export class ConsultationsService {
           WHERE id = ${booking.orderId};
         `;
 
+        // Money: ledger transaction -> SUCCESS and the invoice number, in this same transaction
+        // (the order row is locked above; settleOrderPaid is safe to repeat after the webhook).
+        const settlement = await settleOrderPaid(tx, booking.orderId, {
+          gatewayPaymentId: input.razorpayPaymentId,
+          gatewayOrderId: input.razorpayOrderId,
+          raw: gatewayPayment?.raw,
+        });
+        invoiceNumber = settlement.invoice.number ?? null;
+
         // Create fulfillment units
         await fulfillmentService.createFulfillmentUnitsForOrder(booking.orderId, tx);
 
@@ -510,19 +535,14 @@ export class ConsultationsService {
           fulfillmentUnitId: consultUnitId || undefined,
           confirmedAt: new Date(),
           reservationExpiresAt: null,
+          cancellationReason: null,
+          ...(invoiceNumber ? { invoiceNumber } : {}),
           meetingLink,
           locationAddress,
         },
       });
 
-      // 3. Mark appointment slot as BOOKED
-      await tx.appointmentSlot.updateMany({
-        where: { bookingId: booking.id },
-        data: {
-          status: SlotStatus.BOOKED,
-          lockedUntil: null,
-        },
-      });
+      // 3. The appointment slot was marked BOOKED by claimSlot above.
 
       // 4. Reconcile fulfillment unit
       if (booking.orderId && consultUnitId) {
@@ -530,6 +550,19 @@ export class ConsultationsService {
       }
 
       return updated;
+    }).catch((err) => {
+      if (err instanceof ConflictError) {
+        // Paid, but the time is gone. Staff see this booking under payment conflicts
+        // (bookingsService.listPaymentConflicts) once the payment is captured.
+        logger.error(
+          { bookingId: booking.id, orderId: booking.orderId },
+          '[ConsultationsService] Payment verified for a slot that is no longer free'
+        );
+        throw new ConflictError(
+          'Your payment was received, but this slot is no longer available. Our team will contact you to reschedule or refund.'
+        );
+      }
+      throw err;
     });
 
     // Send confirmation notification
@@ -545,6 +578,7 @@ export class ConsultationsService {
           startTime: confirmedBooking.startTime,
           mode: confirmedBooking.mode,
           meetingLink: confirmedBooking.meetingLink,
+          includes: this.includesOf(confirmedBooking),
         },
       });
     } catch (e: any) {
@@ -563,7 +597,7 @@ export class ConsultationsService {
    */
   public async getMyBookings(userId: string) {
     const bookings = await prisma.consultationBooking.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       include: {
         birthProfile: {
           select: { id: true, name: true, dateOfBirth: true, timeOfBirth: true, placeName: true },
@@ -575,7 +609,27 @@ export class ConsultationsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return bookings;
+    return bookings.map((b) => this.withoutStaffFields(b));
+  }
+
+  /** "What is included" of the booking's consultation type, for the confirmation messages. */
+  private includesOf(booking: { consultationTypeId: string | null; consultationId: string }): string[] {
+    const type = consultationTypesService
+      .all()
+      .find((t) => t.id === booking.consultationTypeId || t.modes.some((m) => m.catalogId === booking.consultationId));
+    return type?.includes ?? [];
+  }
+
+  /** Staff-only columns never leave the server on a customer endpoint. */
+  private withoutStaffFields<T extends { internalNotes?: unknown }>(booking: T) {
+    return {
+      ...booking,
+      internalNotes: undefined,
+      createdByAdminId: undefined,
+      deletedById: undefined,
+      deletedAt: undefined,
+      legacyId: undefined,
+    };
   }
 
   /**
@@ -612,12 +666,12 @@ export class ConsultationsService {
       throw new NotFoundError(`Booking '${bookingId}' not found`);
     }
 
-    // Hide internal notes from non-admin users
+    // Hide staff-only fields from non-admin users; a booking deleted by staff no longer exists for them
     if (!isAdmin) {
-      return {
-        ...booking,
-        internalNotes: undefined,
-      };
+      if (booking.deletedAt) {
+        throw new NotFoundError(`Booking '${bookingId}' not found`);
+      }
+      return this.withoutStaffFields(booking);
     }
 
     return booking;
@@ -636,7 +690,7 @@ export class ConsultationsService {
       where: { id: bookingId },
     });
 
-    if (!booking) {
+    if (!booking || booking.deletedAt) {
       throw new NotFoundError(`Booking '${bookingId}' not found`);
     }
 
@@ -648,79 +702,48 @@ export class ConsultationsService {
       throw new ValidationError(`Cannot reschedule a booking with status '${booking.status}'`);
     }
 
-    const newStartTime =
-      typeof input.newSlot === 'string' ? input.newSlot : input.newSlot.startTime;
-    const newEndTime =
-      typeof input.newSlot === 'object' && input.newSlot.endTime
-        ? input.newSlot.endTime
-        : this._calculateEndTime(newStartTime, booking.durationMinutes);
+    const newDate = normaliseCalendarDate(input.newDate);
+    const range = parseSlotInput(input.newSlot, booking.durationMinutes);
+    const newStartTime = formatTimeOfDay(range.startMinute);
+    const newEndTime = formatTimeOfDay(range.endMinute);
 
-    const slotStartTimeUtc = this._parseTimeToUtc(input.newDate, newStartTime);
-    const slotEndTimeUtc = this._parseTimeToUtc(input.newDate, newEndTime);
-
-    // Atomically swap slots
-    const updated = await prisma.$transaction(async (tx) => {
-      // Check if new slot is taken
-      const occupied = await tx.appointmentSlot.findFirst({
-        where: {
-          practitionerId: booking.practitionerId,
-          date: input.newDate,
-          startTime: newStartTime,
-          OR: [
-            { status: SlotStatus.BOOKED },
-            { status: SlotStatus.BLOCKED },
-            { status: SlotStatus.RESERVED, lockedUntil: { gt: new Date() } },
-          ],
-        },
-      });
-
-      if (occupied) {
-        throw new ConflictError('The requested new slot is not available. Please choose another.');
+    // A customer may only move to a slot they could have booked: inside working hours, not on a
+    // blocked day or slot, and not inside the notice period. Staff are not bound by these (as on
+    // the website); nobody can move onto another booking.
+    if (!isAdmin) {
+      await consultationTypesService.refresh();
+      let responseDays = 0;
+      let unavailableDates: string[] = [];
+      try {
+        const offering = consultationTypesService.resolveOffering(booking.consultationId, null, { includeInactive: true });
+        responseDays = offering.type.responseDays;
+        unavailableDates = offering.type.unavailableDates;
+      } catch (_) {
+        // The consultation type no longer exists: only the calendar rules apply.
       }
+      await availabilityService.assertCustomerCanBook(
+        { title: booking.title, durationMinutes: booking.durationMinutes, responseDays, unavailableDates },
+        newDate,
+        range
+      );
+    }
 
-      // Release old slot
-      await tx.appointmentSlot.updateMany({
-        where: { bookingId: booking.id },
-        data: { status: SlotStatus.AVAILABLE, bookingId: null, lockedUntil: null },
-      });
+    // Atomically swap slots (claimSlot releases the old one and refuses an overlap)
+    const updated = await prisma.$transaction(async (tx) => {
+      const utc = await claimSlot(tx, { bookingId: booking.id, date: newDate, range, status: 'BOOKED' });
 
-      // Upsert new slot
-      await tx.appointmentSlot.upsert({
-        where: {
-          practitionerId_date_startTime: {
-            practitionerId: booking.practitionerId,
-            date: input.newDate,
-            startTime: newStartTime,
-          },
-        },
-        create: {
-          practitionerId: booking.practitionerId,
-          date: input.newDate,
-          startTime: newStartTime,
-          endTime: newEndTime,
-          startTimeUtc: slotStartTimeUtc,
-          endTimeUtc: slotEndTimeUtc,
-          status: SlotStatus.BOOKED,
-          bookingId: booking.id,
-        },
-        update: {
-          status: SlotStatus.BOOKED,
-          bookingId: booking.id,
-          lockedUntil: null,
-        },
-      });
-
-      // Update booking
       return await tx.consultationBooking.update({
         where: { id: booking.id },
         data: {
-          date: input.newDate,
+          date: newDate,
           startTime: newStartTime,
           endTime: newEndTime,
-          slotStartTimeUtc,
-          slotEndTimeUtc,
+          slotStartTimeUtc: utc.startUtc,
+          slotEndTimeUtc: utc.endUtc,
           status: BookingStatus.RESCHEDULED,
           rescheduleReason: input.reason || null,
+          // The reminder already sent was for the old time.
+          reminderSentAt: null,
         },
       });
     });
@@ -735,6 +758,11 @@ export class ConsultationsService {
           consultationTitle: updated.title,
           date: updated.date,
           startTime: updated.startTime,
+          // The previous schedule, for the website's reschedule e-mail / WhatsApp / SMS.
+          oldDate: booking.date,
+          oldStartTime: booking.startTime,
+          oldEndTime: booking.endTime,
+          includes: this.includesOf(updated),
         },
       });
     } catch (_) {}
@@ -755,7 +783,7 @@ export class ConsultationsService {
       where: { id: bookingId },
     });
 
-    if (!booking) {
+    if (!booking || booking.deletedAt) {
       throw new NotFoundError(`Booking '${bookingId}' not found`);
     }
 
@@ -769,10 +797,7 @@ export class ConsultationsService {
 
     const updated = await prisma.$transaction(async (tx) => {
       // Release slot
-      await tx.appointmentSlot.updateMany({
-        where: { bookingId: booking.id },
-        data: { status: SlotStatus.AVAILABLE, bookingId: null, lockedUntil: null },
-      });
+      await releaseSlot(tx, booking.id);
 
       const updatedBooking = await tx.consultationBooking.update({
         where: { id: booking.id },
@@ -820,7 +845,8 @@ export class ConsultationsService {
     consultationId?: string;
     userId?: string;
   }) {
-    const where: any = {};
+    // Bookings deleted by staff are hidden everywhere (website `isDeleted`).
+    const where: any = { deletedAt: null };
     if (filters.date) where.date = filters.date;
     if (filters.status) where.status = filters.status;
     if (filters.consultationId) where.consultationId = filters.consultationId;
@@ -885,99 +911,17 @@ export class ConsultationsService {
   }
 
   /**
-   * Release expired unpaid reservations
+   * Release expired unpaid reservations: the slot is free again and the unpaid booking is
+   * cancelled with reason RESERVATION_EXPIRED. Returns how many bookings were cancelled.
    */
   public async releaseExpiredReservations() {
-    const now = new Date();
-
-    const expiredBookings = await prisma.consultationBooking.findMany({
-      where: {
-        status: BookingStatus.PENDING_PAYMENT,
-        reservationExpiresAt: { lte: now },
-      },
-      select: { id: true },
-    });
-
-    if (expiredBookings.length === 0) return 0;
-
-    const expiredIds = expiredBookings.map((b) => b.id);
-
-    await prisma.$transaction([
-      prisma.appointmentSlot.updateMany({
-        where: { bookingId: { in: expiredIds } },
-        data: { status: SlotStatus.AVAILABLE, bookingId: null, lockedUntil: null },
-      }),
-      prisma.consultationBooking.updateMany({
-        where: { id: { in: expiredIds } },
-        data: {
-          status: BookingStatus.CANCELLED,
-          cancellationReason: 'RESERVATION_EXPIRED',
-        },
-      }),
-    ]);
-
-    return expiredIds.length;
+    return releaseAllExpiredHolds();
   }
 
   // ---------------------------------------------------------------------------
   // Private Helpers
   // ---------------------------------------------------------------------------
 
-  private _generateStandardSlots(durationMinutes: number): SlotInterval[] {
-    const slots: SlotInterval[] = [];
-
-    // Morning Session: 11:00 to 14:00 (180 mins)
-    this._addSlotRange(slots, 11, 0, 14, 0, durationMinutes);
-
-    // Afternoon Session: 15:00 to 19:00 (240 mins)
-    this._addSlotRange(slots, 15, 0, 19, 0, durationMinutes);
-
-    return slots;
-  }
-
-  private _addSlotRange(
-    slots: SlotInterval[],
-    startHour: number,
-    startMinute: number,
-    endHour: number,
-    endMinute: number,
-    durationMinutes: number
-  ) {
-    let current = startHour * 60 + startMinute;
-    const end = endHour * 60 + endMinute;
-
-    while (current + durationMinutes <= end) {
-      const sH = String(Math.floor(current / 60)).padStart(2, '0');
-      const sM = String(current % 60).padStart(2, '0');
-      const next = current + durationMinutes;
-      const eH = String(Math.floor(next / 60)).padStart(2, '0');
-      const eM = String(next % 60).padStart(2, '0');
-
-      slots.push({
-        startTime: `${sH}:${sM}`,
-        endTime: `${eH}:${eM}`,
-      });
-
-      current += durationMinutes;
-    }
-  }
-
-  private _calculateEndTime(startTime: string, durationMinutes: number): string {
-    const [h, m] = startTime.split(':').map(Number);
-    const totalMinutes = h * 60 + m + durationMinutes;
-    const eH = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-    const eM = String(totalMinutes % 60).padStart(2, '0');
-    return `${eH}:${eM}`;
-  }
-
-  private _parseTimeToUtc(dateStr: string, timeStr: string): Date {
-    // Assuming IST (+05:30)
-    // Convert YYYY-MM-DD and HH:mm to UTC Date
-    const [h, m] = timeStr.split(':').map(Number);
-    // IST is UTC + 5:30 -> UTC is IST - 5h 30m
-    const utcDate = new Date(`${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00.000+05:30`);
-    return utcDate;
-  }
 
   private redisClient: any = null;
 
