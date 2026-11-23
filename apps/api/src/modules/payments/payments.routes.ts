@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { paymentsService } from './payments.service';
 import { createOrderSchema, verifyPaymentSchema, refundOrderSchema } from './payments.schemas';
 import { commerceCatalog } from '../commerce/commerce.catalog';
+import { platformReportLanguages } from '../../services/platform-report.runner';
 
 export async function paymentsRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // GET /api/v1/payments/catalog (Public endpoint to browse offerings & server prices)
@@ -12,10 +13,13 @@ export async function paymentsRoutes(fastify: FastifyInstance, _options: Fastify
     },
     handler: async (request, reply) => {
       const query = request.query as any;
-      const items = commerceCatalog.listItems({
-        itemType: query?.itemType,
-        activeOnly: query?.includeInactive !== 'true',
-      });
+      const items = commerceCatalog
+        .listItems({
+          itemType: query?.itemType,
+          activeOnly: query?.includeInactive !== 'true',
+        })
+        // Report items also list the languages their PDF can be generated in (from the report registry).
+        .map((item) => (item.legacyReportType ? { ...item, languages: platformReportLanguages(item.legacyReportType) } : item));
       return reply.status(200).send({ items });
     },
   });

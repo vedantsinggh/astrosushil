@@ -208,6 +208,11 @@ Page counts are with offline placeholder text; real narrative changes them.
   - The report is marked `FAILED` (with a customer-readable message, a `REPORT_FAILED` notification and a `[REPORT_ALERT]` log) only for permanent errors (invalid birth data, missing partner profile, unavailable report type, missing chart data), after the delivery deadline (`expectedDeliveryAt`, else booking + 24 h) or after 12 failed attempts.
   - While waiting, customers see the report as being prepared (`status: QUEUED`, `isPreparing: true`, no error fields). Diagnostics are kept in `generationFailures`, `lastAttemptAt`, `lastAttemptErrorCode` and `lastAttemptErrorMessage` (migration `20261118120000_report_retry_scheduling`).
   - User or admin regeneration and the manual retry reset the counter and run immediately.
+- **Language:** each report row stores its language (`reports.language`, `en` or `hi`, default `en`; migration `20261124090000_add_report_language`). It is chosen when the report is created (`language` in the create request, see `docs/api-spec.md` section 2.8) and is fixed afterwards.
+  - The API accepts a language only if `ReportRegistry.languages` lists it for that report, otherwise it answers `400 REPORT_LANGUAGE_NOT_AVAILABLE` before the order is looked up.
+  - The worker passes the stored language to `generateReport` on every attempt, so retries and regeneration produce the same language.
+  - The runner checks the registry again before any LLM call. `REPORT_LANGUAGE_NOT_AVAILABLE` at this stage (possible only if an edition was removed, or a worker runs older code than the API) is not in `PERMANENT_ERROR_CODES`, so it is retried like a transient failure until the deadline or attempt cap.
+  - The storage key is per report row; the download file name of a non-English report ends in `-<language>`.
 
 The migration `apps/api/prisma/migrations/20261118090000_report_platform` adds the `BABY_NAME` enum value and the cache table.
 

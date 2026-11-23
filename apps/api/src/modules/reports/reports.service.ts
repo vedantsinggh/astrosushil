@@ -9,7 +9,13 @@ import { distributedLockService } from '../../services/distributed-lock.service'
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { notificationService } from '../notifications/notification.service';
 import { logger } from '../../utils/logger';
-import { isPlatformReportType } from '../../services/platform-report.runner';
+import {
+  isPlatformReportType,
+  platformReportLanguages,
+  normalizeReportLanguage,
+  DEFAULT_REPORT_LANGUAGE,
+  ReportLanguage,
+} from '../../services/platform-report.runner';
 import { featureAccessService } from '../../services/feature-access.service';
 
 export type UserContext = { id: string; role?: string; [key: string]: any };
@@ -35,6 +41,42 @@ export function reportProgressDetail(report: { status?: string | null; stage?: s
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
   const detail = (meta as Record<string, unknown>).progressDetail;
   return typeof detail === 'string' && detail.length > 0 ? detail.slice(0, 120) : null;
+}
+
+/**
+ * The language a new report would be created in (`en` when the request names none).
+ * Rejects a language the report type has no edition for, read from the platform registry
+ * at call time. Runs before any order lookup, so nothing is claimed or consumed on failure.
+ */
+export function resolveReportLanguage(reportType: string, requested?: ReportLanguage): ReportLanguage {
+  const language = requested ?? DEFAULT_REPORT_LANGUAGE;
+  const available = platformReportLanguages(reportType);
+  if (!available.includes(language)) {
+    throw new AppError(
+      `The ${reportType} report is not available in language "${language}". Available: ${available.join(', ') || 'none'}.`,
+      400,
+      'REPORT_LANGUAGE_NOT_AVAILABLE'
+    );
+  }
+  return language;
+}
+
+/**
+ * A report keeps the language it was created in. A request that explicitly names another
+ * language for a report that already exists (same paid slot) is rejected rather than
+ * answered with the other-language report or a free second edition. A request without
+ * `language` simply gets the existing report.
+ */
+export function assertReportLanguageUnchanged(existing: { language?: string | null } | null | undefined, requested?: ReportLanguage): void {
+  if (!existing || !requested) return;
+  const stored = normalizeReportLanguage(existing.language);
+  if (stored !== requested) {
+    throw new AppError(
+      `This report was created in language "${stored}" and cannot be changed to "${requested}".`,
+      409,
+      'REPORT_LANGUAGE_FIXED'
+    );
+  }
 }
 
 export class ReportsService {
@@ -195,16 +237,22 @@ export class ReportsService {
    * Initiates an async Career Report generation job.
    */
   public async createCareerReportJob(
-    input: { birthProfileId: string; forceRegenerate?: boolean; orderId?: string },
+    input: { birthProfileId: string; forceRegenerate?: boolean; orderId?: string; language?: ReportLanguage },
     user: UserContext
   ) {
+    // Before any order lookup: an unavailable language never claims a fulfilment unit.
+    resolveReportLanguage('CAREER', input.language);
+
     const concurrencyKey = `${user.id}:${input.birthProfileId}:CAREER`;
-    if (!input.forceRegenerate && ReportsService.inflightJobLocks.has(concurrencyKey)) {
+    // In-process de-duplication is per requested language; the distributed lock is not,
+    // so two languages for the same slot are still serialised.
+    const inflightKey = `${concurrencyKey}:${input.language ?? ''}`;
+    if (!input.forceRegenerate && ReportsService.inflightJobLocks.has(inflightKey)) {
       logger.info(
         { userId: user.id, birthProfileId: input.birthProfileId },
         '[CAREER_REPORT_JOB_REQUEST] Concurrent in-flight job detected. Reusing in-flight promise.'
       );
-      return await ReportsService.inflightJobLocks.get(concurrencyKey)!;
+      return await ReportsService.inflightJobLocks.get(inflightKey)!;
     }
 
     const runTask = () =>
@@ -214,17 +262,17 @@ export class ReportsService {
 
     const jobPromise = runTask();
     if (!input.forceRegenerate) {
-      ReportsService.inflightJobLocks.set(concurrencyKey, jobPromise);
+      ReportsService.inflightJobLocks.set(inflightKey, jobPromise);
     }
     try {
       return await jobPromise;
     } finally {
-      ReportsService.inflightJobLocks.delete(concurrencyKey);
+      ReportsService.inflightJobLocks.delete(inflightKey);
     }
   }
 
   private async executeCareerReportJob(
-    input: { birthProfileId: string; forceRegenerate?: boolean; orderId?: string },
+    input: { birthProfileId: string; forceRegenerate?: boolean; orderId?: string; language?: ReportLanguage },
     user: UserContext
   ) {
     // 1. Validate birth profile ownership
@@ -244,6 +292,10 @@ export class ReportsService {
     const { order, targetFulfillmentUnit, existingReport: boundReport } =
       await this.validateAndClaimOrder(input.orderId, user, 'CAREER', input.birthProfileId);
 
+    // The report already bound to this paid slot keeps its language.
+    assertReportLanguageUnchanged(boundReport, input.language);
+    const languageFilter = input.language ? { language: input.language } : {};
+
     // 3. Check for active (in-progress) report first to prevent double-clicks
     const activeReport = boundReport && ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'].includes(boundReport.status)
       ? boundReport
@@ -254,6 +306,7 @@ export class ReportsService {
             ...(order ? { orderId: order.id } : {}),
             reportType: ((ReportType as any).CAREER || 'CAREER') as any,
             status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'] as any[] },
+            ...languageFilter,
           },
           orderBy: { createdAt: 'desc' },
         });
@@ -274,6 +327,7 @@ export class ReportsService {
         status: active.status,
         stage: active.stage || active.status,
         progress: active.progress ?? 0,
+        language: normalizeReportLanguage(active.language),
         reused: true,
         active: true,
         message: 'Active report generation in progress.',
@@ -293,6 +347,7 @@ export class ReportsService {
               status: 'COMPLETED',
               reportVersion: CURRENT_REPORT_VERSION,
               calculationVersion: CURRENT_CALCULATION_VERSION,
+              ...languageFilter,
             } as any,
             orderBy: { createdAt: 'desc' },
           });
@@ -311,6 +366,7 @@ export class ReportsService {
           status: 'COMPLETED',
           stage: 'COMPLETED',
           progress: 100,
+          language: normalizeReportLanguage(existingReport.language),
           reused: true,
           completed: true,
           message: 'Existing completed career report retrieved.',
@@ -361,6 +417,8 @@ export class ReportsService {
         status: 'QUEUED',
         stage: 'QUEUED',
         progress: 0,
+        // Regeneration never changes the language stored on the report.
+        language: normalizeReportLanguage(boundReport.language),
         reused: false,
         message: 'Career report regeneration initiated.',
       };
@@ -373,6 +431,7 @@ export class ReportsService {
 
     const reportId = crypto.randomUUID();
     const now = new Date();
+    const language = input.language ?? DEFAULT_REPORT_LANGUAGE;
 
     const newReport = await prisma.report.create({
       data: {
@@ -388,6 +447,7 @@ export class ReportsService {
         expectedDeliveryAt,
         reportVersion: CURRENT_REPORT_VERSION,
         calculationVersion: CURRENT_CALCULATION_VERSION,
+        language,
         metadata: { enqueued: false },
         createdAt: now,
         updatedAt: now,
@@ -428,16 +488,19 @@ export class ReportsService {
       status: 'QUEUED',
       stage: 'QUEUED',
       progress: 0,
+      language,
       reused: false,
     };
   }
 
   /**
-   * Regenerates a career report by creating a new version.
+   * Regenerates a career report by creating a new version. The report keeps the language
+   * it was created in; `language`, when given, must match it.
    */
   public async regenerateCareerReport(
     reportId: string,
-    user: UserContext
+    user: UserContext,
+    language?: ReportLanguage
   ) {
     const existingReport = await prisma.report.findUnique({
       where: { id: reportId },
@@ -451,11 +514,14 @@ export class ReportsService {
       throw new ForbiddenError('You do not have access to this report');
     }
 
+    assertReportLanguageUnchanged(existingReport, language);
+
     return this.createCareerReportJob(
       {
         birthProfileId: existingReport.birthProfileId,
         forceRegenerate: true,
         orderId: existingReport.orderId || undefined,
+        language: normalizeReportLanguage(existingReport.language),
       },
       user
     );
@@ -502,6 +568,7 @@ export class ReportsService {
       status: r.status,
       stage: r.stage || r.status,
       progress: r.progress ?? 0,
+      language: normalizeReportLanguage(r.language),
       progressDetail: reportProgressDetail(r),
       errorCode: isFailed ? r.errorCode ?? null : null,
       errorMessage: isFailed ? r.errorMessage ?? null : null,
@@ -558,6 +625,7 @@ export class ReportsService {
       orderId: r.orderId ?? null,
       birthProfileId: r.birthProfileId,
       reportType: r.reportType,
+      language: normalizeReportLanguage(r.language),
       status: r.status,
       stage: r.stage || r.status,
       progress: r.progress ?? 0,
@@ -689,6 +757,7 @@ export class ReportsService {
       const metadata = r.metadata && typeof r.metadata === 'object' ? { ...r.metadata, platformManifest: undefined } : r.metadata;
       return {
         ...r,
+        language: normalizeReportLanguage(r.language),
         metadata,
         errorCode: isFailed ? r.errorCode ?? null : null,
         errorMessage: isFailed ? r.errorMessage ?? null : null,
@@ -767,20 +836,26 @@ export class ReportsService {
       );
     }
 
+    // Before any order lookup: an unavailable language never claims a fulfilment unit.
+    const language = resolveReportLanguage(input.reportType, input.language);
+
     if (input.reportType === ((ReportType as any).CAREER || 'CAREER')) {
       return this.createCareerReportJob(
-        { birthProfileId: input.birthProfileId, forceRegenerate: input.forceRegenerate, orderId: input.orderId },
+        { birthProfileId: input.birthProfileId, forceRegenerate: input.forceRegenerate, orderId: input.orderId, language: input.language },
         user
       );
     }
 
     const concurrencyKey = `${user.id}:${input.birthProfileId}:${input.reportType}:${input.partnerProfileId || ''}`;
-    if (!input.forceRegenerate && ReportsService.inflightJobLocks.has(concurrencyKey)) {
+    // In-process de-duplication is per requested language; the distributed lock is not,
+    // so two languages for the same slot are still serialised.
+    const inflightKey = `${concurrencyKey}:${input.language ?? ''}`;
+    if (!input.forceRegenerate && ReportsService.inflightJobLocks.has(inflightKey)) {
       logger.info(
         { userId: user.id, birthProfileId: input.birthProfileId, reportType: input.reportType },
         '[REPORT_JOB_REQUEST] Concurrent in-flight job detected. Reusing in-flight promise.'
       );
-      return await ReportsService.inflightJobLocks.get(concurrencyKey)!;
+      return await ReportsService.inflightJobLocks.get(inflightKey)!;
     }
 
     const runTask = async () => {
@@ -805,18 +880,20 @@ export class ReportsService {
         status: 'QUEUED',
         stage: 'QUEUED',
         progress: 0,
+        // A re-queued existing report keeps its stored language; a new one has the requested language.
+        language: initResult.language ?? language,
         reused: false,
       };
     };
 
     const jobPromise = runTask();
     if (!input.forceRegenerate) {
-      ReportsService.inflightJobLocks.set(concurrencyKey, jobPromise);
+      ReportsService.inflightJobLocks.set(inflightKey, jobPromise);
     }
     try {
       return await jobPromise;
     } finally {
-      ReportsService.inflightJobLocks.delete(concurrencyKey);
+      ReportsService.inflightJobLocks.delete(inflightKey);
     }
   }
 
@@ -831,6 +908,8 @@ export class ReportsService {
     reused: boolean;
     result?: any;
     reportId: string;
+    /** Language stored on the report row this job runs for. */
+    language?: ReportLanguage;
     order?: any;
     profile: any;
     partnerProfile?: any;
@@ -877,6 +956,10 @@ export class ReportsService {
       input.partnerProfileId
     );
 
+    // The report already bound to this paid slot keeps its language.
+    assertReportLanguageUnchanged(boundReport, input.language);
+    const languageFilter = input.language ? { language: input.language } : {};
+
     // 4. Deduplication Check 1: Active In-Progress Job Check
     const activeReport = boundReport && ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'].includes(boundReport.status)
       ? boundReport
@@ -887,6 +970,7 @@ export class ReportsService {
             ...(order ? { orderId: order.id } : {}),
             reportType: input.reportType as any,
             status: { in: ['QUEUED', 'CALCULATING', 'ANALYZING', 'RENDERING', 'COMPILING', 'PROCESSING', 'PENDING'] as any[] },
+            ...languageFilter,
             ...(input.partnerProfileId ? { metadata: { path: ['partnerProfileId'], equals: input.partnerProfileId } } : {}),
           },
           orderBy: { createdAt: 'desc' },
@@ -910,6 +994,7 @@ export class ReportsService {
           status: active.status,
           stage: active.stage || active.status,
           progress: active.progress ?? 0,
+          language: normalizeReportLanguage(active.language),
           reused: true,
           active: true,
           message: 'Active report generation in progress.',
@@ -930,6 +1015,7 @@ export class ReportsService {
               status: 'COMPLETED',
               reportVersion: CURRENT_REPORT_VERSION,
               calculationVersion: CURRENT_CALCULATION_VERSION,
+              ...languageFilter,
               ...(input.partnerProfileId ? { metadata: { path: ['partnerProfileId'], equals: input.partnerProfileId } } : {}),
             },
             orderBy: { createdAt: 'desc' },
@@ -957,6 +1043,7 @@ export class ReportsService {
             userId: existing.userId,
             birthProfileId: existing.birthProfileId,
             reportType: existing.reportType,
+            language: normalizeReportLanguage(existing.language),
             status: existing.status,
             stage: 'COMPLETED',
             progress: 100,
@@ -1002,6 +1089,8 @@ export class ReportsService {
       return {
         reused: false,
         reportId,
+        // Regeneration never changes the language stored on the report.
+        language: normalizeReportLanguage(boundReport.language),
         order,
         profile,
         partnerProfile,
@@ -1015,6 +1104,7 @@ export class ReportsService {
 
     const reportId = crypto.randomUUID();
     const now = new Date();
+    const language = input.language ?? DEFAULT_REPORT_LANGUAGE;
     await prisma.report.create({
       data: {
         id: reportId,
@@ -1029,6 +1119,7 @@ export class ReportsService {
         expectedDeliveryAt,
         reportVersion: CURRENT_REPORT_VERSION,
         calculationVersion: CURRENT_CALCULATION_VERSION,
+        language,
         metadata: {
           enqueued: false,
           ...(input.partnerProfileId ? { partnerProfileId: input.partnerProfileId } : {}),
@@ -1060,6 +1151,7 @@ export class ReportsService {
     return {
       reused: false,
       reportId,
+      language,
       order,
       profile,
       partnerProfile,

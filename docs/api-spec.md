@@ -298,7 +298,7 @@ All error responses adhere to a consistent JSON structure:
 
 - **`GET /api/v1/rashi-bhavishya/today`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
-  - **Query Params**: `?rashi=Mesha` or `?rashiIndex=1` or `?date=YYYY-MM-DD` (Optional).
+  - **Query Params**: `?rashi=Mesha` or `?rashiIndex=1` or `?date=YYYY-MM-DD` (Optional). `?language=en|hi` (Optional, default `en`): language of the narrative and of the reader-facing names. The facts (planet codes, sign indexes, houses, classifications, times) are identical in both languages; a Hindi response adds `language: "hi"`, `hindiName` on every sign and `classificationLabel` on every planet, and gives planet, weekday, tithi, nakshatra, yoga and karana names, house themes and method notes in Hindi. An unknown language is a 400. See `docs/report-system/decisions/rashi-bhavishya.md` (RB-014).
   - **Behavior**: If query parameters are omitted, automatically calculates the authenticated user's Moon Rashi from their default `BirthProfile`.
   - **Response 200**:
     ```json
@@ -333,6 +333,7 @@ All error responses adhere to a consistent JSON structure:
 - **`GET /api/v1/rashi-bhavishya/all`**
   - **Auth**: Bearer JWT (`USER` or `ADMIN`)
   - **Summary**: Returns daily predictions for all 12 Rashis.
+  - **Query Params**: `?date=YYYY-MM-DD`, `?language=en|hi` (Optional, default `en`). Lists only the rows already prepared in that language; the response carries `language`.
 
 ---
 
@@ -383,6 +384,45 @@ All error responses adhere to a consistent JSON structure:
       ]
     }
     ```
+
+---
+
+## 2.8 Paid Reports: report language (`/api/v1/reports`)
+
+This section documents only the report language. A report PDF is produced in English (`en`) or Hindi (`hi`). The customer chooses the language when the report is created; it is stored on the report (`reports.language`, default `en`) and never changes afterwards.
+
+- **Which languages a report has** is read from the report registry at request time (`ReportRegistry.languages`), never from a fixed list in the API. **`GET /api/v1/payments/catalog`** (public) returns it per report item as `languages`, so a client can offer the choice before payment:
+  ```json
+  { "items": [ { "id": "report-kundli", "itemType": "REPORT", "legacyReportType": "KUNDLI", "languages": ["en", "hi"], "...": "..." } ] }
+  ```
+  Items that are not reports have no `languages` field. A report type without a generator has `"languages": []`.
+
+- **`POST /api/v1/reports/generate`** (and `POST /api/v1/reports`), **`POST /api/v1/reports/career`**
+  - **Auth**: Bearer JWT
+  - **Body (addition)**: `language` — optional, `"en"` or `"hi"`. Omitted means `"en"`, so existing clients are unchanged.
+    ```json
+    { "birthProfileId": "…", "reportType": "KUNDLI", "orderId": "…", "language": "hi" }
+    ```
+  - **Response `201` (addition)**: `language` — the language of the report the response refers to.
+    ```json
+    { "reportId": "…", "id": "…", "status": "QUEUED", "stage": "QUEUED", "progress": 0, "language": "hi", "reused": false }
+    ```
+  - **Errors**:
+    - `400 VALIDATION_ERROR` — `language` is not `en` or `hi`.
+    - `400 REPORT_LANGUAGE_NOT_AVAILABLE` — the report type has no edition in that language. Checked first, before the order is looked up: no fulfilment unit is claimed and no report is created.
+      ```json
+      { "error": { "code": "REPORT_LANGUAGE_NOT_AVAILABLE", "message": "The KUNDLI report is not available in language \"hi\". Available: en.", "requestId": "…" } }
+      ```
+    - `409 REPORT_LANGUAGE_FIXED` — the paid slot already has a report for this person in another language and the request explicitly names a different one. A request **without** `language` returns the existing report (its `language` is in the response).
+  - **Regeneration** (`forceRegenerate: true`) re-queues the existing report in its stored language.
+
+- **`POST /api/v1/reports/career/:reportId/regenerate`**
+  - **Body**: none required. An optional `{ "language": "en" | "hi" }` must equal the report's stored language, otherwise `409 REPORT_LANGUAGE_FIXED`. The report is regenerated in its stored language.
+
+- **`GET /api/v1/reports/my-reports`**, **`GET /api/v1/reports/:id`**, **`GET /api/v1/reports/:id/status`**
+  - **Response (addition)**: `language` (`"en"` | `"hi"`) on every report.
+
+- **Files**: each report row has its own storage key (`reports/<userId>/<reportId>.pdf`), so the English and Hindi report of the same person never share a file. The download file name of a Hindi report ends in `-hi` (for example `kundli-asha-rao-1a2b3c4d-hi.pdf`); English file names are unchanged.
 
 ---
 

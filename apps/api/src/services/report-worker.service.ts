@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 import { postgresQueueService, ClaimedReportJob } from './postgres-queue.service';
 import { fulfillmentService } from '../modules/fulfillment/fulfillment.service';
 import { distributedLockService } from './distributed-lock.service';
-import { isPlatformReportType, platformReportTypes, runPlatformReport, PlatformInputError, PlatformRunInput } from './platform-report.runner';
+import { isPlatformReportType, platformReportTypes, runPlatformReport, PlatformInputError, PlatformRunInput, normalizeReportLanguage, DEFAULT_REPORT_LANGUAGE } from './platform-report.runner';
 import { ATTEMPT_TIMEOUT_MS, decideRetry, deliveryDeadline, finalFailureMessage } from './report-retry.policy';
 import { verifyDatabaseSessionTimeZone } from './prisma.service';
 import { progressFromEvent, ThrottledProgressWriter } from './report-progress';
@@ -24,6 +24,19 @@ export function isInstantExecutionEnabled(): boolean {
       process.env.AUTO_DELIVER_WHEN_READY === 'true') &&
     process.env.REPORT_INSTANT_EXECUTION !== 'false'
   );
+}
+
+/**
+ * Download file name of a delivered report. The storage key is per report row
+ * (`reports/<userId>/<reportId>.pdf`) and a row has exactly one language, so two
+ * language versions never share a key; the file name carries the language (non-default
+ * only, so English names are unchanged) so the two downloads are told apart on a device.
+ */
+export function reportFileName(reportType: string, personName: string, reportId: string, language: string = DEFAULT_REPORT_LANGUAGE): string {
+  const prefix = reportType.toLowerCase().replace(/_/g, '-');
+  const person = personName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const suffix = language === DEFAULT_REPORT_LANGUAGE ? '' : `-${language}`;
+  return `${prefix}-${person}-${reportId.substring(0, 8)}${suffix}.pdf`;
 }
 
 /** How long shutdown waits for in-flight reports before releasing their claims. */
@@ -660,6 +673,7 @@ export class CareerReportWorker {
       startHeartbeat();
 
       const platformMeta = ((report as any).metadata || {}) as Record<string, any>;
+      const reportLanguage = normalizeReportLanguage(report.language);
       if (!(await setStage('CALCULATING', 15, 'CALCULATING'))) return;
 
       // Per-topic progress during the long LLM phase (15% → 80%, stage ANALYZING), then
@@ -689,6 +703,8 @@ export class CareerReportWorker {
         profile: report.birthProfile,
         partnerProfileId: platformMeta.partnerProfileId,
         regenerateTopics: Array.isArray(platformMeta.regenerateTopics) ? platformMeta.regenerateTopics : undefined,
+        // The language chosen when the report was created; retries and regeneration reuse it.
+        language: reportLanguage,
         candidateNames: platformMeta.candidateNames,
         // The business (IST) calendar date the order was placed, not its UTC date.
         asOf: report.createdAt ? reportPlatform.businessAsOfDate(new Date(report.createdAt)) : undefined,
@@ -734,15 +750,14 @@ export class CareerReportWorker {
 
       if (!(await setStage('UPLOADING', 95, 'UPLOADING'))) return;
       const storageKey = `reports/${report.userId}/${reportId}.pdf`;
-      const prefix = report.reportType.toLowerCase().replace(/_/g, '-');
-      const fileName = `${prefix}-${report.birthProfile.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${reportId.substring(0, 8)}.pdf`;
+      const fileName = reportFileName(report.reportType, report.birthProfile.name, reportId, reportLanguage);
       let uploadResult;
       try {
         uploadResult = await storageService.upload({
           key: storageKey,
           body: result.pdf,
           contentType: 'application/pdf',
-          metadata: { userId: report.userId, reportId, birthProfileId: report.birthProfileId, reportType: report.reportType },
+          metadata: { userId: report.userId, reportId, birthProfileId: report.birthProfileId, reportType: report.reportType, language: reportLanguage },
         });
       } catch (uploadErr: any) {
         await this.handleAttemptFailure(attempt, 'OBJECT_STORAGE_UPLOAD_FAILED', uploadErr?.message || 'Object storage upload failed.');

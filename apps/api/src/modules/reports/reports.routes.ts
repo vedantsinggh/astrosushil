@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import path from 'path';
 import { reportsService } from './reports.service';
 import { storageService } from '../../services/storage.service';
-import { createReportSchema } from './reports.schemas';
+import { createReportSchema, reportLanguageSchema } from './reports.schemas';
 
 export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   fastify.addHook('onRequest', fastify.authenticate);
@@ -12,6 +12,9 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
     reply.header('Pragma', 'no-cache');
     reply.header('Expires', '0');
   }
+
+  // Language of the PDF. Omitted means English; the report registry decides whether the edition exists.
+  const languageProperty = { type: 'string', enum: ['en', 'hi'], description: 'Report language. Defaults to "en".' };
 
   // 1. Static POST routes
   // POST /api/v1/reports/career
@@ -27,17 +30,22 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
           birthProfileId: { type: 'string', format: 'uuid' },
           forceRegenerate: { type: 'boolean' },
           orderId: { type: 'string', format: 'uuid' },
+          language: languageProperty,
         },
       },
     },
     handler: async (request, reply) => {
       setNoCacheHeaders(reply);
-      const { birthProfileId, forceRegenerate, orderId } = request.body as {
+      const { birthProfileId, forceRegenerate, orderId, language } = request.body as {
         birthProfileId: string;
         forceRegenerate?: boolean;
         orderId?: string;
+        language?: unknown;
       };
-      const result = await reportsService.createCareerReportJob({ birthProfileId, forceRegenerate, orderId }, request.user);
+      const result = await reportsService.createCareerReportJob(
+        { birthProfileId, forceRegenerate, orderId, language: reportLanguageSchema.optional().parse(language) },
+        request.user
+      );
       return reply.status(201).send(result);
     },
   });
@@ -54,6 +62,7 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
         reportType: { type: 'string' },
         orderId: { type: 'string', format: 'uuid' },
         forceRegenerate: { type: 'boolean' },
+        language: languageProperty,
       },
     },
   };
@@ -88,7 +97,10 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
     handler: async (request, reply) => {
       setNoCacheHeaders(reply);
       const { reportId } = request.params as { reportId: string };
-      const result = await reportsService.regenerateCareerReport(reportId, request.user);
+      // Optional body `{ language }` (no body schema: existing clients send none). A report keeps
+      // the language it was created in, so naming a different one is rejected (REPORT_LANGUAGE_FIXED).
+      const language = reportLanguageSchema.optional().parse((request.body as { language?: unknown } | null | undefined)?.language);
+      const result = await reportsService.regenerateCareerReport(reportId, request.user, language);
       return reply.status(201).send(result);
     },
   });

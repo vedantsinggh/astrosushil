@@ -1772,6 +1772,8 @@ export class AdminService {
         userId: sourceReport.userId,
         birthProfileId: sourceReport.birthProfileId,
         reportType: sourceReport.reportType,
+        // A regenerated report keeps the language the customer chose.
+        language: sourceReport.language,
         status: 'QUEUED',
         stage: 'QUEUED',
         progress: 0,

@@ -228,6 +228,8 @@ model Report {
   progress           Int              @default(0)
   reportVersion      String           @default("1.0.0")
   calculationVersion String           @default("1.0.0")
+  /// Language of the PDF ("en" | "hi"), fixed when the report is created; the worker, retries and regeneration use it.
+  language           String           @default("en")
   storageKey         String?
   fileName           String?
   fileSize           Int?

@@ -64,6 +64,29 @@ export function platformReportTypes(): string[] {
   return reportPlatform.ReportRegistry.reportTypes();
 }
 
+/** Language of a report PDF, as the platform defines it (`en` | `hi`). */
+export type ReportLanguage = NonNullable<reportPlatform.GenerateReportRequest['language']>;
+
+/** Language of a report when the request names none, and of every report created before languages existed. */
+export const DEFAULT_REPORT_LANGUAGE: ReportLanguage = 'en';
+
+/** Every language value the API accepts. Whether a given report has that edition is decided by the registry. */
+export const REPORT_LANGUAGES: readonly ReportLanguage[] = ['en', 'hi'];
+
+/** The stored language of a report row; anything unknown (or absent on old rows) is the default. */
+export function normalizeReportLanguage(value: unknown): ReportLanguage {
+  return REPORT_LANGUAGES.find((l) => l === value) ?? DEFAULT_REPORT_LANGUAGE;
+}
+
+/**
+ * Languages the report serving this ReportType can be generated in, read from the
+ * platform registry at call time (never hard-coded). Empty when there is no generator.
+ */
+export function platformReportLanguages(reportType: string): ReportLanguage[] {
+  const definition = reportPlatform.ReportRegistry.byReportType(reportType);
+  return definition ? reportPlatform.ReportRegistry.languages(definition.id) : [];
+}
+
 interface BirthProfileLike {
   name: string;
   dateOfBirth: string;
@@ -103,6 +126,8 @@ export interface PlatformRunInput {
   /** Partner birth profile ID for two-person reports (must belong to the same user). */
   partnerProfileId?: string;
   regenerateTopics?: string[];
+  /** Language stored on the report row. Omitted means the default (`en`). */
+  language?: ReportLanguage;
   asOf?: Date;
   /** Baby Name: names the family is considering (validated strings only). */
   candidateNames?: unknown;
@@ -122,6 +147,12 @@ export async function runPlatformReport(input: PlatformRunInput) {
   const definition = reportPlatform.ReportRegistry.byReportType(input.reportType);
   if (!definition) throw new PlatformInputError('REPORT_TYPE_NOT_SUPPORTED', `No platform definition for ${input.reportType}`);
 
+  // Checked before any LLM work: a report row can only ask for an edition the registry has.
+  const language = input.language ?? DEFAULT_REPORT_LANGUAGE;
+  if (!reportPlatform.ReportRegistry.languages(definition.id).includes(language)) {
+    throw new PlatformInputError('REPORT_LANGUAGE_NOT_AVAILABLE', `The ${input.reportType} report is not available in language "${language}".`);
+  }
+
   let partner: SubjectInput | undefined;
   if (definition.requires.partner) {
     if (!input.partnerProfileId) throw new PlatformInputError('MISSING_PARTNER_PROFILE', 'Partner birth profile ID is required for this report.');
@@ -137,7 +168,7 @@ export async function runPlatformReport(input: PlatformRunInput) {
 
   let result: Awaited<ReturnType<typeof reportPlatform.generateReport>>;
   try {
-    result = await generatePlatform(definition.id, input, partner, narrator);
+    result = await generatePlatform(definition.id, { ...input, language }, partner, narrator);
   } catch (err) {
     // Invalid or incomplete birth data can never succeed on retry.
     const message = err instanceof Error ? err.message : String(err);
@@ -145,6 +176,9 @@ export async function runPlatformReport(input: PlatformRunInput) {
       throw new PlatformInputError('BIRTH_DATA_INVALID', `The birth details on file are incomplete or invalid: ${message.replace(/^[A-Z_]+: /, '')}`);
     }
     if (/^REPORT_TYPE_MISMATCH/.test(message)) throw new PlatformInputError('REPORT_TYPE_MISMATCH', message);
+    if (/^REPORT_LANGUAGE_NOT_AVAILABLE/.test(message)) {
+      throw new PlatformInputError('REPORT_LANGUAGE_NOT_AVAILABLE', `The ${input.reportType} report is not available in language "${language}".`);
+    }
     throw err;
   }
   return result;
@@ -159,6 +193,7 @@ async function generatePlatform(
   const result = await reportPlatform.generateReport({
     definitionId,
     reportType: input.reportType,
+    language: input.language,
     signal: input.signal,
     onProgress: input.onProgress,
     subject: {
@@ -180,6 +215,7 @@ async function generatePlatform(
     {
       reportId: input.reportId,
       definitionId,
+      language: input.language,
       status: result.manifest.status,
       pages: result.manifest.pdf?.pageCount,
       liveCalls: result.manifest.usage.liveCalls,
