@@ -27,14 +27,27 @@ export class OtpService {
    * Production categorically rejects development master OTP even if env var exists.
    */
   public isDevMasterOtp(inputOtp: string): boolean {
-    if (process.env.NODE_ENV === 'production' || config.NODE_ENV === 'production') {
+    if (!this.isDevMasterOtpEnabled()) {
       return false;
     }
     const devMasterCode = process.env.DEV_OTP || process.env.DEV_MASTER_OTP || config.DEV_MASTER_OTP || '123456';
+    return inputOtp === devMasterCode;
+  }
+
+  /**
+   * Whether a development master OTP can be used at all in this process.
+   * ALWAYS false in production. Used by the phone OTP flow to decide whether a
+   * failed SMS/WhatsApp delivery must fail the request (it must, whenever the
+   * delivered code is the only way to log in).
+   */
+  public isDevMasterOtpEnabled(): boolean {
+    if (process.env.NODE_ENV === 'production' || config.NODE_ENV === 'production') {
+      return false;
+    }
     if (!config.ALLOW_DEV_MASTER_OTP && !process.env.DEV_OTP && !process.env.DEV_MASTER_OTP) {
       return false;
     }
-    return inputOtp === devMasterCode;
+    return true;
   }
 
   /**

@@ -17,8 +17,17 @@ NotificationService.sendNotification(...)
     ├──> PUSH: FCM Push Provider (Firebase Cloud Messaging)
     │     └── DeviceToken query & automatic invalid-token cleanup
     │
-    └──> EMAIL: Transactional Email Provider (Nodemailer / Log Fallback)
+    ├──> EMAIL: generic e-mail, queued in the outbox and sent by SMTP
+    │     (status QUEUED / SENT / SKIPPED / FAILED - never a silent "sent")
+    │
+    └──> Website channels (notification.bridge.ts): for REPORT_READY, BOOKING_CONFIRMED,
+          BOOKING_RESCHEDULED and PAYMENT_SUCCESS the website's SMS / WhatsApp / e-mail
+          event is raised as well; its e-mail replaces the generic one.
 ```
+
+SMS (SMSLane), WhatsApp (WhatChimp) and SMTP e-mail, the outbox, retries, idempotency,
+the delayed report-ready delivery, the daily consultation reminder and OTP delivery are
+described in [`docs/integration/modules/messaging.md`](integration/modules/messaging.md).
 
 ---
 
@@ -26,8 +35,8 @@ NotificationService.sendNotification(...)
 
 1. **IN_APP**: Persistent in-app notifications stored in the PostgreSQL `notifications` table. Includes `readAt` state and JSON metadata (`entityId`, `route`).
 2. **PUSH (FCM)**: Mobile push notifications delivered via Firebase Cloud Messaging REST API.
-3. **EMAIL**: Transactional HTML & plain text emails rendered via centralized template generators.
-4. **Future Channels (WHATSAPP)**: Interface design allows registering additional channel providers without refactoring core notification dispatch logic.
+3. **EMAIL**: Transactional HTML & plain text emails rendered via centralized template generators, written to the `outbound_messages` outbox and delivered through the SMTP provider with bounded retries. E-mails that may carry a code (`PASSWORD_RESET`, `SECURITY_ALERT`) are sent at once and never stored. In production a missing SMTP configuration is reported as `FAILED` and logged as an error.
+4. **SMS and WHATSAPP**: Sent for the website's customer events (order, booking, report, reminder) and for OTPs, with the website's providers and approved templates. See `docs/integration/modules/messaging.md`.
 
 ---
 
@@ -76,6 +85,8 @@ User preferences are persisted in `notification_preferences`:
 
 **Transactional vs. Promotional Rule**: Transactional notifications (`REPORT_READY`, `PAYMENT_SUCCESS`, `SECURITY_ALERT`, `PASSWORD_RESET`) bypass optional promotional toggles to ensure critical user alerts are delivered.
 
+**E-mail, SMS and WhatsApp rule**: OTPs and payment / order / booking confirmations (`PAYMENT_SUCCESS`, `BOOKING_CONFIRMED`, `BOOKING_RESCHEDULED`, `BOOKING_CANCELLED`, `SECURITY_ALERT`, `PASSWORD_RESET`, and the website events order confirmed, booking confirmed / upgraded / rescheduled, report order confirmed) are always sent. Other e-mails respect `emailEnabled`. The report-ready e-mail and WhatsApp message respect `reportAlerts` (and the e-mail also `emailEnabled`); the consultation reminder e-mail respects `emailEnabled`.
+
 ---
 
 ## 6. Security & Redaction Directives
@@ -106,7 +117,7 @@ User preferences are persisted in `notification_preferences`:
 ## 8. Required Environment Variables
 
 ```env
-# Email Configuration
+# Email Configuration (SMTP_* names from the website are preferred; these are still read)
 EMAIL_HOST=smtp.mailgun.org
 EMAIL_PORT=587
 EMAIL_USER=postmaster@astrosushil.com
@@ -117,3 +128,5 @@ EMAIL_FROM="Astro Sushil <noreply@astrosushil.com>"
 FCM_SERVER_KEY=your_firebase_server_key
 FIREBASE_PROJECT_ID=astro-sushil-prod
 ```
+
+SMS, WhatsApp, SMTP and messaging behaviour variables: see `infrastructure/deployment/vm/.env.vm.example` and `docs/integration/modules/messaging.md`.

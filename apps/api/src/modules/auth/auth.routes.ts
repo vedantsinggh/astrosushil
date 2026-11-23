@@ -40,7 +40,8 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
     handler: async (request, reply) => {
       const input = phoneSendOtpSchema.parse(request.body);
-      const result = await authService.sendPhoneOtp(input);
+      // The caller's IP feeds the per-IP send limit (request.ip honours TRUST_PROXY).
+      const result = await authService.sendPhoneOtp(input, { ip: request.ip });
       return reply.status(200).send(result);
     },
   });

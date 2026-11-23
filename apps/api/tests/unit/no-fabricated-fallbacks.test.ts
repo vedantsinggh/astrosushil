@@ -70,8 +70,10 @@ describe('No fabricated fallbacks in user-facing modules', () => {
       const verificationSpy = vi.spyOn(emailService, 'sendVerificationEmail').mockResolvedValue();
       const provider = new EmailProvider();
       const result = await provider.sendEmail({ toEmail: 'a@example.com', subject: 's', text: 't', html: '<p>t</p>' });
+      // The provider now sends the given message through the e-mail transport (simulated outside
+      // production when SMTP is not configured). It must still never substitute a verification e-mail.
       expect(verificationSpy).not.toHaveBeenCalled();
-      expect(result).toEqual({ success: false, errorCode: 'EMAIL_TRANSPORT_UNSUPPORTED' });
+      expect(result.success).toBe(true);
     });
   });
 

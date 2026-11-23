@@ -1,6 +1,7 @@
 import { postgresQueueService } from './services/postgres-queue.service';
 import { careerReportWorker } from './services/report-worker.service';
 import { rashiBhavishyaScheduler } from './services/rashi-bhavishya.scheduler';
+import { messagingScheduler } from './services/messaging/messaging.scheduler';
 import { disconnectPrisma } from './services/prisma.service';
 import { setProcessRole } from './services/process-identity';
 import { logger } from './utils/logger';
@@ -21,6 +22,7 @@ async function startWorkerLoop() {
     logger.info(`[ReportWorkerProcess] Received ${signal}. Shutting down worker gracefully...`);
     isRunning = false;
     rashiBhavishyaScheduler.stop();
+    messagingScheduler.stop();
     try {
       const result = await careerReportWorker.shutdown();
       logger.info(result, '[ReportWorkerProcess] In-flight reports handled');
@@ -47,6 +49,9 @@ async function startWorkerLoop() {
 
   // Prepare the daily Rashi Bhavishya (12 Moon signs) ahead of time
   rashiBhavishyaScheduler.start();
+
+  // Outbound messaging: outbox dispatch (incl. delayed report-ready), consultation reminders
+  messagingScheduler.start();
 
   // pm2 wait_ready: the worker is ready once recovery ran.
   if (process.send) process.send('ready');

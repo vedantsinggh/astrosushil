@@ -1,8 +1,24 @@
 import { prisma } from '../../services/prisma.service';
 import { logger } from '../../utils/logger';
 import { fcmProvider } from './fcm.provider';
+import { emailProvider } from './email.provider';
+import { notificationBridge } from './notification.bridge';
+import { outboxService } from '../../services/messaging/outbox.service';
 import { renderNotificationTemplate } from './notification.templates';
-import { SendNotificationOptions, NotificationSendResult } from './notification.types';
+import { SendNotificationOptions, NotificationSendResult, NotificationType } from './notification.types';
+
+/** Sent whatever the user's e-mail preference says (payment / booking confirmations, security). */
+const TRANSACTIONAL_EMAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  'PAYMENT_SUCCESS',
+  'BOOKING_CONFIRMED',
+  'BOOKING_RESCHEDULED',
+  'BOOKING_CANCELLED',
+  'SECURITY_ALERT',
+  'PASSWORD_RESET',
+]);
+
+/** E-mails that may carry a code: sent at once, never written to the outbox table. */
+const INLINE_EMAIL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>(['PASSWORD_RESET', 'SECURITY_ALERT']);
 
 export class NotificationService {
   /**
@@ -10,6 +26,12 @@ export class NotificationService {
    */
   public async sendNotification(options: SendNotificationOptions): Promise<NotificationSendResult> {
     const { userId, type, entityId, route, customTitle, customBody, templateData, channels = ['IN_APP', 'PUSH', 'EMAIL'], idempotencyKey } = options;
+
+    // Website channels (SMS / WhatsApp / website e-mail templates) for the events this
+    // backend already raises. Runs before the in-app idempotency check because the
+    // outbox has its own, finer key (e.g. a second reschedule of the same booking).
+    // Never throws; push and in-app behaviour below is unchanged.
+    const bridge = await notificationBridge.raise(options);
 
     // Idempotency check: Prevent sending duplicate notification for same entity & type
     if (idempotencyKey || entityId) {
@@ -134,13 +156,40 @@ export class NotificationService {
     }
 
     // 3. EMAIL Channel
-    const isEmailAllowed = preferences.emailEnabled && (type !== 'PROMOTIONAL' || preferences.promotions);
-    if (channels.includes('EMAIL') && isEmailAllowed && user.email) {
+    // Previously this branch only logged and reported SENT. It now really sends, and
+    // reports what happened: QUEUED (outbox accepted it), SENT, SKIPPED or FAILED.
+    const isEmailAllowed =
+      (preferences.emailEnabled || TRANSACTIONAL_EMAIL_TYPES.has(type)) && (type !== 'PROMOTIONAL' || preferences.promotions);
+    if (bridge.handled) {
+      // The website's own e-mail template for this event replaces the generic one.
+      result.channels.email = { status: bridge.emailQueued ? 'QUEUED' : 'SKIPPED' };
+    } else if (channels.includes('EMAIL') && isEmailAllowed && user.email) {
       try {
-        logger.info({ userId, email: user.email, subject: template.emailSubject }, '[NotificationService] Transactional email dispatched');
-        result.channels.email = { status: 'SENT' };
+        if (INLINE_EMAIL_TYPES.has(type)) {
+          const sent = await emailProvider.sendEmail({
+            toEmail: user.email,
+            subject: template.emailSubject,
+            text: template.emailText,
+            html: template.emailHtml,
+          });
+          result.channels.email = { status: sent.success ? 'SENT' : 'FAILED' };
+        } else {
+          const queued = await outboxService.enqueue([
+            {
+              event: `notification:${type}`,
+              entityKey: idempotencyKey || entityId || result.notificationId || `${userId}:${Date.now()}`,
+              entityId,
+              userId,
+              channel: 'EMAIL',
+              recipient: user.email,
+              payload: { kind: 'email', subject: template.emailSubject, html: template.emailHtml, text: template.emailText },
+            },
+          ]);
+          if (queued.queued.length) outboxService.kick();
+          result.channels.email = { status: queued.queued.length ? 'QUEUED' : 'SKIPPED' };
+        }
       } catch (err) {
-        logger.error({ userId, err }, '[NotificationService] Failed to dispatch email');
+        logger.error({ userId, type, err: err instanceof Error ? err.message : String(err) }, '[NotificationService] Failed to dispatch email');
         result.channels.email = { status: 'FAILED' };
       }
     } else {

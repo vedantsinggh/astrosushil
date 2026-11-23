@@ -4,10 +4,11 @@ import { normalizePhoneNumber, maskPhoneNumber } from '../../utils/phone';
 import { TokenService } from '../../services/token.service';
 import { emailService } from '../../services/email.service';
 import { otpService } from './otp.service';
+import { otpDeliveryService, otpSendLimiter } from '../../services/messaging/otp-delivery.service';
 import { googleAuthService } from './google-auth.service';
 import { getMissingProfileFields } from './profile-completeness';
 import { logger } from '../../utils/logger';
-import { AuthenticationError, ConflictError, NotFoundError, RateLimitError } from '../../errors/app-error';
+import { AppError, AuthenticationError, ConflictError, NotFoundError, RateLimitError } from '../../errors/app-error';
 import {
   PhoneSendOtpInput,
   PhoneVerifyOtpInput,
@@ -56,9 +57,24 @@ export class AuthService {
   /**
    * Requests an OTP verification code for a phone number.
    * Normalizes to canonical E.164 and creates/retrieves user record without exposing secret OTP.
+   *
+   * The code is delivered by SMS and WhatsApp (both, as on the website). The answer is
+   * the same whether or not the number already has an account. Sends are limited per
+   * phone number and per IP address (`context.ip`, passed by the route) in a counter
+   * that a new request cannot reset.
    */
-  public async sendPhoneOtp(input: PhoneSendOtpInput) {
+  public async sendPhoneOtp(input: PhoneSendOtpInput, context: { ip?: string | null } = {}) {
     const normalizedPhone = normalizePhoneNumber(input.phoneNumber);
+
+    // Send rate limit, before anything is created or sent.
+    const allowance = await otpSendLimiter.consume({ identifier: normalizedPhone, ip: context.ip });
+    if (!allowance.allowed) {
+      logger.warn(
+        { phone: maskPhoneNumber(normalizedPhone), scope: allowance.scope, window: allowance.window },
+        '[AuthService] Phone OTP send limit reached'
+      );
+      throw new RateLimitError('Too many verification code requests. Please try again later.');
+    }
 
     // Find or create user record associated with normalized phone number
     let user = await prisma.user.findFirst({
@@ -82,12 +98,35 @@ export class AuthService {
     );
 
     if (isInCooldown) {
+      // Nothing is sent, so this request does not count towards the send limit.
+      await otpSendLimiter.release(allowance);
       throw new RateLimitError('Please wait 60 seconds before requesting another verification code.');
     }
 
     // Generate secure 6-digit OTP and store hashed record
     const otp = otpService.generateOtp();
     await otpService.createOtpRecord(user.id, otp, VerificationPurpose.PHONE_LOGIN, 10);
+
+    // Deliver by SMS and WhatsApp. The website's DLT texts: "signup" until the number
+    // has been verified once, "login" afterwards. The OTP itself is never logged.
+    const delivery = await otpDeliveryService.sendPhoneOtp({
+      phone: normalizedPhone,
+      otp,
+      purpose: user.phoneVerifiedAt ? 'login' : 'signup',
+      name: user.fullName?.trim().split(/\s+/)[0] || null,
+    });
+
+    if (!delivery.delivered) {
+      if (!otpService.isDevMasterOtpEnabled()) {
+        // The code reached nobody: do not leave it valid, and say so instead of "sent".
+        await otpService.invalidatePreviousOtps(user.id, VerificationPurpose.PHONE_LOGIN);
+        throw new AppError('We could not send the verification code. Please try again shortly.', 503, 'OTP_DELIVERY_FAILED');
+      }
+      logger.warn(
+        { userId: user.id, phone: maskPhoneNumber(normalizedPhone) },
+        '[AuthService] Phone OTP was not delivered; continuing because the development master OTP is enabled'
+      );
+    }
 
     // Structured logging with phone number masked for privacy
     logger.info(
