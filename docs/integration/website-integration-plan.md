@@ -108,6 +108,23 @@ The vendor assumes Indian time for every birth. Our engine resolves the real tim
 | Pro horoscope | Fortune Plus (about 83 pages) |
 | Match-making | Couple Matching (about 78 pages) |
 
+### The shorter "basic" Kundli (chosen 2026-11-24, owner delegated the choice)
+
+A new report built from the full Kundli's own topics, so the two never disagree. It keeps what a reader expects from a kundli and leaves the deep tables and life-area chapters to the full report.
+
+| Kept | Left to the full Kundli |
+|---|---|
+| Birth details, Avakahada Chakra, Panchang at birth | Ghatak Chakra |
+| Lagna chart (D1), Navamsa chart (D9), planet positions, the twelve houses at a glance | South Indian and Moon charts, aspect table, the sixteen divisional charts |
+| Life timeline, Mahadasha and Antardasha tables | Pratyantardasha tables, the Mahadasha chapters |
+| The three pillars: Ascendant, Moon sign, birth Nakshatra | Panchang decoded, Ashtakavarga |
+| The nine planet profiles | Bhavphal (house by house), conjunctions, Chara Karakas, Rahu and Ketu chapter |
+| One reading each on love and career | Darakaraka, commitment windows, Mars and marriage |
+| Sade Sati, Yogas, the note on doshas | Numerology, spiritual potential |
+| Supportive practices | |
+
+The page count is measured once it is built; the target is about 40 pages. It needs its own report type value.
+
 ## Phases
 
 1. **Preparation.** Staging environment; a copy of the live MongoDB data; the list of environment settings; security findings sent to the website developer.
@@ -132,7 +149,6 @@ The vendor assumes Indian time for every birth. Our engine resolves the real tim
 
 ## Open questions
 
-- Which Kundli topics make up the shorter "basic" Kundli.
 - The vendor subscription is handled by the owner and does not drive the schedule.
 
 ## Security findings on the website
