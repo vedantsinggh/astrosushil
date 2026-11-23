@@ -34,9 +34,9 @@ describe('Rashi Bhavishya API', () => {
 
     vi.spyOn(prisma.rashiDailyHoroscope, 'findUnique').mockImplementation((async (args: any) => {
       const k = args.where.date_rashiIndex_language_methodVersion_promptVersion;
-      return k.rashiIndex === 1 && k.date === today ? storedRow : null;
+      return k.rashiIndex === 1 && k.date === today && k.language === 'en' ? storedRow : null;
     }) as any);
-    vi.spyOn(prisma.rashiDailyHoroscope, 'findMany').mockResolvedValue([storedRow] as any);
+    vi.spyOn(prisma.rashiDailyHoroscope, 'findMany').mockImplementation((async (args: any) => (args.where.language === 'en' ? [storedRow] : [])) as any);
     vi.spyOn(prisma.birthProfile, 'findFirst').mockResolvedValue(null);
 
     app = buildApp();
@@ -79,6 +79,47 @@ describe('Rashi Bhavishya API', () => {
     expect(data.isDevelopmentFixture).toBe(false);
   });
 
+  it('GET /today?language=hi returns the same facts with Hindi names and Hindi wording', async () => {
+    const [en, hi] = await Promise.all(
+      ['', '&language=hi'].map(async (q) => {
+        const res = await app.inject({ method: 'GET', url: `/api/v1/rashi-bhavishya/today?rashiIndex=2${q}` });
+        expect(res.statusCode).toBe(200);
+        return JSON.parse(res.payload).data;
+      })
+    );
+    expect(en.language).toBe('en');
+    expect(JSON.stringify(en)).not.toMatch(/[\u0900-\u097F]/);
+    expect(hi.language).toBe('hi');
+    expect(hi.prediction.language).toBe('hi');
+    expect(hi.narrativeSource).toBe('deterministic');
+    expect(hi.rashi).toMatchObject({ index: 2, englishName: 'Taurus', hindiName: 'वृषभ' });
+    expect(hi.facts.planets.map((p: any) => [p.planet, p.sign.index, p.house, p.classification])).toEqual(
+      en.facts.planets.map((p: any) => [p.planet, p.sign.index, p.house, p.classification])
+    );
+    expect(hi.facts.reference).toEqual(en.facts.reference);
+    expect(hi.facts.planets[0].name).toBe('सूर्य');
+    expect(hi.facts.panchang.vara.name).toMatch(/वार$/);
+    expect(hi.prediction.summary).toMatch(/^आज चंद्र /);
+    expect(hi.prediction.summary).not.toMatch(/[A-Za-z]/);
+  });
+
+  it('GET /today?language=en is the default response; an unknown language returns 400', async () => {
+    const plain = await app.inject({ method: 'GET', url: '/api/v1/rashi-bhavishya/today?rashiIndex=1' });
+    const explicit = await app.inject({ method: 'GET', url: '/api/v1/rashi-bhavishya/today?rashiIndex=1&language=en' });
+    expect(JSON.parse(explicit.payload)).toEqual(JSON.parse(plain.payload));
+    for (const url of ['/api/v1/rashi-bhavishya/today?rashiIndex=1&language=mr', '/api/v1/rashi-bhavishya/all?language=mr']) {
+      const bad = await app.inject({ method: 'GET', url });
+      expect(bad.statusCode).toBe(400);
+      expect(JSON.parse(bad.payload).error.code).toBeTruthy();
+    }
+  });
+
+  it('GET /all?language=hi lists only Hindi rows (none prepared here: 503, never generated)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/rashi-bhavishya/all?language=hi' });
+    expect(res.statusCode).toBe(503);
+    expect(JSON.parse(res.payload).error.code).toBe('RASHI_BHAVISHYA_UNAVAILABLE');
+  });
+
   it('GET /today (as the app calls it) still answers 200 when the horoscope table is missing (regression)', async () => {
     const spy = vi.spyOn(prisma.rashiDailyHoroscope, 'findUnique').mockRejectedValueOnce(
       Object.assign(new Error('The table `public.rashi_daily_horoscopes` does not exist in the current database.'), { code: 'P2021' })
@@ -116,6 +157,7 @@ describe('Rashi Bhavishya API', () => {
     expect(res.statusCode).toBe(200);
     const { data } = JSON.parse(res.payload);
     expect(data.items).toHaveLength(1);
+    expect(data.language).toBe('en');
     expect(data.unavailableRashiIndexes).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 });

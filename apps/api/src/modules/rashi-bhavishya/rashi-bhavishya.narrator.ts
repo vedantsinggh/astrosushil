@@ -12,6 +12,17 @@ import type { IAiProvider } from '@astro/prediction-engine';
 import { reportPlatform } from '@astro/report-engine';
 import { PLANET_DISPLAY_NAMES, ordinal } from './rashi-gochara.tables';
 import { PlanetGochara, RashiDailyFacts, istParts } from './rashi-gochara.engine';
+import {
+  CLASS_HI,
+  PLANET_HI,
+  RashiLanguage,
+  SIGN_HI,
+  nakshatraHi,
+  signHi,
+  tithiLabelHi,
+  varaHi,
+  yogaHi,
+} from './rashi-bhavishya.hindi';
 
 type EvidenceItem = reportPlatform.EvidenceItem;
 type EvidenceValue = reportPlatform.EvidenceValue;
@@ -21,6 +32,15 @@ type NarratorRegistry = BatchContext['registry'];
 
 /** Part of the stored cache key; bump when topics, guidance or evidence wording change. */
 export const RASHI_NARRATIVE_VERSION = 'rb-narrative-1';
+/**
+ * The Hindi narrative has its own version (also part of the stored key), so Hindi
+ * titles, guidance or checks can change without regenerating the English rows.
+ */
+export const RASHI_NARRATIVE_VERSION_HI = 'rb-narrative-hi-1';
+
+export function narrativeVersionFor(language: RashiLanguage): string {
+  return language === 'hi' ? RASHI_NARRATIVE_VERSION_HI : RASHI_NARRATIVE_VERSION;
+}
 export const RASHI_ENGINE_LABEL = 'rashi-bhavishya/gochara';
 
 export interface RashiNarrativeSection {
@@ -214,6 +234,53 @@ const TOPICS: reportPlatform.ReportTopicInput[] = [
   },
 ];
 
+/** Reader-facing topic titles of the Hindi narrative; ids, objectives, evidence and depth are the English topics'. */
+const TOPIC_TITLES_HI: Record<string, string> = {
+  'day-overview': 'आज का चंद्र',
+  'planetary-weather': 'ग्रहों की व्यापक स्थिति',
+  guidance: 'आज के दिन का सदुपयोग',
+};
+const SECTION_TITLE = 'Daily Rashi Bhavishya';
+const SECTION_TITLE_HI = 'दैनिक राशि भविष्य';
+
+/** Same rule the report platform gives every Hindi edition (packages/report-engine/src/platform/i18n/hindi.ts). */
+const HINDI_STYLE =
+  'Write in natural, warm, contemporary Hindi (Devanagari), as spoken by an educated Indian family. Use the standard Hindi names of planets, signs, houses (भाव) and nakshatras. Do not mix in English words where a common Hindi word exists, and never write Hindi in Roman letters.';
+
+/**
+ * The Hindi narrative is written from the same evidence (English labels, same IDs and values)
+ * and the same topics. Only the reader-facing titles and the language rules differ; the report
+ * platform adds its Hindi prompt block and Hindi editorial rules for `language: 'hi'`.
+ */
+function hindiDefinitionFor(facts: RashiDailyFacts): reportPlatform.ReportDefinition {
+  const en = definitionFor(facts);
+  const { panchang } = facts.sky;
+  const sign = signHi(facts.rashi.index);
+  return reportPlatform.ReportDefinitionSchema.parse({
+    ...en,
+    specVersion: RASHI_NARRATIVE_VERSION_HI,
+    language: 'hi',
+    title: `${sign} चंद्र राशि का दैनिक राशि भविष्य`,
+    subtitle: `${facts.date} का गोचर फल`,
+    writingGuidance: [
+      ...en.writingGuidance.map((g) => g.replace('Plain, warm, practical English.', 'Plain, warm, practical Hindi.')),
+      HINDI_STYLE,
+      `Words to use in this horoscope: Moon sign = चंद्र राशि; "from your Moon sign" = "आपकी चंद्र राशि से"; favourable = ${CLASS_HI.favourable}; demanding = ${CLASS_HI.demanding}; classical gochara = शास्त्रीय गोचर; sunrise = सूर्योदय; direct (after retrograde) = मार्गी. Write a house as a Hindi ordinal with भाव (ग्यारहवाँ भाव, ग्यारहवें भाव में).`,
+      `Hindi names of today's panchang: ${panchang.vara.name} (${panchang.vara.english}) = ${varaHi(panchang.vara.name)}; tithi ${panchang.tithi.label} = ${tithiLabelHi(panchang.tithi)}; nakshatra ${panchang.nakshatra.name} = ${nakshatraHi(panchang.nakshatra.name)}; yoga ${panchang.yoga.name} = ${yogaHi(panchang.yoga.name)}.`,
+      'Write clock times and dates with the same digits as the evidence, and "IST" as भारतीय समय (for example "2026-11-18 को 07:16 बजे (भारतीय समय)").',
+      'Never use the words लग्न or दशा, not even in their everyday sense: for a state of mind write मनःस्थिति or स्थिति.',
+    ],
+    sections: [
+      {
+        id: 'daily',
+        title: SECTION_TITLE_HI,
+        kicker: 'आज',
+        topics: TOPICS.map((t) => ({ ...t, title: TOPIC_TITLES_HI[t.id] })),
+      },
+    ],
+  });
+}
+
 function definitionFor(facts: RashiDailyFacts): reportPlatform.ReportDefinition {
   const sign = facts.rashi.englishName;
   return reportPlatform.ReportDefinitionSchema.parse({
@@ -266,7 +333,13 @@ function parseOrdinal(token: string): number | undefined {
  * Sentences naming several planets are only checked for the planet nearest
  * the sign/house word, so lists like "Jupiter and Ketu in Leo" are judged per planet.
  */
-export function checkTransitProse(text: string, facts: RashiDailyFacts): string[] {
+export function checkTransitProse(text: string, facts: RashiDailyFacts, language: RashiLanguage = 'en'): string[] {
+  // A Hindi narrative is checked for both scripts: its claims stay English, and a Latin planet or sign name in the prose is still a statement.
+  if (language === 'hi') return [...checkTransitProseEnglish(text, facts), ...checkTransitProseHindi(text, facts)];
+  return checkTransitProseEnglish(text, facts);
+}
+
+function checkTransitProseEnglish(text: string, facts: RashiDailyFacts): string[] {
   const problems: string[] = [];
   const byName = new Map(facts.planets.map((p) => [p.name.toLowerCase(), p]));
   const sentences = text.split(/(?<=[.!?])\s+/);
@@ -296,6 +369,101 @@ export function checkTransitProse(text: string, facts: RashiDailyFacts): string[
       if (!p || !n) continue;
       const allowed = [p.house, p.changesTo?.house].filter((x): x is number => typeof x === 'number');
       if (!allowed.includes(n)) problems.push(`States ${p.name} in the ${ordinal(n)} house; it is in the ${ordinal(p.house)} from the Moon sign: "${s.slice(0, 120)}"`);
+    }
+  }
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// The same transit-fact check for Hindi (Devanagari) prose
+// ---------------------------------------------------------------------------
+
+// JS \b does not work for Devanagari, so word edges use Unicode letter/mark look-arounds.
+const HI_L = '(?<![\\p{L}\\p{M}])';
+const HI_R = '(?![\\p{L}\\p{M}])';
+const longestFirst = (xs: string[]) => [...xs].sort((a, b) => b.length - a.length).join('|');
+
+/** Hindi words for each planet, as written in Hindi horoscopes. */
+const HI_PLANET_WORDS: Array<[string, keyof typeof PLANET_HI]> = [
+  ['सूर्य', 'SUN'], ['रवि', 'SUN'], ['चंद्रमा', 'MOON'], ['चन्द्रमा', 'MOON'], ['चंद्र', 'MOON'], ['चन्द्र', 'MOON'], ['मंगल', 'MARS'], ['बुध', 'MERCURY'],
+  ['बृहस्पति', 'JUPITER'], ['गुरु', 'JUPITER'], ['शुक्र', 'VENUS'], ['शनि', 'SATURN'], ['राहु', 'RAHU'], ['केतु', 'KETU'],
+];
+const HI_SIGN_WORDS: Array<[string, number]> = [
+  ...SIGN_HI.map((hi, i): [string, number] => [hi, i + 1]),
+  ['वृष', 2], ['कुम्भ', 11],
+];
+const HI_ORDINAL_STEMS: Array<[string, number]> = [
+  ['पहल', 1], ['प्रथम', 1], ['दूसर', 2], ['द्वितीय', 2], ['तीसर', 3], ['तृतीय', 3], ['चौथ', 4], ['चतुर्थ', 4],
+  ['पाँचव', 5], ['पांचव', 5], ['पंचम', 5], ['छठ', 6], ['षष्ठ', 6], ['सातव', 7], ['सप्तम', 7], ['आठव', 8], ['अष्टम', 8],
+  ['नौव', 9], ['नवम', 9], ['नव', 9], ['दसव', 10], ['दशम', 10], ['ग्यारहव', 11], ['एकादश', 11], ['बारहव', 12], ['द्वादश', 12],
+];
+/** "चंद्र राशि" is the reader's Moon sign, not the transiting Moon; weekday names (मंगलवार) are excluded by the word edge. */
+const HI_PLANET = `${HI_L}(?:${longestFirst(HI_PLANET_WORDS.map(([w]) => w))})${HI_R}(?!\\s*राशि)`;
+const HI_SIGN = `${HI_L}(?:${longestFirst(HI_SIGN_WORDS.map(([w]) => w))})${HI_R}`;
+/** Ordinal stem with its ending (पहला, पहले, पाँचवाँ, पाँचवें, छठवें, दशम), or digits with वाँ/वें. */
+const HI_ORDINAL = `(?:${HI_L}(${longestFirst(HI_ORDINAL_STEMS.map(([w]) => w))})व?[\\p{M}]*${HI_R}|(?<!\\d)(\\d{1,2})\\s*-?\\s*(?:वाँ|वां|वें|वे|वीं)${HI_R})`;
+const HI_HOUSE = '(?:भाव|घर|स्थान)';
+const HI_NO_PLANET = (max: number) => `((?:(?!${HI_PLANET})[^।.;:!?]){0,${max}}?)`;
+/** "<ग्रह> … <राशि> (राशि) में". */
+const HI_SIGN_RE = new RegExp(`(${HI_PLANET})${HI_NO_PLANET(45)}(${HI_SIGN})\\s*(?:राशि\\s*)?(?:में|मे)${HI_R}`, 'gu');
+/** "<ग्रह> … <क्रम> भाव". */
+const HI_HOUSE_RE = new RegExp(`(${HI_PLANET})${HI_NO_PLANET(60)}${HI_ORDINAL}\\s*${HI_HOUSE}`, 'gu');
+/** Hindi also puts the planet after the house: "<क्रम> भाव में (स्थित) <ग्रह>". */
+const HI_HOUSE_THEN_PLANET_RE = new RegExp(
+  `${HI_ORDINAL}\\s*${HI_HOUSE}\\s*(?:में|मे)\\s+(?:(?:स्थित|विराजमान|मौजूद|बैठे|बैठा|गोचर\\s+कर\\s+रहे|गोचर\\s+कर\\s+रहा|गोचररत|संचार\\s+कर\\s+रहे|संचार\\s+कर\\s+रहा)\\s+)?(${HI_PLANET})`,
+  'gu'
+);
+/** Whole words only: the tithi "दशमी", "दशम भाव" and "मनोदशा" must not match "दशा". */
+const HI_FORBIDDEN_CONTEXT = new RegExp(
+  `${HI_L}(?:लग्न|महादशा|अंतर्दशा|अन्तर्दशा|दशा|(?:शुभ|भाग्यशाली|लकी)\\s+(?:अंक|संख्या|रंग)|प्रतिशत)`,
+  'u'
+);
+/** Sentence speaks about the birth Moon (janma rashi) rather than today's transit. */
+const HI_JANMA_CONTEXT = /जन्म|चंद्र\s*राशि|चन्द्र\s*राशि/u;
+
+function hiOrdinal(stem: string | undefined, digits: string | undefined): number | undefined {
+  if (digits) return Number(digits);
+  return HI_ORDINAL_STEMS.find(([w]) => w === stem)?.[1];
+}
+
+/**
+ * Hindi counterpart of the English check: every sentence that places a planet in a sign
+ * or a house must match the day's facts, and nothing a Moon-sign horoscope must not
+ * mention (लग्न, दशा, शुभ अंक/रंग, प्रतिशत) may appear.
+ */
+function checkTransitProseHindi(text: string, facts: RashiDailyFacts): string[] {
+  const problems: string[] = [];
+  const byCode = new Map(facts.planets.map((p) => [p.planet as string, p]));
+  const planetOf = (word: string) => byCode.get(HI_PLANET_WORDS.find(([w]) => w === word)?.[1] ?? '');
+  const signOf = (word: string) => HI_SIGN_WORDS.find(([w]) => w === word)?.[1];
+  for (const s of text.split(/(?<=[.!?।])\s+|\n+/)) {
+    const forbidden = HI_FORBIDDEN_CONTEXT.exec(s);
+    if (forbidden) problems.push(`Mentions "${forbidden[0]}", which a Moon-sign horoscope must not: "${s.slice(0, 120)}"`);
+    for (const m of s.matchAll(HI_SIGN_RE)) {
+      const p = planetOf(m[1]);
+      const signIndex = signOf(m[3]);
+      if (!p || !signIndex) continue;
+      const allowed = [p.sign.index, p.changesTo?.sign.index].filter((x): x is number => typeof x === 'number');
+      if (p.planet === 'MOON' && HI_JANMA_CONTEXT.test(s)) allowed.push(facts.rashi.index);
+      const upcoming = facts.sky.events.filter((e) => e.planet === p.planet && e.toSign).map((e) => e.toSign!.index);
+      if (!allowed.includes(signIndex) && !upcoming.includes(signIndex)) {
+        problems.push(`States ${p.name} in ${m[3]} (sign ${signIndex}); today it is in ${p.sign.englishName}: "${s.slice(0, 120)}"`);
+      }
+    }
+    const judge = (p: PlanetGochara | undefined, n: number | undefined) => {
+      if (!p || !n) return;
+      const allowed = [p.house, p.changesTo?.house].filter((x): x is number => typeof x === 'number');
+      if (!allowed.includes(n)) problems.push(`States ${p.name} in the ${ordinal(n)} house; it is in the ${ordinal(p.house)} from the Moon sign: "${s.slice(0, 120)}"`);
+    };
+    // Ordinals already attributed to the planet named before them are not attributed again to a planet after them.
+    const attributed = new Set<number>();
+    for (const m of s.matchAll(HI_HOUSE_RE)) {
+      attributed.add((m.index ?? 0) + m[1].length + m[2].length);
+      judge(planetOf(m[1]), hiOrdinal(m[3], m[4]));
+    }
+    for (const m of s.matchAll(HI_HOUSE_THEN_PLANET_RE)) {
+      if (attributed.has(m.index ?? 0)) continue;
+      judge(planetOf(m[3]), hiOrdinal(m[1], m[2]));
     }
   }
   return problems;
@@ -337,11 +505,16 @@ export class RashiNarrator {
     return { ...reportPlatform.DEFAULT_NARRATOR_CONFIG, ...RASHI_NARRATOR_DEFAULTS, ...this.options.config }.model;
   }
 
-  async generate(facts: RashiDailyFacts): Promise<RashiNarrativeResult> {
+  /**
+   * One LLM call per sign, date and language. Both languages are written from the same
+   * evidence with the same model settings and pass the same validators (the platform's
+   * claim and editorial rules for the language, then the transit-fact check).
+   */
+  async generate(facts: RashiDailyFacts, language: RashiLanguage = 'en'): Promise<RashiNarrativeResult> {
     if (!this.provider.isConfigured) {
       throw new RashiNarrativeError('LLM provider is not configured');
     }
-    const definition = definitionFor(facts);
+    const definition = language === 'hi' ? hindiDefinitionFor(facts) : definitionFor(facts);
     const { snapshotId, items } = buildRashiEvidence(facts);
     const store = new RashiEvidenceStore(snapshotId, items);
     const config: reportPlatform.NarratorConfig = { ...reportPlatform.DEFAULT_NARRATOR_CONFIG, ...RASHI_NARRATOR_DEFAULTS, ...this.options.config };
@@ -361,7 +534,7 @@ export class RashiNarrator {
         registry: store as unknown as NarratorRegistry,
         subjectRef: `rashi-${facts.rashi.index}-${facts.date}`,
         topics,
-        sectionTitle: 'Daily Rashi Bhavishya',
+        sectionTitle: language === 'hi' ? SECTION_TITLE_HI : SECTION_TITLE,
         priorSummaries: [],
       });
       for (const o of outcomes) {
@@ -384,7 +557,7 @@ export class RashiNarrator {
       }
       const payloads = outcomes.map((o) => o.payload!);
       const text = payloads.flatMap((p) => [p.lead, ...p.paragraphs, ...p.bullets, p.takeaway ?? '', ...p.claims.map((c) => c.statement)]).join('\n');
-      lastProblems = checkTransitProse(text, facts);
+      lastProblems = checkTransitProse(text, facts, language);
       if (lastProblems.length === 0) {
         const first = outcomes[0];
         return {
@@ -402,7 +575,7 @@ export class RashiNarrator {
           },
           provider: this.provider.providerId,
           model: first.model ?? config.model,
-          promptVersion: RASHI_NARRATIVE_VERSION,
+          promptVersion: narrativeVersionFor(language),
           generationId: first.sourceGenerationId ?? `gen_${randomUUID()}`,
           tokens,
           latencyMs,

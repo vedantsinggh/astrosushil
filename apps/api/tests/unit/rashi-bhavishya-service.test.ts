@@ -250,16 +250,20 @@ describe('RashiBhavishyaService', () => {
     spy.mockRestore();
   });
 
-  it('ensureDate prepares all 12 signs with 12 calls, then nothing more', async () => {
+  it('ensureDate prepares all 12 signs in both languages with 24 calls, then nothing more', async () => {
     const { provider, narrator } = offlineNarrator();
     const { svc } = service(narrator);
     const first = await svc.ensureDate('2026-11-18');
-    expect(first.generated).toHaveLength(12);
+    expect(first.generated).toHaveLength(24);
     expect(first.failed).toHaveLength(0);
-    expect(provider.calls).toBe(12);
+    expect(provider.calls).toBe(24);
     const second = await svc.ensureDate('2026-11-18');
-    expect(second.existing).toHaveLength(12);
-    expect(provider.calls).toBe(12);
+    expect(second.existing).toHaveLength(24);
+    expect(provider.calls).toBe(24);
+    // One language alone is still 12 calls.
+    const single = offlineNarrator();
+    await service(single.narrator).svc.ensureDate('2026-11-18', ['en']);
+    expect(single.provider.calls).toBe(12);
     const all = await svc.getAllPredictions('2026-11-18');
     expect(all.data.items).toHaveLength(12);
     expect(all.data.unavailableRashiIndexes).toEqual([]);

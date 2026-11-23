@@ -5,7 +5,7 @@
  * (catch-up) and, from PREPARE_TOMORROW_AFTER_IST_HOUR onwards, tomorrow's 12.
  * Signs that fail are retried on later ticks with a per-date backoff
  * (15 min, 30 min, 1 h, then every 2 h). Stored rows are never regenerated, so a
- * normal day costs exactly 12 LLM calls. Generation is idempotent (unique key +
+ * normal day costs exactly 24 LLM calls (12 signs in English and 12 in Hindi). Generation is idempotent (unique key +
  * upsert), so a second worker instance can at most duplicate a call, never content.
  */
 import { RashiBhavishyaService, rashiBhavishyaService } from '../modules/rashi-bhavishya/rashi-bhavishya.service';

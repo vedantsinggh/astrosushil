@@ -46,6 +46,8 @@ export interface SignRef {
   index: number;
   sanskritName: string;
   englishName: string;
+  /** Only in a Hindi API response (display name); never computed, hashed or stored. */
+  hindiName?: string;
 }
 
 export interface PlanetPosition {
@@ -111,7 +113,9 @@ export interface PlanetGochara {
   favourableHouses: number[];
   isRetrograde: boolean;
   /** Present when the planet changes sign before the next sunrise. */
-  changesTo?: { sign: SignRef; house: number; classification: GocharaClass; atIso: string; timeIst: string; dateIst: string };
+  changesTo?: { sign: SignRef; house: number; classification: GocharaClass; atIso: string; timeIst: string; dateIst: string; classificationLabel?: string };
+  /** Only in a Hindi API response: the Hindi word for `classification`; never computed, hashed or stored. */
+  classificationLabel?: string;
 }
 
 export interface RashiDailyFacts {
@@ -122,6 +126,8 @@ export interface RashiDailyFacts {
     englishName: string;
     element: string;
     ruler: string;
+    /** Only in a Hindi API response (display name); never computed, hashed or stored. */
+    hindiName?: string;
   };
   sky: DailySky;
   moon: PlanetGochara;

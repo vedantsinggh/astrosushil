@@ -12,6 +12,7 @@ export async function rashiBhavishyaRoutes(fastify: FastifyInstance, _options: F
       summary: "Daily Rashi Bhavishya (gochara from the Moon sign) for the user's Moon sign or a selected rashi",
       description:
         'Moon sign: rashiIndex, rashi (name) or profileId (signed-in user), else the latest birth profile of the signed-in user. ' +
+        'language: "en" (default) or "hi". The facts are the same in both; in Hindi the narrative and the reader-facing names are Hindi. ' +
         'Facts are computed deterministically; the narrative is written from those facts only and validated. ' +
         'When validated narrative cannot be produced (LLM not configured or failed), the same facts are returned with ' +
         'deterministic plain wording and narrativeSource "deterministic". 503 RASHI_BHAVISHYA_UNAVAILABLE only if the facts cannot be computed.',
@@ -23,6 +24,7 @@ export async function rashiBhavishyaRoutes(fastify: FastifyInstance, _options: F
           rashiIndex: { type: 'integer', minimum: 1, maximum: 12, example: 1 },
           profileId: { type: 'string', format: 'uuid' },
           date: { type: 'string', example: '2026-11-18', description: 'IST date; today-7 … tomorrow' },
+          language: { type: 'string', enum: ['en', 'hi'], default: 'en', description: 'Language of the narrative and display names' },
         },
       },
     },
@@ -38,15 +40,18 @@ export async function rashiBhavishyaRoutes(fastify: FastifyInstance, _options: F
   fastify.get('/all', {
     schema: {
       tags: ['Rashi Bhavishya'],
-      summary: 'Every Moon sign already prepared for the date (never generated inside this request)',
+      summary: 'Every Moon sign already prepared for the date in the requested language (never generated inside this request)',
       querystring: {
         type: 'object',
-        properties: { date: { type: 'string', example: '2026-11-18' } },
+        properties: {
+          date: { type: 'string', example: '2026-11-18' },
+          language: { type: 'string', enum: ['en', 'hi'], default: 'en', description: 'Language of the narrative and display names' },
+        },
       },
     },
     handler: async (request, reply) => {
       const query = rashiBhavishyaAllQuerySchema.parse(request.query);
-      const result = await rashiBhavishyaService.getAllPredictions(query.date);
+      const result = await rashiBhavishyaService.getAllPredictions(query.date, query.language);
       return reply.status(200).send(result);
     },
   });
