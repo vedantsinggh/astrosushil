@@ -10,7 +10,7 @@
 import type { InterpretationPack } from '@astro/prediction-engine';
 import { ReportDefinitionInput } from './contracts';
 import { AddEvidence, EvidenceRegistry } from './evidence/evidence-registry';
-import { HindiEdition } from './i18n/hindi';
+import { HindiEdition, ReportLanguage } from './i18n/hindi';
 import { BlockRenderer } from './render/blocks';
 import { ChartSnapshot } from './snapshot/chart-snapshot';
 
@@ -45,6 +45,14 @@ export interface ReportModule {
    * (`language: 'hi'`); structure, evidence and objectives are those of `definition`.
    */
   hindi?: HindiEdition;
+  /**
+   * Full definitions of this report in further languages, for a report whose text is built from
+   * two-language specs instead of a `hindi` overlay (the numerology family: Fortune is written in
+   * Hindi and supplies its English edition here). An edition must match `definition` in id, report
+   * types, requirements and every topic's id, kind, block, objective and evidence; the registry
+   * rejects one that does not.
+   */
+  editions?: Partial<Record<ReportLanguage, ReportDefinitionInput>>;
   status: ImplementationStatus;
   statusEvidence: string;
 }

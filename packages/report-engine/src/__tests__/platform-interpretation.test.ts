@@ -314,7 +314,8 @@ describe('backward compatibility', () => {
     let count = 0;
     for (const entry of ReportRegistry.list()) {
       const def = validateModule(entry.module);
-      if (def.requires.partner || def.id === 'career') continue;
+      // kundli-basic was added after this baseline was recorded; its topics are the Kundli's own.
+      if (def.requires.partner || def.id === 'career' || def.id === 'kundli-basic') continue;
       const { snapshot, registry } = await registryFor(def.id);
       all[def.id] = {};
       for (const s of def.sections) for (const t of s.topics) {

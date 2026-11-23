@@ -67,6 +67,17 @@ const HINDI_PROMPT_TERMS = [
   'nakshatra = नक्षत्र', 'pada = चरण', 'divisional chart = वर्ग कुंडली', 'birth chart = जन्म कुंडली', 'transit = गोचर', 'period = दशा',
 ].join('; ');
 
+/**
+ * Hindi wording the validators recognise (platform/validation/hindi-*.ts). Added to Hindi prompts
+ * only, so English prompts and their cache keys are unchanged.
+ */
+const HINDI_WORDING_INSTRUCTION =
+  'HINDI WORDING (checked on your Hindi prose exactly as the English rules are): A yoga, dasha or transit is a potential, never a promise: do not write प्रदान करता है, सुनिश्चित करता है, निश्चित रूप से, अवश्य or ज़रूर with a future verb, गारंटी, अटल or तय है; write संकेत देता है, झुकाव दिखाता है, संभावना बनाता है, सहारा दे सकता है. State a placement in the plain forms "<ग्रह> <दसवें/दशम or 10वें> भाव में है" and "<ग्रह> <राशि> राशि में है", with the planet and sign names listed above. Write dates as day month year (20 नवंबर 2026).';
+
+/** Hindi counterpart of the wording rules in INTERPRETATION_TOPIC_INSTRUCTION, for Hindi prompts that carry an INTERPRETATIONS block. */
+const HINDI_INTERPRETATION_INSTRUCTION =
+  'HINDI WORDING FOR TOPICS WITH AN INTERPRETATIONS BLOCK: The instruction above applies to your Hindi prose word for word. (1) These Hindi words are judgements and may appear only in a sentence that restates a cited interp.* conclusion (or a cited fact that uses the word): मजबूत, बलवान, प्रबल, सशक्त, उत्तम, श्रेष्ठ, अनुकूल, सहायक, समर्थित, शुभ, लाभकारी, कमजोर, दुर्बल, चुनौतीपूर्ण, कठिन, मुश्किल, प्रतिकूल, अशुभ, पीड़ित, बाधित, मिश्रित, मिला-जुला, संतुलित, तटस्थ, सम. Use समर्थित or अनुकूल for a supported result, चुनौतीपूर्ण for a challenged result, मिश्रित or मिला-जुला for a mixed result, तटस्थ for a neutral result. (2) In such a sentence keep the conclusion recognisable: the planet by its Hindi name, the house as an ordinal with भाव (बारहवें भाव, दशम भाव, 12वें भाव), the house lord as स्वामी or as सप्तमेश/दशमेश, the sign by its Hindi name, every number in digits, a yoga by its name in Devanagari followed by योग (गजकेसरी योग, बुधादित्य योग), and the fixed terms दुःस्थान (dusthana), बिंदु (bindus), सर्वाष्टकवर्ग, औसत (average), नीच (debilitated), उच्च (exalted), स्थित (placed), खाली (unoccupied), D10 or दशमांश. (3) For a mixed result say so with मिश्रित, मिला-जुला, दोनों, जबकि, लेकिन or फिर भी, and never use अत्यंत, बेहद, अत्यधिक, पूरी तरह, पूर्णतः, निस्संदेह or बिल्कुल about it. (4) Do not describe a खाली भाव, or a भाव that receives no दृष्टि, as सरल, सहज, सुरक्षित, लाभ, फायदा, निर्बाध or स्वतंत्रता. (5) Use these terms only when the evidence gives that fact: राशि स्वामी (dispositor), योगकारक, वर्गोत्तम, केंद्र भाव, त्रिकोण भाव, परिवर्तन योग (sign exchange), साढ़े साती. (6) Do not state a general rule (सामान्यतः … का अर्थ है, शास्त्रीय नियम है) unless an INTERPRETATIONS line gives it. (7) For a young native do not write of सेवानिवृत्ति, बोर्ड स्तर, शीर्ष प्रबंधन or करियर के अंतिम वर्ष.';
+
 export const SYSTEM_PROMPT = `You are the writing voice of Astro Sushil (astrologer Sushil Kumaar Singh), preparing a premium, personalised Vedic astrology report.
 
 ROLE AND LIMITS
@@ -111,6 +122,7 @@ export function buildBatchPrompt(input: BatchPromptInput): string {
   if (definition.language === 'hi') {
     lines.push('LANGUAGE: Write lead, paragraphs, bullets and takeaway in natural, warm Hindi (Devanagari script). Keep each claim "statement" in English, quoting the chart fact exactly as given in the evidence label, so it can be audited.');
     lines.push(`HINDI TERMS: The evidence is in English. In the Hindi prose use these words for it, and never spell an English term in Devanagari letters: ${HINDI_PROMPT_TERMS}.`);
+    lines.push(HINDI_WORDING_INSTRUCTION);
   }
   lines.push(`REPORT-SPECIFIC GUIDANCE:\n${definition.writingGuidance.map((g) => `- ${g}`).join('\n')}`);
   lines.push(`SECTION: ${input.sectionTitle}`);
@@ -121,6 +133,7 @@ export function buildBatchPrompt(input: BatchPromptInput): string {
     lines.push(buildGlossaryBlock());
     // Stated once per call, not once per topic (input tokens are billed).
     lines.push(`INSTRUCTION FOR EVERY TOPIC BELOW THAT HAS AN INTERPRETATIONS BLOCK: ${INTERPRETATION_TOPIC_INSTRUCTION}`);
+    if (definition.language === 'hi') lines.push(HINDI_INTERPRETATION_INSTRUCTION);
   }
   // Facts that every topic of this call may cite are listed once instead of once per topic.
   const interpIdsOf = (t: BatchPromptInput['topics'][number]) => new Set((t.interpretations ?? []).map((i) => i.id));

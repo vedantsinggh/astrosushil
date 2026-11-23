@@ -11,6 +11,7 @@ import {
 import { computeVarshaYear, VarshaYearData } from './calc/varsha-year';
 import { addVarshaphalEvidence } from './evidence';
 import { VARSHPHAL_DEFINITION } from './varshphal.definition';
+import { VARSHPHAL_HINDI } from './varshphal.hindi';
 
 const monthBlocks: Record<string, BlockRenderer> = Object.fromEntries(
   Array.from({ length: 12 }, (_, i) => [`varshphal-month-${pad2(i + 1)}`, varshphalMonth(i + 1)])
@@ -18,6 +19,7 @@ const monthBlocks: Record<string, BlockRenderer> = Object.fromEntries(
 
 export const VARSHPHAL_MODULE: ReportModule = {
   definition: VARSHPHAL_DEFINITION,
+  hindi: VARSHPHAL_HINDI,
   blocks: {
     'varshphal-synopsis': varshphalSynopsis,
     'varshphal-return': varshphalReturn,

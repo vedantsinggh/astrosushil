@@ -19,6 +19,20 @@ import {
   ValidationIssue,
 } from '../contracts';
 import { EvidenceRegistry, PLANETS, SIGNS, ordinal } from '../evidence/evidence-registry';
+import {
+  altOf,
+  HI_EDGE_L,
+  HI_EDGE_R,
+  HI_MONTH_RE,
+  HI_NAMED_HOUSES,
+  HI_ORDINAL_RE,
+  HI_PLANET_RE,
+  HI_SIGN_RE,
+  hiOrdinal,
+  hiPlanet,
+  hiSign,
+  toAsciiDigits,
+} from './hindi-chart-terms';
 
 const PLANET_RE = PLANETS.join('|');
 const SIGN_RE = SIGNS.join('|');
@@ -67,50 +81,63 @@ interface NatalAssertion {
 // letter/mark look-arounds.
 // ---------------------------------------------------------------------------
 
-const HI_PLANETS: Array<[string, string]> = [
-  ['सूर्य', 'Sun'], ['चंद्रमा', 'Moon'], ['चन्द्रमा', 'Moon'], ['चंद्र', 'Moon'], ['चन्द्र', 'Moon'], ['मंगल', 'Mars'], ['बुध', 'Mercury'],
-  ['बृहस्पति', 'Jupiter'], ['गुरु', 'Jupiter'], ['शुक्र', 'Venus'], ['शनि', 'Saturn'], ['राहु', 'Rahu'], ['केतु', 'Ketu'],
-];
-const HI_SIGNS: Array<[string, string]> = [
-  ['मेष', 'Aries'], ['वृषभ', 'Taurus'], ['वृष', 'Taurus'], ['मिथुन', 'Gemini'], ['कर्क', 'Cancer'], ['सिंह', 'Leo'], ['कन्या', 'Virgo'],
-  ['तुला', 'Libra'], ['वृश्चिक', 'Scorpio'], ['धनु', 'Sagittarius'], ['मकर', 'Capricorn'], ['कुंभ', 'Aquarius'], ['कुम्भ', 'Aquarius'], ['मीन', 'Pisces'],
-];
-const HI_ORDINAL_STEMS: Array<[string, number]> = [
-  ['पहल', 1], ['प्रथम', 1], ['दूसर', 2], ['द्वितीय', 2], ['तीसर', 3], ['तृतीय', 3], ['चौथ', 4], ['चतुर्थ', 4],
-  ['पाँचव', 5], ['पांचव', 5], ['पंचम', 5], ['छठ', 6], ['षष्ठ', 6], ['सातव', 7], ['सप्तम', 7], ['आठव', 8], ['अष्टम', 8],
-  ['नौव', 9], ['नवम', 9], ['नव', 9], ['दसव', 10], ['दशम', 10], ['ग्यारहव', 11], ['एकादश', 11], ['बारहव', 12], ['द्वादश', 12],
-];
-const HI_EDGE_L = '(?<![\\p{L}\\p{M}])';
-const HI_EDGE_R = '(?![\\p{L}\\p{M}])';
-const altOf = (xs: string[]) => [...xs].sort((a, b) => b.length - a.length).join('|');
-const HI_PLANET_RE = altOf(HI_PLANETS.map(([h]) => h));
-const HI_SIGN_RE = altOf(HI_SIGNS.map(([h]) => h));
-/** Ordinal stem + oblique/direct ending (वें, वे, वाँ, वां, ा, े, ी), or a digit with वें/वे. */
-const HI_ORDINAL_RE = `(?:(${altOf(HI_ORDINAL_STEMS.map(([h]) => h))})(?:वें|वे|वाँ|वां|वीं|ें|े|ा|ी)?|(\\d{1,2})\\s*(?:वें|वे|वाँ|वां))`;
-const HI_NON_NATAL = /(गोचर|नवांश|दशमांश|वर्ग\s*कुंडली|यदि|अगर|जब\s|सामान्यतः|सामान्य\s+रूप|परंपरागत\s+रूप|प्रवेश\s+करेग|डी9|डी10|D9|D10)/;
+/** Sentences that are not about the natal D1 chart: transits, divisional and annual charts, hypotheticals, houses counted from the Moon or Sun. */
+const HI_NON_NATAL = new RegExp(
+  [
+    'गोचर', 'नवांश', 'नवमांश', 'दशमांश', 'होरा', 'द्रेष्काण', 'सप्तमांश', 'द्वादशांश', 'त्रिंशांश', 'षष्ट्यंश', 'वर्ग\\s*कुंडली', 'वर्ग\\s*कुण्डली', 'वर्गों',
+    'वर्षफल', 'वर्ष\\s*कुंडली', 'ताजिक', 'मुंथा', 'यदि', 'अगर', 'जब\\s', 'जब\\s+भी', 'हर\\s+बार', 'सामान्यतः', 'सामान्यतया', 'सामान्य\\s+रूप', 'आमतौर\\s+पर', 'आम\\s+तौर\\s+पर',
+    'परंपरागत\\s+रूप', 'पारंपरिक\\s+रूप', 'प्रवेश\\s+करेग', 'डी\\s?\\d{1,2}', `${HI_EDGE_L}D(?:2|3|4|7|9|10|12|16|20|24|27|30|40|45|60)(?!\\d)`,
+    `(?:चंद्रमा|चन्द्रमा|चंद्र|चन्द्र|सूर्य|कारकांश|आत्मकारक)(?:\\s+(?:राशि|लग्न|कुंडली))?\\s+से`, 'चंद्र\\s*लग्न', 'चन्द्र\\s*लग्न', 'चंद्र\\s*कुंडली',
+  ].join('|'),
+  'u'
+);
+/** Sentences about the second native in two-person reports. */
+const HI_PARTNER_CONTEXT = new RegExp(`${HI_EDGE_L}(?:(?:जीवनसाथी|जीवन\\s+साथी|साथी|पार्टनर|पति|पत्नी|वर|वधू)\\s+(?:का|की|के)${HI_EDGE_R}|उनक[ाेी]${HI_EDGE_R})|^\\s*साथी\\s*:`, 'u');
+/** Between a planet and a house or sign these words mean the planet is not the one placed there ("शनि की दृष्टि सातवें भाव पर", "मंगल के स्वामित्व वाले दसवें भाव में"). */
+const HI_NOT_OCCUPANT = /दृष्टि|स्वामित्व|स्वामी|नक्षत्र|अधिपति/u;
+const HI_HOUSE_WORD = '(?:भाव|घर|स्थान)';
+const HI_IN = `(?:\\s*में|\\s*मे)${HI_EDGE_R}`;
+/**
+ * "दसवें भाव में सूर्य की दृष्टि": the planet named after the house is not placed there.
+ * "10वें भाव में सूर्य नहीं है": a denied placement asserts nothing.
+ */
+const HI_NOT_PLACED_AFTER = '(?!\\s+(?:की|के|का)\\s+(?:दृष्टि|स्वामी|स्वामित्व|नक्षत्र|राशि)|\\s+(?:(?:स्थित|मौजूद|उपस्थित|विराजमान)\\s+)?(?:नहीं|नही)(?![\\p{L}\\p{M}]))';
+const HI_PLACED = '(?:स्थित|बैठ[ाेी]|विराजमान|उपस्थित|मौजूद|स्थापित)';
 
-function hiPlanet(word: string): string {
-  return HI_PLANETS.find(([h]) => h === word)![1];
-}
-function hiOrdinal(stem: string | undefined, digits: string | undefined): number | undefined {
-  if (digits) return Number(digits);
-  return HI_ORDINAL_STEMS.find(([h]) => h === stem)?.[1];
-}
-
-/** Hindi assertions: "<ग्रह> … <क्रम> भाव/घर में" and "<ग्रह> … <राशि> (राशि) में". */
-function extractHindiAssertions(sentence: string): NatalAssertion[] {
+/**
+ * Hindi assertions, in both word orders:
+ * "<ग्रह> … <क्रम> भाव में", "<क्रम> भाव में (स्थित) <ग्रह>", "<ग्रह> … <राशि> (राशि) में",
+ * "<राशि> राशि में (स्थित) <ग्रह>", and named houses ("<ग्रह> … कर्म भाव में"). Devanagari digits are read as digits.
+ */
+function extractHindiAssertions(input: string): NatalAssertion[] {
   const out: NatalAssertion[] = [];
-  if (HI_NON_NATAL.test(sentence)) return out;
-  const houseRe = new RegExp(`${HI_EDGE_L}(${HI_PLANET_RE})${HI_EDGE_R}[^।.;:]{0,40}?${HI_EDGE_L}${HI_ORDINAL_RE}\\s*(?:भाव|घर|स्थान)(?:\\s*में|\\s*मे)`, 'gu');
-  const signRe = new RegExp(`${HI_EDGE_L}(${HI_PLANET_RE})${HI_EDGE_R}[^।.;:]{0,30}?${HI_EDGE_L}(${HI_SIGN_RE})${HI_EDGE_R}\\s*(?:राशि\\s*)?(?:में|मे)`, 'gu');
+  if (HI_NON_NATAL.test(input)) return out;
+  const sentence = toAsciiDigits(input);
+  const who: 'native' | 'partner' = HI_PARTNER_CONTEXT.test(sentence) ? 'partner' : 'native';
+  const planet = `${HI_EDGE_L}(${HI_PLANET_RE})${HI_EDGE_R}`;
+  const houseRe = new RegExp(`${planet}([^।.;:]{0,40}?)${HI_EDGE_L}${HI_ORDINAL_RE}\\s*${HI_HOUSE_WORD}${HI_IN}`, 'gu');
+  const namedHouseRe = new RegExp(`${planet}([^।.;:]{0,40}?)${HI_EDGE_L}(${altOf(HI_NAMED_HOUSES.map(([h]) => h))})\\s+(?:भाव|स्थान)${HI_IN}`, 'gu');
+  const signRe = new RegExp(`${planet}([^।.;:]{0,30}?)${HI_EDGE_L}(${HI_SIGN_RE})${HI_EDGE_R}\\s*(?:राशि\\s*)?(?:में|मे)${HI_EDGE_R}`, 'gu');
+  const houseFirstRe = new RegExp(`${HI_EDGE_L}${HI_ORDINAL_RE}\\s*${HI_HOUSE_WORD}${HI_IN}\\s+(?:${HI_PLACED}\\s+)?${planet}${HI_NOT_PLACED_AFTER}`, 'gu');
+  const signFirstRe = new RegExp(`${HI_EDGE_L}(${HI_SIGN_RE})${HI_EDGE_R}\\s*(?:राशि\\s*)?(?:में|मे)\\s+(?:${HI_PLACED}\\s+)?${planet}${HI_NOT_PLACED_AFTER}`, 'gu');
+  const seen = new Set<string>();
+  const push = (planetWord: string, house: number | undefined, sign: string | undefined) => {
+    const p = hiPlanet(planetWord);
+    if (!p || (house === undefined && sign === undefined)) return;
+    if (house !== undefined && (house < 1 || house > 12)) return;
+    const k = `${p}|${house}|${sign}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ planet: p, house, sign, text: input, who });
+  };
   let m: RegExpExecArray | null;
-  while ((m = houseRe.exec(sentence))) {
-    const house = hiOrdinal(m[2], m[3]);
-    if (house && house >= 1 && house <= 12) out.push({ planet: hiPlanet(m[1]), house, text: sentence });
-  }
-  while ((m = signRe.exec(sentence))) {
-    out.push({ planet: hiPlanet(m[1]), sign: HI_SIGNS.find(([h]) => h === m![2])![1], text: sentence });
-  }
+  while ((m = houseRe.exec(sentence))) if (!HI_NOT_OCCUPANT.test(m[2])) push(m[1], hiOrdinal(m[3], m[4]), undefined);
+  while ((m = namedHouseRe.exec(sentence))) if (!HI_NOT_OCCUPANT.test(m[2])) push(m[1], HI_NAMED_HOUSES.find(([h]) => h === m![3])?.[1], undefined);
+  while ((m = signRe.exec(sentence))) if (!HI_NOT_OCCUPANT.test(m[2])) push(m[1], undefined, hiSign(m[3]));
+  // House or sign first: only when the forward reading found nothing for that planet in this sentence.
+  const forward = new Set(out.map((a) => a.planet));
+  while ((m = houseFirstRe.exec(sentence))) if (!forward.has(hiPlanet(m[3]) ?? '')) push(m[3], hiOrdinal(m[1], m[2]), undefined);
+  while ((m = signFirstRe.exec(sentence))) if (!forward.has(hiPlanet(m[2]) ?? '')) push(m[2], undefined, hiSign(m[1]));
   return out;
 }
 
@@ -232,10 +259,72 @@ const NON_CURRENT_MARKER = new RegExp(
 );
 const FROM_MOON = /\bfrom\s+(?:the\s+|your\s+)?(?:natal\s+)?(?:moon|chandra)\b/i;
 
-/** Extract transit assertions sentence by sentence (English only; partner and past/hypothetical sentences are skipped). */
+// Hindi transit sentences: "शनि मीन राशि में गोचर कर रहा है", "शनि का गोचर आपके बारहवें भाव में",
+// "नवम भाव में शनि का गोचर", "शनि चंद्र से दूसरे भाव में गोचर कर रहा है".
+const HI_TRANSIT_PAST = new RegExp(
+  `गोचर\\s+(?:किया|कर\\s+चुक|कर\\s+गय|कर\\s+रह[ाेी]\\s+थ)|${HI_EDGE_L}(?:पिछल[ाेी]|पूर्व\\s+में|अतीत\\s+में|बीते|गत)${HI_EDGE_R}|${HI_EDGE_L}(?:था|थी|थे|थीं)\\s*[।.!?]?\\s*$`,
+  'u'
+);
+const HI_TRANSIT_HYPOTHETICAL = new RegExp(
+  `${HI_EDGE_L}(?:यदि|अगर|जब\\s+भी|जब\\s+कभी|जब[-\\s]जब|हर\\s+बार|प्रत्येक\\s+बार|सामान्यतः|सामान्यतया|सामान्य\\s+रूप\\s+से|आमतौर\\s+पर|आम\\s+तौर\\s+पर|प्रायः|अक्सर|पारंपरिक\\s+रूप\\s+से|परंपरागत\\s+रूप\\s+से|शास्त्रीय\\s+रूप\\s+से)${HI_EDGE_R}`,
+  'u'
+);
+/** Anything that ties the statement to a time other than "now": future verbs, "next", "until", month names, years. */
+const HI_NON_CURRENT_MARKER = new RegExp(
+  `${HI_EDGE_L}(?:अगल[ाेी]|आगामी|आने\\s+वाल[ाेी]|भविष्य|बाद|पहले|तक|के\\s+बीच|जब|एक\\s+बार|${HI_MONTH_RE})${HI_EDGE_R}` +
+    `|[\\p{L}\\p{M}]+(?:ेगा|ेगी|ेंगे|ेंगी|एगा|एगी|एँगे|एंगे|ोगा|ोगी|ोंगे|ोंगी)${HI_EDGE_R}|(?<!\\d)(?:19|20|21)\\d{2}(?!\\d)`,
+  'u'
+);
+const HI_FROM_MOON = new RegExp(`${HI_EDGE_L}(?:चंद्रमा|चन्द्रमा|चंद्र|चन्द्र)(?:\\s+(?:राशि|लग्न))?\\s+से${HI_EDGE_R}`, 'gu');
+const HI_CLAUSE_SPLIT = /[,;:—–()]|\s(?:जबकि|लेकिन|परंतु|परन्तु|किंतु|किन्तु|मगर|वहीं)\s/u;
+const HI_TRANSIT_TARGET = `${HI_EDGE_L}(?:${HI_ORDINAL_RE}\\s*(?:भाव|घर|स्थान)|(${HI_SIGN_RE})${HI_EDGE_R}(?:\\s*राशि)?)`;
+/** "… में" anywhere, "… से" only right before "गोचर" ("बारहवें भाव से गोचर"). */
+const HI_TRANSIT_POST = `(?:\\s*(?:में|मे)${HI_EDGE_R}|\\s*से\\s+गोचर)`;
+const HI_TRANSIT_FORWARD = new RegExp(`${HI_EDGE_L}(${HI_PLANET_RE})${HI_EDGE_R}([^।.]{0,40}?)${HI_TRANSIT_TARGET}${HI_TRANSIT_POST}`, 'gu');
+const HI_TRANSIT_REVERSE = new RegExp(
+  `${HI_TRANSIT_TARGET}\\s*(?:में|मे)${HI_EDGE_R}\\s+(?:[\\p{L}\\p{M}]+\\s+){0,3}?${HI_EDGE_L}(${HI_PLANET_RE})${HI_EDGE_R}(?!\\s+(?:की|के|का)\\s+(?:दृष्टि|स्वामी|स्वामित्व|नक्षत्र|राशि))`,
+  'gu'
+);
+/** "गोचर का शनि", "गोचरस्थ शनि", "गोचर कर रहे शनि": descriptive (any period), like "transiting Saturn in X". */
+const HI_TRANSIT_DESCRIPTIVE = new RegExp(`गोचर(?:स्थ|रत|\\s+(?:का|के|की)|\\s+कर\\s+रह[ाेी])\\s+(?:${HI_PLANET_RE})${HI_EDGE_R}`, 'u');
+
+/** Hindi transit assertions of one sentence (partner, past and hypothetical sentences are skipped, as in English). */
+function extractHindiTransitAssertions(input: string): TransitAssertion[] {
+  const s = toAsciiDigits(input);
+  if (!/गोचर/u.test(s) || HI_PARTNER_CONTEXT.test(s) || HI_TRANSIT_PAST.test(s) || HI_TRANSIT_HYPOTHETICAL.test(s)) return [];
+  const out: TransitAssertion[] = [];
+  const anyTime = HI_NON_CURRENT_MARKER.test(s);
+  const yearList = [...s.matchAll(/(?<!\d)((?:19|20|21)\d{2})(?!\d)/g)].map((y) => Number(y[1]));
+  const years: [number, number] | undefined = yearList.length ? [Math.min(...yearList), Math.max(...yearList)] : undefined;
+  for (const rawClause of s.split(HI_CLAUSE_SPLIT)) {
+    // A clause about the birth chart ("जन्म कुंडली में शनि बारहवें भाव में है") is not a transit statement.
+    if (!/गोचर/u.test(rawClause) || /जन्म/u.test(rawClause)) continue;
+    const fromMoonClause = new RegExp(HI_FROM_MOON.source, 'u').test(rawClause);
+    // "चंद्र से" names the reference point, not the transiting planet.
+    const clause = rawClause.replace(HI_FROM_MOON, ' ◆ ');
+    const present = !HI_TRANSIT_DESCRIPTIVE.test(clause);
+    const push = (planetWord: string, stem: string | undefined, digits: string | undefined, signWord: string | undefined) => {
+      const planet = hiPlanet(planetWord);
+      const house = hiOrdinal(stem, digits);
+      const sign = signWord ? hiSign(signWord) : undefined;
+      if (!planet || (!house && !sign) || (house !== undefined && (house < 1 || house > 12))) return;
+      const tense: TransitAssertion['tense'] = years ? 'dated' : present && !anyTime ? 'current' : 'undated';
+      out.push({ planet, house, sign, fromMoon: house !== undefined && fromMoonClause, tense, years: tense === 'dated' ? years : undefined, text: input });
+    };
+    let m: RegExpExecArray | null;
+    HI_TRANSIT_FORWARD.lastIndex = 0;
+    while ((m = HI_TRANSIT_FORWARD.exec(clause))) if (!HI_NOT_OCCUPANT.test(m[2])) push(m[1], m[3], m[4], m[5]);
+    HI_TRANSIT_REVERSE.lastIndex = 0;
+    while ((m = HI_TRANSIT_REVERSE.exec(clause))) push(m[4], m[1], m[2], m[3]);
+  }
+  return out;
+}
+
+/** Extract transit assertions sentence by sentence (English and Hindi; partner and past/hypothetical sentences are skipped). */
 export function extractTransitAssertions(text: string): TransitAssertion[] {
   const out: TransitAssertion[] = [];
   for (const s of text.split(/(?<=[.!?।])\s+/)) {
+    if (/[\u0900-\u097F]/.test(s)) out.push(...extractHindiTransitAssertions(s));
     if (PARTNER_CONTEXT.test(s) || PAST_TENSE.test(s) || HYPOTHETICAL.test(s)) continue;
     const anyTime = NON_CURRENT_MARKER.test(s);
     const yearList = [...s.matchAll(/\b((?:19|20|21)\d{2})\b/g)].map((y) => Number(y[1]));

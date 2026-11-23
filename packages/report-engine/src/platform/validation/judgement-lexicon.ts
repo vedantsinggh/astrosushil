@@ -13,6 +13,7 @@
  * `strengthClass` is compatible with the word.
  */
 import type { StrengthClass } from '@astro/prediction-engine';
+import { findHindiJudgementTerms, HINDI_MIXED_MARKERS, HINDI_ONE_SIDED_INTENSIFIERS } from './hindi-judgement-lexicon';
 
 export type JudgementPolarity = 'positive' | 'negative' | 'mixed' | 'neutral';
 
@@ -82,7 +83,10 @@ export interface JudgementHit {
   polarity: JudgementPolarity;
 }
 
-/** Non-negated judgement terms in a sentence, in lexicon order (deterministic). */
+/**
+ * Non-negated judgement terms in a sentence, in lexicon order (deterministic): the English lexicon
+ * first, then the Hindi one (hindi-judgement-lexicon.ts) when the sentence contains Devanagari.
+ */
 export function findJudgementTerms(sentence: string): JudgementHit[] {
   const hits: JudgementHit[] = [];
   for (const t of JUDGEMENT_TERMS) {
@@ -92,7 +96,22 @@ export function findJudgementTerms(sentence: string): JudgementHit[] {
     if (NEGATION_BEFORE.test(before) || DENIED_CLASSIFICATION_BEFORE.test(before)) continue;
     hits.push({ term: t.term, polarity: t.polarity });
   }
+  if (DEVANAGARI.test(sentence)) hits.push(...findHindiJudgementTerms(sentence));
   return hits;
+}
+
+const DEVANAGARI = /[\u0900-\u097F]/;
+
+/** True when the text says, in English or Hindi, that a result has two sides (MIXED_MARKERS). */
+export function hasMixedMarker(text: string): boolean {
+  return MIXED_MARKERS.test(text) || (DEVANAGARI.test(text) && HINDI_MIXED_MARKERS.test(text));
+}
+
+/** The first one-sided intensifier in the text, English or Hindi (ONE_SIDED_INTENSIFIERS). */
+export function findOneSidedIntensifier(text: string): string | undefined {
+  const en = ONE_SIDED_INTENSIFIERS.exec(text);
+  if (en) return en[0];
+  return DEVANAGARI.test(text) ? HINDI_ONE_SIDED_INTENSIFIERS.exec(text)?.[0] : undefined;
 }
 
 /**
@@ -102,7 +121,7 @@ export function findJudgementTerms(sentence: string): JudgementHit[] {
  */
 export function isCompatible(polarity: JudgementPolarity, cls: StrengthClass, text?: string): boolean {
   if (COMPATIBLE_CLASSES[polarity].includes(cls)) return true;
-  return cls === 'mixed' && (polarity === 'positive' || polarity === 'negative') && text !== undefined && MIXED_MARKERS.test(text);
+  return cls === 'mixed' && (polarity === 'positive' || polarity === 'negative') && text !== undefined && hasMixedMarker(text);
 }
 
 /** V2: one-sided intensifiers that a claim citing a `mixed` result must not use. */

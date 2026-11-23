@@ -14,6 +14,7 @@ import {
 import { contributeKundliEvidence } from './evidence';
 import { extendKundli } from './extend';
 import { KUNDLI_DEFINITION } from './kundli.definition';
+import { KUNDLI_HINDI } from './kundli.hindi';
 
 const MD_GLANCE: Record<string, BlockRenderer> = Object.fromEntries(
   Array.from({ length: 9 }, (_, i) => [`kundli-md-glance-${i + 1}`, kundliMdGlance(i + 1)])
@@ -51,6 +52,7 @@ export const KUNDLI_BLOCKS: Record<string, BlockRenderer> = {
 
 export const KUNDLI_MODULE: ReportModule = {
   definition: KUNDLI_DEFINITION,
+  hindi: KUNDLI_HINDI,
   blocks: KUNDLI_BLOCKS,
   extend: extendKundli,
   evidence: (add, ctx) => contributeKundliEvidence(add, ctx),

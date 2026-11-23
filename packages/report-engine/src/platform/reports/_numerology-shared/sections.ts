@@ -1,5 +1,5 @@
 /**
- * The numerology half shared by Fortune (Hindi) and Fortune Plus (English).
+ * The numerology half shared by Fortune and Fortune Plus, each in Hindi and English.
  *
  * Section and topic titles exist in both languages; objectives (read by the
  * LLM and reviewers) are English. `refs` maps each topic to the reference PDF
@@ -300,6 +300,21 @@ export function numerologySections(prefix: string, lang: Lang, ref: 'f' | 'p'): 
     intro: s.intro?.[lang],
     topics: s.topics.map((t) => toTopic(t, lang, ref)),
   }));
+}
+
+/**
+ * Hindi titles of the numerology sections and topics, in the shape of a HindiEdition overlay
+ * (platform/i18n/hindi.ts), for a report whose own definition is English (Fortune Plus).
+ */
+export function numerologyHindiText(): {
+  sections: Record<string, { title: string; kicker: string; intro?: string }>;
+  topics: Record<string, { title: string; subtitle?: string }>;
+} {
+  const specs = numerologySectionSpecs('numerology');
+  return {
+    sections: Object.fromEntries(specs.map((s) => [s.id, { title: s.title.hi, kicker: s.kicker.hi, intro: s.intro?.hi }])),
+    topics: Object.fromEntries(specs.flatMap((s) => s.topics).map((t) => [t.id, { title: t.title.hi, subtitle: t.subtitle?.hi }])),
+  };
 }
 
 export const NUMEROLOGY_WRITING_GUIDANCE = [

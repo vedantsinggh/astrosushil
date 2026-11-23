@@ -4,9 +4,11 @@ import { numerologyBlocks } from '../_numerology-shared/blocks';
 import { computeNumerologyExt, numerologyEvidence } from '../_numerology-shared/evidence';
 import { ASTRO_BLOCKS, astroEvidence, computeAstroExt } from './astro';
 import { FORTUNE_PLUS_DEFINITION } from './fortune-plus.definition';
+import { FORTUNE_PLUS_HINDI } from './fortune-plus.hindi';
 
 export const FORTUNE_PLUS_MODULE: ReportModule = {
   definition: FORTUNE_PLUS_DEFINITION,
+  hindi: FORTUNE_PLUS_HINDI,
   blocks: {
     ...numerologyBlocks('fortune-plus', 'en'),
     ...ASTRO_BLOCKS,

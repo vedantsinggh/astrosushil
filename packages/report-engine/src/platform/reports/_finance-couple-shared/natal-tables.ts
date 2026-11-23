@@ -14,14 +14,30 @@ import {
 } from '@astro/astrology-engine';
 import { ordinal, planetName, PlanetName, PLANETS, SIGNS } from '../../evidence/evidence-registry';
 import { northChart } from '../../render/blocks';
-import { formatDate, tex } from '../../render/latex';
+import { tex } from '../../render/latex';
 import { ChartSnapshot } from '../../snapshot/chart-snapshot';
+import {
+  abbrHi,
+  dateText,
+  dignityHi,
+  karakaText,
+  Lang,
+  nakshatraText,
+  PLANET_TABLE_METHOD_HI,
+  planetText,
+  SIGN_SHORT_HI,
+  signText,
+  term,
+} from './shared.hindi';
 
 export const ABBR: Record<PlanetName, string> = {
   Sun: 'Su', Moon: 'Mo', Mars: 'Ma', Mercury: 'Me', Jupiter: 'Ju', Venus: 'Ve', Saturn: 'Sa', Rahu: 'Ra', Ketu: 'Ke',
 };
 
 export const SIGN_SHORT = ['Ari', 'Tau', 'Gem', 'Can', 'Leo', 'Vir', 'Lib', 'Sco', 'Sag', 'Cap', 'Aqu', 'Pis'];
+
+/** Chart abbreviation of a planet (display name or engine symbol) in the report language: "Ju" / "गु". */
+export const abbrOf = (lang: Lang, planet: string): string => (lang === 'hi' ? abbrHi(planet) : ABBR[planetName(planet)]);
 
 export interface TexWithEvidence {
   tex: string;
@@ -73,7 +89,9 @@ export function sideBySide(left: string, right: string, leftTitle: string, right
 export type ChartKind = 'D1' | 'MOON' | 'SUN' | VargaType;
 
 /** North Indian chart for any snapshot: D1 (with degrees), Moon or Sun chart, or any computed varga. */
-export function chartFor(snap: ChartSnapshot, kind: ChartKind, scale = 0.95): string {
+export function chartFor(snap: ChartSnapshot, kind: ChartKind, scale = 0.95, lang: Lang = 'en'): string {
+  const retro = term(lang, 'R');
+  const ascMark = term(lang, 'Asc');
   const { natal } = snap;
   if (kind === 'D1' || kind === 'MOON' || kind === 'SUN') {
     const first = kind === 'D1'
@@ -82,9 +100,9 @@ export function chartFor(snap: ChartSnapshot, kind: ChartKind, scale = 0.95): st
     const houses = Array.from({ length: 12 }, (_, i) => ({ sign: ((first - 1 + i) % 12) + 1, lines: [] as string[] }));
     for (const p of natal.planets) {
       const h = (p.rashiIndex - first + 12) % 12;
-      houses[h].lines.push(kind === 'D1' ? `${ABBR[planetName(p.name)]} ${Math.floor(p.degree)}°${p.retrograde ? ' R' : ''}` : `${ABBR[planetName(p.name)]}${p.retrograde ? ' R' : ''}`);
+      houses[h].lines.push(kind === 'D1' ? `${abbrOf(lang, p.name)} ${Math.floor(p.degree)}°${p.retrograde ? ` ${retro}` : ''}` : `${abbrOf(lang, p.name)}${p.retrograde ? ` ${retro}` : ''}`);
     }
-    houses[(natal.ascendant.rashiIndex - first + 12) % 12].lines.unshift('Asc');
+    houses[(natal.ascendant.rashiIndex - first + 12) % 12].lines.unshift(ascMark);
     return northChart(houses, scale);
   }
   const chart = snap.vargas[kind];
@@ -95,9 +113,9 @@ export function chartFor(snap: ChartSnapshot, kind: ChartKind, scale = 0.95): st
     if (pl.planet === 'Ascendant') continue;
     const name = safePlanet(String(pl.planet));
     if (!name) continue;
-    houses[(pl.rashiIndex - asc + 12) % 12].lines.push(ABBR[name]);
+    houses[(pl.rashiIndex - asc + 12) % 12].lines.push(abbrOf(lang, name));
   }
-  houses[0].lines.unshift('Asc');
+  houses[0].lines.unshift(ascMark);
   return northChart(houses, scale);
 }
 
@@ -123,13 +141,15 @@ export function savChart(snap: ChartSnapshot, prefix = '', scale = 0.95): TexWit
 // ----------------------------------------------------------- planet table --
 
 /** Full planet table: sign, degree, nakshatra-pada, star/sub lord, house, dignity, state, lordship, karaka. */
-export function planetTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
+export function planetTable(snap: ChartSnapshot, prefix = '', lang: Lang = 'en'): TexWithEvidence {
+  const hi = lang === 'hi';
+  const kpPair = (star: string, sub: string) => `${abbrOf(lang, star)}/${abbrOf(lang, sub)}`;
   const ids: string[] = [`${prefix}asc.d1.sign`, `${prefix}asc.d1.degree`, `${prefix}asc.d1.nakshatra`];
   const asc = snap.natal.ascendant;
   const ascKp = KPSubLordCalculator.calculateKPLords(asc.absoluteDegree);
   const rows: string[][] = [[
-    '\\TCell{\\textbf{Ascendant}}', `\\TCell{${tex(asc.sign)}}`, `\\TCell{${tex(dms(asc.degree))}}`,
-    `\\TCell{${tex(asc.nakshatra)}-${asc.pada}}`, `\\TCell{${ABBR[planetName(ascKp.starLord)]}/${ABBR[planetName(ascKp.subLord)]}}`,
+    `\\TCell{\\textbf{${term(lang, 'Ascendant')}}}`, `\\TCell{${tex(signText(lang, asc.sign))}}`, `\\TCell{${tex(dms(asc.degree))}}`,
+    `\\TCell{${tex(nakshatraText(lang, asc.nakshatra))}-${asc.pada}}`, `\\TCell{${kpPair(ascKp.starLord, ascKp.subLord)}}`,
     '\\TCell{1}', '\\TCell{--}', '\\TCell{--}', '\\TCell{--}', '\\TCell{--}',
   ]];
   for (const p of snap.natal.planets) {
@@ -137,16 +157,16 @@ export function planetTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
     const k = `${prefix}planet.${name.toLowerCase()}.d1`;
     ids.push(`${k}.sign`, `${k}.degree`, `${k}.nakshatra`, `${k}.house`, `${k}.dignity`, `${k}.retrograde`, `${k}.lordship`);
     const kp = KPSubLordCalculator.calculateKPLords(p.absoluteDegree);
-    const state = [p.retrograde ? 'R' : '', p.combust ? 'C' : ''].filter(Boolean).join(' ') || '--';
+    const state = [p.retrograde ? term(lang, 'R') : '', p.combust ? term(lang, 'C') : ''].filter(Boolean).join(' ') || '--';
     rows.push([
-      `\\TCell{\\textbf{${name}}}`, `\\TCell{${tex(p.sign)}}`, `\\TCell{${tex(dms(p.degree))}}`,
-      `\\TCell{${tex(p.nakshatra)}-${p.pada}}`, `\\TCell{${ABBR[planetName(kp.starLord)]}/${ABBR[planetName(kp.subLord)]}}`,
-      `\\TCell{${p.house}}`, `\\TCell{${tex(dignityText(p.dignity))}}`, `\\TCell{${state}}`,
-      `\\TCell{${p.lordship.length ? p.lordship.join(', ') : '--'}}`, `\\TCell{${tex(p.charaKaraka ?? '--')}}`,
+      `\\TCell{\\textbf{${planetText(lang, name)}}}`, `\\TCell{${tex(signText(lang, p.sign))}}`, `\\TCell{${tex(dms(p.degree))}}`,
+      `\\TCell{${tex(nakshatraText(lang, p.nakshatra))}-${p.pada}}`, `\\TCell{${kpPair(kp.starLord, kp.subLord)}}`,
+      `\\TCell{${p.house}}`, `\\TCell{${tex(hi ? dignityHi(p.dignity) : dignityText(p.dignity))}}`, `\\TCell{${state}}`,
+      `\\TCell{${p.lordship.length ? p.lordship.join(', ') : '--'}}`, `\\TCell{${tex(p.charaKaraka ? karakaText(lang, p.charaKaraka) : '--')}}`,
     ]);
   }
   return {
-    tex: tableTex('l l l l l c l c c c', ['Planet', 'Sign', 'Degree', 'Nakshatra-pada', 'Star/Sub', 'House', 'Dignity', 'State', 'Rules', 'Karaka'], rows),
+    tex: tableTex('l l l l l c l c c c', ['Planet', 'Sign', 'Degree', 'Nakshatra-pada', 'Star/Sub', 'House', 'Dignity', 'State', 'Rules', 'Karaka'].map((h) => term(lang, h)), rows),
     evidenceIds: ids,
   };
 }
@@ -154,6 +174,8 @@ export function planetTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
 export const PLANET_TABLE_METHOD =
   'Sidereal (Lahiri) positions, Whole Sign houses, mean nodes. Star/Sub = nakshatra lord / KP sub lord (Krishnamurti 249-sub division of the same Lahiri longitude). ' +
   'State: R = retrograde, C = combust. Rules = houses owned. Karaka = Jaimini 7-karaka scheme (AK Atma, AmK Amatya, BK Bhratri, MK Matri, PK Putra, GK Gnati, DK Dara).';
+
+export const planetTableMethod = (lang: Lang): string => (lang === 'hi' ? PLANET_TABLE_METHOD_HI : PLANET_TABLE_METHOD);
 
 // ------------------------------------------------------- Avakahada/Panchang --
 
@@ -173,21 +195,21 @@ export const titleCase = (s: string) => s.toLowerCase().replace(/(^|[\s_-])([a-z
 // --------------------------------------------------------------- dashas --
 
 /** Vimshottari Mahadasha list; the running period is highlighted. */
-export function mahadashaTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
+export function mahadashaTable(snap: ChartSnapshot, prefix = '', lang: Lang = 'en'): TexWithEvidence {
   const now = Date.parse(snap.asOfIso);
   const rows = snap.vimshottari.mahadashas.map((md) => {
     const cur = Date.parse(md.startDateIso) <= now && now < Date.parse(md.endDateIso);
     const b = (s: string) => (cur ? `\\textbf{${s}}` : s);
-    return [`\\TCell{${b(planetName(md.lord))}}`, `\\TCell{${b(formatDate(md.startDateIso))}}`, `\\TCell{${b(formatDate(md.endDateIso))}}`, `\\TCell{${cur ? '\\textbf{running}' : ''}}`];
+    return [`\\TCell{${b(planetText(lang, md.lord))}}`, `\\TCell{${b(dateText(lang, md.startDateIso))}}`, `\\TCell{${b(dateText(lang, md.endDateIso))}}`, `\\TCell{${cur ? `\\textbf{${term(lang, 'running')}}` : ''}}`];
   });
   return {
-    tex: tableTex('X l l l', ['Mahadasha', 'From', 'To', ''], rows),
+    tex: tableTex('X l l l', [term(lang, 'Mahadasha'), term(lang, 'From'), term(lang, 'To'), ''], rows),
     evidenceIds: snap.vimshottari.mahadashas.map((_, i) => `${prefix}dasha.md.${String(i + 1).padStart(2, '0')}`),
   };
 }
 
 /** Antardashas of the running Mahadasha. */
-export function antardashaTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
+export function antardashaTable(snap: ChartSnapshot, prefix = '', lang: Lang = 'en'): TexWithEvidence {
   const now = Date.parse(snap.asOfIso);
   const mdIndex = snap.vimshottari.mahadashas.findIndex((md) => Date.parse(md.startDateIso) <= now && now < Date.parse(md.endDateIso));
   const md = snap.vimshottari.mahadashas[mdIndex];
@@ -195,10 +217,10 @@ export function antardashaTable(snap: ChartSnapshot, prefix = ''): TexWithEviden
   const rows = (md.subPeriods ?? []).map((ad) => {
     const cur = Date.parse(ad.startDateIso) <= now && now < Date.parse(ad.endDateIso);
     const b = (s: string) => (cur ? `\\textbf{${s}}` : s);
-    return [`\\TCell{${b(`${planetName(md.lord)}--${planetName(ad.lord)}`)}}`, `\\TCell{${b(formatDate(ad.startDateIso))}}`, `\\TCell{${b(formatDate(ad.endDateIso))}}`];
+    return [`\\TCell{${b(`${planetText(lang, md.lord)}--${planetText(lang, ad.lord)}`)}}`, `\\TCell{${b(dateText(lang, ad.startDateIso))}}`, `\\TCell{${b(dateText(lang, ad.endDateIso))}}`];
   });
   return {
-    tex: tableTex('X l l', ['Antardasha', 'From', 'To'], rows),
+    tex: tableTex('X l l', ['Antardasha', 'From', 'To'].map((h) => term(lang, h)), rows),
     evidenceIds: [`${prefix}dasha.md.${String(mdIndex + 1).padStart(2, '0')}`, `${prefix}dasha.current.md`],
   };
 }
@@ -208,29 +230,29 @@ export function antardashaTable(snap: ChartSnapshot, prefix = ''): TexWithEviden
 const AV_PLANETS = ['SUN', 'MOON', 'MARS', 'MERCURY', 'JUPITER', 'VENUS', 'SATURN'] as const;
 
 /** Bhinnashtakavarga per planet by sign, with the Sarvashtakavarga total and the house number of each sign. */
-export function ashtakavargaTable(snap: ChartSnapshot, prefix = ''): TexWithEvidence {
+export function ashtakavargaTable(snap: ChartSnapshot, prefix = '', lang: Lang = 'en'): TexWithEvidence {
   const av = snap.ashtakavarga;
   const asc = snap.natal.ascendant.rashiIndex;
-  const head = ['', ...SIGN_SHORT, 'Tot'];
+  const head = ['', ...(lang === 'hi' ? SIGN_SHORT_HI : SIGN_SHORT), term(lang, 'Tot')];
   const rows: string[][] = [];
-  rows.push(['\\TCell{\\textit{House}}', ...SIGN_SHORT.map((_, i) => `\\TCell{\\textit{${((i + 1 - asc + 12) % 12) + 1}}}`), '\\TCell{}']);
+  rows.push([`\\TCell{\\textit{${term(lang, 'House')}}}`, ...SIGN_SHORT.map((_, i) => `\\TCell{\\textit{${((i + 1 - asc + 12) % 12) + 1}}}`), '\\TCell{}']);
   for (const p of AV_PLANETS) {
     const t = av.bav[p];
-    rows.push([`\\TCell{${ABBR[planetName(p)]}}`, ...t.signList.map((n) => `\\TCell{${n}}`), `\\TCell{${t.totalPoints}}`]);
+    rows.push([`\\TCell{${abbrOf(lang, p)}}`, ...t.signList.map((n) => `\\TCell{${n}}`), `\\TCell{${t.totalPoints}}`]);
   }
-  rows.push(['\\TCell{\\textbf{SAV}}', ...av.sav.signList.map((n) => `\\TCell{\\textbf{${n}}}`), `\\TCell{\\textbf{${av.sav.grandTotal}}}`]);
+  rows.push([`\\TCell{\\textbf{${term(lang, 'SAV')}}}`, ...av.sav.signList.map((n) => `\\TCell{\\textbf{${n}}}`), `\\TCell{\\textbf{${av.sav.grandTotal}}}`]);
   return {
     tex: tableTex(`l ${'c '.repeat(13)}`, head, rows, { font: '\\fontsize{8}{10}\\selectfont' }),
     evidenceIds: Array.from({ length: 12 }, (_, i) => `${prefix}sav.house.${i + 1}`),
   };
 }
 
-export function sodhyaPindaTable(snap: ChartSnapshot): string {
+export function sodhyaPindaTable(snap: ChartSnapshot, lang: Lang = 'en'): string {
   const rows = AV_PLANETS.map((p) => {
     const pd = snap.ashtakavarga.pinda[p];
-    return [`\\TCell{${planetName(p)}}`, `\\TCell{${pd.rashiPinda}}`, `\\TCell{${pd.grahaPinda}}`, `\\TCell{${pd.shodhyaPinda}}`];
+    return [`\\TCell{${planetText(lang, p)}}`, `\\TCell{${pd.rashiPinda}}`, `\\TCell{${pd.grahaPinda}}`, `\\TCell{${pd.shodhyaPinda}}`];
   });
-  return tableTex('X c c c', ['Planet', 'Rashi pinda', 'Graha pinda', 'Shodhya pinda'], rows);
+  return tableTex('X c c c', ['Planet', 'Rashi pinda', 'Graha pinda', 'Shodhya pinda'].map((h) => term(lang, h)), rows);
 }
 
 /** Convenience: the 1..12 sign index of a sign name. */

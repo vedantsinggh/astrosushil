@@ -10,11 +10,13 @@ import {
 import { computeHoroscopeYear, HORO_AREAS, HoroscopeYearData } from './calc/horoscope-year';
 import { addHoroscopeEvidence } from './evidence';
 import { HOROSCOPE_ANNUAL_DEFINITION } from './horoscope-annual.definition';
+import { HOROSCOPE_ANNUAL_HINDI } from './horoscope-annual.hindi';
 
 const areaBlocks: Record<string, BlockRenderer> = Object.fromEntries(HORO_AREAS.map((a) => [`horoscope-area-${a.key}`, horoscopeArea(a.key)]));
 
 export const HOROSCOPE_ANNUAL_MODULE: ReportModule = {
   definition: HOROSCOPE_ANNUAL_DEFINITION,
+  hindi: HOROSCOPE_ANNUAL_HINDI,
   blocks: {
     'horoscope-synopsis': horoscopeSynopsis,
     'horoscope-windows': horoscopeWindows,

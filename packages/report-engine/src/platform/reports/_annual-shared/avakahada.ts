@@ -13,8 +13,10 @@ import {
   PlanetSymbol,
 } from '@astro/astrology-engine';
 import { AddEvidence, planetName, SIGNS } from '../../evidence/evidence-registry';
-import { BlockOutput, BlockRenderer } from '../../render/blocks';
+import { nakshatraLabel } from '../../i18n/hindi';
+import { blockLang, BlockOutput, BlockRenderer } from '../../render/blocks';
 import { tex } from '../../render/latex';
+import { avakahadaValueHi, L } from './annual-shared.hindi';
 import { ChartSnapshot } from '../../snapshot/chart-snapshot';
 
 export interface AvakahadaFacts {
@@ -137,13 +139,15 @@ export function avakahadaBlock(extKey: string): BlockRenderer {
     const f = ctx.ext[extKey] as AvakahadaFacts | undefined;
     if (!f) throw new Error('BLOCK_DATA_MISSING: avakahada');
     const s = ctx.snapshot.subject;
+    const lang = blockLang(ctx);
     const head: Array<[string, string]> = [
-      ['Name', s.name],
-      ['Date of birth', s.dateOfBirth.split('-').reverse().join('/')],
-      ['Time of birth', s.timeOfBirth ?? '—'],
-      ['Place of birth', s.placeName],
+      [L(lang, 'Name'), s.name],
+      [L(lang, 'Date of birth'), s.dateOfBirth.split('-').reverse().join('/')],
+      [L(lang, 'Time of birth'), s.timeOfBirth ?? '—'],
+      [L(lang, 'Place of birth'), s.placeName],
     ];
-    const all = [...head, ...ROWS.map(([k, fn]) => [k, fn(f)] as [string, string])];
+    const nak = (en: string) => nakshatraLabel('hi', en);
+    const all = [...head, ...ROWS.map(([k, fn]) => [L(lang, k), lang === 'hi' ? avakahadaValueHi(k, f, nak) : fn(f)] as [string, string])];
     const half = Math.ceil(all.length / 2);
     const lines: string[] = [];
     for (let i = 0; i < half; i++) {
@@ -154,12 +158,12 @@ export function avakahadaBlock(extKey: string): BlockRenderer {
     return {
       tex: [
         '\\begin{center}\\begin{tabularx}{\\linewidth}{>{\\raggedright\\arraybackslash}p{0.2\\linewidth}>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}p{0.2\\linewidth}>{\\raggedright\\arraybackslash}X}',
-        '\\TableHead\\THd{Factor} & \\THd{Value} & \\THd{Factor} & \\THd{Value}\\\\',
+        `\\TableHead\\THd{${L(lang, 'Factor')}} & \\THd{${L(lang, 'Value')}} & \\THd{${L(lang, 'Factor')}} & \\THd{${L(lang, 'Value')}}\\\\`,
         ...lines,
         '\\bottomrule\\end{tabularx}\\end{center}',
       ].join('\n'),
       evidenceIds: AVAKAHADA_IDS,
-      method: `Avakahada Chakra from the Moon's sign, nakshatra and pada, and the Panchanga at the birth instant, computed by the engine's Avakhada and Panchanga calculators. Western Sun sign uses the tropical zodiac; everything else is sidereal (Lahiri).`,
+      method: L(lang, `Avakahada Chakra from the Moon's sign, nakshatra and pada, and the Panchanga at the birth instant, computed by the engine's Avakhada and Panchanga calculators. Western Sun sign uses the tropical zodiac; everything else is sidereal (Lahiri).`),
     };
   };
 }

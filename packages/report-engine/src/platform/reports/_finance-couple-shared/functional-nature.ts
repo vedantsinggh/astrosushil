@@ -21,6 +21,7 @@
  * Used instead of the reference's undefined "gem power %" (decision FIN-003).
  */
 import { planetName, PlanetName, PLANETS } from '../../evidence/evidence-registry';
+import { FUNCTIONAL_METHOD_HI, Lang, ordOblique } from './shared.hindi';
 
 export type FunctionalNature = 'yogakaraka' | 'favourable' | 'mixed' | 'neutral' | 'challenging' | 'shadow';
 
@@ -103,3 +104,46 @@ export const FUNCTIONAL_METHOD =
   'Functional nature by Lagna (Brihat Parashara Hora Shastra ch. 34; Laghu Parashari ch. 2): Lagna lord favourable; kendra + trikona lord = Yogakaraka; ' +
   'trikona (5th/9th) lords favourable, mixed if they also rule the 3rd/6th/8th/11th; lords of the 3rd/6th/8th/11th challenging (the Sun and Moon are exempt from 8th-lord blemish); ' +
   'kendra-only and 2nd/12th-only lords neutral; Rahu and Ketu act through their sign lord.';
+
+// ------------------------------------------------------------ Hindi edition --
+
+const NATURE_LABEL_HI: Record<FunctionalNature, string> = {
+  yogakaraka: 'योगकारक (सबसे सहायक)',
+  favourable: 'लग्न अनुसार अनुकूल',
+  mixed: 'मिश्रित',
+  neutral: 'तटस्थ',
+  challenging: 'लग्न अनुसार चुनौतीपूर्ण',
+  shadow: 'छाया ग्रह (अपने राशि स्वामी के अनुसार फल देता है)',
+};
+
+/** The nature label in the report language; `short` drops the "Functionally" qualifier, as the narrower tables do. */
+export function natureLabel(lang: Lang, nature: FunctionalNature, short = false): string {
+  if (lang === 'en') return short ? NATURE_LABEL[nature].replace('Functionally ', '') : NATURE_LABEL[nature];
+  return short ? NATURE_LABEL_HI[nature].replace('लग्न अनुसार ', '') : NATURE_LABEL_HI[nature];
+}
+
+/**
+ * The reason of a classification in the report language. It follows the same rule order as
+ * `classifyFunctionalNature` (whose English `reason` it reproduces exactly) and decides nothing new.
+ */
+export function functionalReason(lang: Lang, c: FunctionalClassification): string {
+  if (lang === 'en') return c.reason;
+  const ls = c.lordships;
+  const owns = (hs: number[]) => ls.filter((h) => hs.includes(h));
+  const o = (n: number) => ordOblique('hi', n);
+  const list = ls.map(o).join(' और ');
+  if (c.nature === 'shadow') return 'किसी राशि का स्वामी नहीं; अपने राशि स्वामी और साथ बैठे ग्रहों के अनुसार फल देता है।';
+  if (ls.includes(1)) return `लग्नेश (${list} भाव का स्वामी); लग्नेश सदा सहायक होता है।`;
+  const kendra = owns([4, 7, 10]);
+  const trikona = owns([5, 9]);
+  const hard = owns([3, 6, 8, 11]);
+  if (c.nature === 'yogakaraka') return `एक केंद्र और एक त्रिकोण का स्वामी (${list} भाव)।`;
+  if (c.nature === 'mixed') return `एक त्रिकोण (${trikona.map(o).join(', ')}) और एक चुनौतीपूर्ण भाव (${hard.map(o).join(', ')}) का स्वामी।`;
+  if (c.nature === 'favourable') return `${list} भाव का स्वामी, जिनमें एक त्रिकोण है।`;
+  if (c.nature === 'challenging') return `${list} भाव का स्वामी; 3रे, 6ठे, 8वें और 11वें भाव के स्वामी लग्न अनुसार चुनौतीपूर्ण माने जाते हैं।`;
+  if (hard.length) return '8वें भाव का स्वामी; सूर्य और चंद्र पर 8वें के स्वामित्व का प्रभाव नहीं माना जाता।';
+  if (kendra.length) return `${list} भाव का स्वामी; केंद्र का स्वामित्व ग्रह की नैसर्गिक प्रवृत्ति को तटस्थ कर देता है।`;
+  return `${list} भाव का स्वामी; 2रे और 12वें भाव के स्वामी अपने साथ के ग्रहों के अनुसार फल देते हैं।`;
+}
+
+export const functionalMethod = (lang: Lang): string => (lang === 'en' ? FUNCTIONAL_METHOD : FUNCTIONAL_METHOD_HI);

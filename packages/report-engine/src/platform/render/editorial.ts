@@ -180,7 +180,12 @@ Thank you for reading your ${tex(def.title)}. May it bring you clarity, patience
 // ---------------------------------------------------------------------------
 
 function coverPageHi(def: ReportDefinition, c: CoverInfo): string {
-  const birth = `${tex(c.dateOfBirth)}${c.timeOfBirth ? ` \\enspace\\textbar\\enspace ${tex(c.timeOfBirth)}` : ''} \\enspace\\textbar\\enspace ${tex(c.placeName)}`;
+  const line = (d: string, t: string | undefined, p: string) =>
+    `${tex(d)}${t ? ` \\enspace\\textbar\\enspace ${tex(t)}` : ''} \\enspace\\textbar\\enspace ${tex(p)}`;
+  // A two-person report shows both birth lines, as the English cover does.
+  const birth = c.partner
+    ? `\\textbf{${tex(c.clientName.split(' & ')[0])}:} ${line(c.dateOfBirth, c.timeOfBirth, c.placeName)}\\\\[1mm]\\textbf{${tex(c.partner.name)}:} ${line(c.partner.dateOfBirth, c.partner.timeOfBirth, c.partner.placeName)}`
+    : line(c.dateOfBirth, c.timeOfBirth, c.placeName);
   return String.raw`\thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
   \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/celestial_cover.jpg}};

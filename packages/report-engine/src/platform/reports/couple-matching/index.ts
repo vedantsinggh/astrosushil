@@ -3,9 +3,11 @@ import { COUPLE_BLOCKS } from './couple.blocks';
 import { CoupleExt, coupleExtend } from './couple.calc';
 import { COUPLE_DEFINITION } from './couple.definition';
 import { coupleEvidence } from './couple.evidence';
+import { COUPLE_HINDI } from './couple.hindi';
 
 export const COUPLE_MATCHING_MODULE: ReportModule = {
   definition: COUPLE_DEFINITION,
+  hindi: COUPLE_HINDI,
   blocks: COUPLE_BLOCKS,
   extend: async ({ snapshot, partner }) => {
     if (!partner) throw new Error('SNAPSHOT_INPUT_INVALID: couple matching requires partner birth details');

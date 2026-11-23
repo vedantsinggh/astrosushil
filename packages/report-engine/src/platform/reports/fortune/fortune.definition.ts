@@ -1,5 +1,7 @@
 /**
- * Fortune Report (numerology only) — Hindi edition.
+ * Fortune Report (numerology only). The report's own definition is the Hindi
+ * edition (the default, as before); FORTUNE_DEFINITION_EN is the same report in
+ * English, built from the same two-language section specs.
  *
  * Reference: docs/referencerepots/Fortune Report.pdf (112 pp, Hindi, third-party;
  * used for information architecture only). Analysis:
@@ -27,4 +29,16 @@ export const FORTUNE_DEFINITION: ReportDefinitionInput = {
     'Write in natural, warm, contemporary Hindi (Devanagari), as spoken by an educated Indian family; keep common English terms such as Lo Shu, Kua and Feng Shui where Hindi readers use them.',
   ],
   sections: numerologySections('fortune', 'hi', 'f'),
+};
+
+/** The English edition: same sections, topics, blocks, evidence and objectives; English reader text. */
+export const FORTUNE_DEFINITION_EN: ReportDefinitionInput = {
+  ...FORTUNE_DEFINITION,
+  title: 'Fortune Report',
+  subtitle: 'The direction of your life, read from your Mulank, Bhagyank, name and Lo Shu grid',
+  description:
+    'This report is based on numerology alone: from your date of birth, your Mulank, Bhagyank, Lo Shu grid, Kua number and life cycles; and from your name, the Chaldean name number, soul urge and personality numbers. It closes with a month-by-month trend for the next twelve months and simple, free remedies.',
+  language: 'en',
+  writingGuidance: [...NUMEROLOGY_WRITING_GUIDANCE],
+  sections: numerologySections('fortune', 'en', 'f'),
 };

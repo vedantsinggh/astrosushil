@@ -26,10 +26,11 @@ import { PROMPT_VERSION } from './llm/prompts';
 import { runPdfQa } from './qa/pdf-qa';
 import { ReportModule } from './module';
 import { ReportLanguage } from './i18n/hindi';
-import { localizedDefinition, ReportRegistry } from './registry';
+import { localizedDefinition, moduleLanguages, ReportRegistry } from './registry';
 import { CORE_BLOCKS } from './render/blocks';
 import { assembleDocument, compileLatex, ResolvedTopic } from './render/document';
 import { planIllustrations, signForRashiIndex } from './render/illustrations';
+import { dateLabel } from './render/blocks.hindi';
 import { formatDate } from './render/latex';
 import { buildChartSnapshot, SubjectInput } from './snapshot/chart-snapshot';
 import { findCrossTopicRepetition } from './validation/editorial-validator';
@@ -251,7 +252,7 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
           payloads.push(o.payload!);
           priorSummaries.push(`${topic.title}: ${o.payload!.lead}`);
         } else {
-          resolved.push({ topic, kind: 'unavailable', reason: 'the interpretation did not pass our accuracy checks and is being regenerated.' });
+          resolved.push({ topic, kind: 'unavailable', reason: def.language === 'hi' ? 'यह विवेचन हमारी सटीकता की जाँच में सफल नहीं हुआ और इसे दोबारा तैयार किया जा रहा है।' : 'the interpretation did not pass our accuracy checks and is being regenerated.' });
         }
         const counts = o.validation
           ? {
@@ -300,23 +301,25 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
     }
   }
 
+  /** A cover date in the report language. */
+  const coverDate = (iso: string) => dateLabel(def.language, formatDate(iso));
   const tex = assembleDocument({
     definition: def,
     cover: {
       clientName: req.partner && def.requires.partner ? `${req.subject.name} & ${req.partner.name}` : req.subject.name,
-      dateOfBirth: formatDate(req.subject.dateOfBirth),
+      dateOfBirth: coverDate(req.subject.dateOfBirth),
       timeOfBirth: req.subject.timeOfBirth,
       placeName: req.subject.placeName,
-      generatedOn: formatDate(snapshot.asOfIso),
+      generatedOn: coverDate(snapshot.asOfIso),
       partner: partner && req.partner
-        ? { name: req.partner.name, dateOfBirth: formatDate(req.partner.dateOfBirth), timeOfBirth: req.partner.timeOfBirth, placeName: req.partner.placeName }
+        ? { name: req.partner.name, dateOfBirth: coverDate(req.partner.dateOfBirth), timeOfBirth: req.partner.timeOfBirth, placeName: req.partner.placeName }
         : undefined,
     },
     llmProviderLabel: req.llmProviderLabel ?? 'Google Gemini',
     sections: resolvedSections,
     // Pictures are chosen by fixed rules from titles and the native's Ascendant and Moon signs.
     // Pictures are matched on the English titles, so both editions of a report carry the same pictures.
-    illustrations: planIllustrations(def.language === 'hi' && module.hindi ? localizedDefinition(module) : def, {
+    illustrations: planIllustrations(def.language !== 'en' && moduleLanguages(module).includes('en') ? localizedDefinition(module, 'en') : def, {
       lagna: signForRashiIndex(snapshot.natal.ascendant.rashiIndex),
       moon: signForRashiIndex(snapshot.natal.planets.find((p) => p.name === 'MOON')?.rashiIndex),
     }),

@@ -19,6 +19,22 @@ import { EvidenceRegistry } from '../evidence/evidence-registry';
 import { isEarlyCareerAge } from '../life-stage';
 import { formatBusinessDate } from '../snapshot/chart-snapshot';
 import { splitSentences, topicText } from './editorial-validator';
+import { hindiDatesToEnglish } from './hindi-chart-terms';
+import { hindiOverlap, hindiRestatesConclusion, hindiSentenceCovers } from './hindi-coverage';
+import {
+  extractHindiProseAges,
+  HINDI_ABSENCE_TERMS,
+  HINDI_ADVANTAGE_TERMS,
+  HINDI_CHART_ENTITY,
+  HINDI_DERIVED_PATTERNS,
+  HINDI_INVENTED_RULE_PATTERNS,
+  HINDI_SENIORITY_TERMS,
+  HINDI_SIDE_LABEL,
+  hindiClassificationDenied,
+  hindiJudgementTerm,
+  hindiSideIsChallenging,
+} from './hindi-judgement-lexicon';
+import { hasDevanagari } from './hindi-lexicon';
 import {
   ABSENCE_TERMS,
   ADVANTAGE_TERMS,
@@ -26,13 +42,13 @@ import {
   DENIED_CLASSIFICATION_BEFORE,
   DERIVED_TERMS,
   findJudgementTerms,
+  findOneSidedIntensifier,
+  hasMixedMarker,
   INVENTED_RULE_PATTERNS,
   isCompatible,
   JUDGEMENT_TERMS,
   JudgementHit,
   JudgementPolarity,
-  MIXED_MARKERS,
-  ONE_SIDED_INTENSIFIERS,
   SENIORITY_TERMS,
 } from './judgement-lexicon';
 
@@ -149,14 +165,22 @@ export function topicInterpretationItems(topic: ReportTopic, registry: EvidenceR
 
 const COVER_STOP = new Set(['the', 'a', 'an', 'of', 'in', 'to', 'and', 'or', 'is', 'are', 'your', 'you', 'its', 'by', 'for', 'with', 'from', 'on', 'as', 'at', 'this', 'that', 'which', 'it']);
 function words(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9ऀ-ॿ]+/).filter((w) => w.length > 1 && !COVER_STOP.has(w));
+  // The Devanagari block without its danda marks (। ॥), which are punctuation.
+  return text.toLowerCase().split(/[^a-z0-9ऀ-ॣ०-ॿ]+/).filter((w) => w.length > 1 && !COVER_STOP.has(w));
 }
 function norm(text: string): string {
   return words(text).join(' ');
 }
 
-/** A sentence is covered by a claim when one contains the other, or when ≥70% of the claim's content words appear in the sentence. */
+/** A Hindi sentence set against an English statement, label or conclusion (the usual case in a Hindi edition). */
+const crossLanguage = (sentence: string, english: string): boolean => hasDevanagari(sentence) && !hasDevanagari(english);
+
+/**
+ * A sentence is covered by a claim when one contains the other, or when ≥70% of the claim's content words appear in the sentence.
+ * A Hindi sentence is compared with an English statement on anchors and glossary words (hindi-coverage.ts).
+ */
 export function sentenceCoveredBy(sentence: string, statement: string): boolean {
+  if (crossLanguage(sentence, statement)) return hindiSentenceCovers(sentence, statement);
   const s = norm(sentence);
   const c = norm(statement);
   if (!s || !c) return false;
@@ -188,8 +212,12 @@ function lastDay(y: number, m: number): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-/** Dates in prose: ISO days, "19 Nov 2026", "November 19, 2026", "November 2026", and standalone years. */
-export function extractProseDates(text: string): ProseDate[] {
+/**
+ * Dates in prose: ISO days, "19 Nov 2026", "November 19, 2026", "November 2026", and standalone years.
+ * Hindi month names and Devanagari digits are read the same way ("20 नवंबर 2026", "नवंबर २०२६").
+ */
+export function extractProseDates(input: string): ProseDate[] {
+  const text = hindiDatesToEnglish(input);
   const out: ProseDate[] = [];
   const taken: Array<[number, number]> = [];
   const free = (a: number, b: number) => !taken.some(([x, y]) => a < y && b > x);
@@ -259,7 +287,16 @@ function factClause(label: string): string {
   return label.split(/ \(| \[| — because /)[0];
 }
 
-const termPattern = (term: string): RegExp | undefined => JUDGEMENT_TERMS.find((t) => t.term === term)?.pattern;
+/**
+ * How a judgement term is found in prose and in evidence labels. Evidence labels are English, so a
+ * Hindi term is looked for in them by the English lexicon words it stands for.
+ */
+function termPatterns(term: string): { prose: RegExp; fact: RegExp } | undefined {
+  const en = JUDGEMENT_TERMS.find((t) => t.term === term)?.pattern;
+  if (en) return { prose: en, fact: en };
+  const hi = hindiJudgementTerm(term);
+  return hi ? { prose: hi.pattern, fact: hi.english } : undefined;
+}
 
 /** A fact (not an interpretation) whose own value or main label clause contains the term. */
 function factStatesTerm(item: EvidenceItem, pattern: RegExp): boolean {
@@ -285,6 +322,7 @@ const stem6 = (w: string) => w.slice(0, 6);
  * "debilitation" matches "debilitated"). Parentheticals of the conclusion are ignored.
  */
 export function restatesConclusion(text: string, conclusion: string): boolean {
+  if (crossLanguage(text, conclusion)) return hindiRestatesConclusion(text, conclusion);
   const main = conclusion.replace(/\s*\([^)]*\)/g, '');
   const cw = [...new Set(words(main))];
   if (!cw.length) return false;
@@ -319,16 +357,19 @@ export interface JudgementBackingContext {
  * A free-floating term ("a potent gathering of planets", "exceptionally strong") has none of these.
  */
 export function judgementBacked(hit: JudgementHit, sentence: string, ctx: JudgementBackingContext): boolean {
-  const pattern = termPattern(hit.term);
-  if (!pattern) return false;
+  const patterns = termPatterns(hit.term);
+  if (!patterns) return false;
+  const { prose, fact } = patterns;
+  const hindi = hasDevanagari(sentence);
+  const share = (label: string) => (crossLanguage(sentence, label) ? hindiOverlap(sentence, label) : overlap(sentence, label));
   const cited = ctx.citedIds.map((id) => ctx.scope.find((i) => i.id === id)).filter((i): i is EvidenceItem => i !== undefined);
-  if (cited.some((i) => factStatesTerm(i, pattern))) return true;
-  if (ctx.scope.some((i) => factStatesTerm(i, pattern) && pattern.test(sentence) && overlap(sentence, factClause(i.label)) >= 0.6)) return true;
+  if (cited.some((i) => factStatesTerm(i, fact))) return true;
+  if (ctx.scope.some((i) => factStatesTerm(i, fact) && prose.test(sentence) && share(factClause(i.label)) >= 0.6)) return true;
   const views = ctx.scope.map((i) => ctx.view(i.id)).filter((v): v is InterpretationView => v !== undefined);
   if (views.some((v) => restatesConclusion(sentence, v.conclusionText) && viewCompatible(hit.polarity, v, sentence))) return true;
-  const side = SIDE_LABEL.exec(sentence);
-  if (side && pattern.test(side[0])) {
-    const which = /challenging/i.test(side[0]) ? 'challenging:' : 'supporting:';
+  const side = SIDE_LABEL.exec(sentence) ?? (hindi ? HINDI_SIDE_LABEL.exec(sentence) : null);
+  if (side && prose.test(side[0])) {
+    const which = /challenging/i.test(side[0]) || hindiSideIsChallenging(side[0]) ? 'challenging:' : 'supporting:';
     if (views.some((v) => v.strengthClass === 'mixed' && v.explanation.includes(which))) return true;
   }
   return false;
@@ -402,9 +443,9 @@ export function validateInterpretationTopic(
       // V2: mixed honesty.
       const mixed = views.filter((v) => v.strengthClass === 'mixed');
       if (mixed.length) {
-        const intens = ONE_SIDED_INTENSIFIERS.exec(c.statement);
+        const intens = findOneSidedIntensifier(c.statement);
         if (intens) {
-          issues.push({ severity: 'error', code: 'MIXED_RESULT_OVERSTATED', message: `"${intens[0]}" overstates a mixed result (${mixed.map((v) => v.id).join(', ')}): "${c.statement.slice(0, 120)}"` });
+          issues.push({ severity: 'error', code: 'MIXED_RESULT_OVERSTATED', message: `"${intens}" overstates a mixed result (${mixed.map((v) => v.id).join(', ')}): "${c.statement.slice(0, 120)}"` });
         }
       }
     }
@@ -412,7 +453,7 @@ export function validateInterpretationTopic(
     // V1 in prose: an evaluative sentence about a chart factor must restate a verified interp claim of a compatible class.
     sentences.forEach((s, idx) => {
       const allHits = findJudgementTerms(s);
-      if (!allHits.length || !CHART_ENTITY.test(s)) return;
+      if (!allHits.length || !(CHART_ENTITY.test(s) || HINDI_CHART_ENTITY.test(s))) return;
       // A judgement may continue the previous sentence ("The 7th house has 26 bindus … . This is below
       // the benchmark, a challenged score."): when the sentence alone restates no claim, the previous
       // sentence and this one together may. The class must still be compatible.
@@ -436,8 +477,8 @@ export function validateInterpretationTopic(
         }
       }
       if (classes.includes('mixed')) {
-        const intens = ONE_SIDED_INTENSIFIERS.exec(s);
-        if (intens) issues.push({ severity: 'error', code: 'MIXED_RESULT_OVERSTATED', message: `"${intens[0]}" overstates a mixed result: "${s.slice(0, 140)}"` });
+        const intens = findOneSidedIntensifier(s);
+        if (intens) issues.push({ severity: 'error', code: 'MIXED_RESULT_OVERSTATED', message: `"${intens}" overstates a mixed result: "${s.slice(0, 140)}"` });
       }
     });
 
@@ -446,8 +487,8 @@ export function validateInterpretationTopic(
     for (const id of [...citedMixed].sort()) {
       const claimsFor = verifiedClaims.filter((c) => c.evidenceIds.includes(id));
       const acknowledged =
-        claimsFor.some((c) => MIXED_MARKERS.test(c.statement)) ||
-        sentences.some((s) => MIXED_MARKERS.test(s) && claimsFor.some((c) => sentenceCoveredBy(s, c.statement)));
+        claimsFor.some((c) => hasMixedMarker(c.statement)) ||
+        sentences.some((s) => hasMixedMarker(s) && claimsFor.some((c) => sentenceCoveredBy(s, c.statement)));
       if (!acknowledged) {
         issues.push({ severity: 'error', code: 'MIXED_RESULT_NOT_ACKNOWLEDGED', message: `${id} is mixed; the narrative must say that it cuts both ways` });
       }
@@ -468,7 +509,8 @@ export function validateInterpretationTopic(
   // V4: derived terms must be backed by a cited fact or interpretation of that kind.
   const citedItems = verifiedClaims.flatMap((c) => c.evidenceIds).map((id) => registry.get(id)).filter((i): i is EvidenceItem => i !== undefined);
   for (const d of DERIVED_TERMS) {
-    const s = sentences.find((x) => d.pattern.test(x));
+    const hindiPattern = HINDI_DERIVED_PATTERNS[d.term];
+    const s = sentences.find((x) => d.pattern.test(x) || (hindiPattern !== undefined && hindiPattern.test(x)));
     if (!s) continue;
     if (!citedItems.some((i) => d.backing.test(backingText(i)))) {
       issues.push({ severity: sev(true), code: 'DERIVED_TERM_UNSUPPORTED', message: `"${d.term}" is used but no verified claim cites a fact or interpretation of that kind: "${s.slice(0, 140)}"` });
@@ -477,7 +519,7 @@ export function validateInterpretationTopic(
 
   // V6: invented-rule phrasing.
   for (const s of sentences) {
-    const p = INVENTED_RULE_PATTERNS.find((re) => re.test(s));
+    const p = INVENTED_RULE_PATTERNS.find((re) => re.test(s)) ?? HINDI_INVENTED_RULE_PATTERNS.find((re) => re.test(s));
     if (p && !(optedIn && coveringInterpClaims(s).length)) {
       issues.push({ severity: 'warning', code: 'INVENTED_RULE_PHRASING', message: `Sentence states a general rule without a cited interpretation: "${s.slice(0, 140)}"` });
     }
@@ -492,13 +534,21 @@ export function validateInterpretationTopic(
     if (optedIn && coveringInterpClaims(s).length) continue;
     issues.push({ severity: sev(true), code: 'ABSENCE_PRESENTED_AS_ADVANTAGE', message: `An empty or unaspected factor is presented as an advantage ("${adv[0]}") without an interpretation: "${s.slice(0, 140)}"` });
   }
+  // The same rule for Hindi prose: "खाली भाव … सरलता देता है". "… लाभ नहीं माना जाता" denies the spin.
+  for (const s of sentences) {
+    if (!hasDevanagari(s) || !HINDI_ABSENCE_TERMS.test(s)) continue;
+    const adv = [...s.matchAll(new RegExp(HINDI_ADVANTAGE_TERMS.source, 'gu'))].find((m) => !hindiClassificationDenied(s, m.index ?? 0, m[0].length));
+    if (!adv) continue;
+    if (optedIn && coveringInterpClaims(s).length) continue;
+    issues.push({ severity: sev(true), code: 'ABSENCE_PRESENTED_AS_ADVANTAGE', message: `An empty or unaspected factor is presented as an advantage ("${adv[0]}") without an interpretation: "${s.slice(0, 140)}"` });
+  }
 
   // Life stage (audit F4 / V10): seniority framing needs a life stage that supports it.
   const lifeStage = registry.resolve(opts.allowedEvidence).find((i) => isLifeStageItem(i));
   if (lifeStage) {
     const age = lifeStageAge(lifeStage);
     if (age !== undefined && isEarlyCareerAge(age)) {
-      const s = sentences.find((x) => SENIORITY_TERMS.test(x));
+      const s = sentences.find((x) => SENIORITY_TERMS.test(x) || HINDI_SENIORITY_TERMS.test(x));
       if (s) issues.push({ severity: sev(true), code: 'LIFE_STAGE_MISMATCH', message: `Seniority framing for a native aged ${age}: "${s.slice(0, 140)}"` });
     }
   }
@@ -507,7 +557,8 @@ export function validateInterpretationTopic(
   // named by the topic's evidence. Warning only; nothing fails on it.
   const ageRanges = evidenceAgeRanges(registry.resolve(opts.allowedEvidence));
   if (ageRanges.length) {
-    for (const a of extractProseAges(sentences.join(' '))) {
+    const proseText = sentences.join(' ');
+    for (const a of [...extractProseAges(proseText), ...extractHindiProseAges(proseText)]) {
       if (!ageRanges.some(([lo, hi]) => lo <= a.age && a.age <= hi)) {
         issues.push({ severity: 'warning', code: 'AGE_NOT_IN_EVIDENCE', message: `"${a.text}" (${a.age}) is not an age named by this topic's evidence` });
       }

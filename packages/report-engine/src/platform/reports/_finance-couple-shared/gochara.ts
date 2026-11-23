@@ -4,6 +4,7 @@
  * (TransitIngressSolver output); nothing is estimated.
  */
 import { SignPeriod } from '../../snapshot/transit-periods';
+import { Lang, MONTHS_HI, MONTHS_SHORT_HI } from './shared.hindi';
 
 /** House of `sign` counted from `fromSign` (both 1..12), inclusive counting. */
 export const houseFrom = (fromSign: number, sign: number): number => ((sign - fromSign + 12) % 12) + 1;
@@ -67,4 +68,15 @@ export const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 export function dayMonth(iso: string): string {
   const d = new Date(iso);
   return `${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`;
+}
+
+/** Month names in the report language (0 = January). */
+export const monthName = (lang: Lang, month: number): string => (lang === 'hi' ? MONTHS_HI : MONTHS)[month];
+export const monthShort = (lang: Lang, month: number): string => (lang === 'hi' ? MONTHS_SHORT_HI : MONTHS_SHORT)[month];
+
+/** `dayMonth` in the report language: "5 Jun" / "5 जून". */
+export function dayMonthText(lang: Lang, iso: string): string {
+  if (lang === 'en') return dayMonth(iso);
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS_SHORT_HI[d.getUTCMonth()]}`;
 }

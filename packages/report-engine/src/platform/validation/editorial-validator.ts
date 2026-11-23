@@ -6,7 +6,7 @@
  * cross-topic repetition.
  */
 import { GeneratedTopicPayload, ValidationIssue } from '../contracts';
-import { devanagariShare, findHindiOverstatement, hasDevanagari, HINDI_PREDICTIVE_CONTEXT, HINDI_RULES, HINDI_STOPWORDS, matchHindiRule, misdefinesAshtakavargaHindi } from './hindi-lexicon';
+import { devanagariShare, findHindiOverstatement, hasDevanagari, HINDI_PREDICTIVE_CONTEXT, HINDI_RULES, HINDI_STOPWORDS, hindiStem, matchHindiRule, misdefinesAshtakavargaHindi } from './hindi-lexicon';
 import { findOverstatement, misdefinesAshtakavarga, PREDICTIVE_CONTEXT } from './judgement-lexicon';
 
 interface Rule {
@@ -129,6 +129,7 @@ const STOPWORDS = new Set([
 ]);
 
 function stem(w: string): string {
+  if (hasDevanagari(w)) return hindiStem(w);
   if (w.length > 4 && w.endsWith('ies')) return w.slice(0, -3) + 'y';
   if (w.length > 5 && w.endsWith('ing')) return w.slice(0, -3);
   if (w.length > 4 && w.endsWith('ed')) return w.slice(0, -2);
@@ -140,7 +141,8 @@ function stem(w: string): string {
 export function sentenceTokens(sentence: string): string[] {
   return sentence
     .toLowerCase()
-    .split(/[^a-z0-9ऀ-ॿ]+/)
+    // The Devanagari block without its danda marks (। ॥), which are punctuation.
+    .split(/[^a-z0-9ऀ-ॣ०-ॿ]+/)
     .filter((w) => w.length > 1 && !STOPWORDS.has(w))
     .map(stem);
 }

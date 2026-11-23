@@ -4,8 +4,14 @@ import { BlockContext, blockLang, BlockOutput, northChart } from '../../../rende
 import { tex } from '../../../render/latex';
 import { ordinal, planetName, SIGNS } from '../../../evidence/evidence-registry';
 import { kundliExt } from '../extend';
-import { dignityLabel, label, nakshatraLabel, planetLabel, signLabel } from '../../../i18n/hindi';
-import { ABBR, dataTable, degMin, dignityText, list, PLANET_ORDER, planetOf, SIGN_SHORT } from './common';
+import { label, nakshatraLabel, pick, planetAbbr, planetLabel, ReportLanguage, signLabel } from '../../../i18n/hindi';
+import { kl, signShortIn, vargaIn } from '../kundli.hindi';
+import { ABBR, dataTable, degMin, dignityIn, list, PLANET_ORDER, planetOf, SIGN_SHORT } from './common';
+
+/** Chart abbreviation of a planet in the block's language. */
+const abbr = (lang: ReportLanguage, planet: string) => (lang === 'hi' ? planetAbbr(lang, planet) : ABBR[planet]);
+/** Short sign name (by 1-based sign number) for narrow cells in the block's language. */
+const signShort = (lang: ReportLanguage, signNumber: number) => signShortIn(lang, SIGN_SHORT[signNumber - 1], SIGNS[signNumber - 1]);
 
 /** Fixed sign cells of the South Indian chart: [column, row] from bottom-left, sign 1 = Aries. */
 const SOUTH_CELLS: Record<number, [number, number]> = {
@@ -15,7 +21,7 @@ const SOUTH_CELLS: Record<number, [number, number]> = {
   10: [0, 1], 11: [0, 2],
 };
 
-export function southChart(cells: Record<number, string[]>, ascSign: number, centre: string, unit = 14): string {
+export function southChart(cells: Record<number, string[]>, ascSign: number, centre: string, unit = 14, lang: ReportLanguage = 'en'): string {
   const parts: string[] = [
     `\\begin{tikzpicture}[x=${unit}mm,y=${unit}mm]`,
     '\\fill[Tint] (0,0) rectangle (4,4);',
@@ -27,7 +33,7 @@ export function southChart(cells: Record<number, string[]>, ascSign: number, cen
   ];
   for (let s = 1; s <= 12; s++) {
     const [c, r] = SOUTH_CELLS[s];
-    parts.push(`\\node[anchor=north west,inner sep=1.5pt,font=\\sffamily\\fontsize{5.5}{6}\\selectfont,text=Accent] at (${c},${r + 1}) {${SIGN_SHORT[s - 1]}};`);
+    parts.push(`\\node[anchor=north west,inner sep=1.5pt,font=\\sffamily\\fontsize{5.5}{6}\\selectfont,text=Accent] at (${c},${r + 1}) {${tex(signShort(lang, s))}};`);
     if (s === ascSign) parts.push(`\\draw[Accent,line width=0.8pt] (${c + 0.72},${r + 1}) -- (${c + 1},${r + 0.72});`);
     const lines = cells[s] ?? [];
     if (lines.length) {
@@ -47,29 +53,32 @@ function pairLines(items: string[]): string[] {
 
 export function kundliSouthAndMoon(ctx: BlockContext): BlockOutput {
   const { natal } = ctx.snapshot;
+  const lang = blockLang(ctx);
+  const L = (en: string) => kl(lang, en);
   const cells: Record<number, string[]> = {};
   const ascSign = natal.ascendant.rashiIndex;
-  cells[ascSign] = ['Asc'];
+  cells[ascSign] = [L('Asc')];
   for (const p of natal.planets) {
     const n = planetName(p.name);
-    (cells[p.rashiIndex] ??= []).push(`${ABBR[n]} ${Math.floor(p.degree)}°${p.retrograde && n !== 'Rahu' && n !== 'Ketu' ? 'R' : ''}`);
+    (cells[p.rashiIndex] ??= []).push(`${abbr(lang, n)} ${Math.floor(p.degree)}°${p.retrograde && n !== 'Rahu' && n !== 'Ketu' ? L('R') : ''}`);
   }
   const moon = planetOf(natal, 'Moon');
   const houses = Array.from({ length: 12 }, (_, i) => ({ sign: ((moon.rashiIndex - 1 + i) % 12) + 1, lines: [] as string[] }));
   const items: Record<number, string[]> = {};
-  for (const p of natal.planets) (items[(p.rashiIndex - moon.rashiIndex + 12) % 12] ??= []).push(ABBR[planetName(p.name)]);
+  for (const p of natal.planets) (items[(p.rashiIndex - moon.rashiIndex + 12) % 12] ??= []).push(abbr(lang, planetName(p.name)));
   const ascIdx = (ascSign - moon.rashiIndex + 12) % 12;
-  (items[ascIdx] ??= []).unshift('Asc');
+  (items[ascIdx] ??= []).unshift(L('Asc'));
   houses.forEach((h, i) => (h.lines = pairLines(items[i] ?? [])));
+  const centre = `${tex(L('Rasi'))}\\\\[-1pt]{\\fontsize{8}{10}\\selectfont D1}`;
   return {
     tex: [
       '\\begin{center}',
-      `\\begin{minipage}[t]{0.49\\linewidth}\\centering{\\sffamily\\fontsize{8}{10}\\selectfont\\bfseries\\color{Primary}SOUTH INDIAN STYLE (D1)}\\par\\vspace{2mm}${southChart(cells, ascSign, 'Rasi\\\\[-1pt]{\\fontsize{8}{10}\\selectfont D1}', 13.5)}\\end{minipage}\\hfill`,
-      `\\begin{minipage}[t]{0.49\\linewidth}\\centering{\\sffamily\\fontsize{8}{10}\\selectfont\\bfseries\\color{Primary}MOON CHART (CHANDRA LAGNA)}\\par\\vspace{2mm}${northChart(houses, 0.675)}\\end{minipage}`,
+      `\\begin{minipage}[t]{0.49\\linewidth}\\centering{\\sffamily\\fontsize{8}{10}\\selectfont\\bfseries\\color{Primary}${tex(L('SOUTH INDIAN STYLE (D1)'))}}\\par\\vspace{2mm}${southChart(cells, ascSign, centre, 13.5, lang)}\\end{minipage}\\hfill`,
+      `\\begin{minipage}[t]{0.49\\linewidth}\\centering{\\sffamily\\fontsize{8}{10}\\selectfont\\bfseries\\color{Primary}${tex(L('MOON CHART (CHANDRA LAGNA)'))}}\\par\\vspace{2mm}${northChart(houses, 0.675)}\\end{minipage}`,
       '\\end{center}',
     ].join('\n'),
     evidenceIds: ['asc.d1.sign', 'planet.moon.d1.sign', ...natal.planets.map((p) => `planet.${planetName(p.name).toLowerCase()}.d1.sign`)],
-    method: 'South Indian chart: signs are fixed (Aries is the second box of the top row, counting clockwise); the diagonal stroke in the top-right corner of a box marks the Ascendant sign. The Moon chart treats the Moon\'s sign as the 1st house. R = retrograde (Rahu and Ketu always move backwards and are not marked).',
+    method: L('South Indian chart: signs are fixed (Aries is the second box of the top row, counting clockwise); the diagonal stroke in the top-right corner of a box marks the Ascendant sign. The Moon chart treats the Moon\'s sign as the 1st house. R = retrograde (Rahu and Ketu always move backwards and are not marked).'),
   };
 }
 
@@ -98,43 +107,47 @@ export const KUNDLI_VARGAS: VargaType[] = ['D1', ...VARGA_SET.map((x) => x.v)];
 function smallVargaChart(ctx: BlockContext, v: VargaType): string {
   const chart = ctx.snapshot.vargas[v];
   if (!chart?.ascendant) throw new Error(`BLOCK_DATA_MISSING: ${v}`);
+  const lang = blockLang(ctx);
   const asc = chart.ascendant.rashiIndex;
-  const items: Record<number, string[]> = { 0: ['As'] };
+  const items: Record<number, string[]> = { 0: [pick(lang, 'As', label(lang, 'Asc'))] };
   for (const pl of Object.values(chart.placements)) {
     if (pl.planet === 'Ascendant') continue;
-    (items[(pl.rashiIndex - asc + 12) % 12] ??= []).push(ABBR[planetName(String(pl.planet))]);
+    (items[(pl.rashiIndex - asc + 12) % 12] ??= []).push(abbr(lang, planetName(String(pl.planet))));
   }
   const houses = Array.from({ length: 12 }, (_, i) => ({ sign: ((asc - 1 + i) % 12) + 1, lines: pairLines(items[i] ?? []) }));
   return northChart(houses, 0.6);
 }
 
 export function kundliVargaCharts(ctx: BlockContext): BlockOutput {
+  const lang = blockLang(ctx);
   const cells = VARGA_SET.map(({ v, name, purpose }) =>
-    `\\begin{minipage}[t]{0.32\\linewidth}\\centering{\\sffamily\\fontsize{7.6}{9}\\selectfont\\bfseries\\color{Primary}${tex(`${v} ${name}`.toUpperCase())}}\\par{\\fontsize{7.4}{9}\\selectfont\\itshape\\color{Muted}${tex(purpose)}\\par}\\vspace{1mm}${smallVargaChart(ctx, v)}\\end{minipage}`);
+    `\\begin{minipage}[t]{0.32\\linewidth}\\centering{\\sffamily\\fontsize{7.6}{9}\\selectfont\\bfseries\\color{Primary}${tex(`${v} ${vargaIn(lang, name)}`.toUpperCase())}}\\par{\\fontsize{7.4}{9}\\selectfont\\itshape\\color{Muted}${tex(vargaIn(lang, purpose))}\\par}\\vspace{1mm}${smallVargaChart(ctx, v)}\\end{minipage}`);
   const rows: string[] = [];
   for (let i = 0; i < cells.length; i += 3) rows.push(`\\noindent ${cells.slice(i, i + 3).join('\\hfill')}\\par\\vspace{4mm}`);
   return {
     tex: rows.join('\n'),
     evidenceIds: VARGA_SET.map(({ v }) => `asc.${v.toLowerCase()}.sign`),
-    method: 'Each divisional chart (varga) re-divides every sign by the number shown (D9 = nine parts) using the Brihat Parashara Hora Shastra rules in the divisional-chart engine. North Indian style; numbers are signs, the top diamond is the varga ascendant (As).',
+    method: kl(lang, 'Each divisional chart (varga) re-divides every sign by the number shown (D9 = nine parts) using the Brihat Parashara Hora Shastra rules in the divisional-chart engine. North Indian style; numbers are signs, the top diamond is the varga ascendant (As).'),
   };
 }
 
 export function kundliVargaTable(ctx: BlockContext): BlockOutput {
   const { natal, vargas } = ctx.snapshot;
-  const header = ['Chart', 'Asc', ...PLANET_ORDER.map((p) => ABBR[p])];
+  const lang = blockLang(ctx);
+  const header = [kl(lang, 'Chart'), pick(lang, 'Asc', label(lang, 'Ascendant')), ...PLANET_ORDER.map((p) => abbr(lang, p))];
+  const sign = (n: number | undefined) => (n ? tex(signShort(lang, n)) : '--');
   const rows = KUNDLI_VARGAS.map((v) => {
-    if (v === 'D1') return ['\\textbf{D1 Rasi}', SIGN_SHORT[natal.ascendant.rashiIndex - 1], ...PLANET_ORDER.map((p) => SIGN_SHORT[planetOf(natal, p).rashiIndex - 1])];
+    if (v === 'D1') return [`\\textbf{D1 ${tex(kl(lang, 'Rasi'))}}`, sign(natal.ascendant.rashiIndex), ...PLANET_ORDER.map((p) => sign(planetOf(natal, p).rashiIndex))];
     const ch = vargas[v];
     if (!ch?.ascendant) throw new Error(`BLOCK_DATA_MISSING: ${v}`);
     const byPlanet = new Map(Object.values(ch.placements).map((pl) => [String(pl.planet), pl.rashiIndex]));
     const name = VARGA_SET.find((x) => x.v === v)!.name;
-    return [`\\textbf{${v}} ${tex(name)}`, SIGN_SHORT[ch.ascendant.rashiIndex - 1], ...PLANET_ORDER.map((p) => SIGN_SHORT[(byPlanet.get(p.toUpperCase()) ?? 0) - 1] ?? '--')];
+    return [`\\textbf{${v}} ${tex(vargaIn(lang, name))}`, sign(ch.ascendant.rashiIndex), ...PLANET_ORDER.map((p) => sign(byPlanet.get(p.toUpperCase())))];
   });
   return {
     tex: dataTable(`>{\\raggedright\\arraybackslash}p{0.2\\linewidth}*{10}{>{\\centering\\arraybackslash}X}`, header, rows, { fontPt: 8.2 }),
     evidenceIds: ['asc.d1.sign', ...VARGA_SET.map(({ v }) => `asc.${v.toLowerCase()}.sign`)],
-    method: 'Sign occupied by the Ascendant and each planet in every divisional chart (Shodashavarga set computed by the engine).',
+    method: kl(lang, 'Sign occupied by the Ascendant and each planet in every divisional chart (Shodashavarga set computed by the engine).'),
   };
 }
 
@@ -144,7 +157,7 @@ export function kundliPlanetTable(ctx: BlockContext): BlockOutput {
   const { natal } = ctx.snapshot;
   const lang = blockLang(ctx);
   const asc = natal.ascendant;
-  const dignity = (d: string) => (lang === 'hi' ? dignityLabel(lang, String(d)) : dignityText(d));
+  const dignity = (d: string) => dignityIn(lang, d);
   const rows: string[][] = [[
     `\\textbf{${tex(label(lang, 'Ascendant'))}}`, tex(signLabel(lang, asc.sign)), degMin(asc.degree), `${tex(nakshatraLabel(lang, asc.nakshatra))} ${asc.pada}`,
     tex(planetLabel(lang, planetName(asc.lord))), '--', '1', '--', '--', '--',
@@ -169,39 +182,47 @@ export function kundliPlanetTable(ctx: BlockContext): BlockOutput {
 
 export function kundliHouseTable(ctx: BlockContext): BlockOutput {
   const { natal, ashtakavarga } = ctx.snapshot;
+  const lang = blockLang(ctx);
+  const L = (en: string) => kl(lang, en);
+  const no = (n: number) => pick(lang, ordinal(n), String(n));
+  const planets = (xs: string[]) => tex(xs.map((x) => planetLabel(lang, x)).join(', ') || '--');
   const asp = kundliExt(ctx).houseAspects;
   const rows = natal.houses.map((h) => {
     const lord = planetName(h.lord);
     const lp = planetOf(natal, lord);
     return [
-      `\\textbf{${ordinal(h.number)}}`, tex(h.sign), tex(lord), `${ordinal(lp.house)} (${tex(lp.sign)})`,
-      tex(h.occupants.map((o) => planetName(o)).join(', ') || '--'), tex((asp[h.number] ?? []).join(', ') || '--'),
+      `\\textbf{${no(h.number)}}`, tex(signLabel(lang, h.sign)), tex(planetLabel(lang, lord)), `${no(lp.house)} (${tex(signLabel(lang, lp.sign))})`,
+      planets(h.occupants.map((o) => planetName(o))), planets(asp[h.number] ?? []),
       String(ashtakavarga.sav.signs[h.rashiIndex] ?? '--'),
     ];
   });
   return {
     tex: dataTable('cl>{\\raggedright\\arraybackslash}p{0.09\\linewidth}>{\\raggedright\\arraybackslash}p{0.16\\linewidth}>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X c',
-      ['House', 'Sign', 'Lord', 'Lord placed in', 'Occupants', 'Aspected by', 'SAV'], rows, { fontPt: 8.2 }),
+      ['House', 'Sign', 'Lord', 'Lord placed in', 'Occupants', 'Aspected by', 'SAV'].map(L), rows, { fontPt: 8.2 }),
     evidenceIds: natal.houses.flatMap((h) => [`house.${h.number}.d1.sign`, `house.${h.number}.d1.lord-house`, `house.${h.number}.d1.occupants`, `kundli.house.${h.number}.aspected-by`, `sav.house.${h.number}`]),
-    method: 'Whole Sign houses. Aspects are graha drishti: every planet aspects the 7th from itself; Mars also the 4th and 8th, Jupiter the 5th and 9th, Saturn the 3rd and 10th, and Rahu and Ketu the 5th and 9th (engine convention). SAV = Sarvashtakavarga bindus of the sign.',
+    method: L('Whole Sign houses. Aspects are graha drishti: every planet aspects the 7th from itself; Mars also the 4th and 8th, Jupiter the 5th and 9th, Saturn the 3rd and 10th, and Rahu and Ketu the 5th and 9th (engine convention). SAV = Sarvashtakavarga bindus of the sign.'),
   };
 }
 
 export function kundliAspectTable(ctx: BlockContext): BlockOutput {
   const { natal } = ctx.snapshot;
+  const lang = blockLang(ctx);
+  const L = (en: string) => kl(lang, en);
+  const no = (n: number) => pick(lang, ordinal(n), String(n));
+  const planets = (xs: string[]) => tex(xs.map((x) => planetLabel(lang, x)).join(', ') || '--');
   const rows = PLANET_ORDER.map((n) => {
     const p = planetOf(natal, n);
     const houses = (p.aspectsCast ?? []).slice().sort((a, b) => a - b);
     const signs = houses.map((h) => SIGNS[natal.houses.find((x) => x.number === h)!.rashiIndex - 1]);
     const targets = natal.planets.filter((o) => o.name !== p.name && houses.includes(o.house)).map((o) => planetName(o.name));
     const from = (p.aspectsReceived ?? []).map((s) => planetName(s));
-    return [`\\textbf{${n}}`, `${p.house}`, tex(houses.map(ordinal).join(', ')), tex(signs.join(', ')), tex(targets.join(', ') || '--'), tex(from.join(', ') || '--')];
+    return [`\\textbf{${tex(planetLabel(lang, n))}}`, `${p.house}`, tex(houses.map(no).join(', ')), tex(signs.map((x) => signLabel(lang, x)).join(', ')), planets(targets), planets(from)];
   });
   return {
     tex: dataTable('lc>{\\raggedright\\arraybackslash}p{0.15\\linewidth}>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}p{0.16\\linewidth}>{\\raggedright\\arraybackslash}p{0.16\\linewidth}',
-      ['Planet', 'House', 'Aspects houses', 'Signs aspected', 'Planets aspected', 'Aspected by'], rows, { fontPt: 8.2 }),
+      ['Planet', 'House', 'Aspects houses', 'Signs aspected', 'Planets aspected', 'Aspected by'].map(L), rows, { fontPt: 8.2 }),
     evidenceIds: PLANET_ORDER.flatMap((n) => [`kundli.planet.${n.toLowerCase()}.aspects-houses`, `kundli.planet.${n.toLowerCase()}.aspects-planets`, `planet.${n.toLowerCase()}.d1.aspected-by`]),
-    method: 'Graha drishti by whole signs (Parashari). Special aspects: Mars 4th and 8th, Jupiter 5th and 9th, Saturn 3rd and 10th, Rahu and Ketu 5th and 9th, in addition to the 7th for all.',
+    method: L('Graha drishti by whole signs (Parashari). Special aspects: Mars 4th and 8th, Jupiter 5th and 9th, Saturn 3rd and 10th, Rahu and Ketu 5th and 9th, in addition to the 7th for all.'),
   };
 }
 

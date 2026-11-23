@@ -16,6 +16,7 @@ import { ReportModule } from '../../module';
 import { CAREER_BLOCKS } from './career.blocks';
 import { CAREER_DEFINITION } from './career.definition';
 import { contributeCareerEvidence } from './career.evidence';
+import { CAREER_HINDI } from './career.hindi';
 import { careerExt, computeCareer } from './calc/career-calc';
 
 /** Export name of the career pack in @astro/prediction-engine (looked up at runtime until it lands). */
@@ -32,6 +33,7 @@ const pack = careerPack();
 
 export const CAREER_MODULE: ReportModule = {
   definition: CAREER_DEFINITION,
+  hindi: CAREER_HINDI,
   blocks: CAREER_BLOCKS,
   extend: async ({ snapshot }) => {
     const career = await computeCareer(snapshot);

@@ -15,6 +15,7 @@ import {
   overviewBlock,
   PlanetTransitExt,
   REMEDY_PRINCIPLES,
+  REMEDY_PRINCIPLES_HI,
   returnsBlock,
   savMatrixBlock,
   staticBlock,
@@ -25,17 +26,19 @@ import {
 } from '../_planet-transit-shared';
 import { BRIHASPATI_LEGEND, JUPITER_HOUSES, JUPITER_MANTRA } from './jupiter.content';
 import { JUPITER_DEFINITION } from './jupiter.definition';
+import { BRIHASPATI_LEGEND_HI, JUPITER_HINDI, JUPITER_HOUSES_HI, JUPITER_MANTRA_HI } from './jupiter.hindi';
 
 export const JUPITER_HORIZON_YEARS = 12;
 
 export const JUPITER_TRANSIT_MODULE: ReportModule = {
   definition: JUPITER_DEFINITION,
+  hindi: JUPITER_HINDI,
   blocks: {
     'jupiter-summary': summaryBlock(['jupiter']),
     'jupiter-moon-chart': moonChart,
     'jupiter-transit-chart': transitChart(['jupiter']),
-    'jupiter-legend': staticBlock(BRIHASPATI_LEGEND),
-    'jupiter-houses': staticBlock(JUPITER_HOUSES),
+    'jupiter-legend': staticBlock(BRIHASPATI_LEGEND, BRIHASPATI_LEGEND_HI),
+    'jupiter-houses': staticBlock(JUPITER_HOUSES, JUPITER_HOUSES_HI),
     'jupiter-lordship': lordshipBlock('jupiter'),
     'jupiter-natal-aspects': natalAspectsBlock('jupiter'),
     'jupiter-stay-a': stayBlock('jupiter', 'a'),
@@ -46,8 +49,8 @@ export const JUPITER_TRANSIT_MODULE: ReportModule = {
     'jupiter-transit-bindus': transitBinduBlock('jupiter'),
     'jupiter-overview': overviewBlock('jupiter'),
     'jupiter-returns': returnsBlock('jupiter'),
-    'jupiter-remedy-principles': staticBlock(REMEDY_PRINCIPLES),
-    'jupiter-mantra': staticBlock(JUPITER_MANTRA),
+    'jupiter-remedy-principles': staticBlock(REMEDY_PRINCIPLES, REMEDY_PRINCIPLES_HI),
+    'jupiter-mantra': staticBlock(JUPITER_MANTRA, JUPITER_MANTRA_HI),
   },
   extend: async ({ snapshot }) =>
     (await computePlanetTransitExt(snapshot, [{ key: 'jupiter', horizonYears: JUPITER_HORIZON_YEARS }])) as unknown as Record<string, unknown>,

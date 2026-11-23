@@ -3,9 +3,11 @@ import { loShuBlock } from '../_numerology-shared/blocks';
 import { addNumerologyEvidence, numerologyExtOf } from '../_numerology-shared/evidence';
 import { babyEvidence, babyExtend, BABY_BLOCKS } from './baby-name.module-parts';
 import { BABY_NAME_DEFINITION } from './baby-name.definition';
+import { BABY_NAME_HINDI } from './baby-name.hindi';
 
 export const BABY_NAME_MODULE: ReportModule = {
   definition: BABY_NAME_DEFINITION,
+  hindi: BABY_NAME_HINDI,
   blocks: { ...BABY_BLOCKS, 'baby-name-loshu': loShuBlock('en') },
   extend: babyExtend,
   evidence: (add, ctx) => {

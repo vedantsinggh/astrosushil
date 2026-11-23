@@ -104,7 +104,8 @@ export interface HindiEdition {
   /** Extra writing rules for the Hindi narrative, added to the definition's own. */
   writingGuidance?: string[];
   sections: Record<string, { title: string; kicker: string; intro?: string }>;
-  topics: Record<string, { title: string; subtitle?: string }>;
+  /** `variants` gives the Hindi title/subtitle of a life-stage variant that replaces them, keyed by variant id. */
+  topics: Record<string, { title: string; subtitle?: string; variants?: Record<string, { title?: string; subtitle?: string }> }>;
 }
 
 const HINDI_STYLE =
@@ -126,7 +127,13 @@ export function applyHindiEdition(def: ReportDefinition, edition: HindiEdition):
         const ht = edition.topics[t.id];
         if (!ht) missing.push(`topic ${t.id}`);
         if (t.subtitle && !ht?.subtitle) missing.push(`subtitle of topic ${t.id}`);
-        return { ...t, title: ht?.title ?? t.title, subtitle: ht?.subtitle ?? t.subtitle };
+        const variants = t.variants.map((v) => {
+          const hv = ht?.variants?.[v.id];
+          if (v.title && !hv?.title) missing.push(`title of variant ${v.id} of topic ${t.id}`);
+          if (v.subtitle && !hv?.subtitle) missing.push(`subtitle of variant ${v.id} of topic ${t.id}`);
+          return { ...v, title: v.title ? hv?.title ?? v.title : v.title, subtitle: v.subtitle ? hv?.subtitle ?? v.subtitle : v.subtitle };
+        });
+        return { ...t, title: ht?.title ?? t.title, subtitle: ht?.subtitle ?? t.subtitle, variants };
       }),
     };
   });

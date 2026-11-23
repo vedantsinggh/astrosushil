@@ -2,6 +2,8 @@
 import { NormalizedChart } from '@astro/astrology-engine';
 import { planetName, PlanetName } from '../../../evidence/evidence-registry';
 import { tex } from '../../../render/latex';
+import { dignityLabel, ReportLanguage } from '../../../i18n/hindi';
+import { kl, listIn } from '../kundli.hindi';
 
 export const PLANET_ORDER: PlanetName[] = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu'];
 
@@ -32,6 +34,11 @@ export function dignityText(d: string): string {
   return String(d).toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** A dignity in the report language: title case in English, the glossary term in Hindi. */
+export function dignityIn(lang: ReportLanguage, d: string): string {
+  return lang === 'hi' ? dignityLabel(lang, String(d)) : dignityText(d);
+}
+
 export function planetOf(natal: NormalizedChart, name: string) {
   const p = natal.planets.find((x) => planetName(x.name) === name);
   if (!p) throw new Error(`BLOCK_DATA_MISSING: planet ${name}`);
@@ -60,7 +67,7 @@ export function dataTable(colSpec: string, header: string[], rows: string[][], o
 }
 
 /** Two key/value pairs per row: | key | value | key | value |. Values must be plain text (escaped here). */
-export function pairTable(pairs: Array<[string, string]>, fontPt = 8.8): string {
+export function pairTable(pairs: Array<[string, string]>, fontPt = 8.8, lang: ReportLanguage = 'en'): string {
   const rows: string[][] = [];
   for (let i = 0; i < pairs.length; i += 2) {
     const a = pairs[i];
@@ -69,7 +76,7 @@ export function pairTable(pairs: Array<[string, string]>, fontPt = 8.8): string 
   }
   return dataTable(
     '>{\\raggedright\\arraybackslash}p{0.2\\linewidth}>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}p{0.2\\linewidth}>{\\raggedright\\arraybackslash}X',
-    ['Particular', 'Value', 'Particular', 'Value'], rows, { fontPt });
+    ['Particular', 'Value', 'Particular', 'Value'].map((h) => kl(lang, h)), rows, { fontPt });
 }
 
 export function noteBox(kind: 'asCard' | 'asHighlight' | 'asCaution', title: string, body: string): string {
@@ -80,6 +87,6 @@ export function para(text: string, pt = 9.8): string {
   return `{\\fontsize{${pt}}{${(pt * 1.45).toFixed(1)}}\\selectfont ${tex(text)}\\par}`;
 }
 
-export function list(xs: string[]): string {
-  return xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+export function list(xs: string[], lang: ReportLanguage = 'en'): string {
+  return listIn(lang, xs);
 }

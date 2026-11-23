@@ -11,6 +11,7 @@ import { computePlanetTransit, PlanetKey, PLANET_NAME, transitPositions } from '
 import { addPlanetEvidence, addPositionEvidence, addReturnEvidence } from './evidence';
 
 export * from './blocks';
+export * from './planet-transit.hindi';
 export * from './topics';
 export * from './evidence';
 export * from './calc/planet-transit';

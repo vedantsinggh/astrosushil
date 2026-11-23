@@ -15,10 +15,21 @@ const stem = (alternatives: string) => new RegExp(`${L}(?:${alternatives})`, 'u'
 /** True when the text contains Devanagari. */
 export const hasDevanagari = (text: string): boolean => /[ऀ-ॿ]/.test(text);
 
-/** Negation or contrast after a term, inside its clause: "… नहीं", "… के बजाय", "… न कि". */
-const DENIAL_AFTER = /^[^,;:।!?—–()]{0,40}?(?<![\p{L}\p{M}])(?:नहीं|नही|न\s+कि|न\s+ही|के\s+बजाय|की\s+जगह|के\s+स्थान\s+पर|मत)(?![\p{L}\p{M}])/u;
-/** Contrast before a term: "… के बजाय <term>", "न कि <term>". */
-const DENIAL_BEFORE = /(?<![\p{L}\p{M}])(?:न\s+कि|के\s+बजाय|की\s+जगह|बिना)\s+(?:[\p{L}\p{M}]+\s+){0,3}$/u;
+/**
+ * Words a denial does not reach across: a conjunction starts another statement, and the clause's
+ * own verb ends this one ("श्राप की तरह है और कुछ भी ठीक नहीं होगा" denies nothing about श्राप).
+ * "पर" is also a postposition; treating it as a boundary errs on the strict side.
+ */
+const DENIAL_STOP = 'और|तथा|एवं|व|या|लेकिन|परंतु|परन्तु|किंतु|किन्तु|मगर|पर|क्योंकि|जबकि|इसलिए|तो|है|हैं|था|थी|थे|होगा|होगी|होंगे';
+const DENIAL_GAP_WORD = `(?!(?:${DENIAL_STOP})${R})[\\p{L}\\p{M}\\p{N}]+`;
+/**
+ * Negation or contrast that negates the term itself: "श्राप नहीं है", "गारंटी नहीं देती",
+ * "श्राप के बजाय", "श्राप जैसा कुछ नहीं". At most three plain words may sit between the term and
+ * the negation; punctuation, a conjunction or a verb ends the reach.
+ */
+const DENIAL_AFTER = new RegExp(`^(?:\\s+${DENIAL_GAP_WORD}){0,3}\\s+(?:नहीं|नही|न\\s+कि|न\\s+ही|के\\s+बजाय|की\\s+जगह|के\\s+स्थान\\s+पर|मत)${R}`, 'u');
+/** Contrast before a term: "… के बजाय <term>", "न कि <term>", with the same boundaries. */
+const DENIAL_BEFORE = new RegExp(`${L}(?:न\\s+कि|के\\s+बजाय|की\\s+जगह|बिना)\\s+(?:${DENIAL_GAP_WORD}\\s+){0,3}$`, 'u');
 
 /** True when the Hindi phrase at `index` (length `length`) is denied in its clause. */
 export function deniedInHindiClause(sentence: string, index: number, length: number): boolean {
@@ -46,6 +57,8 @@ export const HINDI_RULES: HindiRule[] = [
   { code: 'FINANCIAL_CERTAINTY', severity: 'error', pattern: new RegExp(`${L}(?:(?:अमीर|धनवान|धनी|करोड़पति|मालामाल)\\s+(?:बन(?:ेंगे|ोगे|ेगा|ेगी)|हो\\s+जाएँगे|हो\\s+जाएंगे|हो\\s+जाओगे)|गारंटीड\\s+रिटर्न|लॉटरी)`, 'u'), message: 'Financial certainty is not permitted' },
   { code: 'REMEDY_SALES', severity: 'error', pattern: new RegExp(`${L}(?:(?:${BUY})[^।.!?]{0,40}(?:${REMEDY_ITEMS})|(?:${REMEDY_ITEMS})[^।.!?]{0,40}${L}(?:${BUY})|कूपन|डिस्काउंट)`, 'u'), message: 'Remedy sales language is not permitted' },
   { code: 'FOREIGN_BRAND', severity: 'error', pattern: word('अरुण\\s+पंडित|जेम्समंत्र'), message: 'Third-party brand mentioned' },
+  // "पुनीत" is also an ordinary Hindi adjective (holy), so only the unambiguous sample identities are listed.
+  { code: 'REFERENCE_IDENTITY_LEAK', severity: 'error', pattern: word('बुलंदशहर|बुलन्दशहर|अनन्या\\s+अय्यर'), message: 'Reference/sample native identity leaked into content' },
   { code: 'AI_SELF_REFERENCE', severity: 'error', pattern: new RegExp(`${L}(?:एक\\s+एआई|एआई\\s+के\\s+रूप\\s+में|भाषा\\s+मॉडल|मैं\\s+असमर्थ)`, 'u'), message: 'Model self-reference' },
   { code: 'INVENTED_HISTORY', severity: 'warning', pattern: new RegExp(`${L}(?:जब\\s+आप\\s+(?:बच्चे|छोटे)\\s+थे|आपने\\s+पहले\\s+(?:बताया|कहा))`, 'u'), message: 'Possible invented personal history' },
 ];
@@ -60,11 +73,22 @@ export function matchHindiRule(rule: HindiRule, text: string): string | undefine
   return undefined;
 }
 
-/** Hindi counterpart of OVERSTATEMENT (judgement-lexicon.ts): a potential stated as a promise. */
+const FUTURE_VERB = '[\\p{L}\\p{M}]+(?:ेगा|ेगी|ेंगे|ेंगी|एगा|एगी|एँगे|एंगे|ोगा|ोगी|ोंगे|ोंगी)';
+/**
+ * Hindi counterpart of OVERSTATEMENT (judgement-lexicon.ts): a potential stated as a promise.
+ * English word → Hindi forms: ensures → सुनिश्चित करता; grants/endows → प्रदान करता, संपन्न करता, नवाज़ता;
+ * guarantee → गारंटी; assured → निश्चित है, सुनिश्चित है; effortless → बिना प्रयास के, अनायास;
+ * unshakeable → अटल, अडिग, अटूट; destined → भाग्य में लिखा, तय है; certainly will → निश्चित रूप से,
+ * अवश्य/ज़रूर + future verb; is bound to → होकर रहेगा; rock-solid → चट्टान जैसा; infallible → अचूक.
+ */
 const HINDI_OVERSTATEMENT = new RegExp(
-  `${L}(?:सुनिश्चित\\s+(?:करत|करेग|करेंग|होग|है)|गारंटी|निश्चित\\s+रूप\\s+से|निश्चित\\s+ही|अवश्य\\s+ही|बिना\\s+(?:किसी\\s+)?(?:प्रयास|मेहनत)\\s+के|अनायास\\s+ही|अचूक|अटल\\s+(?:सफलता|भाग्य)|(?:भाग्य|नियति|किस्मत)\\s+में\\s+लिखा|तय\\s+है)`,
+  `${L}(?:सुनिश्चित\\s+(?:करत|करेग|करेंग|होग|है)|प्रदान\\s+(?:करत|करेग|करेंग)|(?:संपन्न|सम्पन्न)\\s+करत|नवाज़त|नवाजत|गारंटी|निश्चित\\s+रूप\\s+से|निश्चित\\s+ही|निश्चित\\s+(?:है|हैं)${R}` +
+    `|अवश्य\\s+ही|(?:अवश्य|ज़रूर|जरूर)\\s+${FUTURE_VERB}${R}|बिना\\s+(?:किसी\\s+)?(?:प्रयास|मेहनत)\\s+के|अनायास|अचूक|अटल${R}|अडिग${R}|अटूट${R}` +
+    `|(?:भाग्य|नियति|किस्मत)\\s+में\\s+लिखा|तय\\s+है|होकर\\s+(?:ही\\s+)?रह(?:ेगा|ेगी|ेंगे)|चट्टान\\s+(?:जैस[ाेी]|की\\s+तरह|स[ाेी]${R}))`,
   'u'
 );
+/** "… सुनिश्चित करने के लिए": a purpose clause promises nothing in advice, but it does in a predictive sentence (as "to ensure" in English). */
+const HINDI_PURPOSE_ENSURE = new RegExp(`${L}सुनिश्चित\\s+करने${R}`, 'u');
 
 /** Hindi counterpart of PREDICTIVE_CONTEXT. */
 export const HINDI_PREDICTIVE_CONTEXT = new RegExp(`${L}(?:योग|राजयोग|दशा|महादशा|अंतर्दशा|अन्तर्दशा|भुक्ति|गोचर|साढ़े\\s*साती|साढ़ेसाती|अवधि|काल)`, 'u');
@@ -75,6 +99,10 @@ export function findHindiOverstatement(sentence: string): RegExpExecArray | null
   for (const m of sentence.matchAll(re)) {
     if (deniedInHindiClause(sentence, m.index ?? 0, m[0].length)) continue;
     return m as RegExpExecArray;
+  }
+  if (HINDI_PREDICTIVE_CONTEXT.test(sentence)) {
+    const purpose = HINDI_PURPOSE_ENSURE.exec(sentence);
+    if (purpose && !deniedInHindiClause(sentence, purpose.index, purpose[0].length)) return purpose;
   }
   return null;
 }
@@ -97,6 +125,14 @@ export const HINDI_STOPWORDS = [
   'लिए', 'साथ', 'तथा', 'एवं', 'किसी', 'कुछ', 'बहुत', 'अधिक', 'सकता', 'सकती', 'सकते', 'करता', 'करती', 'करते', 'रहता', 'रहती', 'रहते',
   'नहीं', 'ने', 'द्वारा', 'रूप', 'जैसे', 'यहाँ', 'वहाँ', 'कर', 'करने', 'होने',
 ];
+
+/** Light, deterministic stemming of a Devanagari word for repetition checks: plural/oblique and gender endings are dropped. */
+export function hindiStem(word: string): string {
+  for (const end of ['ियों', 'ियाँ', 'ियां', 'ाओं', 'ओं', 'ों', 'ें', 'ाँ', 'ां']) {
+    if (word.length > end.length + 2 && word.endsWith(end)) return word.slice(0, -end.length);
+  }
+  return word.length > 3 && /[ाेीो]$/u.test(word) ? word.slice(0, -1) : word;
+}
 
 /**
  * Share of letters that are Devanagari. A Hindi edition whose prose is mostly

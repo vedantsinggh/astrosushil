@@ -240,7 +240,8 @@ export function imageCreditsPage(plan: IllustrationPlan, lang: 'en' | 'hi'): str
       ? 'इस रिपोर्ट के चित्र सार्वजनिक रूप से लाइसेंस प्राप्त स्रोतों से लिए गए हैं।'
       : 'The photographs in this report come from freely licensed sources. They illustrate the themes of the passages they sit beside and are not part of the astrological calculation. All have been resized and cropped to fit the page.';
   const rows = plan.used
-    .map((i) => `\\item ${tex(i.caption)} \\textcolor{Muted}{--- ${tex(i.credit)}${i.credit.includes(i.license) ? '' : ` (${tex(i.license)})`}}`)
+    // Captions exist in English only; a Hindi edition lists the credit and licence, which are names.
+    .map((i) => `\\item ${lang === 'hi' ? '' : `${tex(i.caption)} \\textcolor{Muted}{--- `}${tex(i.credit)}${i.credit.includes(i.license) ? '' : ` (${tex(i.license)})`}${lang === 'hi' ? '' : '}'}`)
     .join('\n');
   return `\\clearpage\\markboth{${heading}}{}
 \\vspace*{4mm}

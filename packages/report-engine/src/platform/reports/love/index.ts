@@ -1,9 +1,11 @@
 import { ReportModule } from '../../module';
 import { loveAllies, loveAstralDetails, loveCautions, loveJupiterWindows } from '../../render/blocks';
 import { LOVE_DEFINITION } from './love.definition';
+import { LOVE_HINDI } from './love.hindi';
 
 export const LOVE_MODULE: ReportModule = {
   definition: LOVE_DEFINITION,
+  hindi: LOVE_HINDI,
   blocks: {
     'love-astral-details': loveAstralDetails,
     'love-allies': loveAllies,

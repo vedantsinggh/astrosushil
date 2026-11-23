@@ -1,7 +1,9 @@
 /**
- * Deterministic numerology blocks, shared by Fortune (Hindi) and Fortune Plus
- * (English). Every value comes from the canonical numerology module via
- * `ext.numerology`; every block returns the evidence IDs it displays.
+ * Deterministic numerology blocks, shared by Fortune, Fortune Plus and Baby
+ * Name. Every value comes from the canonical numerology module via
+ * `ext.numerology`; every block returns the evidence IDs it displays. A block
+ * is built for its report's own language and follows the language of the
+ * edition being generated (`langOf`).
  */
 import { BlockContext, BlockOutput, BlockRenderer } from '../../render/blocks';
 import { tex } from '../../render/latex';
@@ -60,6 +62,12 @@ export function grid(spec: string, head: string[], rows: string[][], highlight?:
 
 const p = (ctx: BlockContext) => numerologyExtOf(ctx.ext).profile;
 
+/**
+ * The language a numerology block labels itself in: the language of the report being generated
+ * (`ctx.lang`, set by the orchestrator), else the language the block was built for (`own`).
+ */
+export const langOf = (ctx: BlockContext, own: Lang): Lang => ctx.lang ?? own;
+
 function kuaRows(lang: Lang, k: KuaResult): Array<[string, string]> {
   return [
     [L(lang, 'Kua number', 'कुआ नंबर'), `${k.value}${k.fiveSubstituted ? L(lang, ' (5 replaced by ', ' (5 के स्थान पर ') + k.value + ')' : ''}`],
@@ -78,8 +86,9 @@ function kuaRows(lang: Lang, k: KuaResult): Array<[string, string]> {
 // Blocks
 // ---------------------------------------------------------------------------
 
-export function luckyTable(lang: Lang): BlockRenderer {
+export function luckyTable(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const n = numerologyExtOf(ctx.ext);
     const pr = n.profile;
     const s = ctx.snapshot.subject;
@@ -116,8 +125,9 @@ export function luckyTable(lang: Lang): BlockRenderer {
   };
 }
 
-export function coreNumbersTable(lang: Lang): BlockRenderer {
+export function coreNumbersTable(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const b = pr.birth;
     const dd = String(b.day).padStart(2, '0');
@@ -146,8 +156,9 @@ export function coreNumbersTable(lang: Lang): BlockRenderer {
   };
 }
 
-export function friendshipMatrix(lang: Lang): BlockRenderer {
+export function friendshipMatrix(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const mp = NUMBER_PLANET[pr.mulank];
     const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => {
@@ -172,8 +183,9 @@ export function friendshipMatrix(lang: Lang): BlockRenderer {
   };
 }
 
-export function devotionTable(lang: Lang): BlockRenderer {
+export function devotionTable(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const rows: string[][] = [pr.mulank, pr.bhagyank]
       .filter((v, i, a) => a.indexOf(v) === i)
@@ -224,8 +236,9 @@ function loShuTikz(lang: Lang, counts: Record<number, number>, withLabels: boole
   ].join('\n');
 }
 
-export function loShuBlock(lang: Lang): BlockRenderer {
+export function loShuBlock(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const g = p(ctx).loShu;
     const rows: Array<[string, string]> = [
       [L(lang, 'Digits placed', 'ग्रिड में रखे अंक'), g.sourceDigits.join(' ')],
@@ -245,8 +258,9 @@ export function loShuBlock(lang: Lang): BlockRenderer {
   };
 }
 
-export function kuaBlock(lang: Lang): BlockRenderer {
+export function kuaBlock(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const g = pr.loShu;
     const elementRows: string[][] = ['Water', 'Wood', 'Fire', 'Earth', 'Metal'].map((el) => {
@@ -277,8 +291,9 @@ export function kuaBlock(lang: Lang): BlockRenderer {
   };
 }
 
-export function nameBlock(lang: Lang): BlockRenderer {
+export function nameBlock(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     if (!pr.name) throw new Error('BLOCK_DATA_MISSING: name numerology (no Latin letters in the name)');
     const words = ctx.snapshot.subject.name.split(/\s+/).map(nameLetters).filter((w) => w.length);
@@ -331,8 +346,9 @@ export const PLANES_METHOD = {
   hi: 'अभिव्यक्ति के तल: हर अक्षर एक तल का है — मानसिक A G H J L N P; शारीरिक D E M W; भावनात्मक B I O R S T X Z; अंतर्ज्ञान C F K Q U V Y। कोष्ठक में अंक बताता है कि अक्षर कितनी बार आया।',
 };
 
-export function namePlanesBlock(lang: Lang): BlockRenderer {
+export function namePlanesBlock(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     if (!p(ctx).name) throw new Error('BLOCK_DATA_MISSING: name numerology');
     return {
       tex: planesTable(lang, ctx.snapshot.subject.name),
@@ -355,8 +371,9 @@ export const CYCLE_KEYWORD: Record<number, { en: string; hi: string }> = {
   9: { en: 'Completion, release, compassion', hi: 'पूर्णता, त्याग, करुणा' },
 };
 
-export function monthsTable(lang: Lang): BlockRenderer {
+export function monthsTable(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const rows = pr.months.map((m) => [
       String(m.index),
@@ -376,8 +393,9 @@ export function monthsTable(lang: Lang): BlockRenderer {
   };
 }
 
-export function cyclesTable(lang: Lang): BlockRenderer {
+export function cyclesTable(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const rows = pr.cycles.map((c) => [
       String(c.index),
@@ -398,8 +416,9 @@ export function cyclesTable(lang: Lang): BlockRenderer {
   };
 }
 
-export function everydayItems(lang: Lang): BlockRenderer {
+export function everydayItems(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const n = numerologyExtOf(ctx.ext);
     const pr = n.profile;
     const mp = NUMBER_PLANET[pr.mulank];
@@ -427,8 +446,9 @@ export function everydayItems(lang: Lang): BlockRenderer {
   };
 }
 
-export function mantraBlock(lang: Lang): BlockRenderer {
+export function mantraBlock(own: Lang): BlockRenderer {
   return (ctx) => {
+    const lang = langOf(ctx, own);
     const pr = p(ctx);
     const planets = [NUMBER_PLANET[pr.mulank], NUMBER_PLANET[pr.bhagyank]].filter((v, i, a) => a.indexOf(v) === i);
     const card = (title: string, dev: string, roman: string, note: string) =>
