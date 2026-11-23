@@ -8,7 +8,7 @@
 import { EvidenceItem, ReportDefinition, ReportTopic } from '../contracts';
 import type { InterpretationView } from '../validation/interpretation-validator';
 
-export const PROMPT_VERSION = 'p1.0.0';
+export const PROMPT_VERSION = 'p1.2.0';
 
 /**
  * Version of the interpretation-specific prompt text (INTERPRETATIONS block,
@@ -16,7 +16,7 @@ export const PROMPT_VERSION = 'p1.0.0';
  * opted-in topics only (`interpretationPromptVersion`), so changing it never
  * touches legacy topic keys. Bump it whenever that text changes.
  */
-export const INTERPRETATION_PROMPT_VERSION = 'ip1.1.0';
+export const INTERPRETATION_PROMPT_VERSION = 'ip1.2.0';
 
 /**
  * Approved glossary (calculation audit A1; report audit F10). Sources: BPHS
@@ -55,14 +55,14 @@ export const GLOSSARY: ReadonlyArray<{ term: string; definition: string }> = [
 
 /** Per-topic instruction added for topics that opted in to interpretation results. */
 export const INTERPRETATION_TOPIC_INSTRUCTION =
-  "Every evaluative sentence (strong, weak, supportive, demanding, favourable, mixed, and the like) must be backed by a claim that cites an interp.* ID and restates that result's conclusion. If a result is 'mixed', say plainly that it cuts both ways. Never add a judgement, strength word or rule that is not listed in INTERPRETATIONS. Do not present an empty or unaspected house as an advantage. A fact's own wording (e.g. 'functionally challenging', 'dignity: neutral') may be restated in a claim that cites that fact. Write every date in one form, day month year (e.g. 20 Nov 2026), never as 2026-11-20 or November 20, 2026; when an INTERPRETATIONS line gives a date, use that date.";
+  "Every evaluative sentence (strong, weak, supportive, demanding, favourable, mixed, and the like) must be backed by a claim that cites an interp.* ID and restates that result's conclusion. If a result is 'mixed', say plainly that it cuts both ways. Never add a judgement, strength word or rule that is not listed in INTERPRETATIONS. Do not present an empty or unaspected house as an advantage. A fact's own wording (e.g. 'functionally challenging', 'dignity: neutral') may be restated in a claim that cites that fact. Write every date in one form, day month year (e.g. 20 Nov 2026), never as 2026-11-20 or November 20, 2026; when an INTERPRETATIONS line gives a date, use that date. CLAIMS FOR THIS TOPIC: a claim that cites an interp.* ID must use that line's conclusion (the text before the first ' — ') copied word for word as its statement, followed by its class (e.g. '... This is mixed: it cuts both ways.'); a claim that cites a fact must copy that EVIDENCE label word for word. Include one such claim for every INTERPRETATIONS line marked REQUIRED and for every interp.* result you rely on. When a prose sentence gives a judgement, keep the key words of the cited conclusion (planet, house, sign, lord) so the two can be matched, but write it as natural, warm prose rather than repeating the claim; for a mixed result say so in varied ways that include 'mixed', 'both', 'while' or 'yet' (use the phrase 'cuts both ways' at most once per topic). Outside such sentences do not use evaluative words about chart factors at all (strong, weak, supportive, supported, balanced, neutral, demanding, favourable, mixed): describe instead what the placement asks of the reader.";
 
 export const SYSTEM_PROMPT = `You are the writing voice of Astro Sushil (astrologer Sushil Kumaar Singh), preparing a premium, personalised Vedic astrology report.
 
 ROLE AND LIMITS
 - You are an explanation and writing engine. The chart has already been calculated deterministically. You must NOT calculate, infer or invent any placement, house, sign, degree, aspect, yoga, dasha, date or score.
 - Use ONLY the chart facts provided in the EVIDENCE list of each topic. If a fact is not in the list, do not state it. Do not mention planets, houses or periods that are not in the evidence.
-- Every sentence that states a chart fact must be backed by a claim object that cites the exact evidence IDs it relies on, and the claim statement must contain the fact's value (e.g. the sign name or house number).
+- Every sentence that states a chart fact must be backed by a claim object that cites the exact evidence IDs it relies on, and the claim statement must contain the fact's value (e.g. the sign name or house number). The safest claim statement is the cited EVIDENCE label copied word for word. State every placement exactly as the evidence gives it; never restate a planet's sign or house from memory.
 
 ASTRO SUSHIL PHILOSOPHY (mandatory)
 - Astro Sushil does not believe in doshas as curses or fear. Never describe any placement, Manglik status, Sade Sati or any "dosha" as harmful, cursed, doomed or dangerous. Frame challenges as growth areas and tendencies that awareness and effort can work with.
@@ -79,7 +79,7 @@ STYLE
 
 OUTPUT
 Return a single JSON object: {"topics":[{"topicId": string, "lead": string (one engaging opening sentence), "paragraphs": string[], "bullets": string[], "takeaway": string, "claims": [{"statement": string, "evidenceIds": string[]}]}]}.
-Return one entry per requested topic, using the exact topicId given.`;
+Return one entry per requested topic, using the exact topicId given. Write the JSON compactly on a single line, with no indentation or line breaks between keys (output tokens are billed). Keep each claim statement to one short sentence; do not add more claims than are needed to back the chart facts you state.`;
 
 export interface BatchPromptInput {
   definition: ReportDefinition;
@@ -104,14 +104,37 @@ export function buildBatchPrompt(input: BatchPromptInput): string {
   lines.push(`REPORT-SPECIFIC GUIDANCE:\n${definition.writingGuidance.map((g) => `- ${g}`).join('\n')}`);
   lines.push(`SECTION: ${input.sectionTitle}`);
   if (input.priorSummaries.length) {
-    lines.push(`ALREADY COVERED EARLIER IN THE REPORT (stay consistent, do not repeat):\n${input.priorSummaries.map((s) => `- ${s}`).join('\n')}`);
+    lines.push(`ALREADY COVERED EARLIER IN THE REPORT (stay consistent, do not repeat):\n${input.priorSummaries.map((s) => `- ${clip(s, PRIOR_SUMMARY_CHARS)}`).join('\n')}`);
   }
   if (input.topics.some((t) => t.interpretations !== undefined)) {
     lines.push(buildGlossaryBlock());
+    // Stated once per call, not once per topic (input tokens are billed).
+    lines.push(`INSTRUCTION FOR EVERY TOPIC BELOW THAT HAS AN INTERPRETATIONS BLOCK: ${INTERPRETATION_TOPIC_INSTRUCTION}`);
   }
+  // Facts that every topic of this call may cite are listed once instead of once per topic.
+  const interpIdsOf = (t: BatchPromptInput['topics'][number]) => new Set((t.interpretations ?? []).map((i) => i.id));
+  const factsOf = (t: BatchPromptInput['topics'][number]) => {
+    const skip = interpIdsOf(t);
+    return t.evidence.filter((e) => !skip.has(e.id));
+  };
+  const common = new Set<string>();
+  if (input.topics.length > 1) {
+    const [first, ...rest] = input.topics.map((t) => new Set(factsOf(t).map((e) => e.id)));
+    for (const id of first) if (rest.every((r) => r.has(id))) common.add(id);
+    // A topic keeps at least a few facts of its own listing so its block stays self-explanatory.
+    if (common.size < COMMON_EVIDENCE_MIN) common.clear();
+  }
+  if (common.size) {
+    lines.push(
+      [`${COMMON_EVIDENCE_HEADING} (every topic below may cite these IDs exactly, in addition to its own list):`,
+        ...factsOf(input.topics[0]).filter((e) => common.has(e.id)).map((e) => `  [${e.id}] ${e.label}`)].join('\n')
+    );
+  }
+  const ownFacts = (t: BatchPromptInput['topics'][number]) => factsOf(t).filter((e) => !common.has(e.id));
+  const evidenceHead = common.size ? `EVIDENCE (cite these IDs exactly; the ${COMMON_EVIDENCE_HEADING} list above also applies):` : `EVIDENCE (cite these IDs exactly):`;
   for (const { topic, evidence, interpretations } of input.topics) {
     const depth = topic.depth
-      ? `${topic.depth.minParagraphs}-${topic.depth.maxParagraphs} paragraphs of 70-130 words${topic.depth.bullets ? `, plus ${topic.depth.bullets} practical bullets` : ', bullets optional'}`
+      ? `${topic.depth.minParagraphs}-${topic.depth.maxParagraphs} paragraphs of 70-130 words (the "paragraphs" array must hold at least ${topic.depth.minParagraphs} separate entries; fewer is rejected)${topic.depth.bullets ? `, plus ${topic.depth.bullets} practical bullets` : ', bullets optional'}`
       : '2-3 paragraphs';
     if (interpretations === undefined) {
       lines.push(
@@ -120,26 +143,29 @@ export function buildBatchPrompt(input: BatchPromptInput): string {
           `Title: ${topic.title}`,
           `Objective: ${topic.objective}`,
           `Length: ${depth}. Include at least 2 claims.`,
-          `EVIDENCE (cite these IDs exactly):`,
-          ...evidence.map((e) => `  [${e.id}] ${e.label}`),
+          evidenceHead,
+          ...evidence.filter((e) => !common.has(e.id)).map((e) => `  [${e.id}] ${e.label}`),
         ].join('\n')
       );
       continue;
     }
     const interpIds = new Set(interpretations.map((i) => i.id));
+    // Results named exactly (no trailing *) in the topic must be cited by a verified claim (validator V5).
+    const named = (topic as ReportTopic & { interpretations?: unknown }).interpretations;
+    const required = new Set(Array.isArray(named) ? named.filter((n): n is string => typeof n === 'string' && !n.endsWith('*')) : []);
     const facts = evidence.filter((e) => !interpIds.has(e.id));
     const lifeStage = facts.filter(isLifeStageEvidence);
+    const listed = facts.filter((e) => !common.has(e.id));
     lines.push(
       [
         `\n=== TOPIC topicId="${topic.id}" ===`,
         `Title: ${topic.title}`,
         `Objective: ${topic.objective}`,
         `Length: ${depth}. Include at least 2 claims.`,
-        `EVIDENCE (cite these IDs exactly):`,
-        ...facts.map((e) => `  [${e.id}] ${e.label}`),
+        evidenceHead,
+        ...listed.map((e) => `  [${e.id}] ${e.label}`),
         `INTERPRETATIONS (state these conclusions; do not add others; cite their IDs):`,
-        ...(interpretations.length ? interpretations.map(formatInterpretationLine) : ['  (none for this chart: describe the facts without any evaluative judgement)']),
-        `INSTRUCTION: ${INTERPRETATION_TOPIC_INSTRUCTION}`,
+        ...(interpretations.length ? interpretations.map((v) => formatInterpretationLine(v) + (required.has(v.id) ? ' — REQUIRED: cite this ID in a claim' : '')) : ['  (none for this chart: describe the facts without any evaluative judgement)']),
         ...(lifeStage.length ? [`LIFE STAGE: ${lifeStage.map((e) => e.label).join('; ')}. ${LIFE_STAGE_INSTRUCTION}`] : []),
       ].join('\n')
     );
@@ -149,6 +175,13 @@ export function buildBatchPrompt(input: BatchPromptInput): string {
   }
   return lines.join('\n\n');
 }
+
+export const COMMON_EVIDENCE_HEADING = 'EVIDENCE COMMON TO EVERY TOPIC';
+/** Sharing fewer facts than this is not worth a separate block. */
+const COMMON_EVIDENCE_MIN = 6;
+/** Earlier topics are recalled by title and the start of their opening line only. */
+const PRIOR_SUMMARY_CHARS = 150;
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 export const LIFE_STAGE_INSTRUCTION =
   'Frame guidance for this life stage: do not assume seniority, a long track record, retirement or late-career roles the native has not reached; speak of later possibilities only as long-term possibilities.';

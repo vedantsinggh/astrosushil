@@ -95,14 +95,46 @@ Environment variables:
 
 | Variable | Default / meaning |
 |---|---|
-| `REPORT_LLM_MODEL` | `gemini-3.8-flash` |
+| `REPORT_LLM_MODEL` | `gemini-3.1-flash-lite` (falls back to `GEMINI_MODEL` when set). Writes every topic on the first two attempts |
+| `REPORT_LLM_RETRY_MODEL` | `gemini-3.8-flash`. Used only for the final attempt of a topic the primary model could not write validly. Empty = keep the primary model |
 | `REPORT_LLM_FALLBACK_MODELS` | Comma-separated list, used on overload |
-| `REPORT_LLM_THINKING_LEVEL` | `low`; `minimal`/`low`/`medium`/`high`, or `default` for the model's own setting. Sent to Gemini 3+ only; thinking tokens are billed as output |
-| `REPORT_LLM_PRICE_INPUT_PER_MTOK` | `0.5`, cost-estimate assumption |
-| `REPORT_LLM_PRICE_OUTPUT_PER_MTOK` | `3.0`, cost-estimate assumption |
+| `REPORT_LLM_THINKING_LEVEL` | `minimal`; `minimal`/`low`/`medium`/`high`, or `default` for the model's own setting. Sent to Gemini 3+ only; thinking tokens are billed as output. A model that rejects `minimal` is retried with `low` |
+| `REPORT_LLM_RETRY_THINKING_LEVEL` | `low`, for `REPORT_LLM_RETRY_MODEL` |
+| `REPORT_LLM_MAX_REPAIR_SHARE` | `0.3`. Largest share of a topic's sentences that sentence repair may remove; `0` disables repair |
+| `REPORT_LLM_PRICE_INPUT_PER_MTOK`, `REPORT_LLM_PRICE_OUTPUT_PER_MTOK` | Unset. When both are set they replace the built-in per-model list prices (`MODEL_LIST_PRICES` in `orchestrator.ts`) for the cost estimate |
 | `REPORT_LLM_CACHE_DIR` | Location of the dev topic cache |
 
 Tests: `npx vitest run packages/report-engine/src/__tests__/platform-core.test.ts`. These use no network and no paid API.
+
+## Cost control
+
+Measured on the golden Career chart (46 narrative topics, 2026-11-23), list prices:
+
+| Configuration | Input / output+thinking tokens | Estimate |
+|---|---|---|
+| `gemini-3.8-flash`, default thinking (2026-11-18, before the interpretation validators) | 94k / 138k | $0.59 |
+| `gemini-3.1-flash-lite` + retry on `gemini-3.8-flash`, no repair | 365k / 64k | $0.30, 17 topics failed |
+| Same, with sentence repair and the `ip1.2.0` prompt | 194k / 31k | $0.10, all topics passed |
+
+What keeps the cost down:
+- **Cheap model first.** `gemini-3.1-flash-lite` with minimal thinking writes every topic. A topic that fails validation is re-asked once on the same model with the validator feedback; only the final attempt goes to `REPORT_LLM_RETRY_MODEL`.
+- **Sentence repair** (`llm/sentence-repair.ts`). When a topic fails only because individual sentences or claims were rejected (unsupported judgement, contradiction of the chart, near-duplicate, overstatement, unverified claim), those sentences and claims are removed and the topic is validated again, with no model call. Nothing is added or reworded. Each removal is recorded on the topic as an `UNVERIFIED_SENTENCE_REMOVED` or `UNVERIFIED_CLAIM_DROPPED` warning. Whole-topic problems (too short, a required interpretation not cited, a mixed result not acknowledged) still go back to the model.
+- **Prompt size.** The interpretation instruction and the facts shared by every topic of a call are stated once per call; earlier topics are recalled by title and the first 150 characters of their opening line.
+- **Claims.** The model is told to copy evidence labels and interpretation conclusions word for word as claim statements, which is what the validators match against.
+
+The manifest's `usage` is built from every provider call of the run, including rejected attempts, split `byModel`, with `firstCallAtIso`/`lastCallAtIso` to match against the provider's billing report. The daily Rashi Bhavishya keeps its own settings (`RASHI_NARRATOR_DEFAULTS`).
+
+## Illustrations
+
+`render/illustrations.ts` places pictures from `templates/assets/library` (freely licensed photographs; sources and licences in its `SOURCES.md` and `library.json`). Rules, set by the client on 2026-11-24:
+
+- **At most ten pictures per report** (`MAX_PICTURES`).
+- **Life themes only** (`THEME_TAGS`: career, craft, teamwork, leadership, wealth, growth, change, and so on). A passage about a planet, a sign or a technique gets no picture, so there are no sky or planet photographs.
+- **Small and uncaptioned:** one 48 x 44 mm picture beside the opening paragraph of a narrative topic. No full-width pictures and no section opener pages. Credit and licence appear only on the Image Credits page before the closing page.
+- **Relevant and never repeated:** a picture is used only when its main subject is the passage's theme, and only once per report. Photographs of people (`"people": true` in `library.json`) are preferred over objects.
+- **Deterministic:** selection is by fixed keyword rules (`SUBJECT_RULES`) over topic titles, with no LLM call. Passages that are first of all about a life theme are illustrated first, one picture per theme before a second of the same theme, and the allowance is spread through the report.
+
+To add pictures, add the JPEG and a `library.json` entry whose first subject is one of the theme tags.
 
 ## Manifest
 
@@ -117,7 +149,7 @@ Each topic records:
 
 At report level:
 - snapshotId, engine version and conventions, with `conventionsProvisional: true`;
-- usage totals, with `estimatedCostUsd` and its stated `costBasis` (always an estimate, never billing);
+- usage totals and per-model breakdown, with `estimatedCostUsd` and its stated `costBasis` (always an estimate, never billing);
 - PDF page count, sha256 and QA result.
 
 ## Adding a report type

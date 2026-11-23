@@ -1,0 +1,1948 @@
+[
+  {
+    "id": "career-city-skyline",
+    "file": "career-city-skyline.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "New York City skyline at dusk",
+    "credit": "Photo: Sarah Meyer, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:New_York_City_night_skyline_by_500px_1.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "career-desk-notebook",
+    "file": "career-desk-notebook.jpg",
+    "subjects": [
+      "career",
+      "education"
+    ],
+    "caption": "Open notebook, pens and glasses on desk",
+    "credit": "Photo: Shixart1985, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Desk_with_notebook_pens_and_glasses.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "career-spiral-staircase",
+    "file": "career-spiral-staircase.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Stone spiral staircase seen from above",
+    "credit": "Photo: Francesca Capochiani, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Spiral_Staircase_(75625991).jpeg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "children-baby-feet",
+    "file": "children-baby-feet.jpg",
+    "subjects": [
+      "children"
+    ],
+    "caption": "Baby's feet held in adult hands",
+    "credit": "Photo: Bonnie Kittle (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Baby%27s_feet_(Unsplash).jpg",
+    "width": 1100,
+    "height": 824
+  },
+  {
+    "id": "children-teddy-bear",
+    "file": "children-teddy-bear.jpg",
+    "subjects": [
+      "children"
+    ],
+    "caption": "Small child hugging a teddy bear",
+    "credit": "Photo: Shixart1985, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Little_girl_hugs_teddy_bear_toy.jpg",
+    "width": 734,
+    "height": 1100
+  },
+  {
+    "id": "communication-quill-letter",
+    "file": "communication-quill-letter.jpg",
+    "subjects": [
+      "communication"
+    ],
+    "caption": "Quill, ink bottle and handwritten letter",
+    "credit": "Photo: Tool Dude8mm, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bird_Feather_Feather_Paper_pen_Bird_feather_made_into_dipping_pen,_inkwell,_paper,_handwritten_letter,_inkblots,_etc._2505306_Edited_2020.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "education-library-room",
+    "file": "education-library-room.jpg",
+    "subjects": [
+      "education"
+    ],
+    "caption": "Historic library room with bookshelves",
+    "credit": "Photo: Michael D Beckwith (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Harewood_House_The_Old_Library_(217980413).jpeg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "education-old-books",
+    "file": "education-old-books.jpg",
+    "subjects": [
+      "education"
+    ],
+    "caption": "Old leather-bound books",
+    "credit": "Liam Quin (public domain)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Oldbooks-02.jpg",
+    "width": 1100,
+    "height": 620
+  },
+  {
+    "id": "education-reading-room",
+    "file": "education-reading-room.jpg",
+    "subjects": [
+      "education"
+    ],
+    "caption": "Main reading room, Library of Congress",
+    "credit": "Carol M. Highsmith (public domain)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:LOC_Main_Reading_Room_Highsmith.jpg",
+    "width": 1100,
+    "height": 734
+  },
+  {
+    "id": "emotion-calm-ocean",
+    "file": "emotion-calm-ocean.jpg",
+    "subjects": [
+      "emotion",
+      "sunrise"
+    ],
+    "caption": "Calm Atlantic Ocean at sunrise under clouds",
+    "credit": "Photo: Sergei Gussev, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dramatic_Atlantic_Ocean_sunrise_under_a_cloudy_sky_near_Sagres,_Faro,_Algarve,_Portugal,_February_2025_(54452275690).jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "emotion-moonlit-water",
+    "file": "emotion-moonlit-water.jpg",
+    "subjects": [
+      "emotion",
+      "moon"
+    ],
+    "caption": "Moon reflected on calm water",
+    "credit": "Photo: Elin Beckmann, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Str%C3%B8mstad_Skagerrak,_Sweden.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "family-beach-silhouette",
+    "file": "family-beach-silhouette.jpg",
+    "subjects": [
+      "family"
+    ],
+    "caption": "Family silhouetted on a beach at dusk",
+    "credit": "Photo: Vanessa Kay, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Watching_The_Sun_Set_(58260756).jpeg",
+    "width": 1100,
+    "height": 734
+  },
+  {
+    "id": "family-elephants",
+    "file": "family-elephants.jpg",
+    "subjects": [
+      "family"
+    ],
+    "caption": "Elephant family walking through grassland",
+    "credit": "Photo: Ray in Manila, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gentle_Giants,_A_Family_of_Five_Elephants_in_Maasai_Mara_-_Flickr_-_._Ray_in_Manila.jpg",
+    "width": 1100,
+    "height": 646
+  },
+  {
+    "id": "family-nest",
+    "file": "family-nest.jpg",
+    "subjects": [
+      "family",
+      "children",
+      "home"
+    ],
+    "caption": "Sparrow nest with four blue eggs",
+    "credit": "National Park Service, Yellowstone National Park",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brewer%27s_sparrow_nest_and_eggs_(36409713613).jpg",
+    "width": 733,
+    "height": 1100
+  },
+  {
+    "id": "friendship-beach-walk",
+    "file": "friendship-beach-walk.jpg",
+    "subjects": [
+      "friendship"
+    ],
+    "caption": "Two people walking on a beach",
+    "credit": "Photo: Damian Gadal, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Two_Friends,_One_Beach_(7512195010).jpg",
+    "width": 1100,
+    "height": 731
+  },
+  {
+    "id": "health-stream",
+    "file": "health-stream.jpg",
+    "subjects": [
+      "health"
+    ],
+    "caption": "Clear creek flowing over rocks",
+    "credit": "Bureau of Land Management California",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:North_Fork_Cache_Creek_-_Berryessa_Snow-Mountain_NM_(53202330235).jpg",
+    "width": 1100,
+    "height": 704
+  },
+  {
+    "id": "health-yoga-silhouette",
+    "file": "health-yoga-silhouette.jpg",
+    "subjects": [
+      "health"
+    ],
+    "caption": "Yoga tree pose in silhouette",
+    "credit": "Photo: Patrick Hendry (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Patrick_Hendry_-_Yoga_Fog_(Unsplash).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "home-haveli-courtyard",
+    "file": "home-haveli-courtyard.jpg",
+    "subjects": [
+      "home"
+    ],
+    "caption": "Courtyard of a heritage haveli in Rajasthan",
+    "credit": "Photo: Mustang Joe (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Courtyard_of_the_Ranthambhore_Heritage_Haveli_Hotel_(54364280395).jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "home-kerala-house",
+    "file": "home-kerala-house.jpg",
+    "subjects": [
+      "home"
+    ],
+    "caption": "Traditional Kerala house with a garden",
+    "credit": "Photo: Cmphilip (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chirayil_Tharavaadu.jpg",
+    "width": 1100,
+    "height": 822
+  },
+  {
+    "id": "journey-footbridge",
+    "file": "journey-footbridge.jpg",
+    "subjects": [
+      "journey"
+    ],
+    "caption": "Wooden footbridge in a forest",
+    "credit": "Photo: Gerry Thomasen, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wooden_footbridge_(7975349059).jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "journey-forest-path",
+    "file": "journey-forest-path.jpg",
+    "subjects": [
+      "journey"
+    ],
+    "caption": "Path through a green forest",
+    "credit": "Photo: Zed Can77 (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Forest_path_surrounded_by_green_trees.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "jupiter-cassini",
+    "file": "jupiter-cassini.jpg",
+    "subjects": [
+      "jupiter"
+    ],
+    "caption": "Jupiter photographed by the Cassini spacecraft",
+    "credit": "NASA/JPL/Space Science Institute",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Portrait_of_Jupiter_from_Cassini.jpg",
+    "width": 880,
+    "height": 1100
+  },
+  {
+    "id": "jupiter-great-red-spot",
+    "file": "jupiter-great-red-spot.jpg",
+    "subjects": [
+      "jupiter"
+    ],
+    "caption": "Jupiter's Great Red Spot and cloud belts",
+    "credit": "NASA/JPL-Caltech/SwRI/MSSS/Gerald Eichstädt/Seán Doran",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jupiters_iconic_Great_Red_Spot.jpg",
+    "width": 1100,
+    "height": 718
+  },
+  {
+    "id": "jupiter-juno",
+    "file": "jupiter-juno.jpg",
+    "subjects": [
+      "jupiter"
+    ],
+    "caption": "Jupiter and its Great Red Spot from Juno",
+    "credit": "NASA",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Great_Red_Spot_of_Jupiter.jpg",
+    "width": 1100,
+    "height": 1100
+  },
+  {
+    "id": "ketu-comet",
+    "file": "ketu-comet.jpg",
+    "subjects": [
+      "ketu",
+      "night-sky"
+    ],
+    "caption": "Comet NEOWISE in the night sky",
+    "credit": "Bureau of Land Management Oregon & Washington",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Comet_Neowise_from_southern_Oregon_(50142307552).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "ketu-lunar-eclipse",
+    "file": "ketu-lunar-eclipse.jpg",
+    "subjects": [
+      "ketu",
+      "moon"
+    ],
+    "caption": "The Moon during a total lunar eclipse",
+    "credit": "NASA/Jordan Cochran",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Total_Lunar_Eclipse_%26_Blood_Moon_2025_(GRC-2025-C-01613).jpg",
+    "width": 1100,
+    "height": 732
+  },
+  {
+    "id": "lamp-diya-flame",
+    "file": "lamp-diya-flame.jpg",
+    "subjects": [
+      "lamp"
+    ],
+    "caption": "Decorated oil lamp burning at night",
+    "credit": "Photo: Saral Shots (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E0%AE%85%E0%AE%95%E0%AE%B2%E0%AF%8D.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "lamp-diya-glow",
+    "file": "lamp-diya-glow.jpg",
+    "subjects": [
+      "lamp"
+    ],
+    "caption": "Lit clay oil lamp",
+    "credit": "Photo: Subharnab Majumdar, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Diya_Diwali_India.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "lotus-pink",
+    "file": "lotus-pink.jpg",
+    "subjects": [
+      "lotus"
+    ],
+    "caption": "Pink lotus flower in bloom",
+    "credit": "Photo: Hong Zhang (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lotus_flower_(978659).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "lotus-white",
+    "file": "lotus-white.jpg",
+    "subjects": [
+      "lotus"
+    ],
+    "caption": "American lotus flower in bloom",
+    "credit": "Robert H. Mohlenbrock, USDA-NRCS (public domain)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nelumbo_lutea_NRCS-1.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "love-holding-hands",
+    "file": "love-holding-hands.jpg",
+    "subjects": [
+      "love"
+    ],
+    "caption": "Two people holding hands",
+    "credit": "Photo: freestocks.org (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Holding_hands_by_wall_(Unsplash).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "love-red-roses",
+    "file": "love-red-roses.jpg",
+    "subjects": [
+      "love"
+    ],
+    "caption": "Red roses with white blossoms",
+    "credit": "Photo: Paolo Gamba, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Red_roses_(32337990087).jpg",
+    "width": 1100,
+    "height": 735
+  },
+  {
+    "id": "love-swans",
+    "file": "love-swans.jpg",
+    "subjects": [
+      "love"
+    ],
+    "caption": "Pair of mute swans at sunset",
+    "credit": "Photo: Marnics (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Feeding_mute_swans_at_sunset.jpg",
+    "width": 1100,
+    "height": 619
+  },
+  {
+    "id": "marriage-henna-hand",
+    "file": "marriage-henna-hand.jpg",
+    "subjects": [
+      "marriage"
+    ],
+    "caption": "Hand decorated with henna patterns",
+    "credit": "Photo: peter klashorst, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Henna_hand.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "marriage-marigold-garlands",
+    "file": "marriage-marigold-garlands.jpg",
+    "subjects": [
+      "marriage"
+    ],
+    "caption": "Marigold flower garlands",
+    "credit": "Photo: Biswarup Ganguly, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Marigold_Garland_-_Kolkata_2012-10-15_0760.JPG",
+    "width": 731,
+    "height": 1100
+  },
+  {
+    "id": "marriage-rings",
+    "file": "marriage-rings.jpg",
+    "subjects": [
+      "marriage"
+    ],
+    "caption": "Two gold wedding rings",
+    "credit": "Photo: Jeff Belmonte, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wedding_rings.jpg",
+    "width": 960,
+    "height": 720
+  },
+  {
+    "id": "mars-hubble-globes",
+    "file": "mars-hubble-globes.jpg",
+    "subjects": [
+      "mars"
+    ],
+    "caption": "Three Hubble views of Mars",
+    "credit": "NASA/JPL-Caltech, David Crisp and the WFPC2 Science Team",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hubble_Globes_of_Mars.jpg",
+    "width": 1100,
+    "height": 634
+  },
+  {
+    "id": "mars-valles-marineris",
+    "file": "mars-valles-marineris.jpg",
+    "subjects": [
+      "mars"
+    ],
+    "caption": "Mars globe showing Valles Marineris",
+    "credit": "NASA/USGS",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mars_globe.jpg",
+    "width": 1100,
+    "height": 1100
+  },
+  {
+    "id": "mercury-enhanced-colour",
+    "file": "mercury-enhanced-colour.jpg",
+    "subjects": [
+      "mercury"
+    ],
+    "caption": "Mercury in enhanced colour from MESSENGER data",
+    "credit": "NASA Goddard Space Flight Center",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:False_Color_View_of_Mercury_(8497942353).png",
+    "width": 1100,
+    "height": 619
+  },
+  {
+    "id": "mercury-messenger",
+    "file": "mercury-messenger.jpg",
+    "subjects": [
+      "mercury"
+    ],
+    "caption": "Mercury photographed by the MESSENGER spacecraft",
+    "credit": "NASA/Johns Hopkins University Applied Physics Laboratory/Carnegie Institution of Washington",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mercury_in_color_-_Prockter07-edit1.jpg",
+    "width": 1100,
+    "height": 1100
+  },
+  {
+    "id": "moon-crescent",
+    "file": "moon-crescent.jpg",
+    "subjects": [
+      "moon"
+    ],
+    "caption": "Crescent Moon above a tree line",
+    "credit": "Photo: Marsel Minga (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mm37a_0907_Forest_(73448985).jpeg",
+    "width": 1100,
+    "height": 947
+  },
+  {
+    "id": "moon-full",
+    "file": "moon-full.jpg",
+    "subjects": [
+      "moon"
+    ],
+    "caption": "The full Moon",
+    "credit": "Photo: Serhio Magpie, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Full_Moon_(2012).jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "moon-golden",
+    "file": "moon-golden.jpg",
+    "subjects": [
+      "moon"
+    ],
+    "caption": "Golden full Moon",
+    "credit": "Photo: PEAK99, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Full_Moon_20-1-63_from_Thailand_Photographs_by_Peak_Hora.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "moon-over-earth",
+    "file": "moon-over-earth.jpg",
+    "subjects": [
+      "moon"
+    ],
+    "caption": "Full Moon seen above Earth's atmosphere",
+    "credit": "NASA",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Full_moon_partially_obscured_by_atmosphere.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "nakshatra-pleiades",
+    "file": "nakshatra-pleiades.jpg",
+    "subjects": [
+      "nakshatra",
+      "night-sky"
+    ],
+    "caption": "The Pleiades star cluster",
+    "credit": "NASA, ESA, AURA/Caltech, Palomar Observatory",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pleiades_large.jpg",
+    "width": 1100,
+    "height": 793
+  },
+  {
+    "id": "nakshatra-star-cluster",
+    "file": "nakshatra-star-cluster.jpg",
+    "subjects": [
+      "nakshatra"
+    ],
+    "caption": "Star cluster Hodge 301 in the Tarantula Nebula",
+    "credit": "NASA, ESA, D. Lennon and E. Sabbi (ESA/STScI) et al.",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hubble_Images_30_Doradus-_Hodge_301_(2012-01-2948).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "night-sky-galaxy",
+    "file": "night-sky-galaxy.jpg",
+    "subjects": [
+      "night-sky"
+    ],
+    "caption": "Barred spiral galaxy NGC 1300",
+    "credit": "NASA, ESA, and The Hubble Heritage Team (STScI/AURA)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hubble2005-01-barred-spiral-galaxy-NGC1300.jpg",
+    "width": 1100,
+    "height": 628
+  },
+  {
+    "id": "night-sky-milky-way",
+    "file": "night-sky-milky-way.jpg",
+    "subjects": [
+      "night-sky"
+    ],
+    "caption": "Milky Way over hills",
+    "credit": "National Park Service, Santa Monica Mountains NRA",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Night_Sky_-_Boney_Mountain_%26_Milky_Way_(11074300594).jpg",
+    "width": 1100,
+    "height": 985
+  },
+  {
+    "id": "night-sky-star-trails",
+    "file": "night-sky-star-trails.jpg",
+    "subjects": [
+      "night-sky"
+    ],
+    "caption": "Star trails circling the celestial pole",
+    "credit": "DESI Collaboration/DOE/KPNO/NOIRLab/NSF/AURA/L. Tyas, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kitt_Peak_National_Observatory_Beneath_Star_Trails_(noirlab2512ae).jpg",
+    "width": 1100,
+    "height": 734
+  },
+  {
+    "id": "numbers-clock-face",
+    "file": "numbers-clock-face.jpg",
+    "subjects": [
+      "numbers",
+      "time"
+    ],
+    "caption": "Clock face with Roman numerals",
+    "credit": "Photo: Ales Krivec (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Roman_numerals_on_alarm_clock_(Unsplash).jpg",
+    "width": 1100,
+    "height": 819
+  },
+  {
+    "id": "observatory-jantar-mantar-jaipur",
+    "file": "observatory-jantar-mantar-jaipur.jpg",
+    "subjects": [
+      "observatory"
+    ],
+    "caption": "Samrat Yantra at Jantar Mantar, Jaipur",
+    "credit": "Photo: Gerd Eichmann, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jaipur-Jantar_Mantar-05-2018-gje.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "observatory-jantar-mantar-steps",
+    "file": "observatory-jantar-mantar-steps.jpg",
+    "subjects": [
+      "observatory"
+    ],
+    "caption": "Laghu Samrat Yantra sundial at Jantar Mantar",
+    "credit": "Photo: Srilakshmi1991, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Laghu_Samrat_Yantra,_Jantar_Mantar_3.jpg",
+    "width": 1100,
+    "height": 767
+  },
+  {
+    "id": "rahu-solar-eclipse-1",
+    "file": "rahu-solar-eclipse-1.jpg",
+    "subjects": [
+      "rahu",
+      "sun"
+    ],
+    "caption": "Total solar eclipse with the corona",
+    "credit": "NASA/Carla Thomas",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2017_Total_Solar_Eclipse_(AFRC2017-0233-006).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "rahu-solar-eclipse-2",
+    "file": "rahu-solar-eclipse-2.jpg",
+    "subjects": [
+      "rahu"
+    ],
+    "caption": "Solar corona during a total eclipse",
+    "credit": "Photo: Bernd Thaller, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Total_Solar_Eclipse_2017_-_Corona_and_Earthlight_(36450742744).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "saturn-backlit",
+    "file": "saturn-backlit.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Saturn and its rings backlit by the Sun",
+    "credit": "NASA/JPL-Caltech/Space Science Institute",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:PIA17172_Saturn_eclipse_mosaic_bright_crop.jpg",
+    "width": 1100,
+    "height": 458
+  },
+  {
+    "id": "saturn-cassini-1",
+    "file": "saturn-cassini-1.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Saturn photographed by the Cassini spacecraft",
+    "credit": "NASA/JPL/Space Science Institute",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Saturn_from_Cassini_Orbiter_(2004-10-06).jpg",
+    "width": 1100,
+    "height": 563
+  },
+  {
+    "id": "saturn-titan",
+    "file": "saturn-titan.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Titan passing in front of Saturn",
+    "credit": "NASA/JPL-Caltech/Space Science Institute",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Titan_in_front_of_the_ring_and_Saturn.jpg",
+    "width": 1100,
+    "height": 1029
+  },
+  {
+    "id": "spirituality-incense",
+    "file": "spirituality-incense.jpg",
+    "subjects": [
+      "spirituality"
+    ],
+    "caption": "Burning incense sticks with smoke",
+    "credit": "Photo: Vijay Chennupati, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Incense_sticks_(5109967068).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "spirituality-konark-wheel",
+    "file": "spirituality-konark-wheel.jpg",
+    "subjects": [
+      "spirituality",
+      "time"
+    ],
+    "caption": "Stone wheel at Konark Sun Temple",
+    "credit": "Photo: Ankur Panchbudhe, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Konark_Sun_Temple_wheel.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "spirituality-sunset-silhouette",
+    "file": "spirituality-sunset-silhouette.jpg",
+    "subjects": [
+      "spirituality"
+    ],
+    "caption": "Person meditating with raised arms at sunset",
+    "credit": "Photo: Dedda71, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pagan_meditation.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "spirituality-yoga-reflection",
+    "file": "spirituality-yoga-reflection.jpg",
+    "subjects": [
+      "spirituality",
+      "health"
+    ],
+    "caption": "Yoga pose reflected in still water",
+    "credit": "Photo: Farsai C. (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yoga_Uyuni_Salt_Flat_(Unsplash).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "strength-mountain-peak",
+    "file": "strength-mountain-peak.jpg",
+    "subjects": [
+      "strength"
+    ],
+    "caption": "Summit of Mount Everest",
+    "credit": "Photo: Vyacheslav Argenberg, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Everest,_Himalayas.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "strength-old-oak",
+    "file": "strength-old-oak.jpg",
+    "subjects": [
+      "strength"
+    ],
+    "caption": "500-year-old oak tree",
+    "credit": "Photo: Юрий Д.К., CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Moscow._A_500-year-old_oak_tree_in_Kolomenskoe1.jpg",
+    "width": 1100,
+    "height": 702
+  },
+  {
+    "id": "sun-prominence",
+    "file": "sun-prominence.jpg",
+    "subjects": [
+      "sun"
+    ],
+    "caption": "Solar prominence erupting from the Sun's edge",
+    "credit": "NASA/SDO",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:SDO_first_light.png",
+    "width": 960,
+    "height": 540
+  },
+  {
+    "id": "sun-sdo-chromosphere",
+    "file": "sun-sdo-chromosphere.jpg",
+    "subjects": [
+      "sun"
+    ],
+    "caption": "The Sun imaged by Solar Dynamics Observatory",
+    "credit": "NASA/SDO (AIA)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg",
+    "width": 1100,
+    "height": 1050
+  },
+  {
+    "id": "sun-sdo-gold",
+    "file": "sun-sdo-gold.jpg",
+    "subjects": [
+      "sun"
+    ],
+    "caption": "The Sun in extreme ultraviolet light",
+    "credit": "NASA/SDO, ALMA (ESO/NAOJ/NRAO), CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Full_disk_of_the_Sun_(eso1703e-comparisona).jpg",
+    "width": 1100,
+    "height": 1100
+  },
+  {
+    "id": "sunrise-mountains",
+    "file": "sunrise-mountains.jpg",
+    "subjects": [
+      "sunrise",
+      "strength"
+    ],
+    "caption": "Mist over mountain ridges in low sunlight",
+    "credit": "Photo: Kyle Szegedi (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mist_on_Winchester_Mountain_(Unsplash).jpg",
+    "width": 1100,
+    "height": 706
+  },
+  {
+    "id": "sunrise-sea",
+    "file": "sunrise-sea.jpg",
+    "subjects": [
+      "sunrise"
+    ],
+    "caption": "Sunrise over the sea",
+    "credit": "Photo: J. Triepke, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Baltic_Sea_sunrise_-_16667379220.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "time-ancient-sundial",
+    "file": "time-ancient-sundial.jpg",
+    "subjects": [
+      "time"
+    ],
+    "caption": "Han dynasty stone sundial",
+    "credit": "Photo: Gary Todd (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Han_Stone_Sundial_(9831928756).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "time-astronomical-clock",
+    "file": "time-astronomical-clock.jpg",
+    "subjects": [
+      "time",
+      "numbers"
+    ],
+    "caption": "Dial of the Prague astronomical clock",
+    "credit": "Photo: Fabrizio Verrecchia (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Astronomical_clock_unsplash.jpg",
+    "width": 1100,
+    "height": 732
+  },
+  {
+    "id": "time-hourglass",
+    "file": "time-hourglass.jpg",
+    "subjects": [
+      "time"
+    ],
+    "caption": "Hourglass",
+    "credit": "Photo: John Morgan, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hourglass_with_sand.jpg",
+    "width": 729,
+    "height": 1100
+  },
+  {
+    "id": "travel-aircraft-wing",
+    "file": "travel-aircraft-wing.jpg",
+    "subjects": [
+      "travel"
+    ],
+    "caption": "Aircraft wing above islands and clouds",
+    "credit": "Photo: Tomo Nogi (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:In_the_air_above_green_islands_(Unsplash).jpg",
+    "width": 1100,
+    "height": 618
+  },
+  {
+    "id": "travel-mountain-road",
+    "file": "travel-mountain-road.jpg",
+    "subjects": [
+      "travel",
+      "journey"
+    ],
+    "caption": "Road winding through a mountain valley",
+    "credit": "Photo: adrian (Unsplash) (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Winding_mountain_road_(Unsplash).jpg",
+    "width": 880,
+    "height": 1100
+  },
+  {
+    "id": "venus-clouds",
+    "file": "venus-clouds.jpg",
+    "subjects": [
+      "venus"
+    ],
+    "caption": "Venus cloud tops in ultraviolet light",
+    "credit": "NASA",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Venuspioneeruv.jpg",
+    "width": 1024,
+    "height": 1100
+  },
+  {
+    "id": "venus-magellan",
+    "file": "venus-magellan.jpg",
+    "subjects": [
+      "venus"
+    ],
+    "caption": "Venus surface mapped by Magellan radar",
+    "credit": "NASA/JPL",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Venus_globe.jpg",
+    "width": 1100,
+    "height": 1100
+  },
+  {
+    "id": "wealth-gold-bars",
+    "file": "wealth-gold-bars.jpg",
+    "subjects": [
+      "wealth"
+    ],
+    "caption": "Two gold bars",
+    "credit": "Szaaman (public domain)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gold_Ingots_on_white_background.jpg",
+    "width": 1100,
+    "height": 665
+  },
+  {
+    "id": "wealth-gold-coin",
+    "file": "wealth-gold-coin.jpg",
+    "subjects": [
+      "wealth"
+    ],
+    "caption": "Ancient Greek gold coin with ear of barley",
+    "credit": "Bibliothèque nationale de France (Gallica) (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Monnaie_en_or,_Lucanie,_M%C3%A9taponte,_revers.jpg",
+    "width": 1100,
+    "height": 1042
+  },
+  {
+    "id": "wealth-ledger",
+    "file": "wealth-ledger.jpg",
+    "subjects": [
+      "wealth",
+      "numbers"
+    ],
+    "caption": "Handwritten page of an old ledger",
+    "credit": "William Samuel Clark (1846-1923), via DPLA (public domain)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Millinery_Book_Ledger_-_DPLA_-_4e890e62dfe17d454d20da31c89554c8_(page_105).jpg",
+    "width": 714,
+    "height": 1100
+  },
+  {
+    "id": "wealth-wheat-field",
+    "file": "wealth-wheat-field.jpg",
+    "subjects": [
+      "wealth"
+    ],
+    "caption": "Ripe wheat field at sunset",
+    "credit": "Photo: Dreamy Pixel, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunset-over-the-wheat-field-featured.jpg",
+    "width": 1100,
+    "height": 901
+  },
+  {
+    "id": "zodiac-aquarius",
+    "file": "zodiac-aquarius.jpg",
+    "subjects": [
+      "aquarius"
+    ],
+    "caption": "Aquarius from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Aquarius,_Piscis_Australis_%26_Ballon_Aerostatique.jpg",
+    "width": 1100,
+    "height": 770
+  },
+  {
+    "id": "zodiac-aries",
+    "file": "zodiac-aries.jpg",
+    "subjects": [
+      "aries"
+    ],
+    "caption": "Aries from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Aries_and_Musca_Borealis.jpg",
+    "width": 1100,
+    "height": 769
+  },
+  {
+    "id": "zodiac-cancer",
+    "file": "zodiac-cancer.jpg",
+    "subjects": [
+      "cancer"
+    ],
+    "caption": "Cancer from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Cancer.jpg",
+    "width": 769,
+    "height": 1100
+  },
+  {
+    "id": "zodiac-capricorn",
+    "file": "zodiac-capricorn.jpg",
+    "subjects": [
+      "capricorn"
+    ],
+    "caption": "Capricornus from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Capricornus.jpg",
+    "width": 1100,
+    "height": 769
+  },
+  {
+    "id": "zodiac-gemini",
+    "file": "zodiac-gemini.jpg",
+    "subjects": [
+      "gemini"
+    ],
+    "caption": "Gemini from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Gemini.jpg",
+    "width": 1100,
+    "height": 769
+  },
+  {
+    "id": "zodiac-leo",
+    "file": "zodiac-leo.jpg",
+    "subjects": [
+      "leo"
+    ],
+    "caption": "Leo from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Leo_Major_and_Leo_Minor.jpg",
+    "width": 772,
+    "height": 1100
+  },
+  {
+    "id": "zodiac-libra",
+    "file": "zodiac-libra.jpg",
+    "subjects": [
+      "libra"
+    ],
+    "caption": "Libra from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Libra.jpg",
+    "width": 1100,
+    "height": 769
+  },
+  {
+    "id": "zodiac-pisces",
+    "file": "zodiac-pisces.jpg",
+    "subjects": [
+      "pisces"
+    ],
+    "caption": "Pisces from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Pisces.jpg",
+    "width": 1100,
+    "height": 770
+  },
+  {
+    "id": "zodiac-sagittarius",
+    "file": "zodiac-sagittarius.jpg",
+    "subjects": [
+      "sagittarius"
+    ],
+    "caption": "Sagittarius from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825); Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Sagittarius_and_Corona_Australis,_Microscopium,_and_Telescopium.png",
+    "width": 1100,
+    "height": 769
+  },
+  {
+    "id": "zodiac-scorpio",
+    "file": "zodiac-scorpio.jpg",
+    "subjects": [
+      "scorpio"
+    ],
+    "caption": "Scorpio from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Scorpio.jpg",
+    "width": 768,
+    "height": 1100
+  },
+  {
+    "id": "zodiac-taurus",
+    "file": "zodiac-taurus.jpg",
+    "subjects": [
+      "taurus"
+    ],
+    "caption": "Taurus from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Taurus.jpg",
+    "width": 1100,
+    "height": 773
+  },
+  {
+    "id": "zodiac-virgo",
+    "file": "zodiac-virgo.jpg",
+    "subjects": [
+      "virgo"
+    ],
+    "caption": "Virgo from Urania's Mirror, 1825",
+    "credit": "Sidney Hall, Urania's Mirror (1825), restored by Adam Cuerden; Library of Congress",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sidney_Hall_-_Urania%27s_Mirror_-_Virgo.jpg",
+    "width": 1100,
+    "height": 773
+  },
+  {
+    "id": "balance-brass-scales",
+    "file": "balance-brass-scales.jpg",
+    "subjects": [
+      "balance"
+    ],
+    "caption": "Brass balance scales",
+    "credit": "The Metropolitan Museum of Art (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Balance_scale_MET_DP318014.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "balance-lake-reflection",
+    "file": "balance-lake-reflection.jpg",
+    "subjects": [
+      "balance"
+    ],
+    "caption": "Mountain mirrored in a still lake at dusk",
+    "credit": "Photo: Tiomax80, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Peace_%5E_Quiet_-_Flickr_-_Tiomax80.jpg",
+    "width": 1100,
+    "height": 706
+  },
+  {
+    "id": "balance-stacked-stones",
+    "file": "balance-stacked-stones.jpg",
+    "subjects": [
+      "balance"
+    ],
+    "caption": "Balanced stack of stones by water",
+    "credit": "Photo: Carl Månsson, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stacked_stones.jpg",
+    "width": 1100,
+    "height": 826
+  },
+  {
+    "id": "career-drawing-instruments",
+    "file": "career-drawing-instruments.jpg",
+    "subjects": [
+      "career",
+      "craft"
+    ],
+    "caption": "Set of drawing instruments in a case",
+    "credit": "Science History Institute (public domain)",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Manual_drafting_set_-_DPLA_-_be9be089a2063673c4ddced7451660ee_(page_2).jpg",
+    "width": 1100,
+    "height": 752
+  },
+  {
+    "id": "career-fountain-pen",
+    "file": "career-fountain-pen.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Fountain pen with gold nib",
+    "credit": "Photo: M Dreibelbis, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bexley_Demeter_(33628898501).jpg",
+    "width": 1100,
+    "height": 624
+  },
+  {
+    "id": "career-harbour-cranes",
+    "file": "career-harbour-cranes.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Harbour cranes at dawn",
+    "credit": "Photo: Christian Ferrer, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%C3%A8te_harbour_sunrise.jpg",
+    "width": 1100,
+    "height": 686
+  },
+  {
+    "id": "career-ladder-sky",
+    "file": "career-ladder-sky.jpg",
+    "subjects": [
+      "career",
+      "growth"
+    ],
+    "caption": "Wooden ladder rising into a blue sky",
+    "credit": "Photo: Mykl Roventine, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_ladder_of_life_is_full_of_splinters.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "career-leather-briefcase",
+    "file": "career-leather-briefcase.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Black leather briefcase on a wooden table",
+    "credit": "Photo: Jlgay38, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Cartable_en_Cuir_noir.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "career-library-shelves",
+    "file": "career-library-shelves.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Long aisle between library bookshelves",
+    "credit": "Photo: Guywelch2000, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bookshelves_Suzzallo_Allen_Library_University_of_Washington_Seattle_Washington_2026.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "career-lock-and-key",
+    "file": "career-lock-and-key.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Antique door lock with its key",
+    "credit": "Auckland War Memorial Museum, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lock_and_key_(AM_1965.78.577-1).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "career-office-facade",
+    "file": "career-office-facade.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Glass facade of an office building",
+    "credit": "Photo: ShakataGaNai, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:WC_Office_Building_04.jpg",
+    "width": 1100,
+    "height": 729
+  },
+  {
+    "id": "career-stone-steps",
+    "file": "career-stone-steps.jpg",
+    "subjects": [
+      "career",
+      "growth"
+    ],
+    "caption": "Mossy stone steps climbing through woodland",
+    "credit": "Photo: Photos of Japan (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Natural_stone_stairs_Hyakusaiji_1.jpg",
+    "width": 1000,
+    "height": 665
+  },
+  {
+    "id": "career-writing-desk",
+    "file": "career-writing-desk.jpg",
+    "subjects": [
+      "career"
+    ],
+    "caption": "Antique writing desk with a chair",
+    "credit": "Photo: Thomas Quine, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Antique_writing_desk_with_candles_(26311712712).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "change-autumn-leaves",
+    "file": "change-autumn-leaves.jpg",
+    "subjects": [
+      "change"
+    ],
+    "caption": "Leaves arranged from green to red",
+    "credit": "Photo: Tbk1101 (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Colorful_leaves_in_autumn.jpg",
+    "width": 1000,
+    "height": 803
+  },
+  {
+    "id": "change-butterfly-emerging",
+    "file": "change-butterfly-emerging.jpg",
+    "subjects": [
+      "change"
+    ],
+    "caption": "Monarch butterfly emerging from its chrysalis",
+    "credit": "Photo: Andy Reago & Chrissy McClarren, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Newborn_Monarch_emerging_(15476189708).jpg",
+    "width": 1100,
+    "height": 838
+  },
+  {
+    "id": "change-river-bend",
+    "file": "change-river-bend.jpg",
+    "subjects": [
+      "change"
+    ],
+    "caption": "River bend seen from the air",
+    "credit": "U.S. Fish and Wildlife Service",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Meandering_River_2_Innoko_NWR.jpg",
+    "width": 1100,
+    "height": 740
+  },
+  {
+    "id": "change-sailboat",
+    "file": "change-sailboat.jpg",
+    "subjects": [
+      "change",
+      "journey"
+    ],
+    "caption": "Sailboat on open water",
+    "credit": "Photo: Peter Samow, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sailing_away_-_Flickr_-_Peter.Samow.jpg",
+    "width": 1100,
+    "height": 618
+  },
+  {
+    "id": "craft-carving-chisels",
+    "file": "craft-carving-chisels.jpg",
+    "subjects": [
+      "craft"
+    ],
+    "caption": "Set of wood-carving chisels",
+    "credit": "Photo: Tomomarusan, CC BY 2.5",
+    "license": "CC BY 2.5",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chisel.jpg",
+    "width": 1100,
+    "height": 730
+  },
+  {
+    "id": "craft-handloom-weaving",
+    "file": "craft-handloom-weaving.jpg",
+    "subjects": [
+      "craft"
+    ],
+    "caption": "Patterned cloth being woven on a handloom",
+    "credit": "Photo: McKay Savage, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sacred_Valley_NGOs_052_-_Awamaki_weaving_tour_(11265106825).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "craft-potter-hands",
+    "file": "craft-potter-hands.jpg",
+    "subjects": [
+      "craft"
+    ],
+    "caption": "Potter's hands shaping clay on a wheel",
+    "credit": "Photo: AIDEPCUL, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kulol_charxida_idish_shakllantirish.png",
+    "width": 1100,
+    "height": 723
+  },
+  {
+    "id": "craft-typewriter-keys",
+    "file": "craft-typewriter-keys.jpg",
+    "subjects": [
+      "craft"
+    ],
+    "caption": "Close-up of typewriter keys",
+    "credit": "Photo: Paul B (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:20220410_Florin_sign_and_ij_digraph_on_Dutch_typewriter.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "craft-watchmaker-screwdrivers",
+    "file": "craft-watchmaker-screwdrivers.jpg",
+    "subjects": [
+      "craft"
+    ],
+    "caption": "Watchmaker's screwdrivers in close-up",
+    "credit": "Photo: Auckland Museum Collections, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Crown_Opening_Tools,_Set_(48708816451).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "growth-bamboo-grove",
+    "file": "growth-bamboo-grove.jpg",
+    "subjects": [
+      "growth"
+    ],
+    "caption": "Tall bamboo grove",
+    "credit": "Photo: Daderot (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bamboo_grove_-_Eish%C5%8D-ji_-_Kamakura,_Kanagawa,_Japan_-_DSC08165.JPG",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "growth-fern-frond",
+    "file": "growth-fern-frond.jpg",
+    "subjects": [
+      "growth"
+    ],
+    "caption": "Unfurling spiral fern frond",
+    "credit": "Photo: Bernard Spragg (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fern_frond._(9572140631).jpg",
+    "width": 1100,
+    "height": 738
+  },
+  {
+    "id": "growth-rice-terraces",
+    "file": "growth-rice-terraces.jpg",
+    "subjects": [
+      "growth"
+    ],
+    "caption": "Terraced rice fields with palms",
+    "credit": "Photo: Jorge Franganillo, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bali-_Jatiluwih_rice_terraces_-_50281829456.jpg",
+    "width": 1100,
+    "height": 660
+  },
+  {
+    "id": "growth-seedling",
+    "file": "growth-seedling.jpg",
+    "subjects": [
+      "growth"
+    ],
+    "caption": "Seedling emerging from red soil",
+    "credit": "Photo: Ksheera Piraati, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Young_seedling_of_tomato_emerging_from_soil_-_India.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "growth-tree-rings",
+    "file": "growth-tree-rings.jpg",
+    "subjects": [
+      "growth",
+      "time"
+    ],
+    "caption": "Growth rings in a tree cross-section",
+    "credit": "Photo: James St. John, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tree_rings_in_Taxodium_distichum_wood_(bald_cypress)_4_(24518375307).jpg",
+    "width": 1100,
+    "height": 730
+  },
+  {
+    "id": "journey-mountain-trail",
+    "file": "journey-mountain-trail.jpg",
+    "subjects": [
+      "journey"
+    ],
+    "caption": "Trail winding up a hillside",
+    "credit": "Photo: Coconino National Forest, U.S. Forest Service (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Slate_Mountain_Trail_(36927611665).jpg",
+    "width": 1000,
+    "height": 667
+  },
+  {
+    "id": "journey-railway-tracks",
+    "file": "journey-railway-tracks.jpg",
+    "subjects": [
+      "journey"
+    ],
+    "caption": "Railway tracks running to the horizon",
+    "credit": "Photo: Brian Stansberry, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Marion-County-RR-tracks-tn1.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "journey-stepping-stones",
+    "file": "journey-stepping-stones.jpg",
+    "subjects": [
+      "journey"
+    ],
+    "caption": "Stepping stones across a river",
+    "credit": "Photo: Mertbiol (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stepping_Stones_from_the_east_bank_of_the_River_Mole,_Box_Hill,_Surrey_-_April_2025_-_01.jpg",
+    "width": 1100,
+    "height": 521
+  },
+  {
+    "id": "journey-winding-road",
+    "file": "journey-winding-road.jpg",
+    "subjects": [
+      "journey"
+    ],
+    "caption": "Winding road through open country",
+    "credit": "National Park Service, Joshua Tree National Park",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Winding_Road_Through_Desert_(16648934995).jpg",
+    "width": 1100,
+    "height": 732
+  },
+  {
+    "id": "leadership-eagle-flight",
+    "file": "leadership-eagle-flight.jpg",
+    "subjects": [
+      "leadership"
+    ],
+    "caption": "Bald eagle in flight against blue sky",
+    "credit": "U.S. Fish and Wildlife Service Midwest Region",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bald_eagle_in_flight_(53542414272).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "leadership-lone-tree",
+    "file": "leadership-lone-tree.jpg",
+    "subjects": [
+      "leadership"
+    ],
+    "caption": "Lone tree on a snow-covered slope",
+    "credit": "National Park Service/Jacob W. Frank",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lone_tree_and_snowy_hills_in_Hayden_Valley.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "leadership-summit-cairn",
+    "file": "leadership-summit-cairn.jpg",
+    "subjects": [
+      "leadership"
+    ],
+    "caption": "Stone cairn on a mountain summit",
+    "credit": "Photo: Pampuco, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Monte_Rotondo_summit_cairn.png",
+    "width": 1100,
+    "height": 619
+  },
+  {
+    "id": "observatory-armillary-sphere",
+    "file": "observatory-armillary-sphere.jpg",
+    "subjects": [
+      "observatory"
+    ],
+    "caption": "Gilded armillary sphere",
+    "credit": "Photo: Sheila Sund, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Armillary_Sphere_(9541169465).jpg",
+    "width": 1100,
+    "height": 969
+  },
+  {
+    "id": "observatory-astrolabe",
+    "file": "observatory-astrolabe.jpg",
+    "subjects": [
+      "observatory"
+    ],
+    "caption": "Brass astrolabe",
+    "credit": "Photo: Marie-Lan Nguyen, CC BY 3.0",
+    "license": "CC BY 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Planispheric_astrolabe_Louvre_OA10675.jpg",
+    "width": 800,
+    "height": 1000
+  },
+  {
+    "id": "observatory-celestial-globe",
+    "file": "observatory-celestial-globe.jpg",
+    "subjects": [
+      "observatory"
+    ],
+    "caption": "Antique celestial globe",
+    "credit": "Photo: Daderot (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Celestial_globe_-_National_Museum_of_Nature_and_Science,_Tokyo_-_DSC07156.JPG",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "saturn-equinox",
+    "file": "saturn-equinox.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Saturn at equinox with edge-on rings",
+    "credit": "NASA/JPL/Space Science Institute",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Saturn_during_Equinox.jpg",
+    "width": 1100,
+    "height": 532
+  },
+  {
+    "id": "saturn-hubble",
+    "file": "saturn-hubble.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Saturn and its rings imaged by Hubble",
+    "credit": "NASA, ESA, A. Simon (Goddard Space Flight Center), M.H. Wong (UC Berkeley) and the OPAL Team",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Saturn_-_HST_2019-06-20_full_size.jpg",
+    "width": 1100,
+    "height": 619
+  },
+  {
+    "id": "saturn-north-pole",
+    "file": "saturn-north-pole.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Saturn seen from above its north pole",
+    "credit": "NASA/JPL-Caltech/SSI/Cornell",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Top_view_of_the_rings_of_Saturn_by_Cassini_-_October_10,_2013.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "saturn-rings-closeup",
+    "file": "saturn-rings-closeup.jpg",
+    "subjects": [
+      "saturn"
+    ],
+    "caption": "Close view of Saturn's rings",
+    "credit": "NASA/JPL-Caltech/SSI/Kevin M. Gill, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Saturn_Rings_-_April_26_2007_(49706382292).png",
+    "width": 1100,
+    "height": 725
+  },
+  {
+    "id": "service-colonnade",
+    "file": "service-colonnade.jpg",
+    "subjects": [
+      "service"
+    ],
+    "caption": "Colonnade of a classical building",
+    "credit": "Photo: W.carter (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Colonnade_in_Viborg_Katedralskole_1.jpg",
+    "width": 1100,
+    "height": 765
+  },
+  {
+    "id": "service-lighthouse",
+    "file": "service-lighthouse.jpg",
+    "subjects": [
+      "service"
+    ],
+    "caption": "Lighthouse at the end of a harbour wall",
+    "credit": "Photo: Jebulon (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lighthouse,_harbor_Saint-Martin-de-R%C3%A9,_R%C3%A9_island,_Charente-Maritime,_France.jpg",
+    "width": 1100,
+    "height": 732
+  },
+  {
+    "id": "service-stone-bridge",
+    "file": "service-stone-bridge.jpg",
+    "subjects": [
+      "service"
+    ],
+    "caption": "Stone arch bridge reflected in a river",
+    "credit": "Photo: Christian Ferrer, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pont_sur_l%27Orb,_Roquebrun.jpg",
+    "width": 1100,
+    "height": 627
+  },
+  {
+    "id": "strength-rock-arch",
+    "file": "strength-rock-arch.jpg",
+    "subjects": [
+      "strength"
+    ],
+    "caption": "Natural granite rock arch",
+    "credit": "Photo: Andrew Kearns, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lathe_Arch_(14767076669).jpg",
+    "width": 1100,
+    "height": 612
+  },
+  {
+    "id": "strength-tree-roots",
+    "file": "strength-tree-roots.jpg",
+    "subjects": [
+      "strength"
+    ],
+    "caption": "Old tree gripping the ground with roots",
+    "credit": "Photo: Tim Green, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tree_roots,_Roundhay_Park.jpg",
+    "width": 940,
+    "height": 626
+  },
+  {
+    "id": "sun-disc-haze",
+    "file": "sun-disc-haze.jpg",
+    "subjects": [
+      "sun"
+    ],
+    "caption": "Red solar disc with sunspots behind trees",
+    "credit": "Photo: Hermann Luyken (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2014.11.21.164512_Tree_silhouettes_sunspots_sunset_Xihu_Hangzhou.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "sun-sunspots",
+    "file": "sun-sunspots.jpg",
+    "subjects": [
+      "sun"
+    ],
+    "caption": "The Sun in white light with sunspots",
+    "credit": "NASA/SDO/HMI",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunspots_1302_Sep_2011.jpg",
+    "width": 1100,
+    "height": 1100
+  },
+  {
+    "id": "teamwork-bees-honeycomb",
+    "file": "teamwork-bees-honeycomb.jpg",
+    "subjects": [
+      "teamwork"
+    ],
+    "caption": "Honey bees working together on honeycomb",
+    "credit": "Photo: USFWS Mountain-Prairie, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Honey_Bees_(27637271876).jpg",
+    "width": 1000,
+    "height": 665
+  },
+  {
+    "id": "teamwork-brass-gears",
+    "file": "teamwork-brass-gears.jpg",
+    "subjects": [
+      "teamwork"
+    ],
+    "caption": "Brass gear wheels on technical drawings",
+    "credit": "Photo: Marcin Wichary, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Charles_Babbage_Difference_Engine_No2_Gears_on_Drawing.jpg",
+    "width": 1100,
+    "height": 732
+  },
+  {
+    "id": "teamwork-geese-formation",
+    "file": "teamwork-geese-formation.jpg",
+    "subjects": [
+      "teamwork"
+    ],
+    "caption": "Geese flying in V formation",
+    "credit": "Photo: John Benson, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:CanadianGeeseFlyingInVFormation.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "teamwork-rowing-eight",
+    "file": "teamwork-rowing-eight.jpg",
+    "subjects": [
+      "teamwork"
+    ],
+    "caption": "Rowing eight on a turquoise lake",
+    "credit": "Photo: Shev123 (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Aviron_2015_-_World_Championships_-_58.JPG",
+    "width": 1100,
+    "height": 589
+  },
+  {
+    "id": "time-clockwork-gears",
+    "file": "time-clockwork-gears.jpg",
+    "subjects": [
+      "time"
+    ],
+    "caption": "Brass gears of a tower clock mechanism",
+    "credit": "Photo: Horep, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Great_Malvern_Priory_Clock_06.jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "time-pocket-watch-mechanism",
+    "file": "time-pocket-watch-mechanism.jpg",
+    "subjects": [
+      "time",
+      "craft"
+    ],
+    "caption": "Pocket watch mechanism",
+    "credit": "Photo: Auckland Museum Collections, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pocket_Watch_(48709584572).jpg",
+    "width": 1100,
+    "height": 733
+  },
+  {
+    "id": "time-three-hourglasses",
+    "file": "time-three-hourglasses.jpg",
+    "subjects": [
+      "time"
+    ],
+    "caption": "Three antique hourglasses",
+    "credit": "Wellcome Collection, CC BY 4.0",
+    "license": "CC BY 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:3_Hourglasses_Wellcome_L0011331.jpg",
+    "width": 1100,
+    "height": 816
+  },
+  {
+    "id": "wealth-coin-hoard",
+    "file": "wealth-coin-hoard.jpg",
+    "subjects": [
+      "wealth"
+    ],
+    "caption": "Hoard of Iron Age gold coins",
+    "credit": "Photo: Portable Antiquities Scheme, CC BY 2.0",
+    "license": "CC BY 2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:A_hoard_of_Iron_Age_coins_from_Beverly.jpg",
+    "width": 1100,
+    "height": 825
+  },
+  {
+    "id": "wealth-cowrie-shells",
+    "file": "wealth-cowrie-shells.jpg",
+    "subjects": [
+      "wealth"
+    ],
+    "caption": "Heap of cowrie shells once used as money",
+    "credit": "Photo: Gary Todd (CC0)",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shang_Money_Cowrie_Shells_(9830010013).jpg",
+    "width": 1100,
+    "height": 733
+  }
+]

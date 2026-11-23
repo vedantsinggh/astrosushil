@@ -10,6 +10,7 @@ import { promisify } from 'util';
 import { GeneratedTopicPayload, ReportDefinition, ReportSection, ReportTopic } from '../contracts';
 import { BlockOutput } from './blocks';
 import { authorNotePage, closingPage, contentsPage, coverPage, CoverInfo, howToReadPage, philosophyPage } from './editorial';
+import { coverImageTex, imageCreditsPage, IllustrationPlan, LibraryImage } from './illustrations';
 import { tex } from './latex';
 
 const execFileAsync = promisify(execFile);
@@ -24,19 +25,39 @@ export interface AssembleInput {
   cover: CoverInfo;
   llmProviderLabel: string;
   sections: Array<{ section: ReportSection; topics: ResolvedTopic[] }>;
+  /** Pictures for section openers and topics (presentation only). Omitted = no pictures. */
+  illustrations?: IllustrationPlan;
 }
 
-function narrativeTex(p: GeneratedTopicPayload): string {
-  const parts: string[] = [`\\TopicLead{${tex(p.lead)}}`];
-  for (const para of p.paragraphs) parts.push(`${tex(para)}\\par`);
+function narrativeTex(p: GeneratedTopicPayload, image?: LibraryImage): string {
+  const lead = `\\TopicLead{${tex(p.lead)}}`;
+  const paras = p.paragraphs.map((para) => `${tex(para)}\\par`);
+  const parts: string[] = [];
+  if (image && paras.length) {
+    // A small picture beside the opening of the passage it illustrates, with no caption (credits are at the back).
+    parts.push(
+      `\\noindent\\begin{minipage}[t]{0.68\\linewidth}\\vspace{0pt}\\setlength{\\parskip}{4pt}\n${lead}\n${paras[0]}\n\\end{minipage}\\hfill` +
+        `\\begin{minipage}[t]{0.285\\linewidth}\\vspace{0pt}\\raggedleft\n${coverImageTex(image, 48, 44)}\n\\end{minipage}\\par\\vspace{2mm}`
+    );
+    parts.push(...paras.slice(1));
+  } else {
+    parts.push(lead, ...paras);
+  }
   if (p.bullets.length) parts.push(`\\begin{gemlist}\n${p.bullets.map((b) => `  \\item ${tex(b)}`).join('\n')}\n\\end{gemlist}`);
   if (p.takeaway) parts.push(`\\Takeaway{${tex(p.takeaway)}}`);
   return parts.join('\n\n');
 }
 
-function topicTex(rt: ResolvedTopic, lang: 'en' | 'hi'): string {
+function sectionHeadTex(section: ReportSection): string {
+  return `\\ReportSection{${tex(section.kicker)}}{${tex(section.title)}}{${tex(section.intro ?? '')}}`;
+}
+
+function topicTex(rt: ResolvedTopic, lang: 'en' | 'hi', image?: LibraryImage): string {
   const head = `\\ReportTopic{${tex(rt.topic.title)}}{${tex(rt.topic.subtitle ?? '')}}`;
-  if (rt.kind === 'narrative') return `${head}\n{\\fontsize{10.3}{15}\\selectfont\n${narrativeTex(rt.payload)}\n}`;
+  if (rt.kind === 'narrative') {
+    // \needspace keeps a heading together with its picture.
+    return `${image ? '\\needspace{62mm}\n' : ''}${head}\n{\\fontsize{10.3}{15}\\selectfont\n${narrativeTex(rt.payload, image)}\n}`;
+  }
   if (rt.kind === 'block') {
     return `${head}\n${rt.block.tex}\n${rt.block.method ? `\\SourceNote{${lang === 'hi' ? 'विधि' : 'Method'}: ${tex(rt.block.method)}}` : ''}`;
   }
@@ -45,9 +66,13 @@ function topicTex(rt: ResolvedTopic, lang: 'en' | 'hi'): string {
 
 export function assembleDocument(input: AssembleInput): string {
   const { definition: def, cover } = input;
+  const plan = input.illustrations;
   const body = input.sections
     .map(({ section, topics }) =>
-      [`\\ReportSection{${tex(section.kicker)}}{${tex(section.title)}}{${tex(section.intro ?? '')}}`, ...topics.map((t) => topicTex(t, def.language))].join('\n\n')
+      [
+        sectionHeadTex(section),
+        ...topics.map((t) => topicTex(t, def.language, t.kind === 'narrative' ? plan?.topics.get(t.topic.id) : undefined)),
+      ].join('\n\n')
     )
     .join('\n\n');
   return String.raw`\documentclass[10pt,oneside]{article}
@@ -68,6 +93,7 @@ ${philosophyPage(input.llmProviderLabel, def.language)}
 ${howToReadPage(def)}
 ${contentsPage(def.language)}
 ${body}
+${plan ? imageCreditsPage(plan, def.language) : ''}
 ${closingPage(def)}
 \end{document}
 `;

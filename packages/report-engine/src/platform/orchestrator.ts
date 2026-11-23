@@ -21,13 +21,14 @@ import { AddEvidence, EvidenceRegistry } from './evidence/evidence-registry';
 import { buildInterpretationExtras, interpretationContributor, InterpretationExtras } from './interpretation/register';
 import { applyTopicVariant, isInterpretationTopic } from './interpretation/scope';
 import { buildTrace } from './validation/trace';
-import { LlmNarrator, TopicOutcome } from './llm/narrator';
+import { LlmCallRecord, LlmNarrator, TopicOutcome } from './llm/narrator';
 import { PROMPT_VERSION } from './llm/prompts';
 import { runPdfQa } from './qa/pdf-qa';
 import { ReportModule } from './module';
 import { ReportRegistry, validateModule } from './registry';
 import { CORE_BLOCKS } from './render/blocks';
 import { assembleDocument, compileLatex, ResolvedTopic } from './render/document';
+import { planIllustrations, signForRashiIndex } from './render/illustrations';
 import { formatDate } from './render/latex';
 import { buildChartSnapshot, SubjectInput } from './snapshot/chart-snapshot';
 import { findCrossTopicRepetition } from './validation/editorial-validator';
@@ -91,11 +92,59 @@ export interface GenerateReportResult {
   tex: string;
 }
 
-/** Published list prices used for estimates only (USD per 1M tokens). Override via env. */
-function priceBasis(): { input: number; output: number; label: string } {
-  const input = Number(process.env.REPORT_LLM_PRICE_INPUT_PER_MTOK ?? 0.5);
-  const output = Number(process.env.REPORT_LLM_PRICE_OUTPUT_PER_MTOK ?? 3.0);
-  return { input, output, label: `Estimate at $${input}/1M input and $${output}/1M output+thinking tokens (configurable list-price assumption, not provider billing).` };
+/**
+ * Published Gemini Developer API list prices, paid tier, standard (non-batch) calls,
+ * USD per 1M tokens; output includes thinking tokens. Read from
+ * https://ai.google.dev/gemini-api/docs/pricing on 2026-11-23. Estimates only.
+ * gemini-3.8-flash and gemini-3.6-flash are listed to double on 2027-01-01.
+ */
+export const MODEL_LIST_PRICES: Readonly<Record<string, { input: number; output: number }>> = {
+  'gemini-3.8-flash': { input: 0.75, output: 3.75 },
+  'gemini-3.6-flash': { input: 0.75, output: 3.75 },
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
+  'gemini-3.1-flash-lite': { input: 0.25, output: 1.5 },
+};
+
+/** Price for one model: env override (applies to every model), else list price, else undefined. */
+export function priceFor(model: string): { input: number; output: number } | undefined {
+  const envIn = process.env.REPORT_LLM_PRICE_INPUT_PER_MTOK;
+  const envOut = process.env.REPORT_LLM_PRICE_OUTPUT_PER_MTOK;
+  if (envIn !== undefined && envOut !== undefined) return { input: Number(envIn), output: Number(envOut) };
+  return MODEL_LIST_PRICES[model.replace(/^models\//, '')];
+}
+
+/** Totals and per-model cost estimate for a run's provider calls (rejected attempts included). */
+export function summariseUsage(calls: readonly LlmCallRecord[]) {
+  type Row = { model: string; calls: number; inputTokens: number; outputTokens: number; thinkingTokens: number; estimatedCostUsd: number };
+  const by = new Map<string, Row>();
+  const unpriced = new Set<string>();
+  for (const c of calls) {
+    const row = by.get(c.model) ?? { model: c.model, calls: 0, inputTokens: 0, outputTokens: 0, thinkingTokens: 0, estimatedCostUsd: 0 };
+    row.calls += 1;
+    row.inputTokens += c.inputTokens;
+    row.outputTokens += c.outputTokens;
+    row.thinkingTokens += c.thinkingTokens;
+    const price = priceFor(c.model);
+    if (price) row.estimatedCostUsd += (c.inputTokens * price.input + (c.outputTokens + c.thinkingTokens) * price.output) / 1e6;
+    else unpriced.add(c.model);
+    by.set(c.model, row);
+  }
+  const byModel = [...by.values()].map((r) => ({ ...r, estimatedCostUsd: Number(r.estimatedCostUsd.toFixed(4)) }));
+  const total = (k: 'inputTokens' | 'outputTokens' | 'thinkingTokens') => byModel.reduce((a, r) => a + r[k], 0);
+  const priced = byModel.filter((r) => !unpriced.has(r.model)).map((r) => {
+    const p = priceFor(r.model)!;
+    return `${r.model} $${p.input}/$${p.output}`;
+  });
+  return {
+    byModel,
+    inputTokens: total('inputTokens'), outputTokens: total('outputTokens'), thinkingTokens: total('thinkingTokens'),
+    estimatedCostUsd: Number(byModel.reduce((a, r) => a + r.estimatedCostUsd, 0).toFixed(4)),
+    costBasis:
+      `Estimate from list prices per 1M input / output+thinking tokens${priced.length ? ` (${priced.join('; ')})` : ''}; not provider billing.` +
+      (unpriced.size ? ` No list price known for: ${[...unpriced].join(', ')} (counted as $0; set REPORT_LLM_PRICE_INPUT_PER_MTOK and REPORT_LLM_PRICE_OUTPUT_PER_MTOK).` : ''),
+    firstCallAtIso: calls[0]?.atIso,
+    lastCallAtIso: calls[calls.length - 1]?.atIso,
+  };
 }
 
 /** Statement → evidence → interp → rule trace (proposal §5); opted-in topics with a payload only. */
@@ -111,6 +160,7 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
   const module = req.module ?? ReportRegistry.entry(req.definitionId).module;
   const def = validateModule(module);
   const reportId = req.reportId ?? `rpt_${randomUUID()}`;
+  const callsBefore = req.narrator.calls.length;
   if (def.requires.partner && !req.partner) throw new Error('SNAPSHOT_INPUT_INVALID: this report requires partner birth details');
   const reportType = req.reportType ?? def.reportType;
   if (reportType !== def.reportType && !def.additionalReportTypes.includes(reportType)) {
@@ -261,6 +311,11 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
     },
     llmProviderLabel: req.llmProviderLabel ?? 'Google Gemini',
     sections: resolvedSections,
+    // Pictures are chosen by fixed rules from titles and the native's Ascendant and Moon signs.
+    illustrations: planIllustrations(def, {
+      lagna: signForRashiIndex(snapshot.natal.ascendant.rashiIndex),
+      moon: signForRashiIndex(snapshot.natal.planets.find((p) => p.name === 'MOON')?.rashiIndex),
+    }),
   });
 
   let pdf: Buffer | undefined;
@@ -281,11 +336,7 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
   }
 
   const live = topicEntries.filter((t) => t.provenance === 'llm' && t.status !== 'cached' && t.tokens);
-  const sum = (k: 'input' | 'output' | 'thinking') => live.reduce((a, t) => a + (t.tokens?.[k] ?? 0), 0);
-  const price = priceBasis();
-  const inputTokens = sum('input');
-  const outputTokens = sum('output');
-  const thinkingTokens = sum('thinking');
+  const usage = summariseUsage(req.narrator.calls.slice(callsBefore));
 
   const anyFailed = topicEntries.some((t) => t.status === 'failed' || t.status === 'skipped-missing-evidence');
   const status: ReportManifest['status'] = !pdf || compileError ? 'failed' : anyFailed || !pdfMeta?.qaPassed ? 'partial' : 'completed';
@@ -315,9 +366,7 @@ export async function generateReport(req: GenerateReportRequest): Promise<Genera
     usage: {
       liveCalls: new Set(live.map((t) => t.sourceGenerationId).filter(Boolean)).size,
       cachedCalls: topicEntries.filter((t) => t.status === 'cached').length,
-      inputTokens, outputTokens, thinkingTokens,
-      estimatedCostUsd: Number(((inputTokens * price.input + (outputTokens + thinkingTokens) * price.output) / 1e6).toFixed(4)),
-      costBasis: price.label,
+      ...usage,
     },
     pdf: pdfMeta ?? (issues.length ? { pageCount: 0, bytes: 0, sha256: '', qaPassed: false, qaIssues: issues } : undefined),
   });

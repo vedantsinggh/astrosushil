@@ -33,11 +33,14 @@ export class OfflineTestProvider implements IAiProvider {
   async generate(prompt: string, options?: AiGenerationOptions): Promise<AiGenerationResult> {
     this.calls++;
     const topics: Array<Record<string, unknown>> = [];
-    const blocks = prompt.split('=== TOPIC ').slice(1);
+    const [preamble, ...blocks] = prompt.split('=== TOPIC ');
+    // Facts shared by every topic of the call are listed once, before the topic blocks.
+    const commonAt = preamble.indexOf('EVIDENCE COMMON TO EVERY TOPIC');
+    const common = commonAt >= 0 ? [...preamble.slice(commonAt).matchAll(/\[([a-z0-9.-]+)\] (.*)/g)] : [];
     for (const b of blocks) {
       const id = /topicId="([^"]+)"/.exec(b)![1];
       const title = /Title: (.*)/.exec(b)![1];
-      const ev = [...b.matchAll(/\[([a-z0-9.-]+)\] (.*)/g)].slice(0, 4);
+      const ev = [...b.matchAll(/\[([a-z0-9.-]+)\] (.*)/g), ...common].slice(0, 4);
       const facts = ev.map(([, eid, label]) => ({ eid, label: label.replace(/\.$/, '') }));
       const para = (i: number) =>
         `[Offline test text ${i}] This placeholder paragraph for "${title}" exists only to test layout and validation. ` +

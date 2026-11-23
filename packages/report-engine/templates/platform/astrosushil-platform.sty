@@ -90,6 +90,14 @@
   {\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{2.5mm}%
   \ifx\relax#3\relax\else{\fontsize{10}{14}\selectfont\itshape\color{Muted}#3\par}\vspace{3mm}\fi
 }
+% Picture cropped to a rounded box: width, height, \includegraphics key that makes it cover the box, file
+\newcommand{\AsImage}[4]{%
+  \begin{tikzpicture}
+    \clip[rounded corners=1.6mm] (0,0) rectangle (#1,#2);
+    \node[inner sep=0pt] at ($(0,0)!0.5!(#1,#2)$) {\includegraphics[#3]{#4}};
+    \draw[Accent!55,line width=0.5pt,rounded corners=1.6mm] (0,0) rectangle (#1,#2);
+  \end{tikzpicture}%
+}
 \newcommand{\ReportTopic}[2]{% title, subtitle
   \needspace{9\baselineskip}%
   \vspace{4mm plus 2mm}%

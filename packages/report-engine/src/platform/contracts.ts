@@ -289,6 +289,16 @@ export const ReportManifestSchema = z.object({
     /** Always an estimate from published list prices; never provider billing. */
     estimatedCostUsd: z.number(),
     costBasis: z.string(),
+    /** Per-model breakdown of the live calls of this run (includes rejected attempts). */
+    byModel: z
+      .array(z.object({
+        model: z.string(), calls: z.number(), inputTokens: z.number(), outputTokens: z.number(),
+        thinkingTokens: z.number(), estimatedCostUsd: z.number(),
+      }))
+      .optional(),
+    /** UTC window of the live calls, for matching against the provider's billing report. */
+    firstCallAtIso: z.string().optional(),
+    lastCallAtIso: z.string().optional(),
   }),
   pdf: z
     .object({

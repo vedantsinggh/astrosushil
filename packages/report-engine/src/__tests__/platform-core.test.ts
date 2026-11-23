@@ -306,7 +306,7 @@ describe('narrator', () => {
   });
 
   it('resolves REPORT_LLM_THINKING_LEVEL (default low, "default" = model default, rejects typos)', () => {
-    expect(resolveThinkingLevel(undefined)).toBe('low');
+    expect(resolveThinkingLevel(undefined)).toBe('minimal');
     expect(resolveThinkingLevel(' High ')).toBe('high');
     expect(resolveThinkingLevel('default')).toBeUndefined();
     expect(() => resolveThinkingLevel('lo')).toThrow(/REPORT_LLM_THINKING_LEVEL/);

@@ -29,6 +29,7 @@ import {
   validateInterpretationTopic,
 } from '../validation/interpretation-validator';
 import { CachedTopicEntry, TopicCacheKeyParts, TopicCacheStore, topicCacheKey } from './topic-cache';
+import { countSentences, isRepairable, repairOnce } from './sentence-repair';
 import { buildBatchPrompt, INTERPRETATION_PROMPT_VERSION, PROMPT_VERSION, SYSTEM_PROMPT } from './prompts';
 
 export interface NarratorConfig {
@@ -65,6 +66,30 @@ export interface NarratorConfig {
    * Not part of the topic cache key: cached payloads are re-validated on every read.
    */
   thinkingLevel?: ThinkingLevel;
+  /**
+   * Model for the final content attempt (the last re-ask of topics the primary model
+   * could not write validly, even with feedback). Lets a cheap model write the report
+   * while a stronger one is paid for only where it is needed. Undefined = keep using `model`.
+   */
+  retryModel?: string;
+  /** Reasoning effort for `retryModel` calls (gemini-3.8-flash rejects "minimal"). Undefined = model default. */
+  retryThinkingLevel?: ThinkingLevel;
+  /**
+   * Largest share of a topic's sentences that may be removed to make it pass validation
+   * (see sentence-repair.ts) before the topic is sent back to the model instead. 0 disables repair.
+   */
+  maxRepairShare?: number;
+}
+
+/** One billed provider call, as reported by the provider's usage metadata. */
+export interface LlmCallRecord {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens: number;
+  atIso: string;
+  topics: number;
+  attempt: number;
 }
 
 type ThinkingLevel = NonNullable<AiGenerationOptions['thinkingLevel']>;
@@ -72,7 +97,7 @@ const THINKING_LEVELS: readonly ThinkingLevel[] = ['minimal', 'low', 'medium', '
 
 /** REPORT_LLM_THINKING_LEVEL: minimal|low|medium|high, or "default" to let the model decide. */
 export function resolveThinkingLevel(raw: string | undefined): ThinkingLevel | undefined {
-  const v = (raw ?? 'low').trim().toLowerCase();
+  const v = (raw ?? 'minimal').trim().toLowerCase();
   if (v === 'default' || v === '') return undefined;
   if ((THINKING_LEVELS as readonly string[]).includes(v)) return v as ThinkingLevel;
   throw new Error(`REPORT_LLM_THINKING_LEVEL must be one of ${THINKING_LEVELS.join(', ')} or "default" (got "${raw}")`);
@@ -82,15 +107,18 @@ export const DEFAULT_INTERPRETATION_TEMPERATURE = 0.2;
 export const DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS = 32000;
 
 export const DEFAULT_NARRATOR_CONFIG: NarratorConfig = {
-  model: process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  model: process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
   temperature: 0.55,
   maxOutputTokens: 16000,
   timeoutMs: 240000,
-  maxAttempts: 2,
+  maxAttempts: 3,
   maxTransportRetries: 6,
   backoffBaseMs: 5000,
   fallbackModels: (process.env.REPORT_LLM_FALLBACK_MODELS ?? '').split(',').map((m) => m.trim()).filter(Boolean),
   thinkingLevel: resolveThinkingLevel(process.env.REPORT_LLM_THINKING_LEVEL),
+  retryModel: (process.env.REPORT_LLM_RETRY_MODEL ?? 'gemini-3.8-flash').trim() || undefined,
+  retryThinkingLevel: resolveThinkingLevel(process.env.REPORT_LLM_RETRY_THINKING_LEVEL ?? 'low'),
+  maxRepairShare: Number(process.env.REPORT_LLM_MAX_REPAIR_SHARE ?? 0.3),
 };
 
 export interface TopicOutcome {
@@ -151,6 +179,11 @@ export class LlmNarrator {
     private readonly cache: TopicCacheStore,
     private readonly config: NarratorConfig = DEFAULT_NARRATOR_CONFIG
   ) {}
+
+  /** Every provider call that returned usage, in order (the basis for cost reporting). */
+  readonly calls: LlmCallRecord[] = [];
+  /** Topics rejected on an attempt, with the error codes (diagnostics for prompt and validator tuning). */
+  readonly rejections: Array<{ topicId: string; attempt: number; model: string; codes: string[] }> = [];
 
   get model(): string {
     return this.config.model;
@@ -239,6 +272,41 @@ export class LlmNarrator {
     return { validation, editorialIssues, ok };
   }
 
+  /**
+   * Validate a fresh payload; when it fails only on individual sentences or claims, remove
+   * exactly those and validate again (no model call). The removed sentences are recorded as
+   * warnings on the result. Falls back to the original failure when repair is not possible.
+   */
+  private checkWithRepair(ctx: BatchContext, topic: ReportTopic, payload: GeneratedTopicPayload, earlier: GeneratedTopicPayload[]) {
+    const first = this.check(ctx, topic, payload, earlier);
+    const share = this.config.maxRepairShare ?? 0;
+    if (first.ok || share <= 0) return { ...first, payload, repair: undefined as string | undefined };
+    const budget = Math.max(2, Math.floor(countSentences(payload) * share));
+    const removed: string[] = [];
+    let droppedClaims = 0;
+    let current = payload;
+    let result = first;
+    for (let round = 0; round < 6 && !result.ok; round++) {
+      const errors = [...result.validation.issues, ...result.editorialIssues];
+      if (!isRepairable(errors)) return { ...first, payload, repair: round ? 'left-unrepairable-errors' : undefined };
+      const step = repairOnce(current, result.validation, errors);
+      if (!step) return { ...first, payload, repair: 'sentence-not-removable' };
+      removed.push(...step.removedSentences);
+      droppedClaims += step.removedClaims;
+      if (removed.length > budget) return { ...first, payload, repair: 'too-many-sentences' };
+      current = step.payload;
+      result = this.check(ctx, topic, current, earlier);
+    }
+    if (!result.ok) return { ...first, payload, repair: 'not-converged' };
+    for (const s of removed) {
+      result.validation.issues.push({ severity: 'warning', code: 'UNVERIFIED_SENTENCE_REMOVED', message: `Removed before publication (failed validation): "${s.slice(0, 160)}"` });
+    }
+    if (droppedClaims) {
+      result.validation.issues.push({ severity: 'warning', code: 'UNVERIFIED_CLAIM_DROPPED', message: `${droppedClaims} claim(s) that did not verify were dropped; the text was re-validated without them` });
+    }
+    return { ...result, payload: current, repair: undefined };
+  }
+
   /** Interpretation views for the prompt (opted-in topics only; undefined keeps the legacy prompt). */
   private interpretationsFor(ctx: BatchContext, topic: ReportTopic) {
     if (!isInterpretationTopic(topic)) return undefined;
@@ -251,10 +319,12 @@ export class LlmNarrator {
    * optional fallback models. Every failure surfaces to the caller once retries
    * are exhausted — nothing is substituted.
    */
-  private async callWithRetries(prompt: string, temperature: number, maxTokens: number = this.config.maxOutputTokens) {
-    const models = [this.config.model, ...this.config.fallbackModels];
+  private async callWithRetries(prompt: string, temperature: number, maxTokens: number = this.config.maxOutputTokens, primary: string = this.config.model, thinkingLevel: ThinkingLevel | undefined = this.config.thinkingLevel) {
+    const models = [...new Set([primary, ...this.config.fallbackModels])];
     let lastError: unknown;
     for (const model of models) {
+      // Not every model accepts every thinking level (gemini-3.8-flash rejects "minimal").
+      let level = thinkingLevel;
       for (let i = 0; i <= this.config.maxTransportRetries; i++) {
         try {
           const result = await this.provider.generate(prompt, {
@@ -265,11 +335,16 @@ export class LlmNarrator {
             responseFormat: 'json',
             timeoutMs: this.config.timeoutMs,
             anonymizeClient: false, // prompts never contain the client's identity
-            ...(this.config.thinkingLevel ? { thinkingLevel: this.config.thinkingLevel } : {}),
+            ...(level ? { thinkingLevel: level } : {}),
           });
           return { result, model };
         } catch (err) {
           lastError = err;
+          if (level === 'minimal' && /thinking level/i.test(classifyError(err).message)) {
+            level = 'low';
+            i--; // the rejected request was not a transport failure
+            continue;
+          }
           const { transient } = classifyError(err);
           if (!transient) throw err;
           if (i < this.config.maxTransportRetries) {
@@ -370,10 +445,17 @@ export class LlmNarrator {
       let callError: string | undefined;
       let usedModel = this.config.model;
       try {
-        const call = await this.callWithRetries(prompt, temperature, maxTokens);
+        const escalate = attempt > 1 && attempt === this.config.maxAttempts && this.config.retryModel !== undefined;
+        const call = escalate
+          ? await this.callWithRetries(prompt, temperature, maxTokens, this.config.retryModel, this.config.retryThinkingLevel)
+          : await this.callWithRetries(prompt, temperature, maxTokens);
         const res = call.result;
         usedModel = call.model;
         tokens = { input: res.tokens.promptTokens, output: res.tokens.completionTokens, thinking: res.tokens.thinkingTokens ?? 0 };
+        this.calls.push({
+          model: usedModel, inputTokens: tokens.input, outputTokens: tokens.output, thinkingTokens: tokens.thinking,
+          atIso: new Date().toISOString(), topics: pending.length, attempt,
+        });
         latencyMs = res.latencyMs;
         const json = res.parsedJson ?? JSON.parse(res.text.replace(/^```(?:json)?|```$/g, '').trim());
         const batch = GeneratedBatchPayloadSchema.safeParse(json);
@@ -399,8 +481,8 @@ export class LlmNarrator {
         const accTokens = prev?.tokens
           ? { input: prev.tokens.input + perTopicTokens.input, output: prev.tokens.output + perTopicTokens.output, thinking: prev.tokens.thinking + perTopicTokens.thinking }
           : perTopicTokens;
-        const payload = parsed?.find((t) => t.topicId === p.topic.id);
-        if (!payload) {
+        const rawPayload = parsed?.find((t) => t.topicId === p.topic.id);
+        if (!rawPayload) {
           outcomes.set(p.topic.id, {
             topic: p.topic, status: 'failed', editorialIssues: [], attempts: priorAttempts + 1, cacheKey: p.key,
             evidenceIds: p.evidence.map((e) => e.id), tokens: accTokens, latencyMs: (prev?.latencyMs ?? 0) + latencyMs,
@@ -414,7 +496,7 @@ export class LlmNarrator {
           .map((t) => outcomes.get(t.id))
           .filter((o): o is TopicOutcome => o !== undefined && (o.status === 'generated' || o.status === 'cached') && o.payload !== undefined)
           .map((o) => o.payload!);
-        const { validation, editorialIssues, ok } = this.check(ctx, p.topic, payload, earlier);
+        const { validation, editorialIssues, ok, payload, repair } = this.checkWithRepair(ctx, p.topic, rawPayload, earlier);
         const outcome: TopicOutcome = {
           topic: p.topic, payload, validation, editorialIssues, status: ok ? 'generated' : 'failed',
           cacheKey: p.key, sourceGenerationId: generationId, evidenceIds: p.evidence.map((e) => e.id),
@@ -437,6 +519,7 @@ export class LlmNarrator {
             ...editorialIssues.filter((i) => i.severity === 'error'),
             ...validation.claims.filter((c) => c.status !== 'verified').map((c) => ({ code: 'CLAIM', message: `"${c.statement.slice(0, 90)}" → ${c.reasons.join(',')}` })),
           ];
+          this.rejections.push({ topicId: p.topic.id, attempt, model: usedModel, codes: [...new Set(problems.map((i) => i.code)), ...(repair ? [`repair:${repair}`] : [])] });
           feedback.push(`Topic ${p.topic.id}: ${problems.map((i) => `${i.code}: ${i.message}`).join(' | ').slice(0, 700)}`);
           stillPending.push(p);
         }

@@ -312,6 +312,20 @@ export interface RashiNarratorOptions {
   maxCheckAttempts?: number;
 }
 
+/**
+ * The daily Rashi Bhavishya keeps its own narrator settings: the report platform's
+ * defaults moved to a cheaper model with sentence repair (2026-11-23), which was
+ * tuned and measured for PDF reports only.
+ */
+const RASHI_NARRATOR_DEFAULTS: Partial<reportPlatform.NarratorConfig> = {
+  model: process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  thinkingLevel: 'low',
+  maxAttempts: 2,
+  retryModel: undefined,
+  maxRepairShare: 0,
+  maxOutputTokens: 8000,
+};
+
 export class RashiNarrator {
   constructor(private readonly provider: IAiProvider, private readonly options: RashiNarratorOptions = {}) {}
 
@@ -320,7 +334,7 @@ export class RashiNarrator {
   }
 
   get model(): string {
-    return { ...reportPlatform.DEFAULT_NARRATOR_CONFIG, ...this.options.config }.model;
+    return { ...reportPlatform.DEFAULT_NARRATOR_CONFIG, ...RASHI_NARRATOR_DEFAULTS, ...this.options.config }.model;
   }
 
   async generate(facts: RashiDailyFacts): Promise<RashiNarrativeResult> {
@@ -330,7 +344,7 @@ export class RashiNarrator {
     const definition = definitionFor(facts);
     const { snapshotId, items } = buildRashiEvidence(facts);
     const store = new RashiEvidenceStore(snapshotId, items);
-    const config: reportPlatform.NarratorConfig = { ...reportPlatform.DEFAULT_NARRATOR_CONFIG, maxOutputTokens: 8000, ...this.options.config };
+    const config: reportPlatform.NarratorConfig = { ...reportPlatform.DEFAULT_NARRATOR_CONFIG, ...RASHI_NARRATOR_DEFAULTS, ...this.options.config };
     const topics = definition.sections[0].topics as ReportTopic[];
     const maxCheckAttempts = this.options.maxCheckAttempts ?? 2;
 

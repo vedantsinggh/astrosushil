@@ -40,6 +40,7 @@ async function main() {
   const narrator = new LlmNarrator(provider, new FileTopicCacheStore(cacheDir), {
     ...DEFAULT_NARRATOR_CONFIG,
     model: providerName === 'gemini' ? DEFAULT_NARRATOR_CONFIG.model : 'offline-test',
+    retryModel: providerName === 'gemini' ? DEFAULT_NARRATOR_CONFIG.retryModel : undefined,
   });
 
   // --module <path> loads an unregistered module (exports a *_MODULE constant) for development.
@@ -78,6 +79,7 @@ async function main() {
   for (const t of m.topics.filter((x) => x.issues.some((i) => i.severity === 'error') || x.error)) {
     console.log(`- ${t.topicId}: ${t.error ?? ''} ${t.issues.filter((i) => i.severity === 'error').map((i) => `${i.code}: ${i.message}`).join(' | ').slice(0, 400)}`);
   }
+  for (const r of narrator.rejections) console.log(`rejected attempt ${r.attempt} (${r.model}) ${r.topicId}: ${r.codes.join(', ')}`);
   for (const i of m.pdf?.qaIssues ?? []) console.log(`QA ${i.severity} ${i.code}: ${i.message}`);
 }
 
