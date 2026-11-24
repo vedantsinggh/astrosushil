@@ -26,14 +26,19 @@ final secureStorageProvider = Provider<SecureStorageService>((ref) {
 class LocaleNotifier extends StateNotifier<Locale> {
   final SecureStorageService _storage;
 
+  /// Completes once the stored app language (if any) has been read.
+  late final Future<void> ready;
+
   LocaleNotifier(this._storage) : super(SupportedLocales.english) {
-    _loadPersistedLocale();
+    ready = _loadPersistedLocale();
   }
 
   Future<void> _loadPersistedLocale() async {
     try {
       final savedCode = await _storage.read(key: StorageKeys.appLocale);
       if (savedCode != null && savedCode.isNotEmpty) {
+        // A language picked while the stored one was still loading wins.
+        if (!mounted || _changed) return;
         if (savedCode == 'hi') {
           state = SupportedLocales.hindi;
         } else if (savedCode == 'en') {
@@ -43,9 +48,12 @@ class LocaleNotifier extends StateNotifier<Locale> {
     } catch (_) {}
   }
 
+  bool _changed = false;
+
   /// Change app language and persist preference
   Future<void> setLocale(Locale newLocale) async {
     if (!SupportedLocales.isSupported(newLocale)) return;
+    _changed = true;
     state = newLocale;
     try {
       await _storage.write(

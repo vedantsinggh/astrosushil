@@ -72,11 +72,26 @@ class RashiBhavishyaScreen extends ConsumerWidget {
   const RashiBhavishyaScreen({super.key});
 
   /// Formats the prediction date exactly as returned by the backend (yyyy-MM-dd).
-  static String formatPredictionDate(String raw) {
+  /// In a Hindi horoscope the month and weekday are written in Hindi.
+  static String formatPredictionDate(String raw, {bool isHindi = false}) {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return raw;
+    if (isHindi) {
+      return '${parsed.day} ${_hindiMonths[parsed.month - 1]} ${parsed.year}, ${_hindiWeekdays[parsed.weekday - 1]}';
+    }
     return DateFormat('d MMMM yyyy, EEEE').format(parsed);
   }
+
+  // Written out here because the date symbols of a language are loaded only
+  // when the app itself runs in it, and a Hindi horoscope can be read in an
+  // English app.
+  static const List<String> _hindiMonths = [
+    'जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', //
+    'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर',
+  ];
+
+  /// Monday first, as [DateTime.weekday].
+  static const List<String> _hindiWeekdays = ['सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार', 'रविवार'];
 
   /// Local IST clock time (HH:mm) of a UTC ISO instant.
   static String istClock(String iso) {
@@ -85,9 +100,10 @@ class RashiBhavishyaScreen extends ConsumerWidget {
     return DateFormat('HH:mm').format(t.toUtc().add(const Duration(hours: 5, minutes: 30)));
   }
 
-  static String _shortDate(String ymd) {
+  static String _shortDate(String ymd, {bool isHindi = false}) {
     final d = DateTime.tryParse(ymd);
-    return d == null ? ymd : DateFormat('d MMM').format(d);
+    if (d == null) return ymd;
+    return isHindi ? '${d.day} ${_hindiMonths[d.month - 1]}' : DateFormat('d MMM').format(d);
   }
 
   ExplanationContext _buildExplanationContext(_RashiMeta rashi, RashiBhavishyaModel data, bool isHindi) {
@@ -154,7 +170,7 @@ class RashiBhavishyaScreen extends ConsumerWidget {
   Widget _buildForSign(BuildContext context, WidgetRef ref, int index, int? userMoon, bool isHindi) {
     final rashi = _rashis[index - 1];
     final predictionAsync = ref.watch(todayRashiBhavishyaProvider(index));
-    // The customer's horoscope language; kept apart from the app language.
+    // The customer's horoscope language: their own pick, else the app language.
     final language = ref.watch(horoscopeLanguageProvider);
     final l10n = context.l10n;
     final data = predictionAsync.valueOrNull;
@@ -408,7 +424,7 @@ class _RashiContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _DateBadge(
-          date: RashiBhavishyaScreen.formatPredictionDate(model.date),
+          date: RashiBhavishyaScreen.formatPredictionDate(model.date, isHindi: isHindi),
           note: isHindi
               ? 'सूर्योदय $sunrise IST (${facts.referenceLocation}) पर ग्रह स्थिति'
               : 'Planet positions at sunrise, $sunrise IST (${facts.referenceLocation})',
@@ -589,7 +605,7 @@ class _MoonLine extends StatelessWidget {
               padding: const EdgeInsets.only(left: 26),
               child: Text(
                 isHindi
-                    ? '${change.timeIst} IST (${RashiBhavishyaScreen._shortDate(change.dateIst)}) से चंद्र ${signLabel(change.sign)} में — ${houseLabel(change.house)}, ${change.classification == 'favourable' ? 'अनुकूल' : 'सावधानी'}'
+                    ? '${change.timeIst} IST (${RashiBhavishyaScreen._shortDate(change.dateIst, isHindi: true)}) से चंद्र ${signLabel(change.sign)} में — ${houseLabel(change.house)}, ${change.classification == 'favourable' ? 'अनुकूल' : 'सावधानी'}'
                     : 'From ${change.timeIst} IST (${RashiBhavishyaScreen._shortDate(change.dateIst)}): Moon in ${change.sign.englishName}, ${houseLabel(change.house)} — ${change.classification}',
                 style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.35),
               ),
@@ -760,7 +776,9 @@ class _PanchangCard extends StatelessWidget {
           const SizedBox(height: 6),
           row(isHindi ? 'वार' : 'Vara', '${panchang.varaName} (${panchang.varaEnglish})'),
           row(isHindi ? 'तिथि' : 'Tithi', panchang.tithi),
-          row(isHindi ? 'नक्षत्र' : 'Nakshatra', panchang.nakshatraPada > 0 ? '${panchang.nakshatra} (pada ${panchang.nakshatraPada})' : panchang.nakshatra),
+          row(isHindi ? 'नक्षत्र' : 'Nakshatra', panchang.nakshatraPada > 0
+                  ? '${panchang.nakshatra} (${isHindi ? 'चरण' : 'pada'} ${panchang.nakshatraPada})'
+                  : panchang.nakshatra),
           row(isHindi ? 'योग' : 'Yoga', panchang.yoga),
         ],
       ),

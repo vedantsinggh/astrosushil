@@ -197,22 +197,27 @@ void main() {
       expect(await storage.read(key: StorageKeys.horoscopeLanguage), isNull);
     });
 
-    test('it is independent of the app language', () async {
+    test('it follows the app language until the customer chooses', () async {
       final storage = InMemorySecureStorageService();
       await storage.write(key: StorageKeys.appLocale, value: 'hi');
       final container = ProviderContainer(overrides: [secureStorageProvider.overrideWithValue(storage)]);
       addTearDown(container.dispose);
 
+      await container.read(localeProvider.notifier).ready;
       await container.read(horoscopeLanguageProvider.notifier).ready;
-      // A Hindi app does not by itself make the horoscope Hindi ...
-      expect(container.read(horoscopeLanguageProvider), 'en');
-
-      // ... and a Hindi horoscope does not change the app language.
-      await container.read(horoscopeLanguageProvider.notifier).setLanguage('hi');
-      expect(await storage.read(key: StorageKeys.appLocale), 'hi');
-      await container.read(localeProvider.notifier).setLocale(SupportedLocales.english);
+      // A Hindi app makes the horoscope Hindi when no choice was saved
       expect(container.read(horoscopeLanguageProvider), 'hi');
-      expect(await storage.read(key: StorageKeys.horoscopeLanguage), 'hi');
+
+      // Once the customer explicitly picks, their choice is saved and changing app language does not override it
+      await container.read(horoscopeLanguageProvider.notifier).setLanguage('en');
+      expect(container.read(horoscopeLanguageProvider), 'en');
+      expect(await storage.read(key: StorageKeys.horoscopeLanguage), 'en');
+
+      // The app language remains unaffected by horoscope picks
+      expect(await storage.read(key: StorageKeys.appLocale), 'hi');
+      await container.read(localeProvider.notifier).setLocale(SupportedLocales.hindi);
+      expect(container.read(horoscopeLanguageProvider), 'en');
+      expect(await storage.read(key: StorageKeys.horoscopeLanguage), 'en');
     });
 
     test("today's horoscope is loaded in the remembered language and reloads on a switch", () async {

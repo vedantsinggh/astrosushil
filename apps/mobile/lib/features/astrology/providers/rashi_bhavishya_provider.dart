@@ -1,7 +1,9 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/content_language.dart';
-// The storage the app language is kept in (auth has its own provider of the same name).
-import '../../../core/localization/locale_provider.dart' show secureStorageProvider;
+// The app language and the storage it is kept in (auth has its own provider of the same name).
+import '../../../core/localization/locale_provider.dart' show localeProvider, secureStorageProvider;
 import '../../../core/network/network_state_manager.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../auth/providers/auth_provider.dart' hide secureStorageProvider;
@@ -34,17 +36,21 @@ final selectedRashiIndexProvider = StateProvider<int?>((ref) => null);
 
 /// The language the customer reads the daily horoscope in (`en` or `hi`).
 ///
-/// English until the customer picks Hindi on the horoscope screen; the pick is
-/// stored on the device and used from then on. It is deliberately independent
-/// of the app language (`localeProvider`): changing either never changes the
-/// other.
+/// Until the customer picks a language on the horoscope screen it follows the
+/// app language (`localeProvider`): a Hindi app shows the Hindi horoscope.
+/// Once they pick, the pick is stored on the device and kept from then on,
+/// even when the app language changes later. Picking a horoscope language
+/// never changes the app language.
 class HoroscopeLanguageNotifier extends StateNotifier<String> {
   final SecureStorageService _storage;
 
   /// Completes once the stored choice (if any) has been read.
   late final Future<void> ready;
 
-  HoroscopeLanguageNotifier(this._storage) : super(ContentLanguage.fallback) {
+  /// [appLanguage] is the app language at creation; later changes arrive
+  /// through [followAppLanguage].
+  HoroscopeLanguageNotifier(this._storage, {String appLanguage = ContentLanguage.fallback})
+      : super(ContentLanguage.tryParse(appLanguage) ?? ContentLanguage.fallback) {
     ready = _loadPersisted();
   }
 
@@ -52,11 +58,26 @@ class HoroscopeLanguageNotifier extends StateNotifier<String> {
     try {
       final saved = ContentLanguage.tryParse(await _storage.read(key: StorageKeys.horoscopeLanguage));
       // A choice made while the stored one was still loading wins.
-      if (saved != null && mounted && !_chosen) state = saved;
+      if (saved != null && mounted && !_chosen) {
+        _chosen = true;
+        state = saved;
+      }
     } catch (_) {}
   }
 
+  /// True once the customer has picked a horoscope language (now or earlier).
   bool _chosen = false;
+
+  /// True when the customer has picked a horoscope language themselves.
+  bool get hasChoice => _chosen;
+
+  /// The app language is (now) [language]: used only while the customer has
+  /// not picked a horoscope language.
+  void followAppLanguage(String language) {
+    final code = ContentLanguage.tryParse(language);
+    if (code == null || _chosen || !mounted) return;
+    state = code;
+  }
 
   /// Switch the horoscope language and remember it.
   Future<void> setLanguage(String language) async {
@@ -72,7 +93,9 @@ class HoroscopeLanguageNotifier extends StateNotifier<String> {
 
 final horoscopeLanguageProvider = StateNotifierProvider<HoroscopeLanguageNotifier, String>((ref) {
   final storage = ref.watch(secureStorageProvider);
-  return HoroscopeLanguageNotifier(storage);
+  final notifier = HoroscopeLanguageNotifier(storage, appLanguage: ref.read(localeProvider).languageCode);
+  ref.listen<Locale>(localeProvider, (_, next) => notifier.followAppLanguage(next.languageCode));
+  return notifier;
 });
 
 /// Today's horoscope for a Moon sign, in the customer's horoscope language.
@@ -80,7 +103,9 @@ final horoscopeLanguageProvider = StateNotifierProvider<HoroscopeLanguageNotifie
 /// other edition.
 final todayRashiBhavishyaProvider = FutureProvider.family<RashiBhavishyaModel, int>((ref, rashiIndex) async {
   final repository = ref.watch(rashiBhavishyaRepositoryProvider);
-  // Wait for the remembered choice so a Hindi reader is not first sent English.
+  // Wait for the remembered choice and the stored app language so a Hindi
+  // reader is not first sent English.
+  await ref.watch(localeProvider.notifier).ready;
   await ref.watch(horoscopeLanguageProvider.notifier).ready;
   final language = ref.watch(horoscopeLanguageProvider);
   return await repository.getTodayPrediction(rashiIndex: rashiIndex, language: language);

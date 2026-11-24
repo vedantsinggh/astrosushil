@@ -151,14 +151,14 @@ void main() {
     expect(find.text(_hindiSummary), findsOneWidget);
   });
 
-  testWidgets('a Hindi app does not switch the horoscope to Hindi by itself', (tester) async {
+  testWidgets('a Hindi app starts the horoscope in Hindi when no choice was saved', (tester) async {
     await setSize(tester);
+    await storage.write(key: StorageKeys.appLocale, value: 'hi');
     await tester.pumpWidget(app(locale: const Locale('hi')));
     await settle(tester);
 
-    expect(api.languages, ['en']);
-    expect(languageOption('हिन्दी'), findsOneWidget);
-    expect(find.text(_hindiSummary), findsNothing);
+    expect(api.languages, ['hi']);
+    expect(find.text(_hindiSummary), findsOneWidget);
   });
 
   testWidgets('Hindi chosen but only an English narrative came back: the customer is told', (tester) async {
