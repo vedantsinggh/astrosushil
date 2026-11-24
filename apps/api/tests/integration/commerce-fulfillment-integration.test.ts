@@ -104,6 +104,11 @@ describe('Phase 3 Commerce and Fulfillment Integration Tests', () => {
     await prisma.refund.deleteMany({
       where: { order: { userId: { in: [testUserId, foreignUserId] } } },
     });
+    // A paid order with product lines now owns a shop order row (website integration), which
+    // restricts deleting the order.
+    await prisma.shopOrder.deleteMany({
+      where: { order: { userId: { in: [testUserId, foreignUserId] } } },
+    });
     await prisma.orderItem.deleteMany({
       where: { order: { userId: { in: [testUserId, foreignUserId] } } },
     });

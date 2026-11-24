@@ -411,14 +411,14 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
   describe('2. End-to-End Customer Journey For All 9 Released SKUs', () => {
     const RELEASED_SKUS = [
       { sku: 'report-kundli', price: 29900, reportType: ReportType.KUNDLI, isCareer: false },
-      { sku: 'report-planetary-summary', price: 19900, reportType: ReportType.PLANETARY_SUMMARY, isCareer: false },
+      { sku: 'report-planetary-summary', price: 23482, reportType: ReportType.PLANETARY_SUMMARY, isCareer: false },
       { sku: 'report-horoscope', price: 49900, reportType: ReportType.HOROSCOPE, isCareer: false },
       { sku: 'report-career', price: 49900, reportType: ReportType.CAREER, isCareer: true },
       // report-career-pro (CAREER_PROSITY) is retired from sale; see section 3.
       { sku: 'report-finance', price: 49900, reportType: ReportType.FINANCE, isCareer: false },
       { sku: 'report-love', price: 49900, reportType: ReportType.LOVE, isCareer: false },
       { sku: 'report-fortune', price: 49900, reportType: ReportType.FORTUNE, isCareer: false },
-      { sku: 'report-marriage', price: 49900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isCareer: false, needsPartner: true },
+      { sku: 'report-marriage', price: 99900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isCareer: false, needsPartner: true },
       { sku: 'report-saturn', price: 49900, reportType: ReportType.SATURN, isCareer: false },
     ];
 
@@ -571,11 +571,12 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
   // 3. CHECKOUT BLOCKED FOR ALL 4 UNRELEASED SKUS
   // =========================================================================
   describe('3. Checkout Blocked for All 4 Unreleased SKUs', () => {
+    // Fortune Plus was released on 2026-11-24; Baby Name takes its place as the fourth unreleased report.
     const UNRELEASED_SKUS = [
       'report-jupiter-transit',
       'report-rahu-ketu-transit',
       'report-varshphal',
-      'report-fortune-plus',
+      'report-baby-name',
     ];
 
     for (const sku of UNRELEASED_SKUS) {

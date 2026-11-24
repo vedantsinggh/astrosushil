@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Answers calls to third parties locally so no test reaches a real gateway (see the file).
+    setupFiles: [path.resolve(__dirname, 'apps/api/tests/setup/no-external-network.ts')],
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: process.env.TEST_DATABASE_URL || 'postgresql://postgres:postgres_password@localhost:5432/astro_sushil_test?schema=public',

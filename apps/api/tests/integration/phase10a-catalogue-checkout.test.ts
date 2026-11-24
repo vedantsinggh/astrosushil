@@ -98,7 +98,8 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
     it('should strictly maintain authorized pricing for all 9 released reports and the retired Career Pro alias', () => {
       const EXPECTED_PRICES: Record<string, { price: number; reportType: ReportType; isActive: boolean }> = {
         'report-kundli': { price: 29900, reportType: ReportType.KUNDLI, isActive: true },
-        'report-planetary-summary': { price: 19900, reportType: ReportType.PLANETARY_SUMMARY, isActive: true },
+        // Website price since 2026-11-24: ₹199 + 18% GST, stored GST-inclusive.
+        'report-planetary-summary': { price: 23482, reportType: ReportType.PLANETARY_SUMMARY, isActive: true },
         'report-horoscope': { price: 49900, reportType: ReportType.HOROSCOPE, isActive: true },
         'report-career': { price: 49900, reportType: ReportType.CAREER, isActive: true },
         // Retired from sale (only one Career report exists); kept so historical CAREER_PROSITY orders still fulfil.
@@ -106,7 +107,8 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
         'report-finance': { price: 49900, reportType: ReportType.FINANCE, isActive: true },
         'report-love': { price: 49900, reportType: ReportType.LOVE, isActive: true },
         'report-fortune': { price: 49900, reportType: ReportType.FORTUNE, isActive: true },
-        'report-marriage': { price: 49900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isActive: true },
+        // Website price since 2026-11-24: ₹999, GST rate 0.
+        'report-marriage': { price: 99900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isActive: true },
         'report-saturn': { price: 49900, reportType: ReportType.SATURN, isActive: true },
       };
 
@@ -127,12 +129,26 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
       );
     });
 
+    it('should price the reports aligned with the website on 2026-11-24', () => {
+      // Fortune Plus is on sale since 2026-11-24 (₹699 + 18% GST, stored GST-inclusive).
+      expect(COMMERCE_CATALOG['report-fortune-plus'].pricePaise).toBe(82482);
+      expect(COMMERCE_CATALOG['report-fortune-plus'].isActive).toBe(true);
+      expect(REPORT_PRICES_PAISE[ReportType.FORTUNE_PLUS]).toBe(82482);
+      // Basic Kundli: ₹299 + 18% GST, stored GST-inclusive.
+      expect(COMMERCE_CATALOG['report-kundli-basic'].pricePaise).toBe(35282);
+      expect(COMMERCE_CATALOG['report-kundli-basic'].isActive).toBe(true);
+      expect(REPORT_PRICES_PAISE[ReportType.KUNDLI_BASIC]).toBe(35282);
+      // Marriage compatibility carries GST rate 0 on the website.
+      expect(COMMERCE_CATALOG['report-marriage'].taxRateBasisPoints).toBe(0);
+    });
+
     it('should keep all 4 unreleased reports inactive at 0 paise with checkout blocked', () => {
+      // Fortune Plus was released on 2026-11-24; Baby Name takes its place as the fourth unreleased report.
       const UNRELEASED_SKUS = [
         'report-jupiter-transit',
         'report-rahu-ketu-transit',
         'report-varshphal',
-        'report-fortune-plus',
+        'report-baby-name',
       ];
 
       for (const sku of UNRELEASED_SKUS) {
@@ -154,7 +170,8 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
         url: '/api/v1/payments/create-order',
         headers: { authorization: `Bearer ${userToken}` },
         payload: {
-          items: [{ catalogId: 'report-fortune-plus', quantity: 1 }],
+          // Still unpriced and inactive (Fortune Plus, used here before, is on sale since 2026-11-24).
+          items: [{ catalogId: 'report-baby-name', quantity: 1 }],
         },
       });
 
@@ -169,7 +186,8 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
         url: '/api/v1/payments/create-order',
         headers: { authorization: `Bearer ${userToken}` },
         payload: {
-          reportType: 'FORTUNE_PLUS',
+          // Still unpriced and inactive (FORTUNE_PLUS, used here before, is on sale since 2026-11-24).
+          reportType: 'BABY_NAME',
         },
       });
 

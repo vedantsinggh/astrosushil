@@ -26,7 +26,7 @@ describe('Phase 9: Infrastructure & External Services Hardening Suite', () => {
       expect(REPORT_PRICES_PAISE.KUNDLI).toBe(29900);
       expect(REPORT_PRICES_PAISE.CAREER).toBe(49900);
       expect(REPORT_PRICES_PAISE.CAREER_PROSITY).toBe(69900);
-      expect(REPORT_PRICES_PAISE.MARRIAGE_COMPATIBILITY).toBe(49900);
+      expect(REPORT_PRICES_PAISE.MARRIAGE_COMPATIBILITY).toBe(99900); // website price since 2026-11-24
       expect(REPORT_PRICES_PAISE.GUPTA_NADI_DOSSIER).toBe(99900);
     });
 

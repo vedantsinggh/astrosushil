@@ -11,6 +11,7 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
   let tokenA: string;
   let tokenB: string;
   let profileA: any;
+  let adminUser: any;
 
   beforeAll(async () => {
     process.env.RAZORPAY_KEY_SECRET = 'test_razorpay_secret_for_local_development_12345';
@@ -36,6 +37,16 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
         fullName: 'Client Diya',
         phoneNumber: `+918${phoneSuffix}`,
         role: 'USER',
+      },
+    });
+
+    // Admin permissions are resolved from the database (User.role / staff profile), not from the
+    // role claim of the token, so the admin has to exist as a real ADMIN account.
+    adminUser = await prisma.user.create({
+      data: {
+        email: `consult_admin_${Date.now()}@example.com`,
+        fullName: 'Consultation Admin',
+        role: 'ADMIN',
       },
     });
 
@@ -81,7 +92,7 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
       where: { id: profileA.id },
     });
     await prisma.user.deleteMany({
-      where: { id: { in: [userA.id, userB.id] } },
+      where: { id: { in: [userA.id, userB.id, adminUser.id] } },
     });
     await app.close();
   });
@@ -486,8 +497,8 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
   // ---------------------------------------------------------------------------
   it('9. Admin can list bookings and start associated Live Session with client profile', async () => {
     const adminToken = (app as any).jwt.sign({
-      sub: userA.id,
-      id: userA.id,
+      sub: adminUser.id,
+      id: adminUser.id,
       role: 'ADMIN',
     });
 

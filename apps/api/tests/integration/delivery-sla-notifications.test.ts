@@ -101,6 +101,11 @@ describe('Phase 4 Delivery SLA, Notifications and Customer Experience Tests', ()
     await prisma.refund.deleteMany({
       where: { order: { userId: { in: userIds } } },
     });
+    // A paid order with product lines now owns a shop order row (website integration), which
+    // restricts deleting the order.
+    await prisma.shopOrder.deleteMany({
+      where: { order: { userId: { in: userIds } } },
+    });
     await prisma.orderItem.deleteMany({
       where: { order: { userId: { in: userIds } } },
     });

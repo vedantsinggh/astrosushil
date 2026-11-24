@@ -4,7 +4,27 @@ import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 import { otpService } from '../../src/modules/auth/otp.service';
 import { googleAuthService } from '../../src/modules/auth/google-auth.service';
+import crypto from 'crypto';
 import { AuthenticationError } from '../../src/errors/app-error';
+
+/**
+ * The OTP send limiter keeps an append-only log in the database (otp_send_logs), keyed by the
+ * SHA-256 of the phone number and of the caller's IP. Everything else in this file is in memory,
+ * so without this clean-up a second run within the limiter's window (3 sends per number and 10 per
+ * IP in 10 minutes, 10 and 50 per day) is refused with 429. Only this suite's own keys are removed.
+ */
+const OTP_LIMITER_KEYS = [
+  '+919876543210',
+  '+919999988888',
+  '+919811122233',
+  '+919123456789',
+  '+919555544444',
+  '+919700011122',
+  '+919777766666',
+  '127.0.0.1', // app.inject() requests
+].map((value) => crypto.createHash('sha256').update(value).digest('hex'));
+
+const clearOtpSendLog = () => prisma.otpSendLog.deleteMany({ where: { keyHash: { in: OTP_LIMITER_KEYS } } });
 
 describe('Phone OTP, Google Auth, Account Linking & Multi-Page PDF Tests', () => {
   let app: FastifyInstance;
@@ -190,6 +210,8 @@ describe('Phone OTP, Google Auth, Account Linking & Multi-Page PDF Tests', () =>
       };
     });
 
+    await clearOtpSendLog();
+
     app = buildApp();
     await app.ready();
   });
@@ -200,6 +222,7 @@ describe('Phone OTP, Google Auth, Account Linking & Multi-Page PDF Tests', () =>
   });
 
   afterAll(async () => {
+    await clearOtpSendLog();
     await app.close();
     vi.restoreAllMocks();
   });

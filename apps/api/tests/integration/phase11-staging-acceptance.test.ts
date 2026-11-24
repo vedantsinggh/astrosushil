@@ -552,13 +552,13 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
     it('4.1 should enforce exact authorized prices across all 9 released catalogue items', () => {
       const EXPECTED_RELEASED_PRICES: Record<string, number> = {
         'report-kundli': 29900,
-        'report-planetary-summary': 19900,
+        'report-planetary-summary': 23482, // website price since 2026-11-24 (₹199 + GST)
         'report-horoscope': 49900,
         'report-career': 49900,
         'report-finance': 49900,
         'report-love': 49900,
         'report-fortune': 49900,
-        'report-marriage': 49900,
+        'report-marriage': 99900, // website price since 2026-11-24 (₹999, GST rate 0)
         'report-saturn': 49900,
       };
 
@@ -576,11 +576,12 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
     });
 
     it('4.2 should strictly keep all 4 unreleased SKUs inactive at zero price with checkout blocked', async () => {
+      // Fortune Plus was released on 2026-11-24; Baby Name takes its place as the fourth unreleased report.
       const UNRELEASED_SKUS = [
         'report-jupiter-transit',
         'report-rahu-ketu-transit',
         'report-varshphal',
-        'report-fortune-plus',
+        'report-baby-name',
       ];
 
       for (const sku of UNRELEASED_SKUS) {
@@ -612,7 +613,7 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
     let paidOrderId: string;
 
     it('5.1 should generate report, store PDF in staging storage, and allow customer download', async () => {
-      // 1. Create and pay for Planetary Summary report (₹199)
+      // 1. Create and pay for Planetary Summary report (₹199 + GST)
       const orderResp = await app.inject({
         method: 'POST',
         url: '/api/v1/payments/create-order',
@@ -717,7 +718,7 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
       const refundResult = await commerceService.requestRefund(
         {
           orderId: paidOrderId,
-          amountPaise: 19900,
+          amountPaise: 23482, // the whole amount paid for Planetary Summary (₹199 + GST since 2026-11-24)
           reason: 'Customer requested full refund in staging',
         },
         { id: stagingUserA.id, role: Role.USER }

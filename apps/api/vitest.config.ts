@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Answers calls to third parties locally so no test reaches a real gateway (see the file).
+    setupFiles: [path.resolve(__dirname, 'tests/setup/no-external-network.ts')],
     pool: 'forks',
     env: {
       NODE_ENV: 'test',
