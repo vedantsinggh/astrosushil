@@ -21,6 +21,7 @@ export const usersQuerySchema = paginationQuerySchema.extend({
 export const reportsQuerySchema = paginationQuerySchema.extend({
   status: z.string().optional(),
   reportType: z.string().optional(),
+  language: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   sortBy: z.enum(['newest', 'oldest', 'duration', 'status']).optional().default('newest'),

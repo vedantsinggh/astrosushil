@@ -88,6 +88,7 @@ const staffProfileFields = {
   designation: trimmedOptional(80),
   website: z.string().trim().url().max(300).optional(),
   portfolioLink: z.string().trim().url().max(300).optional(),
+  profilePhoto: z.string().trim().url().max(500).nullable().optional(),
   address: trimmedOptional(300),
   city: trimmedOptional(80),
   state: trimmedOptional(80),
@@ -102,6 +103,12 @@ export const updateOwnProfileSchema = z.object(staffProfileFields).strict();
 export const updateStaffRoleSchema = z.object({ roleId: uuid }).strict();
 
 export const updateStaffStatusSchema = z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']) }).strict();
+
+export const updateStaffPhotoSchema = z
+  .object({
+    photoUrl: z.string().trim().url().max(500).nullable(),
+  })
+  .strict();
 
 export const resetStaffPasswordSchema = z.object({ newPassword: staffPasswordSchema }).strict();
 

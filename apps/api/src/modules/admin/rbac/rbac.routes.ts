@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { checkPermission, denyMessage, getRequestStaffAccess } from './check-permission';
-import { AuthorizationError } from '../../../errors/app-error';
+import { AuthorizationError, ValidationError } from '../../../errors/app-error';
+import { getUploadPolicy } from '../../../services/storage/upload-policy';
+import { uploadsService } from '../../uploads/uploads.service';
 import { roleService } from './role.service';
 import { staffService } from './staff.service';
 import {
@@ -16,11 +18,33 @@ import {
   updateOwnProfileSchema,
   updateRoleSchema,
   updateRoleStatusSchema,
+  updateStaffPhotoSchema,
   updateStaffRoleSchema,
   updateStaffSchema,
   updateStaffStatusSchema,
 } from './rbac.schemas';
 import type { RbacActor, RequestMeta } from './rbac.types';
+
+async function extractPhotoUrl(request: FastifyRequest): Promise<string | null> {
+  if (request.isMultipart()) {
+    const policy = getUploadPolicy('profile');
+    const part = await request.file({ limits: { fileSize: policy.maxBytes, files: 1 } });
+    if (!part || (part.fieldname !== 'file' && part.fieldname !== 'photo')) {
+      part?.file.resume();
+      throw new ValidationError('Send the file as multipart/form-data in a field named "file" or "photo"');
+    }
+    const buffer = await part.toBuffer();
+    const uploaded = await uploadsService.storeUpload({
+      purpose: 'profile',
+      buffer,
+      declaredMimeType: part.mimetype,
+      filename: part.filename,
+    });
+    return uploaded.url;
+  }
+  const body = updateStaffPhotoSchema.parse(request.body ?? {});
+  return body.photoUrl;
+}
 
 async function actorOf(request: FastifyRequest): Promise<RbacActor> {
   const access = await getRequestStaffAccess(request);
@@ -126,6 +150,15 @@ export async function rbacRoutes(scope: FastifyInstance, _options: FastifyPlugin
     },
   });
 
+  scope.get('/roles/permissions-catalogue', {
+    preHandler: [checkPermission('permissions:read', 'roles:read', 'roles:create', 'roles:update')],
+    schema: { tags: ['Admin Roles'], summary: 'The permission catalogue alias for /permissions' },
+    handler: async (request, reply) => {
+      const query = permissionsQuerySchema.parse(request.query);
+      return reply.status(200).send(roleService.getPermissions(query.flat === 'true'));
+    },
+  });
+
   // ---- Staff ----------------------------------------------------------------------------------
 
   scope.get('/staff', {
@@ -144,6 +177,26 @@ export async function rbacRoutes(scope: FastifyInstance, _options: FastifyPlugin
       const body = createStaffSchema.parse(request.body);
       const result = await staffService.createStaff(body, await actorOf(request), metaOf(request));
       return reply.status(201).send(result);
+    },
+  });
+
+  scope.post('/staff/me/photo', {
+    schema: { tags: ['Admin Staff'], summary: 'Upload or update own profile photo' },
+    handler: async (request, reply) => {
+      const photoUrl = await extractPhotoUrl(request);
+      const result = await staffService.updateOwnPhoto(photoUrl, await actorOf(request), metaOf(request));
+      return reply.status(200).send(result);
+    },
+  });
+
+  scope.post('/staff/:id/photo', {
+    preHandler: [checkPermission('staff:update')],
+    schema: { tags: ['Admin Staff'], summary: 'Upload or update a staff profile photo' },
+    handler: async (request, reply) => {
+      const { id } = staffIdParamSchema.parse(request.params);
+      const photoUrl = await extractPhotoUrl(request);
+      const result = await staffService.updateStaffPhoto(id, photoUrl, await actorOf(request), metaOf(request));
+      return reply.status(200).send(result);
     },
   });
 

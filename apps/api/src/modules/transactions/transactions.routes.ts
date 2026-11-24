@@ -67,6 +67,15 @@ export async function transactionsRoutes(fastify: FastifyInstance, _options: Fas
       },
     });
 
+    adminScope.get('/admin/transactions/:id', {
+      schema: { tags: ['Admin Transactions'], summary: 'Payment transaction detail by ID', security: [{ bearerAuth: [] }] },
+      preHandler: [checkPermission('transactions:read')],
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        return reply.status(200).send(await transactionsService.get(id));
+      },
+    });
+
     adminScope.get('/admin/gst-report', {
       schema: { tags: ['Admin Transactions'], summary: 'GST report: invoice-wise rows and totals', security: [{ bearerAuth: [] }] },
       preHandler: [checkPermission('gst_report:read')],

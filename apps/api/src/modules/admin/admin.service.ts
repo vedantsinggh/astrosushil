@@ -500,7 +500,7 @@ export class AdminService {
       recentOrders,
     ] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { emailVerifiedAt: { not: null } } }),
+      prisma.user.count({ where: { OR: [{ emailVerifiedAt: { not: null } }, { phoneVerifiedAt: { not: null } }] } }),
       prisma.birthProfile.count(),
       prisma.report.count(),
       prisma.report.count({ where: { status: 'FAILED' } }),
@@ -603,6 +603,73 @@ export class AdminService {
         userEmail: o.user.email,
         createdAt: o.createdAt.toISOString(),
       })),
+    };
+  }
+
+  /**
+   * Get Operations Dashboard Summary with 12-Month Revenue Series
+   */
+  public async getDashboardSummary() {
+    const now = new Date();
+    const startOf12MonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
+
+    const [
+      dashboardData,
+      monthlyOrders,
+    ] = await Promise.all([
+      this.getDashboard(),
+      prisma.order.findMany({
+        where: {
+          status: 'PAID',
+          paidAt: { gte: startOf12MonthsAgo },
+        },
+        select: {
+          amount: true,
+          paidAt: true,
+        },
+      }),
+    ]);
+
+    const monthBuckets: Record<string, { revenue: number; orders: number }> = {};
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11 + i, 1));
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+      monthBuckets[key] = { revenue: 0, orders: 0 };
+    }
+
+    for (const order of monthlyOrders) {
+      if (order.paidAt) {
+        const d = new Date(order.paidAt);
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+        if (monthBuckets[key]) {
+          monthBuckets[key].revenue += Math.round(order.amount / 100);
+          monthBuckets[key].orders += 1;
+        }
+      }
+    }
+
+    const monthlyRevenue = Object.entries(monthBuckets).map(([month, data]) => ({
+      month,
+      revenue: data.revenue,
+      orders: data.orders,
+    }));
+
+    const currentMonth = monthlyRevenue[monthlyRevenue.length - 1];
+    const prevMonth = monthlyRevenue[monthlyRevenue.length - 2];
+    let revenueGrowth: number | null = null;
+    if (prevMonth && prevMonth.revenue > 0) {
+      revenueGrowth = Math.round(((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 1000) / 10;
+    }
+
+    return {
+      ...dashboardData,
+      monthlyRevenue,
+      revenueGrowth,
+      totalSales: dashboardData.metrics.financials.grossRevenue,
+      totalOrders: dashboardData.metrics.financials.paidOrders,
+      avgOrderValue: dashboardData.metrics.financials.paidOrders > 0
+        ? Math.round((dashboardData.metrics.financials.grossRevenue / dashboardData.metrics.financials.paidOrders) * 100) / 100
+        : 0,
     };
   }
 
@@ -1545,15 +1612,21 @@ export class AdminService {
   /**
    * Get Reports List with Filters & Sorting
    */
-  public async getReports(query: { status?: string; reportType?: string; startDate?: string; endDate?: string; sortBy?: string; page?: number; pageSize?: number; search?: string }) {
+  public async getReports(query: { status?: string; reportType?: string; language?: string; startDate?: string; endDate?: string; sortBy?: string; page?: number; pageSize?: number; search?: string }) {
     const page = Math.max(1, Number(query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 25));
     const skip = (page - 1) * pageSize;
 
     const where: any = {};
 
-    if (query.status) where.status = query.status;
+    if (query.status === 'STUCK') {
+      where.status = { notIn: ['COMPLETED', 'FAILED'] };
+      where.createdAt = { lt: new Date(Date.now() - STUCK_TIMEOUT_MS) };
+    } else if (query.status) {
+      where.status = query.status;
+    }
     if (query.reportType) where.reportType = query.reportType;
+    if (query.language) where.language = query.language;
 
     if (query.search?.trim()) {
       const searchTerm = query.search.trim();
@@ -1561,6 +1634,8 @@ export class AdminService {
         { id: { contains: searchTerm } },
         { user: { email: { contains: searchTerm, mode: 'insensitive' } } },
         { user: { fullName: { contains: searchTerm, mode: 'insensitive' } } },
+        { user: { phoneNumber: { contains: searchTerm } } },
+        { birthProfile: { name: { contains: searchTerm, mode: 'insensitive' } } },
       ];
     }
 
@@ -1587,6 +1662,7 @@ export class AdminService {
               id: true,
               email: true,
               fullName: true,
+              phoneNumber: true,
             },
           },
           birthProfile: {
@@ -1595,17 +1671,37 @@ export class AdminService {
               name: true,
             },
           },
+          order: {
+            select: {
+              id: true,
+              status: true,
+              paymentStatus: true,
+              amount: true,
+            },
+          },
         },
       }),
       prisma.report.count({ where }),
     ]);
 
-    const items = reports.map((r) => {
+    const orderIds = reports.map((r) => r.orderId).filter((id): id is string => Boolean(id));
+    const invoices = orderIds.length
+      ? await prisma.invoice.findMany({
+          where: { orderId: { in: orderIds } },
+          select: { orderId: true, number: true },
+        })
+      : [];
+    const invoiceByOrderId = new Map(invoices.map((inv) => [inv.orderId as string, inv.number]));
+
+    let items = reports.map((r) => {
       let durationSeconds: number | null = null;
+      let generationDurationMs: number | null = null;
       if (r.completedAt) {
-        durationSeconds = Math.round((new Date(r.completedAt).getTime() - new Date(r.createdAt).getTime()) / 1000);
+        generationDurationMs = new Date(r.completedAt).getTime() - new Date(r.createdAt).getTime();
+        durationSeconds = Math.round(generationDurationMs / 1000);
       } else if (r.failedAt) {
-        durationSeconds = Math.round((new Date(r.failedAt).getTime() - new Date(r.createdAt).getTime()) / 1000);
+        generationDurationMs = new Date(r.failedAt).getTime() - new Date(r.createdAt).getTime();
+        durationSeconds = Math.round(generationDurationMs / 1000);
       }
 
       const isStuck = !['COMPLETED', 'FAILED'].includes(r.status) && Date.now() - new Date(r.createdAt).getTime() > STUCK_TIMEOUT_MS;
@@ -1614,15 +1710,39 @@ export class AdminService {
         id: r.id,
         reportType: r.reportType,
         status: isStuck ? 'STUCK' : r.status,
-        user: r.user,
-        birthProfile: r.birthProfile,
-        durationSeconds,
+        originalStatus: r.status,
+        stage: r.stage,
+        progress: r.progress,
+        reportVersion: r.reportVersion,
+        fileName: r.fileName,
+        fileSize: r.fileSize,
+        pageCount: r.pageCount,
         errorCode: r.errorCode,
         errorMessage: r.errorMessage,
+        isStuck,
+        durationSeconds,
+        generationDurationMs,
+        language: r.language,
         createdAt: r.createdAt.toISOString(),
         completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+        failedAt: r.failedAt ? r.failedAt.toISOString() : null,
+        user: r.user,
+        birthProfile: r.birthProfile,
+        order: r.order
+          ? {
+              id: r.order.id,
+              status: r.order.status,
+              paymentStatus: r.order.paymentStatus,
+              totalPaise: r.order.amount,
+              invoiceNumber: r.order.id ? (invoiceByOrderId.get(r.order.id) ?? null) : null,
+            }
+          : null,
       };
     });
+
+    if (query.sortBy === 'duration') {
+      items = items.sort((a, b) => ((b.generationDurationMs ?? 0) - (a.generationDurationMs ?? 0)));
+    }
 
     return {
       items,

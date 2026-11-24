@@ -101,6 +101,15 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
       },
     });
 
+    protectedRoutes.get('/dashboard/summary', {
+      preHandler: [checkPermission('dashboard:read')],
+      schema: { tags: ['Admin Dashboard'], summary: 'Get Admin Dashboard summary and revenue series' },
+      handler: async (_request, reply) => {
+        const result = await adminService.getDashboardSummary();
+        return reply.status(200).send(result);
+      },
+    });
+
     // Subscriptions List
     protectedRoutes.get('/subscriptions', {
       preHandler: [checkPermission('subscriptions:read')],

@@ -133,6 +133,41 @@ beforeEach(async () => {
   await consultationTypesService.refresh({ force: true });
 });
 
+describe('manual booking quote', () => {
+  it('calculates price quote with no discount', async () => {
+    const quote = await service.quote({ consultationId: 'type-gen', mode: 'AUDIO' });
+    expect(quote.pricePaise).toBe(1000000);
+    expect(quote.discountPaise).toBe(0);
+    expect(quote.totalPaise).toBe(1000000);
+  });
+
+  it('calculates price quote with percentage discount', async () => {
+    const quote = await service.quote({
+      consultationId: 'type-gen',
+      mode: 'VIDEO',
+      discountType: 'PERCENTAGE',
+      discountValue: 1000, // 10%
+    });
+    expect(quote.pricePaise).toBe(1500000);
+    expect(quote.discountPaise).toBe(150000);
+    expect(quote.taxablePaise).toBe(1350000);
+    expect(quote.gstPaise).toBe(243000);
+    expect(quote.totalPaise).toBe(1593000);
+  });
+
+  it('refuses combining coupon with staff discount', async () => {
+    await expect(
+      service.quote({
+        consultationId: 'type-gen',
+        mode: 'AUDIO',
+        discountType: 'FLAT',
+        discountValue: 500,
+        couponCode: 'PROMO10',
+      })
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
 describe('manual booking', () => {
   it('books for an existing customer, confirmed and paid manually, with the slot taken', async () => {
     const { booking, createdUser } = await service.createManual(

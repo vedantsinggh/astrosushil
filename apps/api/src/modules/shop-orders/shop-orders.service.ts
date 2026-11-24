@@ -891,8 +891,7 @@ export class ShopOrdersService {
 
   // ---------------------------------------------------------------- admin
 
-  public async adminList(query: z.infer<typeof adminListOrdersQuerySchema>) {
-    const { page, limit, skip } = pageParams(query.page, query.limit, 200);
+  private adminListWhere(query: z.infer<typeof adminListOrdersQuerySchema>): Prisma.OrderWhereInput {
     const where: Prisma.OrderWhereInput = { shopOrder: { isNot: null } };
     if (query.status) {
       const status = parseWebsiteStatus(query.status);
@@ -915,6 +914,12 @@ export class ShopOrdersService {
         { id: search },
       ];
     }
+    return where;
+  }
+
+  public async adminList(query: z.infer<typeof adminListOrdersQuerySchema>) {
+    const { page, limit, skip } = pageParams(query.page, query.limit, 200);
+    const where = this.adminListWhere(query);
     const [orders, totalOrders] = await Promise.all([
       prisma.order.findMany({ where, include: ADMIN_ORDER_INCLUDE, orderBy: { createdAt: 'desc' }, skip, take: limit }),
       prisma.order.count({ where }),
@@ -922,6 +927,116 @@ export class ShopOrdersService {
     return {
       orders: orders.map(toOrderView),
       pagination: { totalOrders, currentPage: page, totalPages: Math.ceil(totalOrders / limit), limit },
+    };
+  }
+
+  public async adminExportCsv(query: z.infer<typeof adminListOrdersQuerySchema>) {
+    const where = this.adminListWhere(query);
+    const orders = await prisma.order.findMany({
+      where,
+      include: ADMIN_ORDER_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    const headers = [
+      'Order ID',
+      'Customer Name',
+      'Email',
+      'Phone',
+      'Product',
+      'Quantity',
+      'Item Price',
+      'Order Type',
+      'Order Status',
+      'Payment Status',
+      'Currency',
+      'Order Total',
+      'Date',
+    ];
+
+    const escapeCsv = (val: string | number | null | undefined) => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const lines: string[] = [headers.join(',')];
+
+    for (const order of orders) {
+      const customerName = order.user?.fullName || '';
+      const email = order.user?.email || '';
+      const phone = order.user?.phoneNumber || '';
+      const orderType = order.shopOrder?.orderType || 'physical';
+      const orderStatus = order.shopOrder ? toWebsiteStatus(order.shopOrder.status) : '';
+      const paymentStatus = websitePaymentStatus(order);
+      const currency = order.currency || 'INR';
+      const orderTotal = (order.amount / 100).toFixed(2);
+      const date = order.createdAt.toISOString();
+
+      if (order.items && order.items.length > 0) {
+        for (const item of order.items) {
+          lines.push(
+            [
+              escapeCsv(order.id),
+              escapeCsv(customerName),
+              escapeCsv(email),
+              escapeCsv(phone),
+              escapeCsv(item.title),
+              escapeCsv(item.quantity),
+              escapeCsv((item.unitPrice / 100).toFixed(2)),
+              escapeCsv(orderType),
+              escapeCsv(orderStatus),
+              escapeCsv(paymentStatus),
+              escapeCsv(currency),
+              escapeCsv(orderTotal),
+              escapeCsv(date),
+            ].join(',')
+          );
+        }
+      } else {
+        lines.push(
+          [
+            escapeCsv(order.id),
+            escapeCsv(customerName),
+            escapeCsv(email),
+            escapeCsv(phone),
+            escapeCsv(''),
+            escapeCsv(0),
+            escapeCsv('0.00'),
+            escapeCsv(orderType),
+            escapeCsv(orderStatus),
+            escapeCsv(paymentStatus),
+            escapeCsv(currency),
+            escapeCsv(orderTotal),
+            escapeCsv(date),
+          ].join(',')
+        );
+      }
+    }
+
+    return lines.join('\r\n');
+  }
+
+  public async adminHistory(orderId: string) {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        OR: [
+          { resource: `Order:${orderId}` },
+          { details: { contains: orderId } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return {
+      history: logs.map((l) => ({
+        id: l.id,
+        action: l.action,
+        details: l.details,
+        adminEmail: l.adminEmail,
+        createdAt: l.createdAt.toISOString(),
+      })),
     };
   }
 

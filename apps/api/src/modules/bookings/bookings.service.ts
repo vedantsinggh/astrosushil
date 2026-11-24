@@ -38,6 +38,7 @@ import { restateConsultationOrder, restatePaidAmountMinor } from '../commerce/mo
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { claimSlot, OCCUPYING_BOOKING_STATUSES, PRACTITIONER_ID, PRACTITIONER_NAME, releaseSlot } from './slot-hold';
 import { couponsService } from '../coupons/coupons.service';
+import type { BookingQuoteInput } from './bookings.schemas';
 
 export interface AdminActor {
   id: string;
@@ -504,6 +505,44 @@ export class BookingsService {
   // ---------------------------------------------------------------------------
   // Manual booking
   // ---------------------------------------------------------------------------
+
+  /**
+   * Price quote for a manual booking or plan change with optional discount or coupon.
+   */
+  public async quote(input: BookingQuoteInput) {
+    if (input.couponCode && (input.discountType !== undefined || (input.discountValue !== undefined && input.discountValue > 0))) {
+      throw new ValidationError('Coupons cannot be combined with a staff discount');
+    }
+    await consultationTypesService.refresh({ force: true });
+    const offering = consultationTypesService.resolveOffering(input.consultationId, input.mode, { includeInactive: true });
+
+    let discountPaise = computeDiscountPaise(offering.mode.pricePaise, input.discountType, input.discountValue);
+    if (input.couponCode) {
+      const { coupon, result: evalResult } = await couponsService.evaluate(prisma, {
+        code: input.couponCode,
+        userId: input.userId || 'guest-quote',
+        itemsTotalPaise: offering.mode.pricePaise,
+        saleType: 'consultations',
+      });
+      if (!coupon || !evalResult.ok) {
+        const reason = !evalResult.ok ? evalResult.reason : 'COUPON_INACTIVE';
+        const message = !evalResult.ok ? evalResult.message : 'This coupon is no longer valid';
+        throw new AppError(message, 400, reason);
+      }
+      discountPaise = evalResult.discountPaise;
+    }
+    const pricing = computeGst(offering.mode.pricePaise - discountPaise, offering.mode.gst);
+
+    return {
+      pricePaise: offering.mode.pricePaise,
+      discountPaise,
+      taxablePaise: pricing.taxablePaise,
+      gstPaise: pricing.gstPaise,
+      gstRateBasisPoints: pricing.rateBasisPoints,
+      gstType: pricing.type,
+      totalPaise: pricing.totalPaise,
+    };
+  }
 
   /**
    * Website `POST /booking/admin/book`: staff book a slot for an existing or a new customer,

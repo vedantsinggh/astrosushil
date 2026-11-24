@@ -674,6 +674,44 @@ describe('admin order status', () => {
     await expect(shopOrdersService.adminUpdateStatus('o1', { orderStatus: 'delivered' }, ACTOR)).rejects.toMatchObject({ statusCode: 400 });
     expect(mocks.adminService.logAction).not.toHaveBeenCalled();
   });
+
+  it('exports orders as CSV with expected headers and rows', async () => {
+    db.order.findMany.mockResolvedValue([
+      {
+        id: 'ord-1',
+        createdAt: new Date('2026-11-20T10:00:00Z'),
+        amount: 250000,
+        currency: 'INR',
+        paymentStatus: 'CAPTURED',
+        status: 'PAID',
+        user: { fullName: 'Asha Verma', email: 'asha@example.com', phoneNumber: '+919800000001' },
+        shopOrder: { orderType: 'physical', status: 'SHIPPED' },
+        items: [{ title: 'Rudraksha Mala', quantity: 2, unitPrice: 125000 }],
+      },
+    ]);
+    const csv = await shopOrdersService.adminExportCsv({});
+    expect(csv).toContain('Order ID,Customer Name,Email,Phone,Product,Quantity,Item Price,Order Type,Order Status,Payment Status,Currency,Order Total,Date');
+    expect(csv).toContain('"ord-1","Asha Verma","asha@example.com","+919800000001","Rudraksha Mala","2","1250.00","physical","shipped","paid","INR","2500.00"');
+  });
+
+  it('retrieves order audit history', async () => {
+    db.auditLog.findMany.mockResolvedValue([
+      {
+        id: 'log-1',
+        action: 'SHOP_ORDER_STATUS_UPDATE',
+        details: 'Order status processing -> shipped',
+        adminEmail: 'admin@astrosushil.com',
+        createdAt: new Date('2026-11-20T12:00:00Z'),
+      },
+    ]);
+    const res = await shopOrdersService.adminHistory('ord-1');
+    expect(res.history).toHaveLength(1);
+    expect(res.history[0]).toMatchObject({
+      id: 'log-1',
+      action: 'SHOP_ORDER_STATUS_UPDATE',
+      adminEmail: 'admin@astrosushil.com',
+    });
+  });
 });
 
 describe('shop payment verification (website security finding 2)', () => {

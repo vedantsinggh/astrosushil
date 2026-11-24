@@ -32,6 +32,7 @@ import {
   adminBookingListQuerySchema,
   adminRescheduleSchema,
   bookingIdParamSchema,
+  bookingQuoteSchema,
   bookingsByDateQuerySchema,
   changePlanSchema,
   manualBookingSchema,
@@ -382,6 +383,15 @@ export async function bookingsAdminRoutes(fastify: FastifyInstance) {
           `Refund ${result.refund.id} of ${result.refund.amount} paise, status ${result.refund.status}; booking is now ${result.booking.status}`
         );
         return send(reply, result, result.fullyRefunded ? 'Payment refunded; booking marked refunded' : 'Refund recorded');
+      },
+    });
+
+    admin.post('/admin/bookings/quote', {
+      preHandler: [checkPermission('bookings:read')],
+      schema: { tags: ['Admin Bookings'], summary: 'Calculate price quote for manual booking or plan change' },
+      handler: async (request, reply) => {
+        const body = bookingQuoteSchema.parse(request.body);
+        return send(reply, await bookingsService.quote(body), 'Booking quote calculated');
       },
     });
 

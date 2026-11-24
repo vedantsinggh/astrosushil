@@ -1,6 +1,7 @@
 import { LedgerTransactionStatus, LedgerTransactionType, PaymentTransaction, Prisma, SalePaymentMethod } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { logger } from '../../utils/logger';
+import { NotFoundError } from '../../errors/app-error';
 import { getSellerDetails } from '../invoices/seller';
 import { invoiceLabel } from '../invoices/invoice-number';
 import { AttemptOptions, LedgerOrder, buildAttemptData, sanitizeGatewayPayload } from './ledger';
@@ -282,7 +283,7 @@ export class TransactionsService {
   /** Admin list (website `GET /transactions`): newest first, paged, with the website's filters. */
   public async list(query: TransactionsQuery) {
     const where = await this.listWhere(query);
-    const [transactions, total] = await Promise.all([
+    const [transactions, total, success, pending, failed, collectedAgg] = await Promise.all([
       prisma.paymentTransaction.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -290,6 +291,13 @@ export class TransactionsService {
         take: query.limit,
       }),
       prisma.paymentTransaction.count({ where }),
+      prisma.paymentTransaction.count({ where: { ...where, status: LedgerTransactionStatus.SUCCESS } }),
+      prisma.paymentTransaction.count({ where: { ...where, status: LedgerTransactionStatus.PENDING } }),
+      prisma.paymentTransaction.count({ where: { ...where, status: LedgerTransactionStatus.FAILED } }),
+      prisma.paymentTransaction.aggregate({
+        where: { ...where, status: LedgerTransactionStatus.SUCCESS },
+        _sum: { baseAmountPaise: true },
+      }),
     ]);
     const context = await this.loadContext(transactions);
     return {
@@ -298,7 +306,21 @@ export class TransactionsService {
       page: query.page,
       limit: query.limit,
       totalPages: Math.ceil(total / query.limit),
+      totals: {
+        all: total,
+        success,
+        pending,
+        failed,
+        collectedPaise: collectedAgg._sum.baseAmountPaise ?? 0,
+      },
     };
+  }
+
+  public async get(id: string) {
+    const txn = await prisma.paymentTransaction.findUnique({ where: { id } });
+    if (!txn) throw new NotFoundError('Transaction not found');
+    const [ctx] = await this.loadContext([txn]);
+    return this.present(ctx);
   }
 
   /** CSV of the filtered ledger (all pages), capped. */

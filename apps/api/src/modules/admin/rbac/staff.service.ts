@@ -124,6 +124,7 @@ function profileData(input: UpdateStaffInput): Prisma.StaffProfileUpdateInput {
     ...(input.designation !== undefined ? { designation: input.designation } : {}),
     ...(input.website !== undefined ? { website: input.website } : {}),
     ...(input.portfolioLink !== undefined ? { portfolioLink: input.portfolioLink } : {}),
+    ...(input.profilePhoto !== undefined ? { profilePhoto: input.profilePhoto } : {}),
     ...(input.address !== undefined ? { address: input.address } : {}),
     ...(input.city !== undefined ? { city: input.city } : {}),
     ...(input.state !== undefined ? { state: input.state } : {}),
@@ -424,6 +425,7 @@ export class StaffService {
           designation: input.designation ?? null,
           website: input.website ?? null,
           portfolioLink: input.portfolioLink ?? null,
+          profilePhoto: input.profilePhoto ?? null,
           address: input.address ?? null,
           city: input.city ?? null,
           state: input.state ?? null,
@@ -473,6 +475,42 @@ export class StaffService {
     });
 
     return { message: 'Password changed successfully' };
+  }
+
+  public async updateStaffPhoto(staffUserId: string, photoUrl: string | null, actor: RbacActor, meta?: RequestMeta) {
+    const staff = await loadStaff(staffUserId);
+    assertCanTouchSuperAdmin(actor, staff);
+    await prisma.staffProfile.update({
+      where: { userId: staffUserId },
+      data: { profilePhoto: photoUrl },
+    });
+    await adminService.logAction({
+      adminId: actor.id,
+      adminEmail: actor.email,
+      action: 'STAFF_PHOTO_UPDATED',
+      resource: `Staff:${staffUserId}`,
+      details: photoUrl ? `Photo updated to ${photoUrl}` : 'Photo removed',
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+    return this.getStaff(staffUserId);
+  }
+
+  public async updateOwnPhoto(photoUrl: string | null, actor: RbacActor, meta?: RequestMeta) {
+    await prisma.staffProfile.update({
+      where: { userId: actor.id },
+      data: { profilePhoto: photoUrl },
+    });
+    await adminService.logAction({
+      adminId: actor.id,
+      adminEmail: actor.email,
+      action: 'ADMIN_PHOTO_UPDATED',
+      resource: `Staff:${actor.id}`,
+      details: photoUrl ? `Photo updated to ${photoUrl}` : 'Photo removed',
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+    return this.getOwnProfile(actor);
   }
 }
 

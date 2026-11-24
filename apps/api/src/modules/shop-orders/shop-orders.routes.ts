@@ -75,6 +75,30 @@ export async function adminShopOrdersRoutes(fastify: FastifyInstance) {
     return sendOk(reply, await shopOrdersService.adminReports(), 'Order reports fetched successfully');
   });
 
+  fastify.get('/shop-orders/export.csv', { preHandler: [requirePermission('orders:export')] }, async (request, reply) => {
+    const query = adminListOrdersQuerySchema.parse(request.query);
+    const csv = await shopOrdersService.adminExportCsv(query);
+    return reply
+      .header('Content-Type', 'text/csv; charset=utf-8')
+      .header('Content-Disposition', 'attachment; filename="orders.csv"')
+      .send(csv);
+  });
+
+  fastify.get('/shop-orders/export', { preHandler: [requirePermission('orders:export')] }, async (request, reply) => {
+    const query = adminListOrdersQuerySchema.parse(request.query);
+    const csv = await shopOrdersService.adminExportCsv(query);
+    return reply
+      .header('Content-Type', 'text/csv; charset=utf-8')
+      .header('Content-Disposition', 'attachment; filename="orders.csv"')
+      .send(csv);
+  });
+
+  fastify.get('/shop-orders/:orderId/history', { preHandler: [requirePermission('orders:read')] }, async (request, reply) => {
+    const { orderId } = request.params as { orderId: string };
+    const historyData = await shopOrdersService.adminHistory(orderId);
+    return sendOk(reply, historyData, 'Order history fetched successfully');
+  });
+
   fastify.get('/shop-orders/:orderId', { preHandler: [requirePermission('orders:read')] }, async (request, reply) => {
     const { orderId } = request.params as { orderId: string };
     return sendOk(reply, await shopOrdersService.adminGet(orderId), 'Order details fetched successfully');

@@ -40,6 +40,24 @@ export const manualBookingSchema = z
     path: ['userId'],
   });
 
+export const bookingQuoteSchema = z
+  .object({
+    consultationId: z.string().min(1).max(200),
+    mode: consultationModeSchema.optional(),
+    userId: z.string().uuid().optional(),
+    discountType: z.enum(['FLAT', 'PERCENTAGE']).optional(),
+    /** FLAT: paise. PERCENTAGE: basis points (1250 = 12.5%). */
+    discountValue: z.number().int().min(0).max(1_000_000_000).optional(),
+    couponCode: z.string().trim().min(3).max(20).optional(),
+  })
+  .strict()
+  .refine((d) => d.discountType !== 'PERCENTAGE' || d.discountValue === undefined || d.discountValue <= 10000, {
+    message: 'Percentage discount cannot exceed 100',
+    path: ['discountValue'],
+  });
+
+export type BookingQuoteInput = z.infer<typeof bookingQuoteSchema>;
+
 export const adminRescheduleSchema = z.object({ date: calendarDate, slot, adminNote }).strict();
 
 /** Payment conflict (paid, slot taken): staff give the customer another time. No charge is made. */
