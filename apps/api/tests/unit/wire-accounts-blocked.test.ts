@@ -1,8 +1,8 @@
 /**
  * Blocked (suspended or deleted) accounts: one check for the login paths, token refresh and every
  * authenticated request, with a short per-user cache.
- * prisma, the suspension lookup, OTP storage and delivery, password hashing, Google verification
- * and refresh-token storage are substituted; nothing leaves the process.
+ * prisma, the suspension lookup, OTP storage and delivery and refresh-token storage are
+ * substituted; nothing leaves the process.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
@@ -25,7 +25,7 @@ const h = vi.hoisted(() => {
     blocked: new Set<string>(),
     lookupFails: false,
     validOtp: '123456',
-    google: { googleId: 'g-1', email: 'asha@example.test', fullName: 'Asha' },
+    staffUserIds: new Set<string>(),
     savedTokens: [] as Array<{ userId: string; token: string }>,
   };
   const matches = (u: TestUser, where: Record<string, unknown>) =>
@@ -45,6 +45,9 @@ const h = vi.hoisted(() => {
         return user;
       }),
     },
+    staffProfile: {
+      findUnique: vi.fn(async ({ where }: { where: { userId: string } }) => (state.staffUserIds.has(where.userId) ? { isDeleted: false } : null)),
+    },
     refreshToken: { updateMany: vi.fn(async () => ({ count: 1 })) },
     birthProfile: { findFirst: vi.fn(async () => null), create: vi.fn() },
   };
@@ -56,6 +59,7 @@ const h = vi.hoisted(() => {
       return state.blocked.has(userId);
     }),
     deliverOtp: vi.fn(async () => ({ delivered: true })),
+    deliverEmailOtp: vi.fn(async () => ({ ok: true })),
     createOtpRecord: vi.fn(async () => undefined),
     saveRefreshToken: vi.fn(async (userId: string, token: string) => {
       state.savedTokens.push({ userId, token });
@@ -82,11 +86,8 @@ vi.mock('../../src/modules/auth/otp.service', () => ({
   },
 }));
 vi.mock('../../src/services/messaging/otp-delivery.service', () => ({
-  otpDeliveryService: { sendPhoneOtp: h.deliverOtp },
+  otpDeliveryService: { sendPhoneOtp: h.deliverOtp, sendEmailOtp: h.deliverEmailOtp },
   otpSendLimiter: { consume: vi.fn(async () => ({ allowed: true })), release: vi.fn() },
-}));
-vi.mock('../../src/modules/auth/google-auth.service', () => ({
-  googleAuthService: { verifyGoogleToken: vi.fn(async () => h.state.google) },
 }));
 vi.mock('../../src/services/email.service', () => ({
   emailService: { sendVerificationEmail: vi.fn(), sendPasswordResetEmail: vi.fn() },
@@ -114,6 +115,7 @@ import { globalErrorHandler } from '../../src/errors/error-handler';
 
 const { state, prisma } = h;
 const PHONE = '+919876543210';
+const EMAIL = 'asha@example.test';
 const signJwt = (payload: object) => `jwt:${JSON.stringify(payload)}`;
 
 function user(overrides: Partial<TestUser> = {}): TestUser {
@@ -134,7 +136,7 @@ beforeEach(() => {
   state.blocked = new Set();
   state.lookupFails = false;
   state.savedTokens = [];
-  state.google = { googleId: 'g-1', email: 'asha@example.test', fullName: 'Asha' };
+  state.staffUserIds = new Set();
   invalidateAccountStatusCache();
   auth = new AuthService();
 });
@@ -182,42 +184,63 @@ describe('login paths refuse a blocked account', () => {
     expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 
-  it('password login: wrong password is a 401 for a blocked account too; the right one is refused with 403', async () => {
+  it('e-mail OTP send answers a blocked account exactly as any other account, and still sends the code', async () => {
+    const normal = await auth.sendEmailOtp({ email: EMAIL });
     state.blocked.add('u1');
-    await expect(auth.login({ email: 'asha@example.test', password: 'wrong' }, signJwt)).rejects.toMatchObject({
+    const blocked = await auth.sendEmailOtp({ email: EMAIL });
+
+    expect(blocked).toEqual(normal);
+    expect(h.deliverEmailOtp).toHaveBeenCalledTimes(2);
+    expect(h.isUserSuspended).not.toHaveBeenCalled();
+  });
+
+  it('e-mail OTP: a wrong code is a 401 for a blocked account too; the right one is refused with 403', async () => {
+    state.blocked.add('u1');
+    await expect(auth.verifyEmailOtp({ email: EMAIL, otp: '000000' }, signJwt)).rejects.toMatchObject({
       statusCode: 401,
-      message: 'Invalid email address or password',
+      message: 'This code has expired or is invalid. Request a new one.',
     });
     expect(h.isUserSuspended).not.toHaveBeenCalled();
 
-    await expect(auth.login({ email: 'asha@example.test', password: 'correct-password' }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
+    await expect(auth.verifyEmailOtp({ email: EMAIL, otp: state.validOtp }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
     expect(state.savedTokens).toEqual([]);
-  });
-
-  it('password login of an active account still signs in', async () => {
-    const result = await auth.login({ email: 'asha@example.test', password: 'correct-password' }, signJwt);
-    expect(result).toMatchObject({ tokens: { refreshToken: 'raw-refresh-token' } });
-  });
-
-  it('Google login is refused for a blocked account found by its Google id', async () => {
-    state.users = [user({ googleId: 'g-1' })];
-    state.blocked.add('u1');
-    await expect(auth.googleAuth({ idToken: 'token' }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
-    expect(state.savedTokens).toEqual([]);
-  });
-
-  it('Google login is refused before a Google id is linked to a blocked account found by e-mail', async () => {
-    state.blocked.add('u1');
-    await expect(auth.googleAuth({ idToken: 'token' }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
     expect(prisma.user.update).not.toHaveBeenCalled();
-    expect(state.users[0].googleId).toBeNull();
-    expect(state.savedTokens).toEqual([]);
   });
 
-  it('Google login of an active account still signs in', async () => {
-    const result = await auth.googleAuth({ idToken: 'token' }, signJwt);
-    expect(result.user.id).toBe('u1');
+  it('e-mail OTP of an active account signs in, whatever the account was created with', async () => {
+    state.users = [user({ googleId: 'g-1', phoneNumber: null, phoneVerifiedAt: null })];
+    const result = await auth.verifyEmailOtp({ email: EMAIL, otp: state.validOtp }, signJwt);
+    expect(result).toMatchObject({ isNewAccount: false, user: { id: 'u1', googleId: 'g-1' }, tokens: { refreshToken: 'raw-refresh-token' } });
+    // The old credentials are left exactly as they were.
+    expect(state.users[0].passwordHash).toBe('hash:correct-password');
     expect(state.users[0].googleId).toBe('g-1');
+  });
+
+  it('an unknown identifier gets the same 401 as a wrong code, on both channels', async () => {
+    const wrong = await auth.verifyEmailOtp({ email: EMAIL, otp: '000000' }, signJwt).catch((e) => e);
+    const unknownEmail = await auth.verifyEmailOtp({ email: 'nobody@example.test', otp: '000000' }, signJwt).catch((e) => e);
+    const unknownPhone = await auth.verifyPhoneOtp({ phoneNumber: '+919800000000', otp: '000000' }, signJwt).catch((e) => e);
+    for (const answer of [unknownEmail, unknownPhone]) {
+      expect(answer).toMatchObject({ statusCode: 401, code: 'AUTHENTICATION_ERROR', message: wrong.message });
+    }
+  });
+
+  it('a staff account is refused a customer OTP session on both channels, only after a valid code', async () => {
+    state.users = [user({ role: 'ADMIN' })];
+    await expect(auth.verifyPhoneOtp({ phoneNumber: PHONE, otp: '000000' }, signJwt)).rejects.toMatchObject({ statusCode: 401 });
+    for (const attempt of [
+      () => auth.verifyPhoneOtp({ phoneNumber: PHONE, otp: state.validOtp }, signJwt),
+      () => auth.verifyEmailOtp({ email: EMAIL, otp: state.validOtp }, signJwt),
+    ]) {
+      await expect(attempt()).rejects.toMatchObject({ statusCode: 403, message: expect.stringContaining('staff account') });
+    }
+    expect(state.savedTokens).toEqual([]);
+
+    // A suspended staff account has role USER but keeps its staff profile: still refused.
+    state.users = [user({ role: 'USER' })];
+    state.staffUserIds.add('u1');
+    await expect(auth.verifyEmailOtp({ email: EMAIL, otp: state.validOtp }, signJwt)).rejects.toMatchObject({ statusCode: 403 });
+    expect(state.savedTokens).toEqual([]);
   });
 
   it('token refresh is refused and the freshly rotated token is revoked with the rest', async () => {
@@ -233,30 +256,15 @@ describe('login paths refuse a blocked account', () => {
     expect(prisma.refreshToken.updateMany.mock.invocationCallOrder[0]).toBeGreaterThan(h.rotateRefreshToken.mock.invocationCallOrder[0]);
   });
 
-  it('e-mail verification never signs in an already verified account, with or without a code', async () => {
-    await expect(auth.verifyEmail({ email: 'asha@example.test', otp: '000000' }, signJwt)).rejects.toMatchObject({ statusCode: 401 });
-    await expect(auth.verifyEmail({ email: 'asha@example.test', otp: state.validOtp }, signJwt)).rejects.toMatchObject({ statusCode: 401 });
-    expect(state.savedTokens).toEqual([]);
-  });
-
   it('token refresh of an active account still works', async () => {
     const result = await auth.refresh('refresh-of-u1', signJwt);
     expect(result).toMatchObject({ accessToken: signJwt({ sub: 'u1', role: 'USER' }), refreshToken: 'rotated-token' });
   });
 
-  it('e-mail verification does not hand a session to a blocked account', async () => {
-    state.blocked.add('u1');
-    // An already verified address never gets a session from this endpoint, blocked or not.
-    await expect(auth.verifyEmail({ email: 'asha@example.test', otp: state.validOtp }, signJwt)).rejects.toMatchObject({ statusCode: 401 });
-    state.users = [user({ emailVerifiedAt: null })];
-    await expect(auth.verifyEmail({ email: 'asha@example.test', otp: state.validOtp }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
-    expect(state.savedTokens).toEqual([]);
-  });
-
   it('login reads the status from the database even when a cached "not blocked" exists', async () => {
     expect(await isAccountBlocked('u1')).toBe(false);
     state.blocked.add('u1'); // blocked by another API instance: this process was not told
-    await expect(auth.login({ email: 'asha@example.test', password: 'correct-password' }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
+    await expect(auth.verifyEmailOtp({ email: EMAIL, otp: state.validOtp }, signJwt)).rejects.toMatchObject(BLOCKED_ERROR);
     // ...and the fresh answer replaces the cached one.
     expect(await isAccountBlocked('u1')).toBe(true);
     expect(h.isUserSuspended).toHaveBeenCalledTimes(2);

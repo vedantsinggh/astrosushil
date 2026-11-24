@@ -3,19 +3,50 @@ import { authService } from './auth.service';
 import {
   phoneSendOtpSchema,
   phoneVerifyOtpSchema,
-  googleAuthSchema,
+  emailSendOtpSchema,
+  emailVerifyOtpSchema,
   linkPhoneSchema,
-  linkGoogleSchema,
-  registerSchema,
-  loginSchema,
-  verifyEmailSchema,
-  resendVerificationSchema,
+  linkEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   refreshSchema,
   logoutSchema,
   updateProfileSchema,
 } from './auth.schemas';
+import { AppError } from '../../errors/app-error';
+
+/**
+ * Customer sign-in is by one-time code only (phone or e-mail). The password and Google endpoints
+ * of earlier app builds are kept as routes that answer 410 `AUTH_METHOD_REMOVED` with a readable
+ * message, so an old build shows the message instead of failing on a 404.
+ */
+export const AUTH_METHOD_REMOVED = 'AUTH_METHOD_REMOVED';
+const PASSWORD_REMOVED_MESSAGE =
+  'Signing in with a password is no longer available. Please update the app, then sign in with a one-time code sent to your phone number or e-mail address.';
+const GOOGLE_REMOVED_MESSAGE =
+  'Google sign-in is no longer available. Please update the app, then sign in with a one-time code sent to your phone number or to the e-mail address of your Google account.';
+
+const REMOVED_ENDPOINTS: Array<{ url: string; message: string }> = [
+  { url: '/register', message: PASSWORD_REMOVED_MESSAGE },
+  { url: '/login', message: PASSWORD_REMOVED_MESSAGE },
+  { url: '/verify-email', message: PASSWORD_REMOVED_MESSAGE },
+  { url: '/resend-verification', message: PASSWORD_REMOVED_MESSAGE },
+  { url: '/google', message: GOOGLE_REMOVED_MESSAGE },
+  { url: '/link-google', message: GOOGLE_REMOVED_MESSAGE },
+];
+
+const birthProfileBodySchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string', example: 'Rahul Sharma' },
+    dateOfBirth: { type: 'string', example: '1998-08-15' },
+    timeOfBirth: { type: 'string', example: '08:30:00' },
+    latitude: { type: 'number', example: 28.6139 },
+    longitude: { type: 'number', example: 77.2090 },
+    timezone: { type: 'string', example: 'Asia/Kolkata' },
+    placeName: { type: 'string', example: 'New Delhi, India' },
+  },
+} as const;
 
 export async function authRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
@@ -28,8 +59,8 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
   fastify.post('/phone/send-otp', {
     schema: {
       tags: ['Auth'],
-      summary: 'Request Phone OTP verification code',
-      description: 'Sends a 6-digit verification code to the normalized E.164 phone number with 60-second cooldown rate limit',
+      summary: 'Send a sign-in code to a phone number (SMS + WhatsApp)',
+      description: 'Sends a 6-digit code to the normalized E.164 phone number. Same answer whether or not the number has an account. 60-second cooldown, send limits per number and per IP.',
       body: {
         type: 'object',
         required: ['phoneNumber'],
@@ -50,26 +81,16 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
   fastify.post('/phone/verify-otp', {
     schema: {
       tags: ['Auth'],
-      summary: 'Verify Phone OTP and authenticate session',
-      description: 'Verifies 6-digit numeric OTP and returns authenticated session tokens with user profile',
+      summary: 'Verify a phone sign-in code and start a session',
+      description: 'Verifies the code and returns session tokens with the user profile. The first verified code of a number creates the account.',
       body: {
         type: 'object',
         required: ['phoneNumber', 'otp'],
         properties: {
           phoneNumber: { type: 'string', example: '+919876543210' },
           otp: { type: 'string', example: '123456' },
-          birthProfile: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', example: 'Rahul Sharma' },
-              dateOfBirth: { type: 'string', example: '1998-08-15' },
-              timeOfBirth: { type: 'string', example: '08:30:00' },
-              latitude: { type: 'number', example: 28.6139 },
-              longitude: { type: 'number', example: 77.2090 },
-              timezone: { type: 'string', example: 'Asia/Kolkata' },
-              placeName: { type: 'string', example: 'New Delhi, India' },
-            },
-          },
+          fullName: { type: 'string', example: 'Rahul Sharma' },
+          birthProfile: birthProfileBodySchema,
         },
       },
     },
@@ -81,38 +102,50 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
   });
 
   // =========================================================================
-  // GOOGLE SIGN-IN ROUTES
+  // E-MAIL ADDRESS + OTP ROUTES
   // =========================================================================
 
-  // POST /api/v1/auth/google
-  fastify.post('/google', {
+  // POST /api/v1/auth/email/send-otp
+  fastify.post('/email/send-otp', {
     schema: {
       tags: ['Auth'],
-      summary: 'Sign in with Google ID token',
-      description: 'Verifies Google ID token server-side and returns authenticated session tokens',
+      summary: 'Send a sign-in code to an e-mail address',
+      description: 'Sends a 6-digit code to the e-mail address. Same answer whether or not the address has an account. 60-second cooldown, send limits per address and per IP.',
       body: {
         type: 'object',
-        required: ['idToken'],
+        required: ['email'],
         properties: {
-          idToken: { type: 'string', example: 'eyJhbGciOiJSUzI1NiIs...' },
-          birthProfile: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', example: 'Rahul Sharma' },
-              dateOfBirth: { type: 'string', example: '1998-08-15' },
-              timeOfBirth: { type: 'string', example: '08:30:00' },
-              latitude: { type: 'number', example: 28.6139 },
-              longitude: { type: 'number', example: 77.2090 },
-              timezone: { type: 'string', example: 'Asia/Kolkata' },
-              placeName: { type: 'string', example: 'New Delhi, India' },
-            },
-          },
+          email: { type: 'string', example: 'user@example.com' },
         },
       },
     },
     handler: async (request, reply) => {
-      const input = googleAuthSchema.parse(request.body);
-      const result = await authService.googleAuth(input, signJwt);
+      const input = emailSendOtpSchema.parse(request.body);
+      const result = await authService.sendEmailOtp(input, { ip: request.ip });
+      return reply.status(200).send(result);
+    },
+  });
+
+  // POST /api/v1/auth/email/verify-otp
+  fastify.post('/email/verify-otp', {
+    schema: {
+      tags: ['Auth'],
+      summary: 'Verify an e-mail sign-in code and start a session',
+      description: 'Verifies the code and returns session tokens with the user profile. The first verified code of an address creates the account.',
+      body: {
+        type: 'object',
+        required: ['email', 'otp'],
+        properties: {
+          email: { type: 'string', example: 'user@example.com' },
+          otp: { type: 'string', example: '123456' },
+          fullName: { type: 'string', example: 'Rahul Sharma' },
+          birthProfile: birthProfileBodySchema,
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      const input = emailVerifyOtpSchema.parse(request.body);
+      const result = await authService.verifyEmailOtp(input, signJwt);
       return reply.status(200).send(result);
     },
   });
@@ -126,7 +159,8 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     onRequest: [fastify.authenticate],
     schema: {
       tags: ['Auth'],
-      summary: 'Link verified phone number to current account',
+      summary: 'Add a verified phone number to the current account',
+      description: 'Request the code with POST /auth/phone/send-otp first.',
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
@@ -144,127 +178,59 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     },
   });
 
-  // POST /api/v1/auth/link-google
-  fastify.post('/link-google', {
+  // POST /api/v1/auth/link-email
+  fastify.post('/link-email', {
     onRequest: [fastify.authenticate],
     schema: {
       tags: ['Auth'],
-      summary: 'Link Google account to current account',
+      summary: 'Add a verified e-mail address to the current account',
+      description: 'Request the code with POST /auth/email/send-otp first.',
       security: [{ bearerAuth: [] }],
-      body: {
-        type: 'object',
-        required: ['idToken'],
-        properties: {
-          idToken: { type: 'string', example: 'eyJhbGciOiJSUzI1NiIs...' },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      const input = linkGoogleSchema.parse(request.body);
-      const result = await authService.linkGoogle(request.user.id, input);
-      return reply.status(200).send(result);
-    },
-  });
-
-  // =========================================================================
-  // LEGACY AUTH ROUTES (PRESERVED FOR COMPATIBILITY)
-  // =========================================================================
-
-  // POST /api/v1/auth/register
-  fastify.post('/register', {
-    schema: {
-      tags: ['Auth'],
-      summary: 'Register a new user',
-      description: 'Creates a new user account with email, password, and optional birth profile, sending a verification OTP',
-      body: {
-        type: 'object',
-        required: ['email', 'password'],
-        properties: {
-          email: { type: 'string', format: 'email', example: 'user@example.com' },
-          password: { type: 'string', minLength: 8, example: 'SecurePassword123!' },
-          fullName: { type: 'string', example: 'Rahul Sharma' },
-          phoneNumber: { type: 'string', example: '+919876543210' },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      const input = registerSchema.parse(request.body);
-      const result = await authService.register(input);
-      return reply.status(201).send(result);
-    },
-  });
-
-  // POST /api/v1/auth/verify-email
-  fastify.post('/verify-email', {
-    schema: {
-      tags: ['Auth'],
-      summary: 'Verify user email',
-      description: 'Verifies email address using 6-digit OTP code and returns authenticated session',
       body: {
         type: 'object',
         required: ['email', 'otp'],
         properties: {
-          email: { type: 'string', format: 'email', example: 'user@example.com' },
+          email: { type: 'string', example: 'user@example.com' },
           otp: { type: 'string', example: '123456' },
         },
       },
     },
     handler: async (request, reply) => {
-      const input = verifyEmailSchema.parse(request.body);
-      const result = await authService.verifyEmail(input, signJwt);
+      const input = linkEmailSchema.parse(request.body);
+      const result = await authService.linkEmail(request.user.id, input);
       return reply.status(200).send(result);
     },
   });
 
-  // POST /api/v1/auth/login
-  fastify.post('/login', {
-    schema: {
-      tags: ['Auth'],
-      summary: 'Login user',
-      description: 'Authenticates user with email and password',
-      body: {
-        type: 'object',
-        required: ['email', 'password'],
-        properties: {
-          email: { type: 'string', format: 'email', example: 'user@example.com' },
-          password: { type: 'string', example: 'SecurePassword123!' },
-        },
-      },
-    },
-    handler: async (request, reply) => {
-      const input = loginSchema.parse(request.body);
-      const result = await authService.login(input, signJwt);
-      return reply.status(200).send(result);
-    },
-  });
+  // =========================================================================
+  // REMOVED: PASSWORD AND GOOGLE SIGN-IN FOR CUSTOMERS (410 AUTH_METHOD_REMOVED)
+  // =========================================================================
 
-  // POST /api/v1/auth/resend-verification
-  fastify.post('/resend-verification', {
-    schema: {
-      tags: ['Auth'],
-      summary: 'Resend verification OTP',
-      description: 'Resends a 6-digit email verification OTP with 60-second cooldown rate limit',
-      body: {
-        type: 'object',
-        required: ['email'],
-        properties: {
-          email: { type: 'string', format: 'email', example: 'user@example.com' },
-        },
+  // No body schema on purpose: whatever an old build sends, it gets the 410 and its message.
+  for (const removed of REMOVED_ENDPOINTS) {
+    fastify.post(removed.url, {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Removed: customers sign in with a one-time code',
+        description: `Always answers 410 ${AUTH_METHOD_REMOVED}.`,
+        deprecated: true,
       },
-    },
-    handler: async (request, reply) => {
-      const input = resendVerificationSchema.parse(request.body);
-      const result = await authService.resendVerification(input);
-      return reply.status(200).send(result);
-    },
-  });
+      handler: async () => {
+        throw new AppError(removed.message, 410, AUTH_METHOD_REMOVED);
+      },
+    });
+  }
+
+  // =========================================================================
+  // STAFF PASSWORD RESET (STAFF ACCOUNTS ONLY)
+  // =========================================================================
 
   // POST /api/v1/auth/forgot-password
   fastify.post('/forgot-password', {
     schema: {
       tags: ['Auth'],
-      summary: 'Request password reset code',
-      description: 'Sends a 6-digit password reset OTP without revealing account existence',
+      summary: 'Staff: request a password reset code',
+      description: 'Staff accounts only. E-mails a 6-digit reset code to a staff address; the answer is identical for a customer address and for an unknown address.',
       body: {
         type: 'object',
         required: ['email'],
@@ -284,8 +250,8 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
   fastify.post('/reset-password', {
     schema: {
       tags: ['Auth'],
-      summary: 'Reset user password',
-      description: 'Resets password using 6-digit password reset OTP',
+      summary: 'Staff: reset the password with the e-mailed code',
+      description: 'Staff accounts only. A customer or unknown address gets the answer of a wrong code.',
       body: {
         type: 'object',
         required: ['email', 'otp', 'newPassword'],
@@ -365,7 +331,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     schema: {
       tags: ['Auth'],
       summary: 'Update current user basic profile details',
-      description: 'Sets the full name used to complete the account profile. Phone numbers are linked separately via OTP (send-otp + link-phone).',
+      description: 'Sets the full name used to complete the account profile. Phone numbers and e-mail addresses are added separately via OTP (send-otp + link-phone / link-email).',
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',

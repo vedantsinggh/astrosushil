@@ -1,11 +1,13 @@
+import { Prisma, VerificationPurpose } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
-import { hashPassword, verifyPassword } from '../../utils/hash';
+import { hashPassword } from '../../utils/hash';
 import { normalizePhoneNumber, maskPhoneNumber } from '../../utils/phone';
+import { maskEmail } from '../../services/messaging/phone';
 import { TokenService } from '../../services/token.service';
 import { emailService } from '../../services/email.service';
 import { otpService } from './otp.service';
 import { otpDeliveryService, otpSendLimiter } from '../../services/messaging/otp-delivery.service';
-import { googleAuthService } from './google-auth.service';
 import { getMissingProfileFields } from './profile-completeness';
 import { isAccountBlocked, ACCOUNT_BLOCKED_MESSAGE } from './account-status';
 import { logger } from '../../utils/logger';
@@ -13,19 +15,66 @@ import { AppError, AuthenticationError, AuthorizationError, ConflictError, NotFo
 import {
   PhoneSendOtpInput,
   PhoneVerifyOtpInput,
-  GoogleAuthInput,
+  EmailSendOtpInput,
+  EmailVerifyOtpInput,
   LinkPhoneInput,
-  LinkGoogleInput,
-  RegisterInput,
-  LoginInput,
-  VerifyEmailInput,
-  ResendVerificationInput,
+  LinkEmailInput,
   ForgotPasswordInput,
   ResetPasswordInput,
   UpdateProfileInput,
+  birthProfileInputSchema,
 } from './auth.schemas';
+import type { z } from 'zod';
 import { config } from '../../config';
-import { VerificationPurpose } from '@prisma/client';
+
+/**
+ * Customer authentication is by one-time code only (owner decision, 2026-11-24): a code sent to a
+ * phone number (SMS + WhatsApp) or to an e-mail address. Customers have no password and no Google
+ * sign-in. Staff sign in at `/admin/auth/login` with e-mail and password (admin module) and are the
+ * only accounts that can use the password reset in this file. See docs/authentication.md.
+ */
+
+export type OtpChannel = 'PHONE' | 'EMAIL';
+
+/** Seconds a sign-in code stays valid, and the wait before another one can be requested. */
+const OTP_EXPIRY_MINUTES = 10;
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
+/** One answer for every way a code can be wrong: unknown identifier, wrong, expired, used, too many attempts. */
+const INVALID_CODE_MESSAGE = 'This code has expired or is invalid. Request a new one.';
+const STAFF_SIGN_IN_MESSAGE = 'This is a staff account. Sign in at the admin panel with your e-mail address and password.';
+export const PASSWORD_RESET_REQUESTED_MESSAGE =
+  'If this address belongs to a staff account, a reset code has been sent to it. Customers sign in with a one-time code and have no password.';
+
+/** The code of a channel is stored on the row that holds the identifier, under this purpose. */
+const CHANNEL_PURPOSE: Record<OtpChannel, VerificationPurpose> = {
+  PHONE: VerificationPurpose.PHONE_LOGIN,
+  EMAIL: VerificationPurpose.EMAIL_VERIFICATION,
+};
+
+type BirthProfileInput = z.infer<typeof birthProfileInputSchema>;
+type SignJwt = (payload: object) => string;
+
+const maskIdentifier = (channel: OtpChannel, identifier: string): string =>
+  channel === 'PHONE' ? maskPhoneNumber(identifier) : maskEmail(identifier);
+
+/**
+ * A row that only records "a code was requested for this identifier": created by send-otp for an
+ * identifier nobody has, it becomes the account when the code is verified. It has one identifier,
+ * unverified, and nothing else, so nobody can ever have had a session on it.
+ */
+function isPendingRecord(user: User, channel: OtpChannel): boolean {
+  const otherIdentifier = channel === 'PHONE' ? user.email : user.phoneNumber;
+  return (
+    user.role === 'USER' &&
+    !user.phoneVerifiedAt &&
+    !user.emailVerifiedAt &&
+    !user.googleId &&
+    !user.passwordHash &&
+    !otherIdentifier &&
+    !user.fullName
+  );
+}
 
 export class AuthService {
   private formatUser(user: any) {
@@ -42,6 +91,7 @@ export class AuthService {
       fullName: user.fullName || null,
       role: user.role,
       isPhoneVerified: !!user.phoneVerifiedAt,
+      isEmailVerified: !!user.emailVerifiedAt,
       emailVerifiedAt: user.emailVerifiedAt ? (user.emailVerifiedAt.toISOString ? user.emailVerifiedAt.toISOString() : user.emailVerifiedAt) : null,
       phoneVerifiedAt: user.phoneVerifiedAt ? (user.phoneVerifiedAt.toISOString ? user.phoneVerifiedAt.toISOString() : user.phoneVerifiedAt) : null,
       createdAt: user.createdAt?.toISOString ? user.createdAt.toISOString() : new Date().toISOString(),
@@ -54,8 +104,7 @@ export class AuthService {
   /**
    * Refuses a blocked (suspended or deleted) account at the moment a session would be issued.
    *
-   * Always called AFTER the caller has proved who they are (valid OTP, password, Google token or
-   * refresh token), so only the account's owner can learn that it is blocked: everybody else gets
+   * Always called AFTER the caller has proved who they are (valid OTP or refresh token), so only the account's owner can learn that it is blocked: everybody else gets
    * the same "invalid credentials" answer as for an account that does not exist. Reads the
    * database (no cache) and revokes any refresh token the account still holds.
    */
@@ -69,590 +118,343 @@ export class AuthService {
     throw new AuthorizationError(ACCOUNT_BLOCKED_MESSAGE);
   }
 
+  /**
+   * Staff = an account with a staff role: `User.role` is not USER, or it has a staff profile that
+   * has not been removed (a suspended staff account has role USER but is still a staff account).
+   */
+  private async isStaffAccount(user: Pick<User, 'id' | 'role'>): Promise<boolean> {
+    if (user.role !== 'USER') return true;
+    const profile = await prisma.staffProfile.findUnique({ where: { userId: user.id }, select: { isDeleted: true } });
+    return !!profile && !profile.isDeleted;
+  }
+
+  private findByIdentifier(channel: OtpChannel, identifier: string): Promise<User | null> {
+    return channel === 'PHONE'
+      ? prisma.user.findFirst({ where: { phoneNumber: identifier } })
+      : prisma.user.findFirst({ where: { email: identifier } });
+  }
+
+  private async issueSession(user: User, signJwt: SignJwt) {
+    const accessToken = signJwt({ sub: user.id, role: user.role });
+    const refreshToken = TokenService.generateRawRefreshToken();
+    await TokenService.saveRefreshToken(user.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
+    return { accessToken, refreshToken, expiresIn: config.JWT_ACCESS_EXPIRES_IN };
+  }
+
   // =========================================================================
-  // PHONE NUMBER + OTP AUTHENTICATION
+  // CUSTOMER SIGN-IN BY ONE-TIME CODE (PHONE OR E-MAIL)
   // =========================================================================
 
   /**
-   * Requests an OTP verification code for a phone number.
-   * Normalizes to canonical E.164 and creates/retrieves user record without exposing secret OTP.
+   * Sends a sign-in code to a phone number (SMS + WhatsApp) or an e-mail address.
    *
-   * The code is delivered by SMS and WhatsApp (both, as on the website). The answer is
-   * the same whether or not the number already has an account. Sends are limited per
-   * phone number and per IP address (`context.ip`, passed by the route) in a counter
-   * that a new request cannot reset.
+   * The answer is the same whether or not the identifier has an account, whether the account is
+   * blocked, and whether it is a staff account: this endpoint is unauthenticated, so any
+   * difference would tell whoever types an identifier something about it. Blocked and staff
+   * accounts are refused in `verifySignInOtp`, once the caller has proved they hold the identifier.
    *
-   * A blocked account is deliberately NOT refused here: this endpoint is unauthenticated,
-   * so a different answer (or a code that silently never arrives) would tell anyone who
-   * types a phone number that the account exists and is blocked. The code is sent as for
-   * any number, under the same send limits, and the refusal happens in `verifyPhoneOtp`
-   * once the caller has proved they hold the phone.
+   * Sends are limited per identifier and per IP address (`context.ip`) in a counter that a new
+   * request cannot reset, plus a 60-second cooldown per identifier.
+   *
+   * An identifier nobody has gets a pending record (see `isPendingRecord`) to hold the code; it is
+   * not an account until the code is verified.
    */
-  public async sendPhoneOtp(input: PhoneSendOtpInput, context: { ip?: string | null } = {}) {
-    const normalizedPhone = normalizePhoneNumber(input.phoneNumber);
+  private async sendSignInOtp(channel: OtpChannel, identifier: string, context: { ip?: string | null }) {
+    const purpose = CHANNEL_PURPOSE[channel];
+    const masked = maskIdentifier(channel, identifier);
 
     // Send rate limit, before anything is created or sent.
-    const allowance = await otpSendLimiter.consume({ identifier: normalizedPhone, ip: context.ip });
+    const allowance = await otpSendLimiter.consume({ identifier, ip: context.ip });
     if (!allowance.allowed) {
-      logger.warn(
-        { phone: maskPhoneNumber(normalizedPhone), scope: allowance.scope, window: allowance.window },
-        '[AuthService] Phone OTP send limit reached'
-      );
+      logger.warn({ channel, to: masked, scope: allowance.scope, window: allowance.window }, '[AuthService] OTP send limit reached');
       throw new RateLimitError('Too many verification code requests. Please try again later.');
     }
 
-    // Find or create user record associated with normalized phone number
-    let user = await prisma.user.findFirst({
-      where: { phoneNumber: normalizedPhone },
-    });
-
+    let user = await this.findByIdentifier(channel, identifier);
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          phoneNumber: normalizedPhone,
-          role: 'USER',
-        },
-      });
+      try {
+        user = await prisma.user.create({
+          data: channel === 'PHONE' ? { phoneNumber: identifier, role: 'USER' } : { email: identifier, role: 'USER' },
+        });
+      } catch (err) {
+        // Two requests for the same new identifier at once: the other one created the record.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+        user = await this.findByIdentifier(channel, identifier);
+        if (!user) throw err;
+      }
     }
 
-    // Rate limiting: check 60s resend cooldown
-    const isInCooldown = await otpService.isWithinResendCooldown(
-      user.id,
-      VerificationPurpose.PHONE_LOGIN,
-      60
-    );
-
-    if (isInCooldown) {
+    if (await otpService.isWithinResendCooldown(user.id, purpose, OTP_RESEND_COOLDOWN_SECONDS)) {
       // Nothing is sent, so this request does not count towards the send limit.
       await otpSendLimiter.release(allowance);
       throw new RateLimitError('Please wait 60 seconds before requesting another verification code.');
     }
 
-    // Generate secure 6-digit OTP and store hashed record
+    // Only the hash is stored; the code itself is never logged.
     const otp = otpService.generateOtp();
-    await otpService.createOtpRecord(user.id, otp, VerificationPurpose.PHONE_LOGIN, 10);
+    await otpService.createOtpRecord(user.id, otp, purpose, OTP_EXPIRY_MINUTES);
 
-    // Deliver by SMS and WhatsApp. The website's DLT texts: "signup" until the number
-    // has been verified once, "login" afterwards. The OTP itself is never logged.
-    const delivery = await otpDeliveryService.sendPhoneOtp({
-      phone: normalizedPhone,
-      otp,
-      purpose: user.phoneVerifiedAt ? 'login' : 'signup',
-      name: user.fullName?.trim().split(/\s+/)[0] || null,
-    });
+    let delivered: boolean;
+    if (channel === 'PHONE') {
+      // The website's DLT texts: "signup" until the number has been verified once, "login" afterwards.
+      const delivery = await otpDeliveryService.sendPhoneOtp({
+        phone: identifier,
+        otp,
+        purpose: user.phoneVerifiedAt ? 'login' : 'signup',
+        name: user.fullName?.trim().split(/\s+/)[0] || null,
+      });
+      delivered = delivery.delivered;
+    } else {
+      const delivery = await otpDeliveryService.sendEmailOtp({ email: identifier, otp, expiryMinutes: OTP_EXPIRY_MINUTES });
+      delivered = delivery.ok;
+    }
 
-    if (!delivery.delivered) {
+    if (!delivered) {
       if (!otpService.isDevMasterOtpEnabled()) {
         // The code reached nobody: do not leave it valid, and say so instead of "sent".
-        await otpService.invalidatePreviousOtps(user.id, VerificationPurpose.PHONE_LOGIN);
+        await otpService.invalidatePreviousOtps(user.id, purpose);
         throw new AppError('We could not send the verification code. Please try again shortly.', 503, 'OTP_DELIVERY_FAILED');
       }
       logger.warn(
-        { userId: user.id, phone: maskPhoneNumber(normalizedPhone) },
-        '[AuthService] Phone OTP was not delivered; continuing because the development master OTP is enabled'
+        { userId: user.id, channel, to: masked },
+        '[AuthService] OTP was not delivered; continuing because the development master OTP is enabled'
       );
     }
 
-    // Structured logging with phone number masked for privacy
-    logger.info(
-      { userId: user.id, phone: maskPhoneNumber(normalizedPhone) },
-      '[AuthService] Phone login OTP generated and dispatched'
-    );
+    logger.info({ userId: user.id, channel, to: masked }, '[AuthService] Sign-in OTP generated and dispatched');
+  }
 
+  /**
+   * Verifies a sign-in code and returns a session. The first verified code of an identifier turns
+   * its pending record into the account (`isNewAccount: true`).
+   *
+   * The account reached is the one that holds the identifier, whatever it was created with: an old
+   * password or Google account is reached through its e-mail address, and through its phone number
+   * if it has one. `passwordHash` and `googleId` are neither read nor changed.
+   */
+  private async verifySignInOtp(
+    channel: OtpChannel,
+    identifier: string,
+    input: { otp: string; fullName?: string; birthProfile?: BirthProfileInput },
+    signJwt: SignJwt
+  ) {
+    const user = await this.findByIdentifier(channel, identifier);
+    if (!user) {
+      throw new AuthenticationError(INVALID_CODE_MESSAGE);
+    }
+
+    const isValid = await otpService.verifyOtp(user.id, input.otp, CHANNEL_PURPOSE[channel]);
+    if (!isValid) {
+      throw new AuthenticationError(INVALID_CODE_MESSAGE);
+    }
+
+    // Only after a valid code: a wrong code gets the same answer whatever the account is.
+    await this.refuseBlockedAccount(user.id, channel === 'PHONE' ? 'phone-otp' : 'email-otp');
+
+    // Staff sign in with e-mail and password only; a code must never be a way into the admin panel.
+    if (await this.isStaffAccount(user)) {
+      logger.warn({ userId: user.id, channel }, '[AuthService] OTP sign-in refused: staff account');
+      throw new AuthorizationError(STAFF_SIGN_IN_MESSAGE);
+    }
+
+    const isNewAccount = !user.phoneVerifiedAt && !user.emailVerifiedAt && !user.googleId;
+    const now = new Date();
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...(channel === 'PHONE'
+          ? { phoneVerifiedAt: user.phoneVerifiedAt ?? now }
+          : { emailVerifiedAt: user.emailVerifiedAt ?? now }),
+        // A name is only taken when the account has none.
+        ...(input.fullName && !user.fullName?.trim() ? { fullName: input.fullName } : {}),
+      },
+    });
+
+    // Optionally create the first birth profile
+    if (input.birthProfile) {
+      const existingProfile = await prisma.birthProfile.findFirst({ where: { userId: user.id } });
+      if (!existingProfile) {
+        await prisma.birthProfile.create({
+          data: {
+            userId: user.id,
+            name: input.birthProfile.name,
+            dateOfBirth: input.birthProfile.dateOfBirth,
+            timeOfBirth: input.birthProfile.timeOfBirth,
+            latitude: input.birthProfile.latitude,
+            longitude: input.birthProfile.longitude,
+            timezone: input.birthProfile.timezone,
+            placeName: input.birthProfile.placeName || null,
+          },
+        });
+      }
+    }
+
+    if (isNewAccount) {
+      logger.info({ userId: user.id, channel }, '[AuthService] Customer account created by first OTP verification');
+    }
+
+    return {
+      user: this.formatUser(updatedUser),
+      tokens: await this.issueSession(updatedUser, signJwt),
+      isNewAccount,
+    };
+  }
+
+  /** POST /auth/phone/send-otp */
+  public async sendPhoneOtp(input: PhoneSendOtpInput, context: { ip?: string | null } = {}) {
+    const phoneNumber = normalizePhoneNumber(input.phoneNumber);
+    await this.sendSignInOtp('PHONE', phoneNumber, context);
     return {
       success: true,
       message: 'Verification code sent to your phone number.',
-      phoneNumber: normalizedPhone,
-      expiresIn: 600,
+      phoneNumber,
+      expiresIn: OTP_EXPIRY_MINUTES * 60,
     };
   }
 
-  /**
-   * Verifies phone OTP code and returns authenticated session tokens.
-   */
-  public async verifyPhoneOtp(input: PhoneVerifyOtpInput, signJwt: (payload: object) => string) {
-    const normalizedPhone = normalizePhoneNumber(input.phoneNumber);
-
-    const user = await prisma.user.findFirst({
-      where: { phoneNumber: normalizedPhone },
-    });
-
-    if (!user) {
-      throw new AuthenticationError('Invalid phone number or verification code.');
-    }
-
-    const isValid = await otpService.verifyOtp(
-      user.id,
-      input.otp,
-      VerificationPurpose.PHONE_LOGIN
-    );
-
-    if (!isValid) {
-      throw new AuthenticationError('This code has expired or is invalid. Request a new one.');
-    }
-
-    // Only after a valid code: a wrong code gets the same answer whether or not the account is blocked.
-    await this.refuseBlockedAccount(user.id, 'phone-otp');
-
-    // Mark phone number as verified
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { phoneVerifiedAt: new Date() },
-    });
-
-    // Optionally create birth profile if provided
-    if (input.birthProfile) {
-      const existingProfile = await prisma.birthProfile.findFirst({
-        where: { userId: user.id },
-      });
-      if (!existingProfile) {
-        await prisma.birthProfile.create({
-          data: {
-            userId: user.id,
-            name: input.birthProfile.name,
-            dateOfBirth: input.birthProfile.dateOfBirth,
-            timeOfBirth: input.birthProfile.timeOfBirth,
-            latitude: input.birthProfile.latitude,
-            longitude: input.birthProfile.longitude,
-            timezone: input.birthProfile.timezone,
-            placeName: input.birthProfile.placeName || null,
-          },
-        });
-      }
-    }
-
-    // Issue standard JWT session tokens
-    const accessToken = signJwt({ sub: updatedUser.id, role: updatedUser.role });
-    const refreshToken = TokenService.generateRawRefreshToken();
-    await TokenService.saveRefreshToken(updatedUser.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
-
-    return {
-      user: this.formatUser(updatedUser),
-      tokens: {
-        accessToken,
-        refreshToken,
-        expiresIn: config.JWT_ACCESS_EXPIRES_IN,
-      },
-    };
+  /** POST /auth/phone/verify-otp */
+  public async verifyPhoneOtp(input: PhoneVerifyOtpInput, signJwt: SignJwt) {
+    return this.verifySignInOtp('PHONE', normalizePhoneNumber(input.phoneNumber), input, signJwt);
   }
 
-  // =========================================================================
-  // GOOGLE SIGN-IN AUTHENTICATION
-  // =========================================================================
-
-  /**
-   * Authenticates user with verified Google ID token.
-   * Resolves existing user or creates new user, linking accounts safely.
-   */
-  public async googleAuth(input: GoogleAuthInput, signJwt: (payload: object) => string) {
-    const verifiedGoogle = await googleAuthService.verifyGoogleToken(input.idToken);
-
-    // 1. Check if user already exists with this Google subject identifier
-    let user = await prisma.user.findFirst({
-      where: { googleId: verifiedGoogle.googleId },
-    });
-    if (user) await this.refuseBlockedAccount(user.id, 'google');
-
-    // 2. If not found by googleId, check if user exists with matching verified email
-    if (!user && verifiedGoogle.email) {
-      user = await prisma.user.findFirst({
-        where: { email: verifiedGoogle.email },
-      });
-
-      if (user) {
-        // A blocked account is refused before anything is linked to it.
-        await this.refuseBlockedAccount(user.id, 'google');
-        // Link Google ID to existing account without duplicating user
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            googleId: verifiedGoogle.googleId,
-            fullName: user.fullName || verifiedGoogle.fullName,
-            emailVerifiedAt: user.emailVerifiedAt || new Date(),
-          },
-        });
-        logger.info(
-          { userId: user.id, email: verifiedGoogle.email },
-          '[AuthService] Linked Google ID to existing account'
-        );
-      }
-    }
-
-    // 3. If user does not exist, create new account
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          googleId: verifiedGoogle.googleId,
-          email: verifiedGoogle.email,
-          fullName: verifiedGoogle.fullName,
-          emailVerifiedAt: new Date(),
-          role: 'USER',
-        },
-      });
-      logger.info(
-        { userId: user.id, email: verifiedGoogle.email },
-        '[AuthService] Created new user via Google Sign-In'
-      );
-    }
-
-    // Optionally create birth profile if provided and user has none
-    if (input.birthProfile) {
-      const existingProfile = await prisma.birthProfile.findFirst({
-        where: { userId: user.id },
-      });
-      if (!existingProfile) {
-        await prisma.birthProfile.create({
-          data: {
-            userId: user.id,
-            name: input.birthProfile.name,
-            dateOfBirth: input.birthProfile.dateOfBirth,
-            timeOfBirth: input.birthProfile.timeOfBirth,
-            latitude: input.birthProfile.latitude,
-            longitude: input.birthProfile.longitude,
-            timezone: input.birthProfile.timezone,
-            placeName: input.birthProfile.placeName || null,
-          },
-        });
-      }
-    }
-
-    // Issue standard JWT session tokens
-    const accessToken = signJwt({ sub: user.id, role: user.role });
-    const refreshToken = TokenService.generateRawRefreshToken();
-    await TokenService.saveRefreshToken(user.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
-
-    return {
-      user: this.formatUser(user),
-      tokens: {
-        accessToken,
-        refreshToken,
-        expiresIn: config.JWT_ACCESS_EXPIRES_IN,
-      },
-    };
-  }
-
-  // =========================================================================
-  // ACCOUNT LINKING
-  // =========================================================================
-
-  /**
-   * Links a verified phone number to an existing authenticated user account.
-   */
-  public async linkPhone(userId: string, input: LinkPhoneInput) {
-    const normalizedPhone = normalizePhoneNumber(input.phoneNumber);
-
-    // Check if another account already has this phone number verified
-    const existing = await prisma.user.findFirst({
-      where: { phoneNumber: normalizedPhone },
-    });
-
-    // Verify OTP code for this phone / user
-    const isValid =
-      (existing && (await otpService.verifyOtp(existing.id, input.otp, VerificationPurpose.PHONE_VERIFICATION))) ||
-      (existing && (await otpService.verifyOtp(existing.id, input.otp, VerificationPurpose.PHONE_LOGIN))) ||
-      (await otpService.verifyOtp(userId, input.otp, VerificationPurpose.PHONE_VERIFICATION)) ||
-      (await otpService.verifyOtp(normalizedPhone, input.otp, VerificationPurpose.PHONE_VERIFICATION));
-
-    if (!isValid) {
-      throw new AuthenticationError('This code has expired or is invalid. Request a new one.');
-    }
-
-    if (existing && existing.id !== userId) {
-      if (existing.phoneVerifiedAt != null) {
-        throw new ConflictError('This phone number is already verified on another account.');
-      }
-      // If unverified stub account, remove stub so it can be linked safely
-      await prisma.user.delete({ where: { id: existing.id } });
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        phoneNumber: normalizedPhone,
-        phoneVerifiedAt: new Date(),
-      },
-    });
-
+  /** POST /auth/email/send-otp */
+  public async sendEmailOtp(input: EmailSendOtpInput, context: { ip?: string | null } = {}) {
+    const email = input.email.toLowerCase().trim();
+    await this.sendSignInOtp('EMAIL', email, context);
     return {
       success: true,
-      message: 'Phone number linked successfully.',
-      user: this.formatUser(updatedUser),
+      message: 'Verification code sent to your e-mail address.',
+      email,
+      expiresIn: OTP_EXPIRY_MINUTES * 60,
     };
   }
 
+  /** POST /auth/email/verify-otp */
+  public async verifyEmailOtp(input: EmailVerifyOtpInput, signJwt: SignJwt) {
+    return this.verifySignInOtp('EMAIL', input.email.toLowerCase().trim(), input, signJwt);
+  }
+
+  // =========================================================================
+  // ACCOUNT LINKING (SIGNED-IN CUSTOMER ADDS THE OTHER IDENTIFIER)
+  // =========================================================================
+
   /**
-   * Links Google account to an existing authenticated user account.
+   * Adds a phone number or an e-mail address to the signed-in customer's account, proved by a code
+   * requested through the same send-otp endpoint as a sign-in (the code is stored against the
+   * identifier, so it proves that identifier and nothing else).
+   *
+   * Two existing accounts are never merged. After a valid code:
+   *  - the identifier is already on this account: it is marked verified;
+   *  - it is held only by a pending record (a code was requested, nobody ever signed in): the
+   *    pending record is removed and the identifier moves to this account;
+   *  - it is on any other account, verified or not: 409, nothing changes.
    */
-  public async linkGoogle(userId: string, input: LinkGoogleInput) {
-    const verifiedGoogle = await googleAuthService.verifyGoogleToken(input.idToken);
-
-    // Check if another account is already linked to this Google ID
-    const existing = await prisma.user.findFirst({
-      where: { googleId: verifiedGoogle.googleId },
-    });
-
-    if (existing && existing.id !== userId) {
-      throw new ConflictError('This Google account is already linked to another user.');
-    }
-
-    const currentUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!currentUser) {
+  private async linkIdentifier(userId: string, channel: OtpChannel, identifier: string, otp: string) {
+    const current = await prisma.user.findUnique({ where: { id: userId } });
+    if (!current) {
       throw new NotFoundError('User account not found');
     }
+    if (await this.isStaffAccount(current)) {
+      throw new AuthorizationError('Staff accounts manage their contact details in the admin panel.');
+    }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        googleId: verifiedGoogle.googleId,
-        email: currentUser.email || verifiedGoogle.email,
-        emailVerifiedAt: currentUser.emailVerifiedAt || new Date(),
-      },
-    });
+    const holder = await this.findByIdentifier(channel, identifier);
+    const isValid = holder ? await otpService.verifyOtp(holder.id, otp, CHANNEL_PURPOSE[channel]) : false;
+    if (!holder || !isValid) {
+      throw new AuthenticationError(INVALID_CODE_MESSAGE);
+    }
 
-    return {
-      success: true,
-      message: 'Google account linked successfully.',
-      user: this.formatUser(updatedUser),
-    };
+    const now = new Date();
+    const data =
+      channel === 'PHONE'
+        ? { phoneNumber: identifier, phoneVerifiedAt: holder.id === userId ? (current.phoneVerifiedAt ?? now) : now }
+        : { email: identifier, emailVerifiedAt: holder.id === userId ? (current.emailVerifiedAt ?? now) : now };
+
+    let updatedUser: User;
+    if (holder.id === userId) {
+      updatedUser = await prisma.user.update({ where: { id: userId }, data });
+    } else {
+      const conflict = new ConflictError(
+        channel === 'PHONE'
+          ? 'This phone number already belongs to another account. Sign in with that number instead, or contact support to combine the accounts.'
+          : 'This e-mail address already belongs to another account. Sign in with that address instead, or contact support to combine the accounts.'
+      );
+      if (!isPendingRecord(holder, channel)) {
+        logger.warn({ userId, otherUserId: holder.id, channel }, '[AuthService] Link refused: identifier belongs to another account');
+        throw conflict;
+      }
+      try {
+        // The pending record goes first: the identifier is unique.
+        const [, linked] = await prisma.$transaction([
+          prisma.user.delete({ where: { id: holder.id } }),
+          prisma.user.update({ where: { id: userId }, data }),
+        ]);
+        updatedUser = linked;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+          // The record gained data or the identifier was taken in the meantime: treat as another account.
+          logger.warn({ userId, channel, code: err.code }, '[AuthService] Link refused: pending record could not be replaced');
+          throw conflict;
+        }
+        throw err;
+      }
+    }
+
+    logger.info({ userId, channel, to: maskIdentifier(channel, identifier) }, '[AuthService] Identifier linked to account');
+    return updatedUser;
+  }
+
+  /** POST /auth/link-phone */
+  public async linkPhone(userId: string, input: LinkPhoneInput) {
+    const user = await this.linkIdentifier(userId, 'PHONE', normalizePhoneNumber(input.phoneNumber), input.otp);
+    return { success: true, message: 'Phone number linked successfully.', user: this.formatUser(user) };
+  }
+
+  /** POST /auth/link-email */
+  public async linkEmail(userId: string, input: LinkEmailInput) {
+    const user = await this.linkIdentifier(userId, 'EMAIL', input.email.toLowerCase().trim(), input.otp);
+    return { success: true, message: 'E-mail address linked successfully.', user: this.formatUser(user) };
   }
 
   // =========================================================================
-  // LEGACY EMAIL / PASSWORD AUTH (PRESERVED FOR BACKWARD COMPATIBILITY)
+  // STAFF PASSWORD RESET BY E-MAILED CODE
   // =========================================================================
 
-  public async register(input: RegisterInput) {
-    const email = input.email.toLowerCase().trim();
-    const existingUser = await prisma.user.findFirst({
-      where: { email },
-    });
-
-    if (existingUser) {
-      if (existingUser.emailVerifiedAt != null) {
-        throw new ConflictError('A user with this email address already exists');
-      }
-
-      const passwordHash = await hashPassword(input.password);
-      await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          passwordHash,
-          fullName: input.fullName || existingUser.fullName,
-          phoneNumber: input.phoneNumber ? normalizePhoneNumber(input.phoneNumber) : existingUser.phoneNumber,
-        },
-      });
-
-      const otp = otpService.generateOtp();
-      await otpService.createOtpRecord(existingUser.id, otp, VerificationPurpose.EMAIL_VERIFICATION);
-      await emailService.sendVerificationEmail(existingUser.email!, otp);
-
-      return {
-        requiresEmailVerification: true,
-        email: existingUser.email,
-        message: 'Verification code sent to your email.',
-      };
-    }
-
-    const passwordHash = await hashPassword(input.password);
-
-    const { user, otp } = await prisma.$transaction(async (tx) => {
-      const userData: Record<string, any> = {
-        email,
-        passwordHash,
-        role: 'USER',
-      };
-      if (input.fullName) userData.fullName = input.fullName;
-      if (input.phoneNumber) userData.phoneNumber = normalizePhoneNumber(input.phoneNumber);
-      userData.emailVerifiedAt = null;
-
-      const newUser = await tx.user.create({ data: userData as any });
-
-      if (input.birthProfile) {
-        await tx.birthProfile.create({
-          data: {
-            userId: newUser.id,
-            name: input.birthProfile.name,
-            dateOfBirth: input.birthProfile.dateOfBirth,
-            timeOfBirth: input.birthProfile.timeOfBirth,
-            latitude: input.birthProfile.latitude,
-            longitude: input.birthProfile.longitude,
-            timezone: input.birthProfile.timezone,
-            placeName: input.birthProfile.placeName || null,
-          },
-        });
-      }
-
-      const generatedOtp = otpService.generateOtp();
-      const codeHash = otpService.hashOtp(generatedOtp);
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-      await tx.otpVerification.create({
-        data: {
-          userId: newUser.id,
-          codeHash,
-          purpose: VerificationPurpose.EMAIL_VERIFICATION,
-          expiresAt,
-          attempts: 0,
-        },
-      });
-
-      return { user: newUser, otp: generatedOtp };
-    });
-
-    await emailService.sendVerificationEmail(user.email!, otp);
-
-    return {
-      requiresEmailVerification: true,
-      email: user.email,
-      message: 'Account created. Verification code sent to your email.',
-    };
-  }
-
-  public async verifyEmail(input: VerifyEmailInput, signJwt: (payload: object) => string) {
-    const email = input.email.toLowerCase().trim();
-    const user = await prisma.user.findFirst({
-      where: { email },
-    });
-
-    if (!user) {
-      throw new AuthenticationError('Invalid email address or verification code.');
-    }
-
-    // An already verified address gets no session from this endpoint: it used to issue tokens here
-    // without checking any code, which let anyone who knew a verified e-mail address sign in as that
-    // account (staff included). The answer is the same as for a wrong code, so it reveals nothing.
-    if (user.emailVerifiedAt != null) {
-      throw new AuthenticationError('Invalid email address or verification code.');
-    }
-
-    const isValid = await otpService.verifyOtp(user.id, input.otp, VerificationPurpose.EMAIL_VERIFICATION);
-    if (!isValid) {
-      throw new AuthenticationError('This code has expired or is invalid. Request a new one.');
-    }
-
-    await this.refuseBlockedAccount(user.id, 'verify-email');
-
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerifiedAt: new Date() },
-    });
-
-    const accessToken = signJwt({ sub: updatedUser.id, role: updatedUser.role });
-    const refreshToken = TokenService.generateRawRefreshToken();
-    await TokenService.saveRefreshToken(updatedUser.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
-
-    return {
-      verified: true,
-      user: this.formatUser(updatedUser),
-      tokens: {
-        accessToken,
-        refreshToken,
-        expiresIn: config.JWT_ACCESS_EXPIRES_IN,
-      },
-    };
-  }
-
-  public async login(input: LoginInput, signJwt: (payload: object) => string) {
-    const email = input.email.toLowerCase().trim();
-    const user = await prisma.user.findFirst({
-      where: { email },
-    });
-
-    if (!user || !user.passwordHash) {
-      throw new AuthenticationError('Invalid email address or password');
-    }
-
-    const isValidPassword = await verifyPassword(input.password, user.passwordHash);
-    if (!isValidPassword) {
-      throw new AuthenticationError('Invalid email address or password');
-    }
-
-    // Only after the password matched: a wrong password never reveals that the account is blocked.
-    await this.refuseBlockedAccount(user.id, 'password');
-
-    if (user.emailVerifiedAt == null) {
-      const isInCooldown = await otpService.isWithinResendCooldown(user.id, VerificationPurpose.EMAIL_VERIFICATION);
-      if (!isInCooldown) {
-        const otp = otpService.generateOtp();
-        await otpService.createOtpRecord(user.id, otp, VerificationPurpose.EMAIL_VERIFICATION);
-        await emailService.sendVerificationEmail(user.email!, otp);
-      }
-
-      return {
-        requiresEmailVerification: true,
-        email: user.email,
-        message: 'Please verify your email address before logging in.',
-      };
-    }
-
-    const accessToken = signJwt({ sub: user.id, role: user.role });
-    const refreshToken = TokenService.generateRawRefreshToken();
-    await TokenService.saveRefreshToken(user.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
-
-    return {
-      user: this.formatUser(user),
-      tokens: {
-        accessToken,
-        refreshToken,
-        expiresIn: config.JWT_ACCESS_EXPIRES_IN,
-      },
-    };
-  }
-
-  public async resendVerification(input: ResendVerificationInput) {
-    const email = input.email.toLowerCase().trim();
-    const user = await prisma.user.findFirst({
-      where: { email },
-    });
-
-    if (!user || user.emailVerifiedAt != null) {
-      return { message: 'If an account exists and requires verification, a new code has been sent.' };
-    }
-
-    const isInCooldown = await otpService.isWithinResendCooldown(user.id, VerificationPurpose.EMAIL_VERIFICATION);
-    if (isInCooldown) {
-      throw new RateLimitError('Please wait 60 seconds before requesting another code.');
-    }
-
-    const otp = otpService.generateOtp();
-    await otpService.createOtpRecord(user.id, otp, VerificationPurpose.EMAIL_VERIFICATION);
-    await emailService.sendVerificationEmail(user.email!, otp);
-
-    return { message: 'Verification code sent to your email.' };
-  }
-
+  /**
+   * Staff accounts only. The answer is the same for a staff address, a customer address and an
+   * address nobody has, and nothing is sent to the last two.
+   */
   public async forgotPassword(input: ForgotPasswordInput) {
     const email = input.email.toLowerCase().trim();
-    const user = await prisma.user.findFirst({
-      where: { email },
-    });
+    const user = await prisma.user.findFirst({ where: { email } });
 
-    if (!user) {
-      return { message: 'If an account exists for this email, you\'ll receive a reset code shortly.' };
+    if (user && (await this.isStaffAccount(user))) {
+      const isInCooldown = await otpService.isWithinResendCooldown(user.id, VerificationPurpose.PASSWORD_RESET);
+      if (!isInCooldown) {
+        const otp = otpService.generateOtp();
+        await otpService.createOtpRecord(user.id, otp, VerificationPurpose.PASSWORD_RESET);
+        await emailService.sendPasswordResetEmail(email, otp);
+      }
     }
 
-    const isInCooldown = await otpService.isWithinResendCooldown(user.id, VerificationPurpose.PASSWORD_RESET);
-    if (!isInCooldown) {
-      const otp = otpService.generateOtp();
-      await otpService.createOtpRecord(user.id, otp, VerificationPurpose.PASSWORD_RESET);
-      await emailService.sendPasswordResetEmail(user.email!, otp);
-    }
-
-    return { message: 'If an account exists for this email, you\'ll receive a reset code shortly.' };
+    return { message: PASSWORD_RESET_REQUESTED_MESSAGE };
   }
 
+  /**
+   * Staff accounts only. A customer address or an unknown address gets the answer of a wrong code,
+   * and no password is ever stored on a customer account.
+   */
   public async resetPassword(input: ResetPasswordInput) {
     const email = input.email.toLowerCase().trim();
-    const user = await prisma.user.findFirst({
-      where: { email },
-    });
+    const user = await prisma.user.findFirst({ where: { email } });
 
-    if (!user) {
-      throw new AuthenticationError('Invalid request or code expired.');
+    if (!user || !(await this.isStaffAccount(user))) {
+      throw new AuthenticationError(INVALID_CODE_MESSAGE);
     }
 
     const isValid = await otpService.verifyOtp(user.id, input.otp, VerificationPurpose.PASSWORD_RESET);
     if (!isValid) {
-      throw new AuthenticationError('This code has expired or is invalid. Request a new one.');
+      throw new AuthenticationError(INVALID_CODE_MESSAGE);
     }
 
     const passwordHash = await hashPassword(input.newPassword);
