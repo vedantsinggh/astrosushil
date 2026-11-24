@@ -10,9 +10,13 @@ import '../../core/auth/auth_required_gate.dart';
 import '../../core/auth/feature_access_service.dart';
 import '../../core/localization/locale_provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../../features/consultations/models/consultation_errors.dart';
 import '../../features/consultations/models/consultation_models.dart';
 import '../../features/consultations/providers/consultation_provider.dart';
+import '../../features/consultations/widgets/booking_detail_sheet.dart';
 import '../../features/consultations/widgets/booking_flow_sheet.dart';
+import '../../features/consultations/widgets/consultation_slot_picker.dart';
+import '../../features/consultations/widgets/reschedule_sheet.dart';
 import '../../features/sushil_explainer/models/explanation_context.dart';
 import '../../features/sushil_explainer/widgets/sushil_explainer_sheet.dart';
 import '../../shared/assets/app_assets.dart';
@@ -332,28 +336,23 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
     );
   }
 
-  void _showReschedule(ConsultationBookingModel booking) {
-    final l10n = context.l10n;
-    _showChoices(
-      title: l10n.consultReschedule,
-      message:
-          '${_t('To change the time, please message or call the office.', 'समय बदलने के लिए कृपया ऑफ़िस को संदेश या कॉल करें।')}\n${l10n.consultReschedulePolicy}',
-      closeLabel: l10n.close,
-      choices: [
-        _Choice(
-          key: const ValueKey('consult_reschedule_whatsapp'),
-          label: l10n.consultInquireWhatsApp,
-          icon: Icons.chat_outlined,
-          onTap: () =>
-              _openWhatsApp(bookingRef: booking.bookingReference.isNotEmpty ? booking.bookingReference : booking.id),
-        ),
-        _Choice(
-          key: const ValueKey('consult_reschedule_call'),
-          label: _t('Call office', 'ऑफ़िस को कॉल करें'),
-          icon: Icons.call_outlined,
-          onTap: _callOffice,
-        ),
-      ],
+  /// Opens the in-app reschedule sheet (the server moves the booking to any
+  /// open slot that respects the calendar rules).
+  Future<void> _showReschedule(ConsultationBookingModel booking) async {
+    final movedTo = await RescheduleSheet.show(context, booking);
+    if (!mounted) return;
+    ref.read(consultationNotifierProvider.notifier).clearActionFailure();
+    if (movedTo != null) {
+      _showSnack(context.l10n.consultBkRescheduleDone(movedTo));
+    }
+  }
+
+  void _showDetails(ConsultationBookingModel booking) {
+    BookingDetailSheet.show(
+      context,
+      booking,
+      statusLabel: _statusStyle(booking).label,
+      modeLabel: _modeLabel(_modeKey(booking.consultationMode)),
     );
   }
 
@@ -364,8 +363,8 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
         : _t('this booking', 'यह बुकिंग');
     _showChoices(
       title: l10n.consultCancel,
-      message: _t('Are you sure you want to cancel $which? ${l10n.consultCancellationPolicy}',
-          'क्या आप $which रद्द करना चाहते हैं? ${l10n.consultCancellationPolicy}'),
+      message: _t('Are you sure you want to cancel $which? ${l10n.consultBkCancelNoAutoRefund}',
+          'क्या आप $which रद्द करना चाहते हैं? ${l10n.consultBkCancelNoAutoRefund}'),
       closeLabel: _t('Keep Appointment', 'बुकिंग रखें'),
       choices: [
         _Choice(
@@ -389,8 +388,23 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
       if (ok) {
         _showSnack(_t('Appointment cancelled.', 'बुकिंग रद्द हो गई।'));
       } else {
-        _showSnack(s.errorMessage ?? _t('Could not cancel. Please try again.', 'रद्द नहीं हो सका। फिर से कोशिश करें।'));
+        // The server's rule, as a message: a cancelled or completed booking
+        // cannot be cancelled again.
+        final l10n = context.l10n;
+        final failure = s.actionFailure;
+        final String message;
+        if (failure == null || failure.kind == ConsultationErrorKind.unknown) {
+          message = l10n.consultBkCancelFailed;
+        } else if (failure.kind == ConsultationErrorKind.notAllowedForStatus) {
+          message = l10n.consultBkErrAlreadyClosed;
+        } else {
+          message = consultationFailureMessage(l10n, failure);
+        }
+        _showSnack(message);
+        // The list may be out of date (already cancelled elsewhere).
+        if (failure != null && !failure.isRetryable) unawaited(_loadBookings());
       }
+      notifier.clearActionFailure();
       notifier.clearError();
       notifier.clearSuccess();
     });
@@ -585,8 +599,10 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
           noticeLabel: o.responseDaysNotice > 0
               ? _t('Earliest in ${o.responseDaysNotice} days', 'सबसे जल्दी ${o.responseDaysNotice} दिन में')
               : null,
-          priceLabel: o.pricePaise > 0 ? _formatRupees(o.priceRupees) : null,
-          taxLabel: context.l10n.consultInclusiveGST,
+          // What the customer pays, GST included (added on top of the listed
+          // price when the consultation's GST is exclusive).
+          priceLabel: o.pricePaise > 0 ? formatInrPaise(o.pricePaise) : null,
+          taxLabel: _taxLabel(o),
           noPriceLabel: _t('Price not available', 'कीमत उपलब्ध नहीं'),
           unavailableLabel: _t('Not available now', 'अभी उपलब्ध नहीं'),
           bookLabel: context.l10n.consultBookNow,
@@ -678,7 +694,23 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
     ];
   }
 
-  bool _isUpcoming(ConsultationBookingModel b) => b.isConfirmed || b.isPendingPayment || b.isRescheduled;
+  /// An unpaid booking whose 15-minute hold has run out is no longer coming
+  /// up: its time is free again (the server cancels it shortly after).
+  bool _isUpcoming(ConsultationBookingModel b) =>
+      b.isConfirmed || b.isRescheduled || (b.isPendingPayment && !b.isHoldExpired());
+
+  /// GST line under a price. Null when the consultation carries no GST.
+  String? _taxLabel(ConsultationOfferingModel o) {
+    final l10n = context.l10n;
+    // Older catalogue entries without a GST breakdown.
+    if (o.gstPaise == null) return l10n.consultInclusiveGST;
+    if (!o.hasGst) return null;
+    if (o.gstAddedOnTop) {
+      return l10n.consultBkCardGstAdded(formatInrPaise(o.amountBeforeGstPaise), formatInrPaise(o.gstPaise!));
+    }
+    final percent = o.gstPercentLabel;
+    return percent == null ? l10n.consultBkGstIncludedPlain : l10n.consultBkCardGstIncluded(percent);
+  }
 
   Widget _bookingCard(ConsultationBookingModel b, {required bool showActions}) {
     final l10n = context.l10n;
@@ -694,8 +726,13 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
       if ((b.isConfirmed || b.isRescheduled) && !hasLink && mode != 'IN_PERSON') {
         hint = _t('The Join button appears here before your session.', 'सत्र से पहले यहाँ जुड़ने का बटन दिखेगा।');
       } else if (b.isPendingPayment) {
-        hint = _t('Payment is not complete yet.', 'भुगतान अभी पूरा नहीं हुआ है।');
+        final heldUntil = b.reservationExpiresAt;
+        hint = heldUntil == null
+            ? _t('Payment is not complete yet.', 'भुगतान अभी पूरा नहीं हुआ है।')
+            : l10n.consultBkHintHeldUntil(consultationIstTime(heldUntil));
       }
+    } else if (b.isReservationExpired || b.isHoldExpired()) {
+      hint = l10n.consultBkHintHoldEnded;
     }
 
     return _BookingCard(
@@ -713,6 +750,9 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
       modeLabel: _modeLabel(mode),
       query: b.query,
       hint: hint,
+      onDetails: () => _showDetails(b),
+      detailsKey: ValueKey('consult_details_${b.id}'),
+      detailsLabel: l10n.consultBkViewDetails,
       actions: !showActions
           ? const []
           : [
@@ -791,7 +831,7 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
                 l10n.consultTimeZoneNotice,
                 l10n.consultPrepare1,
                 l10n.consultPrepare2,
-                l10n.consultReschedulePolicy,
+                l10n.consultBkChangePolicy,
                 l10n.consultPrivacyReassurance,
               ])
                 Padding(
@@ -863,6 +903,9 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
         return (label: l10n.consultStatusConfirmed, text: _kGreenText, bg: AppColors.tintSageBg);
       case 'PENDING_PAYMENT':
       case 'RESERVED':
+        if (b.isHoldExpired()) {
+          return (label: l10n.consultBkStatusNotPaid, text: AppColors.textSecondary, bg: AppColors.disabledSurface);
+        }
         return (label: l10n.consultStatusPending, text: _kAmberText, bg: AppColors.tintAmberBg);
       case 'RESCHEDULED':
         return (label: l10n.consultStatusRescheduled, text: _kBlueText, bg: AppColors.tintSkyBg);
@@ -885,20 +928,6 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
     if (iso.isEmpty) return _t('Date to be confirmed', 'तारीख तय होनी है');
     // appointmentDate is an IST calendar date (yyyy-MM-dd); never shift it.
     return AppDateTime.formatCalendarDate(iso, 'EEE, d MMM yyyy');
-  }
-
-  static String _formatRupees(int amount) {
-    final s = amount.toString();
-    if (s.length <= 3) return '₹$s';
-    final last3 = s.substring(s.length - 3);
-    var rest = s.substring(0, s.length - 3);
-    final parts = <String>[];
-    while (rest.length > 2) {
-      parts.insert(0, rest.substring(rest.length - 2));
-      rest = rest.substring(0, rest.length - 2);
-    }
-    if (rest.isNotEmpty) parts.insert(0, rest);
-    return '₹${parts.join(',')},$last3';
   }
 }
 
@@ -1099,7 +1128,7 @@ class _ServiceCard extends StatelessWidget {
   final String? durationLabel;
   final String? noticeLabel;
   final String? priceLabel;
-  final String taxLabel;
+  final String? taxLabel;
   final String noPriceLabel;
   final String unavailableLabel;
   final String bookLabel;
@@ -1187,8 +1216,10 @@ class _ServiceCard extends StatelessWidget {
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(taxLabel, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      if (taxLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Text(taxLabel!, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      ],
                     ],
                   )
                 else
@@ -1233,6 +1264,9 @@ class _BookingCard extends StatelessWidget {
   final String modeLabel;
   final String? query;
   final String? hint;
+  final VoidCallback onDetails;
+  final Key detailsKey;
+  final String detailsLabel;
   final List<Widget> actions;
 
   const _BookingCard({
@@ -1248,6 +1282,9 @@ class _BookingCard extends StatelessWidget {
     required this.modeLabel,
     required this.query,
     required this.hint,
+    required this.onDetails,
+    required this.detailsKey,
+    required this.detailsLabel,
     required this.actions,
   });
 
@@ -1295,6 +1332,21 @@ class _BookingCard extends StatelessWidget {
             const SizedBox(height: 12),
             a,
           ],
+          const SizedBox(height: 4),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: detailsKey,
+              onPressed: onDetails,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                minimumSize: const Size(48, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+              icon: const Icon(Icons.receipt_long_outlined, size: 20),
+              label: Text(detailsLabel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+          ),
         ],
       ),
     );

@@ -95,11 +95,7 @@ class _FakeConsultationService extends ConsultationService {
   Future<List<ConsultationOfferingModel>> fetchCatalog() async => const [];
 
   @override
-  Future<List<AppointmentSlotModel>> fetchSlots({
-    required String date,
-    required String mode,
-    String? practitionerId,
-  }) async =>
+  Future<List<AppointmentSlotModel>> fetchSlots({required String consultationId, required String date}) async =>
       const [];
 
   @override

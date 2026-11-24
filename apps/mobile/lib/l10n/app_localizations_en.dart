@@ -1732,4 +1732,227 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get horoscopeHindiNarrativeUnavailable =>
       'The detailed text is available only in English right now.';
+
+  @override
+  String get consultBkDateClosed => 'Closed';
+
+  @override
+  String get consultBkSlotsLoadFailed =>
+      'Could not load the times. Please check your internet and try again.';
+
+  @override
+  String consultBkGstAddedLabel(String percent) {
+    return 'GST ($percent%) added';
+  }
+
+  @override
+  String consultBkGstIncludedLabel(String percent) {
+    return 'GST ($percent%) included';
+  }
+
+  @override
+  String get consultBkGstAddedPlain => 'GST added';
+
+  @override
+  String get consultBkGstIncludedPlain => 'GST included';
+
+  @override
+  String get consultBkFeeBeforeGst => 'Consultation fee (before GST)';
+
+  @override
+  String consultBkCardGstIncluded(String percent) {
+    return '$percent% GST included';
+  }
+
+  @override
+  String consultBkCardGstAdded(String base, String gst) {
+    return '$base + $gst GST';
+  }
+
+  @override
+  String consultBkHoldNotice(int minutes) {
+    return 'When you tap Pay, this time is held for you for $minutes minutes while you complete the payment.';
+  }
+
+  @override
+  String consultBkHeldUntil(int minutes, String time) {
+    return 'This time is held for you for $minutes minutes, until $time IST. Please complete the payment before then.';
+  }
+
+  @override
+  String consultBkPriceChanged(String amount) {
+    return 'The price of this consultation is now $amount. Please check the total and tap Pay again.';
+  }
+
+  @override
+  String get consultBkChangePolicy =>
+      'You can reschedule or cancel from My bookings. A new time must be one of the open times and respect this consultation\'s notice period.';
+
+  @override
+  String get consultBkErrSlotTaken =>
+      'This time has just been taken by someone else. Please choose another time.';
+
+  @override
+  String consultBkErrHoldExpired(int minutes) {
+    return 'Your $minutes-minute hold on this time has ended. Please choose a time again.';
+  }
+
+  @override
+  String get consultBkErrNotice =>
+      'This date is too soon for this consultation. Please choose a later date.';
+
+  @override
+  String get consultBkErrDayClosed =>
+      'This date is not open for booking. Please choose another date.';
+
+  @override
+  String get consultBkErrSlotUnavailable =>
+      'This time is no longer available. Please choose another time.';
+
+  @override
+  String get consultBkErrStatus => 'This booking can no longer be changed.';
+
+  @override
+  String get consultBkErrNotFound =>
+      'This booking or consultation is no longer available.';
+
+  @override
+  String get consultBkErrNetwork =>
+      'No connection. Please check your internet and try again.';
+
+  @override
+  String get consultBkErrSignIn => 'Please sign in again to continue.';
+
+  @override
+  String get consultBkErrGeneric => 'Something went wrong. Please try again.';
+
+  @override
+  String get consultBkChooseAnotherTime => 'Choose another time';
+
+  @override
+  String consultBkPaymentCancelled(String time) {
+    return 'Payment was not completed. Your time is still held until $time IST, so you can try again.';
+  }
+
+  @override
+  String consultBkPaymentFailed(String time) {
+    return 'The payment did not go through. Your time is still held until $time IST, so you can try again.';
+  }
+
+  @override
+  String get consultBkPaymentNotOpened =>
+      'The payment screen could not be opened. Please try again.';
+
+  @override
+  String get consultBkConfirming => 'Confirming your booking…';
+
+  @override
+  String get consultBkReviewTitle => 'Your booking is not confirmed yet';
+
+  @override
+  String get consultBkReviewBody =>
+      'Your payment is recorded, but we could not confirm this booking. Our support team will contact you. Please do not pay again.';
+
+  @override
+  String consultBkPaymentId(String id) {
+    return 'Payment ID: $id';
+  }
+
+  @override
+  String get consultBkVerifyRetryTitle =>
+      'Payment received, confirmation pending';
+
+  @override
+  String get consultBkVerifyRetryBody =>
+      'We could not reach the server to confirm your booking. Please check your internet and tap Check again. Do not pay again.';
+
+  @override
+  String get consultBkVerifyRetryButton => 'Check again';
+
+  @override
+  String consultBkHintHeldUntil(String time) {
+    return 'Payment is not complete. This time is held for you until $time IST.';
+  }
+
+  @override
+  String get consultBkHintHoldEnded =>
+      'Payment was not completed in time, so this time is no longer held for you.';
+
+  @override
+  String get consultBkStatusNotPaid => 'Not paid';
+
+  @override
+  String get consultBkViewDetails => 'View details';
+
+  @override
+  String get consultBkDetailTitle => 'Booking details';
+
+  @override
+  String get consultBkDetailWhen => 'Date and time';
+
+  @override
+  String get consultBkDetailMode => 'How we meet';
+
+  @override
+  String get consultBkDetailLink => 'Meeting link';
+
+  @override
+  String get consultBkDetailAddress => 'Address';
+
+  @override
+  String get consultBkDetailQuestion => 'Your question';
+
+  @override
+  String get consultBkDetailProfile => 'Birth profile';
+
+  @override
+  String get consultBkDetailAmountPaid => 'Amount paid';
+
+  @override
+  String get consultBkDetailAmount => 'Amount';
+
+  @override
+  String get consultBkDetailGstPart => 'GST in this amount';
+
+  @override
+  String get consultBkDetailInvoice => 'Invoice number';
+
+  @override
+  String get consultBkDetailRefreshFailed =>
+      'Could not load the latest details. Showing what we have.';
+
+  @override
+  String get consultBkRescheduleTitle => 'Choose a new time';
+
+  @override
+  String consultBkRescheduleCurrent(String when) {
+    return 'Current time: $when';
+  }
+
+  @override
+  String get consultBkRescheduleRules =>
+      'You can move to any open time shown below. This consultation\'s notice period applies, and no extra payment is needed.';
+
+  @override
+  String get consultBkRescheduleConfirm => 'Confirm new time';
+
+  @override
+  String consultBkRescheduleDone(String when) {
+    return 'Your consultation is moved to $when.';
+  }
+
+  @override
+  String get consultBkRescheduleUnavailable =>
+      'This booking cannot be rescheduled in the app. Please contact the office.';
+
+  @override
+  String get consultBkCancelNoAutoRefund =>
+      'Cancelling frees your time for others. It does not refund a payment automatically; for payment questions, please contact the office.';
+
+  @override
+  String get consultBkCancelFailed => 'Could not cancel. Please try again.';
+
+  @override
+  String get consultBkErrAlreadyClosed =>
+      'This booking is already cancelled or completed.';
 }

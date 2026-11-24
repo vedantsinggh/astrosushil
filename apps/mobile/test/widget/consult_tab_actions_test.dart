@@ -133,14 +133,26 @@ void main() {
     await _settleLaunch(tester);
     expect(find.textContaining('Could not open the link'), findsOneWidget);
 
-    // Reschedule opens an action sheet with real ways to change the time
+    // Reschedule opens the in-app sheet: current time, the server's open
+    // slots, and a confirm button that needs a chosen time.
     final reschedule = find.byKey(const ValueKey('consult_reschedule_bk-123'));
     _expectTapTarget(tester, reschedule);
     await tester.tap(reschedule);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('consult_reschedule_whatsapp')), findsOneWidget);
-    expect(find.byKey(const ValueKey('consult_reschedule_call')), findsOneWidget);
-    await tester.tap(find.text('Close').last);
+    expect(find.text('Choose a new time'), findsOneWidget);
+    expect(find.byKey(const ValueKey('reschedule_current')), findsOneWidget);
+    expect(find.byKey(const ValueKey('reschedule_confirm')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reschedule_close')));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose a new time'), findsNothing);
+
+    // Details are one tap away on every booking.
+    final details = find.byKey(const ValueKey('consult_details_bk-123'));
+    _expectTapTarget(tester, details);
+    await tester.tap(details);
+    await tester.pumpAndSettle();
+    expect(find.text('Booking details'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('booking_detail_close')));
     await tester.pumpAndSettle();
 
     // Cancel asks first

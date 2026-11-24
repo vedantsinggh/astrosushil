@@ -3,12 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/app_date_time.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
+import '../../reports/models/report_purchase_models.dart';
+import '../../reports/services/razorpay_checkout_service.dart';
 import '../models/consultation_models.dart';
 import '../providers/consultation_provider.dart';
+import 'consultation_slot_picker.dart';
 
 /// Complete Appointment Booking Flow Sheet
 /// Redesigned in Phase 6 according to the Astro Sushil Design System.
+///
+/// The flow follows the booking API exactly:
+/// 1. date and time: the slots `GET /consultations/slots` offers for the
+///    consultation on an IST date;
+/// 2. who it is for and the question;
+/// 3. review: the price the server charges (GST added on top where the
+///    consultation's GST is exclusive), then "Pay":
+///    `POST /consultations/book` holds the slot for 15 minutes and returns the
+///    payment order, the gateway collects the amount, and
+///    `POST /consultations/verify-payment` confirms the booking.
 class BookingFlowSheet extends ConsumerStatefulWidget {
   final ConsultationOfferingModel offering;
 
@@ -32,83 +46,218 @@ class BookingFlowSheet extends ConsumerStatefulWidget {
   ConsumerState<BookingFlowSheet> createState() => _BookingFlowSheetState();
 }
 
+enum _Phase {
+  /// The three booking steps.
+  steps,
+
+  /// Payment made; waiting for the server to confirm the booking.
+  verifying,
+
+  /// Payment made, the server could not be reached: verify again.
+  verifyRetry,
+
+  /// Payment made, the server did not confirm the booking: support follows up.
+  underReview,
+
+  confirmed,
+}
+
+/// A successful gateway payment, kept so verification can be repeated.
+class _GatewayPayment {
+  final String bookingId;
+  final String bookingReference;
+  final String razorpayOrderId;
+  final String razorpayPaymentId;
+  final String razorpaySignature;
+
+  const _GatewayPayment({
+    required this.bookingId,
+    required this.bookingReference,
+    required this.razorpayOrderId,
+    required this.razorpayPaymentId,
+    required this.razorpaySignature,
+  });
+}
+
 class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
-  late DateTime _selectedDate;
   final TextEditingController _queryController = TextEditingController();
   String? _selectedProfileId;
-  bool _isSuccess = false;
   ConsultationBookingModel? _confirmedBooking;
   int _step = 0;
+  _Phase _phase = _Phase.steps;
+
+  IRazorpayCheckoutService? _razorpay;
+
+  /// The gateway screen is open (or about to open): no second "Pay".
+  bool _awaitingGateway = false;
+
+  /// Why the last payment attempt ended without a payment (shown above Pay).
+  String? _paymentNotice;
+
+  /// A server total different from the catalogue price that the customer has
+  /// been shown and must confirm with a second tap on Pay.
+  int? _acknowledgedTotalPaise;
+
+  _GatewayPayment? _payment;
 
   @override
   void initState() {
     super.initState();
-    final minDays = widget.offering.responseDaysNotice;
-    _selectedDate = AppDateTime.addCalendarDays(AppDateTime.istToday(), minDays);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(consultationNotifierProvider.notifier).selectOffering(widget.offering);
     });
   }
 
   @override
   void dispose() {
+    _razorpay?.dispose();
     _queryController.dispose();
     super.dispose();
   }
 
   void _onDateSelected(DateTime date) {
-    setState(() {
-      _selectedDate = date;
-    });
     ref.read(consultationNotifierProvider.notifier).loadSlotsForDate(date);
   }
 
-  String _formatRupees(int amount) {
-    final s = amount.toString();
-    if (s.length <= 3) return '₹$s';
-    final last3 = s.substring(s.length - 3);
-    var remaining = s.substring(0, s.length - 3);
-    final parts = <String>[];
-    while (remaining.length > 2) {
-      parts.insert(0, remaining.substring(remaining.length - 2));
-      remaining = remaining.substring(0, remaining.length - 2);
-    }
-    if (remaining.isNotEmpty) parts.insert(0, remaining);
-    return '₹${parts.join(',')},$last3';
-  }
+  // ── Booking and payment ─────────────────────────────────────────────────
 
   Future<void> _handleBookAndPay() async {
+    if (_awaitingGateway) return;
+    final l10n = context.l10n;
     final notifier = ref.read(consultationNotifierProvider.notifier);
-    final bookingResult = await notifier.bookSelectedSlot(
+    setState(() => _paymentNotice = null);
+
+    final reservation = await notifier.bookSelectedSlot(
       birthProfileId: _selectedProfileId,
-      query: _queryController.text.trim(),
+      notes: _queryController.text.trim(),
     );
+    if (!mounted || reservation == null) return;
 
-    if (bookingResult != null && mounted) {
-      final bookingJson =
-          bookingResult['booking'] as Map<String, dynamic>? ?? bookingResult['data'] as Map<String, dynamic>?;
-      final orderJson = bookingResult['order'] as Map<String, dynamic>?;
-
-      if (bookingJson != null) {
-        final bookingId = bookingJson['id'] as String;
-        final orderId = orderJson != null ? (orderJson['id'] as String) : 'ord_sim';
-
-        final verified = await notifier.verifyPayment(
-          bookingId: bookingId,
-          orderId: orderId,
-          razorpayPaymentId: 'pay_sim_${DateTime.now().millisecondsSinceEpoch}',
-          razorpaySignature: 'sim_sig_valid',
-        );
-
-        if (verified && mounted) {
-          setState(() {
-            _isSuccess = true;
-            _confirmedBooking = ref.read(consultationNotifierProvider).activeBooking;
-          });
-        }
-      }
+    // The server prices the booking at this moment. If that is not the total
+    // the customer was shown, show the new total and wait for a second tap.
+    final shownTotal = _acknowledgedTotalPaise ?? widget.offering.pricePaise;
+    if (reservation.currency == 'INR' && reservation.totalPaise != shownTotal) {
+      setState(() {
+        _acknowledgedTotalPaise = reservation.totalPaise;
+        _paymentNotice = l10n.consultBkPriceChanged(formatInrPaise(reservation.totalPaise));
+      });
+      return;
     }
+
+    _openCheckout(reservation);
+  }
+
+  void _openCheckout(ConsultationReservation reservation) {
+    final l10n = context.l10n;
+    if (reservation.razorpayKey.isEmpty) {
+      setState(() => _paymentNotice = l10n.consultBkPaymentNotOpened);
+      return;
+    }
+
+    final user = ref.read(authStateProvider).user;
+    final heldUntil = reservation.booking.reservationExpiresAt;
+    String stillHeld(String Function(String) withTime, String fallback) =>
+        heldUntil == null ? fallback : withTime(consultationIstTime(heldUntil));
+
+    try {
+      final IRazorpayCheckoutService razorpay = _razorpay ?? ref.read(razorpayCheckoutServiceProvider);
+      _razorpay = razorpay;
+      razorpay.init(
+        onSuccess: ({
+          required String razorpayOrderId,
+          required String razorpayPaymentId,
+          required String razorpaySignature,
+        }) {
+          if (!mounted) return;
+          _verify(_GatewayPayment(
+            bookingId: reservation.booking.id,
+            bookingReference: reservation.booking.displayReference,
+            // The payment is only valid for the order of this booking.
+            razorpayOrderId: razorpayOrderId.isNotEmpty ? razorpayOrderId : reservation.razorpayOrderId,
+            razorpayPaymentId: razorpayPaymentId,
+            razorpaySignature: razorpaySignature,
+          ));
+        },
+        onFailure: ({required String errorCode, required String errorMessage}) {
+          if (!mounted) return;
+          setState(() {
+            _awaitingGateway = false;
+            _paymentNotice = stillHeld(l10n.consultBkPaymentFailed, l10n.consultBkPaymentNotOpened);
+          });
+        },
+        onCancel: () {
+          if (!mounted) return;
+          setState(() {
+            _awaitingGateway = false;
+            _paymentNotice = stillHeld(l10n.consultBkPaymentCancelled, l10n.consultBkPaymentNotOpened);
+          });
+        },
+      );
+      setState(() => _awaitingGateway = true);
+      final gst = reservation.booking.gstPaise ?? 0;
+      razorpay.openCheckout(
+        order: ReportPaymentOrder(
+          orderId: reservation.orderId,
+          razorpayOrderId: reservation.razorpayOrderId,
+          amount: reservation.amount,
+          subtotal: reservation.amount - gst,
+          taxAmount: gst,
+          currency: reservation.currency,
+          status: 'PENDING',
+          paymentStatus: 'PENDING',
+          razorpayKey: reservation.razorpayKey,
+        ),
+        reportTitle: widget.offering.title,
+        userEmail: user?.email,
+        userContact: user?.phoneNumber,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _awaitingGateway = false;
+        _paymentNotice = l10n.consultBkPaymentNotOpened;
+      });
+    }
+  }
+
+  Future<void> _verify(_GatewayPayment payment) async {
+    setState(() {
+      _payment = payment;
+      _awaitingGateway = false;
+      _paymentNotice = null;
+      _phase = _Phase.verifying;
+    });
+    final notifier = ref.read(consultationNotifierProvider.notifier);
+    final result = await notifier.verifyPayment(
+      bookingId: payment.bookingId,
+      razorpayOrderId: payment.razorpayOrderId,
+      razorpayPaymentId: payment.razorpayPaymentId,
+      razorpaySignature: payment.razorpaySignature,
+    );
+    if (!mounted) return;
+    setState(() {
+      switch (result) {
+        case ConsultationPaymentResult.confirmed:
+          _confirmedBooking = ref.read(consultationNotifierProvider).activeBooking;
+          _phase = _Phase.confirmed;
+        case ConsultationPaymentResult.underReview:
+          _phase = _Phase.underReview;
+        case ConsultationPaymentResult.retry:
+          _phase = _Phase.verifyRetry;
+      }
+    });
+  }
+
+  /// The chosen time cannot be used any more (taken, hold expired, day
+  /// closed): back to the first step with a fresh slot list.
+  void _chooseAnotherTime() {
+    ref.read(consultationNotifierProvider.notifier).backToSlotSelection();
+    setState(() {
+      _paymentNotice = null;
+      _acknowledgedTotalPaise = null;
+      _step = 0;
+    });
   }
 
   // ── Step-by-step navigation (presentation only) ─────────────────────────
@@ -131,6 +280,24 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     final state = ref.watch(consultationNotifierProvider);
     final profilesState = ref.watch(birthProfilesListNotifierProvider);
 
+    final Widget body;
+    switch (_phase) {
+      case _Phase.confirmed:
+        body = Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: _buildSuccessView(context, _confirmedBooking ?? state.activeBooking!),
+        );
+      case _Phase.verifying:
+      case _Phase.verifyRetry:
+      case _Phase.underReview:
+        body = Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: _buildAfterPaymentView(l10n, state),
+        );
+      case _Phase.steps:
+        body = _buildBookingSteps(context, l10n, state, profilesState.profiles);
+    }
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.cardSurfaceWarm,
@@ -143,15 +310,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.92,
       ),
-      child: SafeArea(
-        top: false,
-        child: _isSuccess && _confirmedBooking != null
-            ? Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: _buildSuccessView(context, _confirmedBooking!),
-              )
-            : _buildBookingSteps(context, l10n, state, profilesState.profiles),
-      ),
+      child: SafeArea(top: false, child: body),
     );
   }
 
@@ -164,7 +323,12 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     final Widget stepBody;
     switch (_step) {
       case 0:
-        stepBody = _buildDateTimeStep(l10n, state);
+        stepBody = ConsultationSlotPicker(
+          state: state,
+          noticeDays: widget.offering.responseDaysNotice,
+          onDateSelected: _onDateSelected,
+          onSlotSelected: (slot) => ref.read(consultationNotifierProvider.notifier).selectSlot(slot),
+        );
         break;
       case 1:
         stepBody = _buildDetailsStep(l10n, profiles);
@@ -186,7 +350,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildServiceHeader(l10n),
+                _buildServiceHeader(l10n, state),
                 const SizedBox(height: 18),
                 _buildStepProgress(),
                 const SizedBox(height: 20),
@@ -200,8 +364,16 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
     );
   }
 
+  /// What the customer pays: the server's total once a slot is held, else the
+  /// catalogue's total (both include GST, added on top where exclusive).
+  int _totalPaise(ConsultationState state) {
+    final reservation = state.reservation;
+    if (reservation != null && reservation.currency == 'INR') return reservation.totalPaise;
+    return widget.offering.pricePaise;
+  }
+
   /// Service title, duration/mode and the total price, always visible.
-  Widget _buildServiceHeader(AppLocalizations l10n) {
+  Widget _buildServiceHeader(AppLocalizations l10n, ConsultationState state) {
     final offering = widget.offering;
     final isVoice = offering.mode.contains('VOICE') || offering.mode.contains('AUDIO');
     final isInPerson = offering.mode.contains('IN_PERSON');
@@ -232,7 +404,8 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
               ),
               const SizedBox(height: 8),
               Text(
-                '₹${offering.priceRupees}',
+                formatInrPaise(_totalPaise(state)),
+                key: const ValueKey('booking_header_price'),
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -261,193 +434,6 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
         header: true,
         child: Text(text, style: AppTypography.headlineMedium.copyWith(fontSize: 19)),
       ),
-    );
-  }
-
-  // ── Step 1: date and time ──────────────────────────────────────────────
-
-  Widget _buildDateTimeStep(AppLocalizations l10n, ConsultationState state) {
-    final offering = widget.offering;
-    // Dates are IST calendar days (slots are in IST), not device-local days.
-    final minDate = AppDateTime.addCalendarDays(AppDateTime.istToday(), offering.responseDaysNotice);
-    final dates = List.generate(28, (index) => AppDateTime.addCalendarDays(minDate, index));
-    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Wrap(
-          spacing: 10,
-          runSpacing: 4,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            _sectionTitle(l10n.consultSelectDate),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.warningBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.warningBorder),
-                ),
-                child: Text(
-                  l10n.consultDaysNotice(offering.responseDaysNotice),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.goldDark,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        // Horizontal date picker (scrolls sideways; arrows not required)
-        SizedBox(
-          height: 92 * textScale,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: dates.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (ctx, idx) {
-              final date = dates[idx];
-              final isSelected =
-                  _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
-
-              final dayName = _getDayName(date.weekday);
-              final monthName = _getMonthName(date.month);
-
-              return Semantics(
-                button: true,
-                selected: isSelected,
-                label: '$dayName ${date.day} $monthName',
-                excludeSemantics: true,
-                child: Material(
-                  color: isSelected ? AppColors.primary : AppColors.cardSurface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: isSelected ? AppColors.primary : AppColors.cardBorder,
-                      width: 1.2,
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: () => _onDateSelected(date),
-                    child: SizedBox(
-                      width: 70 * textScale,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            dayName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: isSelected ? AppColors.textInverseSecondary : AppColors.lightTextSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${date.day}',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? AppColors.premiumAccent : AppColors.lightTextPrimary,
-                            ),
-                          ),
-                          Text(
-                            monthName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isSelected ? AppColors.textInverseSecondary : AppColors.lightTextSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 24),
-        _sectionTitle(l10n.consultSelectSlot),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Icon(Icons.schedule_rounded, size: 18, color: AppColors.lightTextSecondary),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  l10n.consultTimeZoneNotice,
-                  style: const TextStyle(fontSize: 14, color: AppColors.lightTextSecondary, height: 1.35),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        if (state.isSlotLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-              child: CircularProgressIndicator(strokeWidth: 2.5),
-            ),
-          )
-        else if (state.slots.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.warningBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.warningBorder),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.event_busy_rounded, color: AppColors.goldDark, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    l10n.consultNoSlots,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.4,
-                      color: AppColors.lightTextPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: state.slots.map((slot) {
-              final isSelected = state.selectedSlot?.id == slot.id;
-              final isAvailable = slot.isBookable;
-
-              return _SelectableTile(
-                label: '${slot.startTime} - ${slot.endTime} IST',
-                selected: isSelected,
-                enabled: isAvailable,
-                onTap: () => ref.read(consultationNotifierProvider.notifier).selectSlot(slot),
-              );
-            }).toList(),
-          ),
-      ],
     );
   }
 
@@ -533,20 +519,37 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
 
   Widget _buildReviewStep(AppLocalizations l10n, ConsultationState state, List<dynamic> profiles) {
     final offering = widget.offering;
+    final reservation = state.reservation;
+    // Once the slot is held the booking details are fixed on the server: only
+    // the time can still be changed (which starts a new booking).
+    final locked = reservation != null;
 
-    // GST Breakdown calculations
-    final totalRupees = offering.priceRupees;
-    final baseRupees = (totalRupees / 1.18).round();
-    final gstRupees = totalRupees - baseRupees;
+    // Price breakdown from the server's figures: never computed here.
+    final int totalPaise = _totalPaise(state);
+    final int? gstPaise;
+    final bool gstOnTop;
+    if (reservation != null && reservation.currency == 'INR' && reservation.booking.gstPaise != null) {
+      gstPaise = reservation.booking.gstPaise;
+      gstOnTop = reservation.booking.gstType == 'EXCLUSIVE';
+    } else {
+      gstPaise = offering.gstPaise;
+      gstOnTop = !offering.taxIncluded;
+    }
+    final hasGst = (gstPaise ?? 0) > 0;
+    final percent = offering.gstPercentLabel;
+    final String gstLabel = gstOnTop
+        ? (percent == null ? l10n.consultBkGstAddedPlain : l10n.consultBkGstAddedLabel(percent))
+        : (percent == null ? l10n.consultBkGstIncludedPlain : l10n.consultBkGstIncludedLabel(percent));
 
     final slot = state.selectedSlot;
-    final dateText =
-        '${_getDayName(_selectedDate.weekday)}, ${_selectedDate.day} ${_getMonthName(_selectedDate.month)} ${_selectedDate.year}';
+    final selectedDate = state.selectedDate ?? state.firstBookableDate ?? AppDateTime.istToday();
+    final dateText = consultationDateLabel(selectedDate);
     String profileName = l10n.consultNoProfile;
     for (final p in profiles) {
       if (p.id == _selectedProfileId) profileName = p.name as String;
     }
     final query = _queryController.text.trim();
+    final heldUntil = reservation?.booking.reservationExpiresAt;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -561,14 +564,14 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
               _SummaryRow(
                 icon: Icons.calendar_month_outlined,
                 text: slot != null ? '$dateText\n${slot.startTime} - ${slot.endTime} IST' : dateText,
-                onEdit: () => _goToStep(0),
+                onEdit: locked ? _chooseAnotherTime : () => _goToStep(0),
                 editTooltip: l10n.consultSelectDate,
               ),
               const Divider(height: 8, color: AppColors.separator),
               _SummaryRow(
                 icon: Icons.person_outline_rounded,
                 text: profileName,
-                onEdit: () => _goToStep(1),
+                onEdit: locked ? null : () => _goToStep(1),
                 editTooltip: l10n.consultSelectProfile,
               ),
               if (query.isNotEmpty) ...[
@@ -576,7 +579,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
                 _SummaryRow(
                   icon: Icons.chat_bubble_outline_rounded,
                   text: query,
-                  onEdit: () => _goToStep(1),
+                  onEdit: locked ? null : () => _goToStep(1),
                   editTooltip: l10n.consultQueryHint,
                 ),
               ],
@@ -585,44 +588,39 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
         ),
         const SizedBox(height: 16),
 
-        // Price & 18% Inclusive GST Breakdown
+        // Price and GST: included in the listed price, or added on top of it.
         AstroSurfaceCard(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _PriceRow(label: l10n.consultBasePrice, value: _formatRupees(baseRupees)),
-              const SizedBox(height: 8),
-              _PriceRow(label: l10n.consultGstAmount, value: _formatRupees(gstRupees)),
-              const Divider(height: 24, color: AppColors.cardBorder),
+              if (hasGst) ...[
+                _PriceRow(
+                  label: gstOnTop ? l10n.consultBasePrice : l10n.consultBkFeeBeforeGst,
+                  value: formatInrPaise(totalPaise - gstPaise!),
+                ),
+                const SizedBox(height: 8),
+                _PriceRow(label: gstLabel, value: formatInrPaise(gstPaise)),
+                const Divider(height: 24, color: AppColors.cardBorder),
+              ],
               _PriceRow(
                 label: l10n.consultTotalAmount,
-                value: _formatRupees(totalRupees),
+                value: formatInrPaise(totalPaise),
                 emphasise: true,
               ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 2),
-              child: Icon(Icons.info_outline_rounded, size: 18, color: AppColors.lightTextSecondary),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l10n.consultReschedulePolicy,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.lightTextSecondary,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
+        _InfoNote(
+          key: const ValueKey('booking_hold_note'),
+          icon: Icons.timer_outlined,
+          text: heldUntil != null
+              ? l10n.consultBkHeldUntil(kConsultationHoldMinutes, consultationIstTime(heldUntil))
+              : l10n.consultBkHoldNotice(kConsultationHoldMinutes),
+          emphasise: heldUntil != null,
         ),
+        const SizedBox(height: 10),
+        _InfoNote(icon: Icons.info_outline_rounded, text: l10n.consultBkChangePolicy),
       ],
     );
   }
@@ -632,21 +630,38 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
   Widget _buildFooter(AppLocalizations l10n, ConsultationState state) {
     final isLastStep = _step == _stepCount - 1;
     final canContinue = _step != 0 || state.selectedSlot != null;
-    final canPay = state.selectedSlot != null && !state.isBookingLoading;
+    final busy = state.isBookingLoading || _awaitingGateway;
+    final canPay = state.selectedSlot != null && !busy;
+    final failure = isLastStep ? state.bookingFailure : null;
+    final mustRechoose = failure != null && failure.needsNewSlot;
+    final locked = state.reservation != null;
 
-    final Widget primary = isLastStep
-        ? AstroPrimaryButton(
-            buttonKey: const ValueKey('booking_pay'),
-            label: l10n.consultPayAndConfirm(widget.offering.priceRupees.toString()),
-            isLoading: state.isBookingLoading,
-            onPressed: canPay ? _handleBookAndPay : null,
-          )
-        : AstroPrimaryButton(
-            buttonKey: const ValueKey('booking_next'),
-            label: _nextLabel,
-            icon: Icons.arrow_forward_rounded,
-            onPressed: canContinue ? () => _goToStep(_step + 1) : null,
-          );
+    final Widget primary;
+    if (isLastStep && mustRechoose) {
+      primary = AstroPrimaryButton(
+        buttonKey: const ValueKey('booking_choose_time'),
+        label: l10n.consultBkChooseAnotherTime,
+        icon: Icons.event_repeat_rounded,
+        onPressed: _chooseAnotherTime,
+      );
+    } else if (isLastStep) {
+      primary = AstroPrimaryButton(
+        buttonKey: const ValueKey('booking_pay'),
+        label: l10n.consultPayAndConfirm(formatInrPaise(_totalPaise(state)).substring(1)),
+        isLoading: busy,
+        onPressed: canPay ? _handleBookAndPay : null,
+      );
+    } else {
+      primary = AstroPrimaryButton(
+        buttonKey: const ValueKey('booking_next'),
+        label: _nextLabel,
+        icon: Icons.arrow_forward_rounded,
+        onPressed: canContinue ? () => _goToStep(_step + 1) : null,
+      );
+    }
+
+    final String? message =
+        failure != null ? consultationFailureMessage(l10n, failure) : (isLastStep ? _paymentNotice : null);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(AstroMetrics.gutter, 12, AstroMetrics.gutter, 12),
@@ -658,10 +673,14 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (state.errorMessage != null && isLastStep) ...[
-            Text(
-              state.errorMessage!,
-              style: const TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w600),
+          if (message != null) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                message,
+                key: const ValueKey('booking_message'),
+                style: const TextStyle(color: AppColors.error, fontSize: 15, height: 1.35, fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(height: 10),
           ],
@@ -675,20 +694,150 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
           ],
           Row(
             children: [
-              if (_step > 0) ...[
+              // With a slot held, the details are fixed: the only way back is
+              // "Change" on the date and time, which starts over.
+              if (_step > 0 && !(isLastStep && (locked || mustRechoose))) ...[
                 AstroSecondaryButton(
                   key: const ValueKey('booking_back'),
                   label: _backLabel,
                   icon: AstroIcons.back(context),
                   expand: false,
                   variant: AstroSecondaryVariant.outlined,
-                  onPressed: state.isBookingLoading ? null : () => _goToStep(_step - 1),
+                  onPressed: busy ? null : () => _goToStep(_step - 1),
                 ),
                 const SizedBox(width: 10),
               ],
               Expanded(child: primary),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── After the gateway took the payment ─────────────────────────────────
+
+  /// Confirming, "check again" (server unreachable) or "support will contact
+  /// you" (the server did not confirm the booking). The customer has paid in
+  /// all three, so none of them offers to pay again.
+  Widget _buildAfterPaymentView(AppLocalizations l10n, ConsultationState state) {
+    final payment = _payment;
+    final verifying = _phase == _Phase.verifying;
+    final underReview = _phase == _Phase.underReview;
+
+    final String title;
+    final String bodyText;
+    if (verifying) {
+      title = l10n.consultBkConfirming;
+      bodyText = '';
+    } else if (underReview) {
+      title = l10n.consultBkReviewTitle;
+      bodyText = l10n.consultBkReviewBody;
+    } else {
+      title = l10n.consultBkVerifyRetryTitle;
+      bodyText = l10n.consultBkVerifyRetryBody;
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const AstroSheetGrabber(),
+          const SizedBox(height: 16),
+          Center(
+            child: verifying
+                ? const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  )
+                : const CircleAvatar(
+                    radius: 36,
+                    backgroundColor: AppColors.warningBg,
+                    child: Icon(Icons.support_agent_rounded, color: AppColors.goldDark, size: 40),
+                  ),
+          ),
+          const SizedBox(height: 16),
+          Semantics(
+            liveRegion: true,
+            header: true,
+            child: Text(
+              title,
+              key: const ValueKey('booking_after_payment_title'),
+              textAlign: TextAlign.center,
+              style: AppTypography.titleLarge.copyWith(
+                fontSize: 21,
+                fontWeight: FontWeight.bold,
+                color: AppColors.lightTextPrimary,
+              ),
+            ),
+          ),
+          if (bodyText.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              bodyText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, height: 1.45, color: AppColors.lightTextPrimary),
+            ),
+          ],
+          if (!verifying && payment != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.canvas,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SelectableText(
+                    l10n.consultBookingReference(payment.bookingReference),
+                    style:
+                        const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    l10n.consultBkPaymentId(payment.razorpayPaymentId),
+                    style:
+                        const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.lightTextPrimary),
+                  ),
+                  if (underReview) ...[
+                    const Divider(height: 24, color: AppColors.separator),
+                    Text(
+                      l10n.consultContactOffice,
+                      style:
+                          const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.lightTextPrimary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.consultOfficeDetails,
+                      style: const TextStyle(fontSize: 15, height: 1.4, color: AppColors.lightTextSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          if (_phase == _Phase.verifyRetry && payment != null) ...[
+            AstroPrimaryButton(
+              buttonKey: const ValueKey('booking_verify_retry'),
+              label: l10n.consultBkVerifyRetryButton,
+              icon: Icons.refresh_rounded,
+              onPressed: () => _verify(payment),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (!verifying)
+            AstroSecondaryButton(
+              key: const ValueKey('booking_after_payment_close'),
+              label: l10n.close,
+              variant: AstroSecondaryVariant.outlined,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
         ],
       ),
     );
@@ -726,7 +875,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
           ),
           const SizedBox(height: 6),
           Text(
-            l10n.consultBookingReference(booking.bookingReference),
+            l10n.consultBookingReference(booking.displayReference),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 16,
@@ -761,12 +910,28 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${booking.appointmentDate} • ${booking.startTime} - ${booking.endTime} IST',
+                        '${AppDateTime.formatCalendarDate(booking.appointmentDate, 'EEE, d MMM yyyy')} • ${booking.startTime} - ${booking.endTime} IST',
                         style: const TextStyle(fontSize: 16, color: AppColors.lightTextPrimary, height: 1.35),
                       ),
                     ),
                   ],
                 ),
+                if (booking.locationAddress != null && booking.locationAddress!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.place_outlined, color: AppColors.lightTextSecondary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          booking.locationAddress!.trim(),
+                          style: const TextStyle(fontSize: 15, color: AppColors.lightTextPrimary, height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (booking.meetingLink != null) ...[
                   const SizedBox(height: 12),
                   Row(
@@ -828,83 +993,38 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
       ),
     );
   }
-
-  String _getDayName(int weekday) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days[weekday - 1];
-  }
-
-  String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
-  }
 }
 
-/// Large selectable time-slot tile (>= 52dp tall) with a clear selected state.
-class _SelectableTile extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
+/// Small icon + text note under the price card.
+class _InfoNote extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final bool emphasise;
 
-  const _SelectableTile({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
+  const _InfoNote({super.key, required this.icon, required this.text, this.emphasise = false});
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = selected ? AppColors.primary : (enabled ? AppColors.cardSurface : AppColors.disabledSurface);
-    final Color fg = selected ? Colors.white : (enabled ? AppColors.lightTextPrimary : AppColors.disabled);
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      enabled: enabled,
-      child: Material(
-        color: bg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(
-            color: selected ? AppColors.primary : AppColors.cardBorder,
-            width: 1.2,
-          ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 18, color: emphasise ? AppColors.goldDark : AppColors.lightTextSecondary),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    selected ? Icons.check_circle_rounded : Icons.access_time_rounded,
-                    size: 20,
-                    color: selected ? AppColors.premiumAccent : fg,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                        color: fg,
-                        decoration: enabled ? null : TextDecoration.lineThrough,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              fontWeight: emphasise ? FontWeight.w600 : FontWeight.w400,
+              color: emphasise ? AppColors.lightTextPrimary : AppColors.lightTextSecondary,
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -978,7 +1098,9 @@ class _ProfileOption extends StatelessWidget {
 class _SummaryRow extends StatelessWidget {
   final IconData icon;
   final String text;
-  final VoidCallback onEdit;
+
+  /// Null hides the "Change" link (the value is fixed).
+  final VoidCallback? onEdit;
   final String editTooltip;
 
   const _SummaryRow({
@@ -1007,19 +1129,20 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
         ),
-        Tooltip(
-          message: editTooltip,
-          child: TextButton(
-            onPressed: onEdit,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.accent,
-              minimumSize: const Size(48, 48),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              textStyle: AppTypography.labelLarge.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+        if (onEdit != null)
+          Tooltip(
+            message: editTooltip,
+            child: TextButton(
+              onPressed: onEdit,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accent,
+                minimumSize: const Size(48, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                textStyle: AppTypography.labelLarge.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              child: Text(context.l10n.commonChange),
             ),
-            child: Text(context.l10n.commonChange),
           ),
-        ),
       ],
     );
   }

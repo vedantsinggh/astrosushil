@@ -17,6 +17,8 @@ import 'package:astro_mobile/features/birth_profile/providers/birth_profile_prov
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
+import 'package:astro_mobile/features/reports/services/razorpay_checkout_service.dart';
+import '../helpers/consultation_fakes.dart';
 
 class _CaptureAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier {
   _CaptureAuthNotifier(super.state);
@@ -93,11 +95,7 @@ class MockCaptureConsultationService implements ConsultationService {
   }
 
   @override
-  Future<List<AppointmentSlotModel>> fetchSlots({
-    required String date,
-    required String mode,
-    String? practitionerId,
-  }) async {
+  Future<List<AppointmentSlotModel>> fetchSlots({required String consultationId, required String date}) async {
     return const [
       AppointmentSlotModel(
         id: 'slot-1',
@@ -136,35 +134,28 @@ class MockCaptureConsultationService implements ConsultationService {
   }
 
   @override
-  Future<Map<String, dynamic>> bookAppointment({
-    required String slotId,
-    required String consultationSku,
-    required String consultationMode,
+  Future<ConsultationReservation> bookAppointment({
+    required String consultationId,
+    required String mode,
+    required String date,
+    required String startTime,
+    required String endTime,
     String? birthProfileId,
-    String? query,
-  }) async {
-    return {
-      'booking': {
-        'id': 'bk-cap-01',
-        'bookingReference': 'BK-CONF-779',
-        'serviceTitle': 'General Consultation (Video)',
-        'consultationMode': consultationMode,
-        'appointmentDate': '2026-10-26',
-        'startTime': '10:00',
-        'endTime': '10:30',
-        'status': 'PENDING_PAYMENT',
-      },
-      'order': {
-        'id': 'ord-cap-01',
-        'totalPaise': 1500000,
-      },
-    };
-  }
+    String? notes,
+  }) async =>
+      fakeConsultationReservation(
+        consultationId: consultationId,
+        mode: mode,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        catalog: await fetchCatalog(),
+      );
 
   @override
   Future<ConsultationBookingModel> verifyPayment({
     required String bookingId,
-    required String orderId,
+    required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
   }) async {
@@ -214,13 +205,21 @@ class MockCaptureConsultationService implements ConsultationService {
   }
 
   @override
+  Future<List<String>> fetchBlockedDates({required int month, required int year}) async => const [];
+
+  @override
+  Future<ConsultationInvoiceModel> getBookingInvoice(String bookingId) async => throw UnimplementedError();
+
+  @override
   Future<ConsultationBookingModel> getBookingDetails(String bookingId) async =>
       (await getMyBookings()).first;
 
   @override
   Future<ConsultationBookingModel> rescheduleBooking({
     required String bookingId,
-    required String newSlotId,
+    required String newDate,
+    required String newStartTime,
+    required String newEndTime,
     String? reason,
   }) async =>
       (await getMyBookings()).first;
@@ -277,6 +276,7 @@ void main() {
     return ProviderScope(
       overrides: [
         consultationServiceProvider.overrideWithValue(mockService),
+        razorpayCheckoutServiceProvider.overrideWithValue(FakeRazorpayCheckoutService(autoSucceed: true)),
         birthProfilesListNotifierProvider.overrideWith(
           (ref) => TestBirthProfilesNotifier([testProfile]),
         ),
@@ -448,10 +448,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('booking_next')));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Proceed to Pay ₹15000'));
+      await tester.ensureVisible(find.byKey(const ValueKey('booking_pay')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Proceed to Pay ₹15000'));
+      // The fake gateway answers with a successful payment at once.
+      await tester.tap(find.byKey(const ValueKey('booking_pay')));
       await tester.pumpAndSettle();
 
       await captureToFile(tester, boundaryKey, '05_consultations_booking_confirmed.png');

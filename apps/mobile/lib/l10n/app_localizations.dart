@@ -3247,6 +3247,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The detailed text is available only in English right now.'**
   String get horoscopeHindiNarrativeUnavailable;
+
+  /// No description provided for @consultBkDateClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get consultBkDateClosed;
+
+  /// No description provided for @consultBkSlotsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the times. Please check your internet and try again.'**
+  String get consultBkSlotsLoadFailed;
+
+  /// No description provided for @consultBkGstAddedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'GST ({percent}%) added'**
+  String consultBkGstAddedLabel(String percent);
+
+  /// No description provided for @consultBkGstIncludedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'GST ({percent}%) included'**
+  String consultBkGstIncludedLabel(String percent);
+
+  /// No description provided for @consultBkGstAddedPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'GST added'**
+  String get consultBkGstAddedPlain;
+
+  /// No description provided for @consultBkGstIncludedPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'GST included'**
+  String get consultBkGstIncludedPlain;
+
+  /// No description provided for @consultBkFeeBeforeGst.
+  ///
+  /// In en, this message translates to:
+  /// **'Consultation fee (before GST)'**
+  String get consultBkFeeBeforeGst;
+
+  /// No description provided for @consultBkCardGstIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% GST included'**
+  String consultBkCardGstIncluded(String percent);
+
+  /// No description provided for @consultBkCardGstAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{base} + {gst} GST'**
+  String consultBkCardGstAdded(String base, String gst);
+
+  /// No description provided for @consultBkHoldNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'When you tap Pay, this time is held for you for {minutes} minutes while you complete the payment.'**
+  String consultBkHoldNotice(int minutes);
+
+  /// No description provided for @consultBkHeldUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'This time is held for you for {minutes} minutes, until {time} IST. Please complete the payment before then.'**
+  String consultBkHeldUntil(int minutes, String time);
+
+  /// No description provided for @consultBkPriceChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The price of this consultation is now {amount}. Please check the total and tap Pay again.'**
+  String consultBkPriceChanged(String amount);
+
+  /// No description provided for @consultBkChangePolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'You can reschedule or cancel from My bookings. A new time must be one of the open times and respect this consultation\'s notice period.'**
+  String get consultBkChangePolicy;
+
+  /// No description provided for @consultBkErrSlotTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'This time has just been taken by someone else. Please choose another time.'**
+  String get consultBkErrSlotTaken;
+
+  /// No description provided for @consultBkErrHoldExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {minutes}-minute hold on this time has ended. Please choose a time again.'**
+  String consultBkErrHoldExpired(int minutes);
+
+  /// No description provided for @consultBkErrNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This date is too soon for this consultation. Please choose a later date.'**
+  String get consultBkErrNotice;
+
+  /// No description provided for @consultBkErrDayClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This date is not open for booking. Please choose another date.'**
+  String get consultBkErrDayClosed;
+
+  /// No description provided for @consultBkErrSlotUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This time is no longer available. Please choose another time.'**
+  String get consultBkErrSlotUnavailable;
+
+  /// No description provided for @consultBkErrStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'This booking can no longer be changed.'**
+  String get consultBkErrStatus;
+
+  /// No description provided for @consultBkErrNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This booking or consultation is no longer available.'**
+  String get consultBkErrNotFound;
+
+  /// No description provided for @consultBkErrNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Please check your internet and try again.'**
+  String get consultBkErrNetwork;
+
+  /// No description provided for @consultBkErrSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Please sign in again to continue.'**
+  String get consultBkErrSignIn;
+
+  /// No description provided for @consultBkErrGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get consultBkErrGeneric;
+
+  /// No description provided for @consultBkChooseAnotherTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another time'**
+  String get consultBkChooseAnotherTime;
+
+  /// No description provided for @consultBkPaymentCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment was not completed. Your time is still held until {time} IST, so you can try again.'**
+  String consultBkPaymentCancelled(String time);
+
+  /// No description provided for @consultBkPaymentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The payment did not go through. Your time is still held until {time} IST, so you can try again.'**
+  String consultBkPaymentFailed(String time);
+
+  /// No description provided for @consultBkPaymentNotOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'The payment screen could not be opened. Please try again.'**
+  String get consultBkPaymentNotOpened;
+
+  /// No description provided for @consultBkConfirming.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirming your booking…'**
+  String get consultBkConfirming;
+
+  /// No description provided for @consultBkReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your booking is not confirmed yet'**
+  String get consultBkReviewTitle;
+
+  /// No description provided for @consultBkReviewBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payment is recorded, but we could not confirm this booking. Our support team will contact you. Please do not pay again.'**
+  String get consultBkReviewBody;
+
+  /// No description provided for @consultBkPaymentId.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment ID: {id}'**
+  String consultBkPaymentId(String id);
+
+  /// No description provided for @consultBkVerifyRetryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment received, confirmation pending'**
+  String get consultBkVerifyRetryTitle;
+
+  /// No description provided for @consultBkVerifyRetryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not reach the server to confirm your booking. Please check your internet and tap Check again. Do not pay again.'**
+  String get consultBkVerifyRetryBody;
+
+  /// No description provided for @consultBkVerifyRetryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Check again'**
+  String get consultBkVerifyRetryButton;
+
+  /// No description provided for @consultBkHintHeldUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is not complete. This time is held for you until {time} IST.'**
+  String consultBkHintHeldUntil(String time);
+
+  /// No description provided for @consultBkHintHoldEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment was not completed in time, so this time is no longer held for you.'**
+  String get consultBkHintHoldEnded;
+
+  /// No description provided for @consultBkStatusNotPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Not paid'**
+  String get consultBkStatusNotPaid;
+
+  /// No description provided for @consultBkViewDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get consultBkViewDetails;
+
+  /// No description provided for @consultBkDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking details'**
+  String get consultBkDetailTitle;
+
+  /// No description provided for @consultBkDetailWhen.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time'**
+  String get consultBkDetailWhen;
+
+  /// No description provided for @consultBkDetailMode.
+  ///
+  /// In en, this message translates to:
+  /// **'How we meet'**
+  String get consultBkDetailMode;
+
+  /// No description provided for @consultBkDetailLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Meeting link'**
+  String get consultBkDetailLink;
+
+  /// No description provided for @consultBkDetailAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get consultBkDetailAddress;
+
+  /// No description provided for @consultBkDetailQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Your question'**
+  String get consultBkDetailQuestion;
+
+  /// No description provided for @consultBkDetailProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth profile'**
+  String get consultBkDetailProfile;
+
+  /// No description provided for @consultBkDetailAmountPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount paid'**
+  String get consultBkDetailAmountPaid;
+
+  /// No description provided for @consultBkDetailAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get consultBkDetailAmount;
+
+  /// No description provided for @consultBkDetailGstPart.
+  ///
+  /// In en, this message translates to:
+  /// **'GST in this amount'**
+  String get consultBkDetailGstPart;
+
+  /// No description provided for @consultBkDetailInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice number'**
+  String get consultBkDetailInvoice;
+
+  /// No description provided for @consultBkDetailRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the latest details. Showing what we have.'**
+  String get consultBkDetailRefreshFailed;
+
+  /// No description provided for @consultBkRescheduleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new time'**
+  String get consultBkRescheduleTitle;
+
+  /// No description provided for @consultBkRescheduleCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current time: {when}'**
+  String consultBkRescheduleCurrent(String when);
+
+  /// No description provided for @consultBkRescheduleRules.
+  ///
+  /// In en, this message translates to:
+  /// **'You can move to any open time shown below. This consultation\'s notice period applies, and no extra payment is needed.'**
+  String get consultBkRescheduleRules;
+
+  /// No description provided for @consultBkRescheduleConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new time'**
+  String get consultBkRescheduleConfirm;
+
+  /// No description provided for @consultBkRescheduleDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your consultation is moved to {when}.'**
+  String consultBkRescheduleDone(String when);
+
+  /// No description provided for @consultBkRescheduleUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This booking cannot be rescheduled in the app. Please contact the office.'**
+  String get consultBkRescheduleUnavailable;
+
+  /// No description provided for @consultBkCancelNoAutoRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelling frees your time for others. It does not refund a payment automatically; for payment questions, please contact the office.'**
+  String get consultBkCancelNoAutoRefund;
+
+  /// No description provided for @consultBkCancelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not cancel. Please try again.'**
+  String get consultBkCancelFailed;
+
+  /// No description provided for @consultBkErrAlreadyClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This booking is already cancelled or completed.'**
+  String get consultBkErrAlreadyClosed;
 }
 
 class _AppLocalizationsDelegate

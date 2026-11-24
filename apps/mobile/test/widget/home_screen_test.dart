@@ -21,6 +21,7 @@ import 'package:astro_mobile/features/consultations/models/consultation_models.d
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import '../helpers/consultation_fakes.dart';
 
 void main() {
   final testUser = UserModel(
@@ -357,27 +358,32 @@ class _MockHomeScreenConsultationService implements ConsultationService {
       ];
 
   @override
-  Future<List<AppointmentSlotModel>> fetchSlots({
-    required String date,
-    required String mode,
-    String? practitionerId,
-  }) async =>
+  Future<List<AppointmentSlotModel>> fetchSlots({required String consultationId, required String date}) async =>
       const [];
 
   @override
-  Future<Map<String, dynamic>> bookAppointment({
-    required String slotId,
-    required String consultationSku,
-    required String consultationMode,
+  Future<ConsultationReservation> bookAppointment({
+    required String consultationId,
+    required String mode,
+    required String date,
+    required String startTime,
+    required String endTime,
     String? birthProfileId,
-    String? query,
+    String? notes,
   }) async =>
-      {};
+      fakeConsultationReservation(
+        consultationId: consultationId,
+        mode: mode,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        catalog: await fetchCatalog(),
+      );
 
   @override
   Future<ConsultationBookingModel> verifyPayment({
     required String bookingId,
-    required String orderId,
+    required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
   }) async =>
@@ -387,13 +393,21 @@ class _MockHomeScreenConsultationService implements ConsultationService {
   Future<List<ConsultationBookingModel>> getMyBookings() async => const [];
 
   @override
+  Future<List<String>> fetchBlockedDates({required int month, required int year}) async => const [];
+
+  @override
+  Future<ConsultationInvoiceModel> getBookingInvoice(String bookingId) async => throw UnimplementedError();
+
+  @override
   Future<ConsultationBookingModel> getBookingDetails(String bookingId) async =>
       throw UnimplementedError();
 
   @override
   Future<ConsultationBookingModel> rescheduleBooking({
     required String bookingId,
-    required String newSlotId,
+    required String newDate,
+    required String newStartTime,
+    required String newEndTime,
     String? reason,
   }) async =>
       throw UnimplementedError();

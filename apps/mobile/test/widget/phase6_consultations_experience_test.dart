@@ -14,6 +14,8 @@ import 'package:astro_mobile/shared/theme/app_theme.dart';
 import 'package:astro_mobile/shared/widgets/astro_controls.dart' show AstroSegmentedControl;
 import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
+import 'package:astro_mobile/features/reports/services/razorpay_checkout_service.dart';
+import '../helpers/consultation_fakes.dart';
 
 class MockConsultationService implements ConsultationService {
   final List<ConsultationOfferingModel> catalog;
@@ -134,6 +136,7 @@ class MockConsultationService implements ConsultationService {
         meetingLink: 'https://meet.jit.si/astrosushil-BK-TEST-1',
         query: 'Career promotion timing in 2026',
         pricePaise: 1500000,
+        consultationId: 'consult-general-video',
       ),
       ConsultationBookingModel(
         id: 'bk-124',
@@ -154,43 +157,32 @@ class MockConsultationService implements ConsultationService {
   Future<List<ConsultationOfferingModel>> fetchCatalog() async => catalog;
 
   @override
-  Future<List<AppointmentSlotModel>> fetchSlots({
-    required String date,
-    required String mode,
-    String? practitionerId,
-  }) async =>
+  Future<List<AppointmentSlotModel>> fetchSlots({required String consultationId, required String date}) async =>
       slots;
 
   @override
-  Future<Map<String, dynamic>> bookAppointment({
-    required String slotId,
-    required String consultationSku,
-    required String consultationMode,
+  Future<ConsultationReservation> bookAppointment({
+    required String consultationId,
+    required String mode,
+    required String date,
+    required String startTime,
+    required String endTime,
     String? birthProfileId,
-    String? query,
-  }) async {
-    return {
-      'booking': {
-        'id': 'bk-new',
-        'bookingReference': 'BK-CONF-88',
-        'serviceTitle': 'General Consultation (Video)',
-        'consultationMode': consultationMode,
-        'appointmentDate': '2026-10-26',
-        'startTime': '10:00',
-        'endTime': '10:30',
-        'status': 'PENDING_PAYMENT',
-      },
-      'order': {
-        'id': 'ord-new',
-        'totalPaise': 1500000,
-      },
-    };
-  }
+    String? notes,
+  }) async =>
+      fakeConsultationReservation(
+        consultationId: consultationId,
+        mode: mode,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        catalog: await fetchCatalog(),
+      );
 
   @override
   Future<ConsultationBookingModel> verifyPayment({
     required String bookingId,
-    required String orderId,
+    required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
   }) async {
@@ -212,13 +204,21 @@ class MockConsultationService implements ConsultationService {
   Future<List<ConsultationBookingModel>> getMyBookings() async => myBookings;
 
   @override
+  Future<List<String>> fetchBlockedDates({required int month, required int year}) async => const [];
+
+  @override
+  Future<ConsultationInvoiceModel> getBookingInvoice(String bookingId) async => throw UnimplementedError();
+
+  @override
   Future<ConsultationBookingModel> getBookingDetails(String bookingId) async =>
       myBookings.firstWhere((b) => b.id == bookingId);
 
   @override
   Future<ConsultationBookingModel> rescheduleBooking({
     required String bookingId,
-    required String newSlotId,
+    required String newDate,
+    required String newStartTime,
+    required String newEndTime,
     String? reason,
   }) async =>
       myBookings.first;
@@ -295,11 +295,15 @@ void main() {
     Locale locale = const Locale('en'),
     List<BirthProfileModel>? profiles,
     bool signedIn = true,
+    IRazorpayCheckoutService? razorpay,
   }) {
     final mockService = service ?? MockConsultationService();
     return ProviderScope(
       overrides: [
         consultationServiceProvider.overrideWithValue(mockService),
+        // The payment gateway is always faked: no network, no real payment.
+        razorpayCheckoutServiceProvider
+            .overrideWithValue(razorpay ?? FakeRazorpayCheckoutService(autoSucceed: true)),
         authStateProvider.overrideWith(
           (ref) => TestAuthNotifier(signedIn ? AuthState.authenticated(testUser) : AuthState.unauthenticated()),
         ),
@@ -408,7 +412,7 @@ void main() {
       expect(service('consult-general-video'), findsOneWidget);
     });
 
-    testWidgets('BookingFlowSheet validates date, slot, profile, and shows 18% inclusive GST breakdown',
+    testWidgets('BookingFlowSheet validates date, slot, profile, and shows the server GST breakdown (18% included)',
         (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -423,6 +427,11 @@ void main() {
         pricePaise: 1500000,
         responseDaysNotice: 7,
         category: 'Video Consultation',
+        // As GET /consultations sends it for a type whose GST is inclusive.
+        basePricePaise: 1500000,
+        gstPaise: 228814,
+        taxIncluded: true,
+        taxRateBasisPoints: 1800,
       );
 
       await tester.pumpWidget(buildAppWrapper(
@@ -435,7 +444,7 @@ void main() {
       // Check Offering Title & Duration (header stays visible on every step)
       expect(find.text('General Consultation (Video)'), findsOneWidget);
       expect(find.text('30 mins • ONLINE VIDEO'), findsOneWidget);
-      expect(find.text('₹15000'), findsOneWidget);
+      expect(find.text('₹15,000'), findsOneWidget);
 
       // Step 1 of 3: Date, timezone notice and slots
       expect(find.text('Step 1 of 3'), findsOneWidget);
@@ -472,17 +481,21 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('booking_next')));
       await tester.pumpAndSettle();
 
-      // Step 3 of 3: Price & 18% Inclusive GST Breakdown: ₹15,000 Total, ₹12,712 Base, ₹2,288 GST
+      // Step 3 of 3: the server's figures, to the paisa: ₹15,000 total, of
+      // which ₹2,288.14 is the GST already inside the listed price.
       expect(find.text('Step 3 of 3'), findsOneWidget);
-      expect(find.text('Base Consultation Fee'), findsOneWidget);
-      expect(find.text('₹12,712'), findsOneWidget);
-      expect(find.text('GST (18% Included)'), findsOneWidget);
-      expect(find.text('₹2,288'), findsOneWidget);
+      expect(find.text('Consultation fee (before GST)'), findsOneWidget);
+      expect(find.text('₹12,711.86'), findsOneWidget);
+      expect(find.text('GST (18%) included'), findsOneWidget);
+      expect(find.text('₹2,288.14'), findsOneWidget);
       expect(find.text('Total Amount'), findsOneWidget);
-      expect(find.text('₹15,000'), findsOneWidget);
+      // Header and total row.
+      expect(find.text('₹15,000'), findsNWidgets(2));
+      // The customer is told about the 15-minute hold before paying.
+      expect(find.textContaining('held for you for 15 minutes'), findsOneWidget);
 
       // Action button active
-      expect(find.text('Proceed to Pay ₹15000'), findsOneWidget);
+      expect(find.text('Proceed to Pay ₹15,000'), findsOneWidget);
 
       // Back returns to the previous step
       await tester.tap(find.byKey(const ValueKey('booking_back')));
@@ -522,8 +535,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('booking_next')));
       await tester.pumpAndSettle();
 
-      // Tap Proceed to Pay
-      await tester.tap(find.text('Proceed to Pay ₹15000'));
+      // Tap Proceed to Pay (the fake gateway answers with a successful payment)
+      await tester.tap(find.text('Proceed to Pay ₹15,000'));
       await tester.pump();
 
       // Verify booking handles flow and transitions to confirmed state

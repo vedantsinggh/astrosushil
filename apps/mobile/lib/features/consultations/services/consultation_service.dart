@@ -1,88 +1,101 @@
 import '../../../core/network/api_client.dart';
 import '../models/consultation_models.dart';
 
+/// Client of the consultation booking API (`/api/v1/consultations`).
+///
+/// Every endpoint answers `{ statusCode, success, message, data }`; errors are
+/// `{ error: { code, message, requestId } }` and reach callers as
+/// `AppException`s (see `ConsultationFailure.from`).
 class ConsultationService {
   final ApiClient _apiClient;
 
   ConsultationService({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  /// Fetch full verified consultation catalog from backend API
+  static Map<String, dynamic> _dataMap(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const FormatException('Response has no data object');
+  }
+
+  static List<dynamic> _dataList(Map<String, dynamic> response) {
+    final data = response['data'];
+    return data is List ? data : const <dynamic>[];
+  }
+
+  /// `GET /consultations`: one entry per consultation type and mode. `id` is
+  /// the catalog id; `pricePaise` is what the customer pays, GST included.
+  /// Errors propagate so the screen shows an explicit error state instead of
+  /// an empty (or invented) catalogue.
   Future<List<ConsultationOfferingModel>> fetchCatalog() async {
-    dynamic response;
-    try {
-      response = await _apiClient.get('/consultations');
-    } catch (_) {
-      // Errors propagate so the screen shows an explicit error state
-      // instead of an empty (or invented) catalogue.
-      response = await _apiClient.get('/consultations/catalog');
-    }
-    final List<dynamic> items;
-    if (response is Map) {
-      items = (response['data'] as List<dynamic>?) ??
-          (response['items'] as List<dynamic>?) ??
-          const <dynamic>[];
-    } else if (response is List) {
-      items = response;
-    } else {
-      items = const <dynamic>[];
-    }
-    return items
-        .map((e) => ConsultationOfferingModel.fromJson(e as Map<String, dynamic>))
+    final response = await _apiClient.get('/consultations');
+    return _dataList(response)
+        .map((e) => ConsultationOfferingModel.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
-  /// Query available time slots for a specific date and mode
+  /// `GET /consultations/slots?consultationId=&date=`: the free slots of an
+  /// IST date for one consultation (its own duration, minus blocked times,
+  /// bookings, live payment holds and the notice period). An empty list means
+  /// nothing can be booked that day.
   Future<List<AppointmentSlotModel>> fetchSlots({
+    required String consultationId,
     required String date,
-    required String mode,
-    String? practitionerId,
   }) async {
-    final queryParams = <String, dynamic>{
-      'date': date,
-      'mode': mode,
-    };
-    if (practitionerId != null) {
-      queryParams['practitionerId'] = practitionerId;
-    }
-
     final response = await _apiClient.get(
       '/consultations/slots',
-      queryParameters: queryParams,
+      queryParameters: {'consultationId': consultationId, 'date': date},
     );
-    final slots = response['slots'] as List<dynamic>? ?? [];
-    return slots
-        .map((s) => AppointmentSlotModel.fromJson(s as Map<String, dynamic>))
+    return _dataList(response)
+        .map((s) => AppointmentSlotModel.fromApi(Map<String, dynamic>.from(s as Map), date: date))
         .toList();
   }
 
-  /// Reserve an appointment slot and create linked commerce Order
-  Future<Map<String, dynamic>> bookAppointment({
-    required String slotId,
-    required String consultationSku,
-    required String consultationMode,
+  /// `GET /consultations/blocked-dates?month=&year=`: fully blocked IST dates
+  /// (`yyyy-MM-dd`) of one month.
+  Future<List<String>> fetchBlockedDates({required int month, required int year}) async {
+    final response = await _apiClient.get(
+      '/consultations/blocked-dates',
+      queryParameters: {'month': month, 'year': year},
+    );
+    return _dataList(response).map((d) => d.toString()).toList();
+  }
+
+  /// `POST /consultations/book`: holds the slot for 15 minutes and creates the
+  /// payment order. 409 (`CONFLICT`) when the time is already booked or held.
+  Future<ConsultationReservation> bookAppointment({
+    required String consultationId,
+    required String mode,
+    required String date,
+    required String startTime,
+    required String endTime,
     String? birthProfileId,
-    String? query,
+    String? notes,
   }) async {
     final payload = <String, dynamic>{
-      'slotId': slotId,
-      'consultationSku': consultationSku,
-      'consultationMode': consultationMode,
+      'consultationId': consultationId,
+      'mode': consultationApiMode(mode),
+      'date': date,
+      'slot': {'startTime': startTime, 'endTime': endTime},
     };
     if (birthProfileId != null && birthProfileId.isNotEmpty) {
       payload['birthProfileId'] = birthProfileId;
     }
-    if (query != null && query.isNotEmpty) {
-      payload['query'] = query;
+    if (notes != null && notes.isNotEmpty) {
+      payload['notes'] = notes;
     }
 
     final response = await _apiClient.post('/consultations/book', data: payload);
-    return response;
+    return ConsultationReservation.fromJson(_dataMap(response));
   }
 
-  /// Verify Razorpay payment and transition booking to CONFIRMED
+  /// `POST /consultations/verify-payment`: confirms the booking once the
+  /// server has checked the payment against the booking's order. Safe to
+  /// repeat. `PAYMENT_MISMATCH` (400) or `CONFLICT` (409, the hold expired and
+  /// the time went to someone else) mean the money was taken but the booking
+  /// is not confirmed.
   Future<ConsultationBookingModel> verifyPayment({
     required String bookingId,
-    required String orderId,
+    required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
   }) async {
@@ -90,41 +103,46 @@ class ConsultationService {
       '/consultations/verify-payment',
       data: {
         'bookingId': bookingId,
-        'orderId': orderId,
+        'razorpayOrderId': razorpayOrderId,
         'razorpayPaymentId': razorpayPaymentId,
         'razorpaySignature': razorpaySignature,
       },
     );
-    final bookingData = response['booking'] as Map<String, dynamic>? ?? response;
-    return ConsultationBookingModel.fromJson(bookingData);
+    return ConsultationBookingModel.fromJson(_dataMap(response));
   }
 
-  /// Fetch user's personalized consultation booking history
+  /// `GET /consultations/my-bookings`, newest first.
   Future<List<ConsultationBookingModel>> getMyBookings() async {
     final response = await _apiClient.get('/consultations/my-bookings');
-    final List<dynamic> bookings = (response['bookings'] as List<dynamic>?) ??
-        (response['data'] as List<dynamic>?) ??
-        const <dynamic>[];
-    return bookings
-        .map((b) => ConsultationBookingModel.fromJson(b as Map<String, dynamic>))
+    return _dataList(response)
+        .map((b) => ConsultationBookingModel.fromJson(Map<String, dynamic>.from(b as Map)))
         .toList();
   }
 
-  /// Fetch single booking details with meeting instructions
+  /// `GET /consultations/bookings/:id`.
   Future<ConsultationBookingModel> getBookingDetails(String bookingId) async {
     final response = await _apiClient.get('/consultations/bookings/$bookingId');
-    final booking = response['booking'] as Map<String, dynamic>? ?? response;
-    return ConsultationBookingModel.fromJson(booking);
+    return ConsultationBookingModel.fromJson(_dataMap(response));
   }
 
-  /// Atomically reschedule an appointment to a new slot
+  /// `GET /consultations/my-bookings/:id/invoice` (paid bookings only).
+  Future<ConsultationInvoiceModel> getBookingInvoice(String bookingId) async {
+    final response = await _apiClient.get('/consultations/my-bookings/$bookingId/invoice');
+    return ConsultationInvoiceModel.fromJson(_dataMap(response));
+  }
+
+  /// `POST /consultations/bookings/:id/reschedule`: moves a confirmed booking
+  /// to another offered slot (same rules as a new booking; 409 when taken).
   Future<ConsultationBookingModel> rescheduleBooking({
     required String bookingId,
-    required String newSlotId,
+    required String newDate,
+    required String newStartTime,
+    required String newEndTime,
     String? reason,
   }) async {
     final payload = <String, dynamic>{
-      'newSlotId': newSlotId,
+      'newDate': newDate,
+      'newSlot': {'startTime': newStartTime, 'endTime': newEndTime},
     };
     if (reason != null && reason.isNotEmpty) {
       payload['reason'] = reason;
@@ -133,11 +151,10 @@ class ConsultationService {
       '/consultations/bookings/$bookingId/reschedule',
       data: payload,
     );
-    final booking = response['booking'] as Map<String, dynamic>? ?? response;
-    return ConsultationBookingModel.fromJson(booking);
+    return ConsultationBookingModel.fromJson(_dataMap(response));
   }
 
-  /// Cancel an appointment booking and release slot capacity
+  /// `POST /consultations/bookings/:id/cancel`: cancels and frees the slot.
   Future<ConsultationBookingModel> cancelBooking({
     required String bookingId,
     String? reason,
@@ -150,7 +167,6 @@ class ConsultationService {
       '/consultations/bookings/$bookingId/cancel',
       data: payload,
     );
-    final booking = response['booking'] as Map<String, dynamic>? ?? response;
-    return ConsultationBookingModel.fromJson(booking);
+    return ConsultationBookingModel.fromJson(_dataMap(response));
   }
 }

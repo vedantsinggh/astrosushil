@@ -13,6 +13,7 @@ import 'package:astro_mobile/features/birth_profile/providers/birth_profile_prov
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart' show AuthNotifier, AuthState, authStateProvider;
+import '../helpers/consultation_fakes.dart';
 
 class MockConsultationService implements ConsultationService {
   @override
@@ -42,11 +43,7 @@ class MockConsultationService implements ConsultationService {
   }
 
   @override
-  Future<List<AppointmentSlotModel>> fetchSlots({
-    required String date,
-    required String mode,
-    String? practitionerId,
-  }) async {
+  Future<List<AppointmentSlotModel>> fetchSlots({required String consultationId, required String date}) async {
     return const [
       AppointmentSlotModel(
         id: 'slot-1',
@@ -63,35 +60,28 @@ class MockConsultationService implements ConsultationService {
   }
 
   @override
-  Future<Map<String, dynamic>> bookAppointment({
-    required String slotId,
-    required String consultationSku,
-    required String consultationMode,
+  Future<ConsultationReservation> bookAppointment({
+    required String consultationId,
+    required String mode,
+    required String date,
+    required String startTime,
+    required String endTime,
     String? birthProfileId,
-    String? query,
-  }) async {
-    return {
-      'booking': {
-        'id': 'bk-123',
-        'bookingReference': 'BK-TEST-1',
-        'serviceTitle': 'General Video Consultation',
-        'consultationMode': consultationMode,
-        'appointmentDate': '2026-10-26',
-        'startTime': '10:00',
-        'endTime': '10:30',
-        'status': 'PENDING_PAYMENT',
-      },
-      'order': {
-        'id': 'ord-123',
-        'totalPaise': 1500000,
-      },
-    };
-  }
+    String? notes,
+  }) async =>
+      fakeConsultationReservation(
+        consultationId: consultationId,
+        mode: mode,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        catalog: await fetchCatalog(),
+      );
 
   @override
   Future<ConsultationBookingModel> verifyPayment({
     required String bookingId,
-    required String orderId,
+    required String razorpayOrderId,
     required String razorpayPaymentId,
     required String razorpaySignature,
   }) async {
@@ -127,6 +117,12 @@ class MockConsultationService implements ConsultationService {
   }
 
   @override
+  Future<List<String>> fetchBlockedDates({required int month, required int year}) async => const [];
+
+  @override
+  Future<ConsultationInvoiceModel> getBookingInvoice(String bookingId) async => throw UnimplementedError();
+
+  @override
   Future<ConsultationBookingModel> getBookingDetails(String bookingId) async {
     return (await getMyBookings()).first;
   }
@@ -134,7 +130,9 @@ class MockConsultationService implements ConsultationService {
   @override
   Future<ConsultationBookingModel> rescheduleBooking({
     required String bookingId,
-    required String newSlotId,
+    required String newDate,
+    required String newStartTime,
+    required String newEndTime,
     String? reason,
   }) async {
     return (await getMyBookings()).first;
