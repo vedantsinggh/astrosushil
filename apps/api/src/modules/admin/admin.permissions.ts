@@ -14,6 +14,7 @@ export type Permission =
   | 'subscriptions:read'
   | 'plans:read'
   | 'payments:read'
+  | 'payments:refund'
   | 'entitlements:read'
   | 'entitlements:grant'
   | 'entitlements:revoke'
@@ -142,6 +143,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'subscriptions:read',
     'plans:read',
     'payments:read',
+    'payments:refund',
     'entitlements:read',
     'entitlements:grant',
     'entitlements:revoke',
@@ -254,6 +256,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'subscriptions:read',
     'plans:read',
     'payments:read',
+    'payments:refund',
     'entitlements:read',
     'entitlements:grant',
     'entitlements:revoke',
