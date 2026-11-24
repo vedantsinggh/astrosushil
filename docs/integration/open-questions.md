@@ -9,22 +9,22 @@ Each item says what is built today, so nothing is blocked while it is open. Full
 | Item | Decision | Status |
 |---|---|---|
 | M3 Cash on delivery | Stays off. Old COD orders still migrate as history. | Done |
-| M4 Refund endpoint | Staff only; customers can no longer call it. | To build |
-| M6 Shipping | Website rule for both: flat Rs 500 when any item is physical. | To build |
-| M9 Paid, slot taken | Staff reschedule the customer; a staff refund is the fallback. | To build |
-| C1 `sharp` | Approved: WebP conversion and watermarked previews. | To build |
-| M1 Full Kundli price | Rs 999 + GST. | To build |
-| M8 Coupons | Apply to products, reports and consultations. | To build |
-| R1 Report delay | The 24-hour delay applies everywhere: the app shows the report and sends its push after the delay too. | To build |
+| M4 Refund endpoint | Staff only; customers can no longer call it. | Done |
+| M6 Shipping | Website rule for both: flat Rs 500 when any item is physical. | Done |
+| M9 Paid, slot taken | Staff reschedule the customer; a staff refund is the fallback. | Done |
+| C1 `sharp` | Approved: WebP conversion and watermarked previews. | Done |
+| M1 Full Kundli price | Rs 999 + GST. | Done |
+| M8 Coupons | Apply to products, reports and consultations. | Done |
+| R1 Report delay | The 24-hour delay applies everywhere: the app shows the report and sends its push after the delay too. | Done |
 | B1 Working hours | Copy the website's live setting at migration; the app's hours stay until then. | At migration |
 | B2 Consultation types | Only the website's are bookable after migration; the app's 18 tiers are switched off and kept for history. | At migration |
 | S2 Staff password reset | An admin types the new password, as on the website. | Done |
-| S1 Granting permissions | A staff member can grant only permissions they hold; super admins are unrestricted. | To build |
-| C5 Courses | The app shows external links too; existing enrolments keep access. | To build |
-| A1 Horoscope language | Follows the app language until the customer switches. | To build |
+| S1 Granting permissions | A staff member can grant only permissions they hold; super admins are unrestricted. | Done |
+| C5 Courses | The app shows external links too; existing enrolments keep access. | Done |
+| A1 Horoscope language | Follows the app language until the customer switches. | Done |
 | S4 Customer delete | As built: erased and kept as "Deleted User" when there are paid orders, removed otherwise. | Done |
-| OTP-only login | Now, backend and app together; staff keep e-mail and password. | To build |
-| A2 App consultation booking | Being fixed. | In progress |
+| OTP-only login | Now, backend and app together; staff keep e-mail and password. | Done |
+| A2 App consultation booking | Fixed and verified. | Done |
 
 The items below are still open unless listed above.
 
