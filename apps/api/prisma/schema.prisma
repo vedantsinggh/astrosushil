@@ -2021,3 +2021,21 @@ model BookingAdminNote {
   @@map("booking_admin_notes")
 }
 // ===== end bookings =====
+
+// ===== commerce-decisions (website integration) =====
+/// Which kinds of sale a coupon may be used on (owner decision 2026-11-24: coupons apply to
+/// products, reports and consultations). One optional row per coupon. A coupon WITHOUT a row is
+/// one made before this table existed: it keeps working on product carts only. New coupons get a
+/// row (all three by default). `couponId` is a plain column (no Prisma relation to the shop
+/// block); the row is removed in code when its coupon is deleted.
+model CouponScope {
+  couponId      String   @id
+  products      Boolean  @default(true)
+  reports       Boolean  @default(true)
+  consultations Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("coupon_scopes")
+}
+// ===== end commerce-decisions =====

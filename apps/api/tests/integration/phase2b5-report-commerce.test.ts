@@ -125,7 +125,7 @@ describe('Phase 2B.5 Task 1: Report Commerce & Razorpay Checkout Integration Tes
   // ===========================================================================
   // Authoritative prices from COMMERCE_CATALOG / REPORT_PRICES_PAISE (integer paise).
   const supportedSkus = [
-    { reportType: 'KUNDLI', expectedAmount: 29900 }, // ₹299
+    { reportType: 'KUNDLI', expectedAmount: 117882 }, // ₹999 + 18% GST (website price since 2026-11-24)
     { reportType: 'PLANETARY_SUMMARY', expectedAmount: 23482 }, // ₹199 + 18% GST (website price since 2026-11-24)
     { reportType: 'CAREER', expectedAmount: 49900 }, // ₹499
     { reportType: 'MARRIAGE_COMPATIBILITY', expectedAmount: 99900 }, // ₹999, GST rate 0 (website price since 2026-11-24)

@@ -17,6 +17,16 @@ import {
   ReportLanguage,
 } from '../../services/platform-report.runner';
 import { featureAccessService } from '../../services/feature-access.service';
+import {
+  HELD_PROGRESS,
+  HELD_STAGE,
+  HELD_STATUS,
+  customerDeliveryAt,
+  heldProgressDetail,
+  isReportHeld,
+  reportAvailableAt,
+  reportReleaseDelayMs,
+} from './report-release';
 
 export type UserContext = { id: string; role?: string; [key: string]: any };
 
@@ -102,6 +112,60 @@ export class ReportsService {
 
   private isAdminUser(user: UserContext): boolean {
     return user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'SUPPORT';
+  }
+
+  /**
+   * The state of a report as the caller may see it (owner decision 2026-11-24: the report delay
+   * applies everywhere). Staff see the true state. A customer sees a completed report only once
+   * `completedAt + REPORT_SEND_DELAY_HOURS` has passed; before that it is "being prepared"
+   * (`held`), with the delivery time in `expectedDeliveryAt` and `progressDetail`, never a ready
+   * state they cannot open. See report-release.ts.
+   */
+  private reportStateFor(r: any, viewer: UserContext | { id: string }, now: Date = new Date()) {
+    const delayMs = reportReleaseDelayMs();
+    const isStaff = this.isAdminUser(viewer as UserContext);
+    const releaseAt = reportAvailableAt(r, delayMs);
+    // A completed row with no completion time is available at once; it has no release time to show.
+    const availableAt = releaseAt && releaseAt.getTime() > 0 ? releaseAt : null;
+    const held = !isStaff && isReportHeld(r, now, delayMs);
+    const isCompleted = r.status === 'COMPLETED' && !held;
+    const isFailed = r.status === 'FAILED';
+    // Staff: the generation deadline (what the worker is held to). Customer: when they will have it.
+    const generationDeadline = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
+    const expectedDeliveryAt = isStaff ? generationDeadline : customerDeliveryAt(r, r.order?.paidAt ?? null, delayMs, now) ?? generationDeadline;
+    const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && !isFailed && now > expectedDeliveryAt);
+    return {
+      held,
+      availableAt,
+      status: held ? HELD_STATUS : r.status,
+      stage: held ? HELD_STAGE : r.stage || r.status,
+      progress: held ? HELD_PROGRESS : r.progress ?? 0,
+      progressDetail: held && availableAt ? heldProgressDetail(availableAt) : reportProgressDetail(r),
+      completedAt: held ? null : r.completedAt ?? null,
+      isCompleted,
+      isFailed,
+      expectedDeliveryAt,
+      isOverdue,
+      isOnSchedule: !isCompleted && !isFailed && !isOverdue,
+      isReady: isCompleted,
+      // A report waiting for a scheduled retry is QUEUED and simply still being prepared.
+      isPreparing: !isCompleted && !isFailed,
+      paymentStatus: r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID'),
+    };
+  }
+
+  /** What a "reuse the completed report" answer becomes while that report is still held back from the customer. */
+  private heldJobFields(existing: any, user: UserContext): { status: string; stage: string; progress: number; completed: boolean; message: string; expectedDeliveryAt: Date | null } | null {
+    const state = this.reportStateFor(existing, user);
+    if (!state.held) return null;
+    return {
+      status: state.status,
+      stage: state.stage,
+      progress: state.progress,
+      completed: false,
+      message: state.progressDetail ?? 'Your report is being prepared.',
+      expectedDeliveryAt: state.expectedDeliveryAt,
+    };
   }
 
   private async validateAndClaimOrder(
@@ -391,6 +455,8 @@ export class ReportsService {
           reused: true,
           completed: true,
           message: 'Existing completed career report retrieved.',
+          // Completed but not yet released to the customer: answered as still being prepared.
+          ...(this.heldJobFields(existingReport, user) ?? {}),
         };
       }
     } else if (boundReport) {
@@ -573,33 +639,26 @@ export class ReportsService {
     }
 
     const r = report as any;
-    const isCompleted = r.status === 'COMPLETED';
-    const isFailed = r.status === 'FAILED';
-    const expectedDeliveryAt = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
-    const now = new Date();
-    const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
-    const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
-    const isReady = isCompleted;
-    // A report waiting for a scheduled retry is QUEUED and simply still being prepared.
-    const isPreparing = !isCompleted && !isFailed;
-    const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
+    const state = this.reportStateFor(r, user);
 
     return {
       id: r.id,
-      status: r.status,
-      stage: r.stage || r.status,
-      progress: r.progress ?? 0,
+      status: state.status,
+      stage: state.stage,
+      progress: state.progress,
       language: normalizeReportLanguage(r.language),
-      progressDetail: reportProgressDetail(r),
-      errorCode: isFailed ? r.errorCode ?? null : null,
-      errorMessage: isFailed ? r.errorMessage ?? null : null,
-      expectedDeliveryAt,
-      paymentStatus,
-      isOnSchedule,
-      isOverdue,
-      isFailed,
-      isReady,
-      isPreparing,
+      progressDetail: state.progressDetail,
+      errorCode: state.isFailed ? r.errorCode ?? null : null,
+      errorMessage: state.isFailed ? r.errorMessage ?? null : null,
+      expectedDeliveryAt: state.expectedDeliveryAt,
+      /** When the customer can open the report (completion + REPORT_SEND_DELAY_HOURS); null until it is completed. */
+      availableAt: state.availableAt,
+      paymentStatus: state.paymentStatus,
+      isOnSchedule: state.isOnSchedule,
+      isOverdue: state.isOverdue,
+      isFailed: state.isFailed,
+      isReady: state.isReady,
+      isPreparing: state.isPreparing,
     };
   }
 
@@ -629,16 +688,7 @@ export class ReportsService {
 
     const downloadUrl = `/api/v1/reports/${report.id}/download-file`;
     const r = report as any;
-    const isCompleted = r.status === 'COMPLETED';
-    const isFailed = r.status === 'FAILED';
-    const expectedDeliveryAt = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
-    const now = new Date();
-    const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
-    const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
-    const isReady = isCompleted;
-    // A report waiting for a scheduled retry is QUEUED and simply still being prepared.
-    const isPreparing = !isCompleted && !isFailed;
-    const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
+    const state = this.reportStateFor(r, user);
 
     return {
       id: r.id,
@@ -647,25 +697,28 @@ export class ReportsService {
       birthProfileId: r.birthProfileId,
       reportType: r.reportType,
       language: normalizeReportLanguage(r.language),
-      status: r.status,
-      stage: r.stage || r.status,
-      progress: r.progress ?? 0,
+      status: state.status,
+      stage: state.stage,
+      progress: state.progress,
+      progressDetail: state.progressDetail,
       reportVersion: r.reportVersion ?? '1.0.0',
       calculationVersion: r.calculationVersion ?? '1.0.0',
-      pageCount: r.pageCount ?? null,
-      fileSize: r.fileSize ?? null,
-      errorCode: isFailed ? r.errorCode ?? null : null,
-      errorMessage: isFailed ? r.errorMessage ?? null : null,
+      pageCount: state.held ? null : r.pageCount ?? null,
+      fileSize: state.held ? null : r.fileSize ?? null,
+      errorCode: state.isFailed ? r.errorCode ?? null : null,
+      errorMessage: state.isFailed ? r.errorMessage ?? null : null,
       createdAt: r.createdAt,
-      completedAt: r.completedAt ?? null,
-      expectedDeliveryAt,
-      paymentStatus,
-      isOnSchedule,
-      isOverdue,
-      isFailed,
-      isReady,
-      isPreparing,
-      downloadUrl: isReady ? downloadUrl : null,
+      completedAt: state.completedAt,
+      expectedDeliveryAt: state.expectedDeliveryAt,
+      /** When the customer can open the report (completion + REPORT_SEND_DELAY_HOURS); null until it is completed. */
+      availableAt: state.availableAt,
+      paymentStatus: state.paymentStatus,
+      isOnSchedule: state.isOnSchedule,
+      isOverdue: state.isOverdue,
+      isFailed: state.isFailed,
+      isReady: state.isReady,
+      isPreparing: state.isPreparing,
+      downloadUrl: state.isReady ? downloadUrl : null,
       birthProfile: r.birthProfile,
     };
   }
@@ -700,6 +753,13 @@ export class ReportsService {
         400,
         'REPORT_NOT_READY'
       );
+    }
+
+    // Completed but not yet released to the customer (REPORT_SEND_DELAY_HOURS): same refusal as a
+    // report still being generated, so no link to the file is ever issued early. Staff are not held.
+    const accessState = this.reportStateFor(report, user);
+    if (accessState.held) {
+      throw new AppError(accessState.progressDetail ?? 'Your report is being prepared.', 400, 'REPORT_NOT_READY');
     }
 
     const storageKey = report.storageKey || `reports/${report.userId}/${report.id}.pdf`;
@@ -766,29 +826,30 @@ export class ReportsService {
 
     const now = new Date();
     return reports.map((r: any) => {
-      const isCompleted = r.status === 'COMPLETED';
-      const isFailed = r.status === 'FAILED';
-      const expectedDeliveryAt = r.expectedDeliveryAt || (r.order?.paidAt ? new Date(r.order.paidAt.getTime() + 24 * 60 * 60 * 1000) : null);
-      const isOverdue = Boolean(expectedDeliveryAt && !isCompleted && now > expectedDeliveryAt);
-      const isOnSchedule = !isCompleted && !isFailed && !isOverdue;
-      const isReady = isCompleted;
-      const isPreparing = !isCompleted && !isFailed;
-      const paymentStatus = r.order?.paymentStatus ?? (r.orderId ? 'CAPTURED' : 'UNPAID');
+      const state = this.reportStateFor(r, user, now);
 
       const metadata = r.metadata && typeof r.metadata === 'object' ? { ...r.metadata, platformManifest: undefined } : r.metadata;
       return {
         ...r,
+        // A held report is listed as being prepared: no completion time and nothing that locates the file.
+        status: state.status,
+        stage: state.stage,
+        progress: state.progress,
+        progressDetail: state.progressDetail,
+        completedAt: state.completedAt,
+        ...(state.held ? { s3Url: null, storageKey: null, fileName: null, fileSize: null, pageCount: null } : {}),
+        availableAt: state.availableAt,
         language: normalizeReportLanguage(r.language),
         metadata,
-        errorCode: isFailed ? r.errorCode ?? null : null,
-        errorMessage: isFailed ? r.errorMessage ?? null : null,
-        expectedDeliveryAt,
-        paymentStatus,
-        isOnSchedule,
-        isOverdue,
-        isFailed,
-        isReady,
-        isPreparing,
+        errorCode: state.isFailed ? r.errorCode ?? null : null,
+        errorMessage: state.isFailed ? r.errorMessage ?? null : null,
+        expectedDeliveryAt: state.expectedDeliveryAt,
+        paymentStatus: state.paymentStatus,
+        isOnSchedule: state.isOnSchedule,
+        isOverdue: state.isOverdue,
+        isFailed: state.isFailed,
+        isReady: state.isReady,
+        isPreparing: state.isPreparing,
         claimToken: undefined,
         claimExpiresAt: undefined,
         claimVersion: undefined,
@@ -813,7 +874,11 @@ export class ReportsService {
     const report = await this.getReportStatus(reportId, user);
 
     if (report.status !== 'COMPLETED') {
-      throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
+      // `getReportStatus` already hides a completed report that is not yet released to this caller.
+      const message = report.availableAt && report.progressDetail
+        ? report.progressDetail
+        : `Report status is ${report.status}. Download is only available for COMPLETED reports.`;
+      throw new AppError(message, 400, 'REPORT_NOT_READY');
     }
 
     const rawReport = await prisma.report.findUnique({ where: { id: reportId } });
@@ -1074,6 +1139,8 @@ export class ReportsService {
             reused: true,
             completed: true,
             message: 'Existing completed report retrieved.',
+            // Completed but not yet released to the customer: answered as still being prepared.
+            ...(this.heldJobFields(existing, user) ?? {}),
           },
         };
       }

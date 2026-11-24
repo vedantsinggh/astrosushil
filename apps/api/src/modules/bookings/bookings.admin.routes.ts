@@ -35,7 +35,10 @@ import {
   bookingsByDateQuerySchema,
   changePlanSchema,
   manualBookingSchema,
+  resolveConflictRefundSchema,
+  resolveConflictSlotSchema,
 } from './bookings.schemas';
+import { issueStaffRefund } from '../payments/payments.admin.routes';
 import { bookingsService, toCsv } from './bookings.service';
 
 function send(reply: FastifyReply, data: unknown, message: string, statusCode: number = 200) {
@@ -334,6 +337,52 @@ export async function bookingsAdminRoutes(fastify: FastifyInstance) {
       schema: { tags: ['Admin Bookings'], summary: 'Paid orders whose booking holds no slot (need a reschedule or refund)' },
       handler: async (_request, reply) =>
         send(reply, await bookingsService.listPaymentConflicts(), 'Payment conflicts fetched'),
+    });
+
+    // Owner decision 2026-11-24 (open-questions M9): paid, slot taken -> staff reschedule;
+    // a staff refund is the fallback.
+    admin.post('/admin/bookings/:id/payment-conflict/assign-slot', {
+      preHandler: [checkPermission('bookings:update')],
+      schema: {
+        tags: ['Admin Bookings'],
+        summary: 'Payment conflict: confirm the booking at a new time against the payment already captured (no new charge)',
+      },
+      handler: async (request, reply) => {
+        const { id } = bookingIdParamSchema.parse(request.params);
+        const body = resolveConflictSlotSchema.parse(request.body);
+        const result = await bookingsService.resolveConflictWithSlot(id, body, actor(request));
+        await audit(
+          request,
+          'BOOKING_PAYMENT_CONFLICT_RESCHEDULED',
+          `ConsultationBooking:${id}`,
+          `${result.oldBooking.date} ${result.oldBooking.slot} -> ${result.booking.date} ${result.booking.slot}; confirmed against the captured payment of order ${result.booking.orderId}; no new charge`
+        );
+        return send(reply, { ...result.booking, oldBooking: result.oldBooking }, 'Booking confirmed at the new time');
+      },
+    });
+
+    admin.post('/admin/bookings/:id/payment-conflict/refund', {
+      // Both: it changes a booking and it returns money.
+      preHandler: [checkPermission('bookings:update'), checkPermission('payments:refund')],
+      schema: { tags: ['Admin Bookings'], summary: 'Payment conflict: refund the captured payment and mark the booking refunded' },
+      handler: async (request, reply) => {
+        const { id } = bookingIdParamSchema.parse(request.params);
+        const { adminNote, ...refundBody } = resolveConflictRefundSchema.parse(request.body);
+        const result = await bookingsService.resolveConflictWithRefund(
+          id,
+          // The one staff refund path; it writes its own audit entry (ORDER_REFUND_ISSUED / _REFUSED).
+          (orderId) => issueStaffRefund(request, orderId, refundBody, `Payment conflict of booking ${id}`),
+          { adminNote },
+          actor(request)
+        );
+        await audit(
+          request,
+          'BOOKING_PAYMENT_CONFLICT_REFUNDED',
+          `ConsultationBooking:${id}`,
+          `Refund ${result.refund.id} of ${result.refund.amount} paise, status ${result.refund.status}; booking is now ${result.booking.status}`
+        );
+        return send(reply, result, result.fullyRefunded ? 'Payment refunded; booking marked refunded' : 'Refund recorded');
+      },
     });
 
     admin.post('/admin/bookings', {

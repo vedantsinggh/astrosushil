@@ -5,6 +5,7 @@ import { notificationService } from '../notifications/notification.service';
 import { AppError, NotFoundError, ValidationError, ForbiddenError } from '../../errors/app-error';
 import { logger } from '../../utils/logger';
 import { Prisma, OrderStatus, PaymentStatus, RefundStatus, ReportType, OrderItemType, FulfillmentType, EntitlementStatus, FulfillmentUnitStatus } from '@prisma/client';
+import { customerReportRow, reportReleaseDelayMs } from '../reports/report-release';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { normalizeReportLanguage, platformReportLanguages, REPORT_LANGUAGES } from '../../services/platform-report.runner';
 import { calculateSale } from './money/tax';
@@ -12,6 +13,8 @@ import { quoteCheckout } from './money/checkout';
 import { settleOrderPaid } from './money/settlement';
 import { transactionsService } from '../transactions/transactions.service';
 import { shopOrdersService } from '../shop-orders/shop-orders.service';
+import { couponsService } from '../coupons/coupons.service';
+import { CouponSaleType } from '../coupons/coupon-rules';
 
 export interface CreateOrderParams {
   items?: Array<{ catalogId: string; quantity?: number; metadata?: Record<string, any> }>;
@@ -31,6 +34,7 @@ export interface CreateOrderParams {
    * out (./money/tax.ts). Never taken from the request body.
    */
   discountPaise?: number;
+  couponCode?: string;
 }
 
 export interface VerifyPaymentParams {
@@ -52,6 +56,11 @@ export interface RequestRefundParams {
   reason?: string;
   idempotencyKey?: string;
   itemAllocations?: ItemAllocationInput[];
+}
+
+/** Set only by the staff refund route, after its permission check (`payments:refund`). */
+export interface RefundAuthorisation {
+  staffAuthorised?: boolean;
 }
 
 export class CommerceService {
@@ -78,6 +87,9 @@ export class CommerceService {
           orderId: existing.id,
           razorpayOrderId: existing.razorpayOrderId,
           amount: existing.amount,
+          subtotal: existing.subtotal,
+          taxAmount: existing.taxAmount,
+          discountAmount: existing.discountAmount,
           currency: existing.currency,
           paidCurrency: existing.paidCurrency,
           paidAmountMinor: existing.paidAmountMinor ?? existing.amount,
@@ -144,6 +156,30 @@ export class CommerceService {
       legacyReportType = calculated.items[0].catalogItem.legacyReportType;
     }
 
+    // Determine sale type for coupon validation (owner decision 2026-11-24: products, reports, consultations)
+    let saleType: CouponSaleType = 'products';
+    if (calculated.items.every((ci) => ci.catalogItem.itemType === OrderItemType.REPORT) || legacyReportType) {
+      saleType = 'reports';
+    } else if (calculated.items.every((ci) => ci.catalogItem.itemType === OrderItemType.CONSULTATION)) {
+      saleType = 'consultations';
+    }
+
+    let couponDiscountPaise = input.discountPaise ?? 0;
+    if (input.couponCode) {
+      const { coupon, result: evalResult } = await couponsService.evaluate(prisma, {
+        code: input.couponCode,
+        userId: user.id,
+        itemsTotalPaise: calculated.subtotal,
+        saleType,
+      });
+      if (!coupon || !evalResult.ok) {
+        const reason = !evalResult.ok ? evalResult.reason : 'COUPON_INACTIVE';
+        const message = !evalResult.ok ? evalResult.message : 'This coupon is no longer valid';
+        throw new AppError(message, 400, reason);
+      }
+      couponDiscountPaise = evalResult.discountPaise;
+    }
+
     // 3b. GST and totals from the money engine (./money/tax.ts): each item's own GST config
     // (inclusive backs the tax out of the price, exclusive adds it on top), with any order-level
     // discount spread over the items first. For the tax-inclusive catalogue without a discount this
@@ -159,7 +195,7 @@ export class CommerceService {
           type: ci.catalogItem.taxIncluded ? 'inclusive' : 'exclusive',
         },
       })),
-      discountPaise: input.discountPaise ?? 0,
+      discountPaise: couponDiscountPaise,
     });
     const netSubtotal = sale.lines.reduce((sum, line) => sum + line.basePaise, 0);
 
@@ -219,6 +255,17 @@ export class CommerceService {
       // Ledger: one PENDING transaction per payment attempt, written with the order.
       await transactionsService.recordAttempt(tx, createdOrder);
 
+      if (input.couponCode && couponDiscountPaise > 0) {
+        await couponsService.reserveForOrder(tx, {
+          code: input.couponCode,
+          userId: user.id,
+          itemsTotalPaise: calculated.subtotal,
+          orderId: createdOrder.id,
+          expectedDiscountPaise: couponDiscountPaise,
+          saleType,
+        });
+      }
+
       return createdOrder;
     });
 
@@ -233,6 +280,7 @@ export class CommerceService {
       amount: order.amount,
       subtotal: order.subtotal,
       taxAmount: order.taxAmount,
+      discountAmount: order.discountAmount,
       currency: order.currency,
       paidCurrency: order.paidCurrency,
       paidAmountMinor: order.paidAmountMinor ?? order.amount,
@@ -697,20 +745,22 @@ export class CommerceService {
    */
   public async requestRefund(
     input: RequestRefundParams,
-    requester: { id: string; role?: string }
+    requester: { id: string; role?: string; email?: string | null },
+    authorisation: RefundAuthorisation = {}
   ) {
+    // Owner decision 2026-11-24 (open-questions M4): refunds are issued by staff only. The caller
+    // (the admin route, after `checkPermission('payments:refund')`) states that the permission
+    // check has passed; the order's owner can no longer refund their own order.
+    if (authorisation.staffAuthorised !== true) {
+      throw new AppError('Refunds are issued by our staff. Please contact support.', 403, 'REFUND_STAFF_ONLY');
+    }
+
     const order = await prisma.order.findUnique({
       where: { id: input.orderId },
       include: { refunds: true, items: true },
     });
 
     if (!order) {
-      throw new NotFoundError('Order not found');
-    }
-
-    // Enforce ownership or admin privilege
-    const isAdmin = requester.role === 'ADMIN' || requester.role === 'SUPER_ADMIN';
-    if (order.userId !== requester.id && !isAdmin) {
       throw new NotFoundError('Order not found');
     }
 
@@ -767,7 +817,7 @@ export class CommerceService {
       rzRefund = await paymentService.createRazorpayRefund(
         order.razorpayPaymentId,
         refundAmount,
-        { reason: input.reason || 'Client requested refund' }
+        { reason: input.reason || 'Refund issued by staff' }
       );
     } catch (gatewayErr: any) {
       // Record failed refund attempt without altering order payment status
@@ -895,7 +945,7 @@ export class CommerceService {
         await (tx as any).auditLog.create({
           data: {
             adminId: requester.id,
-            adminEmail: 'SYSTEM_REFUND_ENGINE',
+            adminEmail: requester.email || 'SYSTEM_REFUND_ENGINE',
             action: 'ORDER_REFUNDED',
             resource: `Order:${order.id}`,
             details: `Refund of ${refundAmount} paise processed. Full refund: ${isFullRefund}`,
@@ -937,6 +987,13 @@ export class CommerceService {
       throw new NotFoundError('Order not found'); // 404 hides resource existence
     }
 
+    // A completed report is shown to the customer only after REPORT_SEND_DELAY_HOURS (report-release.ts).
+    if (!isAdmin) {
+      const now = new Date();
+      const delayMs = reportReleaseDelayMs();
+      return { ...order, reports: order.reports.map((report) => customerReportRow(report, now, delayMs)) };
+    }
+
     return order;
   }
 
@@ -944,7 +1001,7 @@ export class CommerceService {
    * Get authenticated user's order history.
    */
   public async getUserOrders(user: { id: string }) {
-    return prisma.order.findMany({
+    const orders = await prisma.order.findMany({
       where: { userId: user.id },
       include: {
         items: true,
@@ -953,6 +1010,10 @@ export class CommerceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // A completed report is shown to the customer only after REPORT_SEND_DELAY_HOURS (report-release.ts).
+    const now = new Date();
+    const delayMs = reportReleaseDelayMs();
+    return orders.map((order) => ({ ...order, reports: order.reports.map((report) => customerReportRow(report, now, delayMs)) }));
   }
 }
 

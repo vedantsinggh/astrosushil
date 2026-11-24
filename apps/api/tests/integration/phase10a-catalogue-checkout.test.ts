@@ -97,7 +97,8 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
   describe('1. Catalogue Inventory & Pricing Invariants', () => {
     it('should strictly maintain authorized pricing for all 9 released reports and the retired Career Pro alias', () => {
       const EXPECTED_PRICES: Record<string, { price: number; reportType: ReportType; isActive: boolean }> = {
-        'report-kundli': { price: 29900, reportType: ReportType.KUNDLI, isActive: true },
+        // Website price since 2026-11-24: ₹999 + 18% GST, stored GST-inclusive.
+        'report-kundli': { price: 117882, reportType: ReportType.KUNDLI, isActive: true },
         // Website price since 2026-11-24: ₹199 + 18% GST, stored GST-inclusive.
         'report-planetary-summary': { price: 23482, reportType: ReportType.PLANETARY_SUMMARY, isActive: true },
         'report-horoscope': { price: 49900, reportType: ReportType.HOROSCOPE, isActive: true },

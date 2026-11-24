@@ -4,7 +4,8 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 
 export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
-  KUNDLI: 29900,                 // ₹299
+  // Owner decision 2026-11-24: ₹999 + GST, GST-inclusive amount paid (see commerce.catalog.ts).
+  KUNDLI: 117882,                // ₹999 + GST
   // Website prices (astrosushil.com, 2026-11-24), GST-inclusive amount paid: see commerce.catalog.ts.
   KUNDLI_BASIC: 35282,           // ₹299 + GST
   PLANETARY_SUMMARY: 23482,      // ₹199 + GST

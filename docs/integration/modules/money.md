@@ -231,7 +231,10 @@ Outside production, when no gateway credentials are set or the lookup fails, the
 9. Sales made before the counter exists are `PENDING` and numbered later (website: `not_required`, never numbered).
 10. Verify compares the payment with the order (finding 2).
 11. CSV is produced by the server with quoting and formula protection.
-12. Coupon use and stock are not handled here (other modules).
+12. Coupon use and stock are handled with `couponsService` and `CouponScope` across products, reports and consultations (owner decision 2026-11-24).
+13. Refunds are staff-only behind permission `payments:refund` (`POST /admin/payments/orders/:id/refund`); customer route returns 403 `REFUND_STAFF_ONLY` (owner decision 2026-11-24).
+14. Shipping is flat Rs 500 (`50000` paise) everywhere when any item is physical, with no free-shipping threshold (owner decision 2026-11-24).
+15. Full Janma Kundli price is ₹999 + 18% GST (stored as 117,882 paise, GST-inclusive) (owner decision 2026-11-24).
 
 ## Data migration mapping
 

@@ -4,10 +4,11 @@ import { prisma } from '../../services/prisma.service';
 import { AppError, ConflictError, NotFoundError, ValidationError } from '../../errors/app-error';
 import { logger } from '../../utils/logger';
 import { AdminActor, audit, pageParams } from '../products/shop-http';
-import { CouponEvaluation, CouponRuleInput, evaluateCoupon } from './coupon-rules';
+import { CouponEvaluation, CouponRuleInput, CouponSaleType, CouponScopeInput, evaluateCoupon } from './coupon-rules';
 
 /**
- * Coupons (website `coupon` module). Product carts only, as on the website.
+ * Coupons (website `coupon` module). Applies to products, reports and consultations
+ * (owner decision 2026-11-24, open-questions M8).
  *
  * Amounts: `discount` is a percent (0 to 100) for PERCENTAGE coupons and paise for FLAT ones;
  * `maxDiscountPaise` and `minOrderPaise` are paise.
@@ -29,6 +30,13 @@ const couponFields = {
   assignedUsers: z.array(z.string().uuid()).max(5000).optional(),
   oneTimePerUser: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  scopes: z
+    .object({
+      products: z.boolean().optional(),
+      reports: z.boolean().optional(),
+      consultations: z.boolean().optional(),
+    })
+    .optional(),
 };
 
 export const createCouponSchema = z.object(couponFields);
@@ -55,7 +63,7 @@ function storedDiscount(type: 'PERCENTAGE' | 'FLAT', discount: number): number {
   return discount;
 }
 
-export function toRuleInput(coupon: Coupon): CouponRuleInput {
+export function toRuleInput(coupon: Coupon, scope?: CouponScopeInput | null): CouponRuleInput {
   return {
     code: coupon.code,
     discountType: coupon.discountType,
@@ -68,10 +76,11 @@ export function toRuleInput(coupon: Coupon): CouponRuleInput {
     audience: coupon.audience,
     oneTimePerUser: coupon.oneTimePerUser,
     isActive: coupon.isActive,
+    scope: scope ? { products: scope.products, reports: scope.reports, consultations: scope.consultations } : undefined,
   };
 }
 
-export function toAdminCoupon(coupon: CouponWithAssignments) {
+export function toAdminCoupon(coupon: CouponWithAssignments, scope?: CouponScopeInput | null) {
   return {
     id: coupon.id,
     code: coupon.code,
@@ -90,6 +99,9 @@ export function toAdminCoupon(coupon: CouponWithAssignments) {
       fullName: a.user?.fullName ?? null,
       email: a.user?.email ?? null,
     })),
+    scopes: scope
+      ? { products: scope.products, reports: scope.reports, consultations: scope.consultations }
+      : { products: true, reports: true, consultations: true },
     oneTimePerUser: coupon.oneTimePerUser,
     isActive: coupon.isActive,
     createdAt: coupon.createdAt,
@@ -129,13 +141,18 @@ export class CouponsService {
       prisma.coupon.findMany({ where, include: ASSIGNMENT_INCLUDE, orderBy: { createdAt: 'desc' }, skip, take: limit }),
       prisma.coupon.count({ where }),
     ]);
-    return { coupons: rows.map(toAdminCoupon), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    const scopes = await prisma.couponScope.findMany({ where: { couponId: { in: rows.map((r) => r.id) } } });
+    const scopeMap = new Map(scopes.map((s) => [s.couponId, s]));
+    return { coupons: rows.map((r) => toAdminCoupon(r, scopeMap.get(r.id))), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   public async get(id: string) {
-    const row = await prisma.coupon.findUnique({ where: { id }, include: ASSIGNMENT_INCLUDE });
+    const [row, scope] = await Promise.all([
+      prisma.coupon.findUnique({ where: { id }, include: ASSIGNMENT_INCLUDE }),
+      prisma.couponScope.findUnique({ where: { couponId: id } }),
+    ]);
     if (!row) throw new NotFoundError('Coupon not found');
-    return toAdminCoupon(row);
+    return toAdminCoupon(row, scope);
   }
 
   private async assertUsersExist(userIds: string[]): Promise<void> {
@@ -155,26 +172,42 @@ export class CouponsService {
     }
     await this.assertUsersExist(assigned);
 
-    const row = await prisma.coupon.create({
-      data: {
-        code,
-        description: input.description ?? null,
-        discountType: input.type,
-        discountValue: storedDiscount(input.type, input.discount),
-        maxDiscountPaise: input.maxDiscountPaise ?? null,
-        minOrderPaise: input.minOrderPaise ?? 0,
-        usageLimit: input.usageLimit ?? null,
-        validFrom: input.validFrom ?? new Date(),
-        validTill: input.validTill,
-        audience: input.couponType as ShopCouponAudience,
-        oneTimePerUser: input.oneTimePerUser ?? true,
-        isActive: input.isActive ?? true,
-        assignments: { create: assigned.map((userId) => ({ userId })) },
-      },
-      include: ASSIGNMENT_INCLUDE,
+    const scopes = input.scopes ?? { products: true, reports: true, consultations: true };
+    const row = await prisma.$transaction(async (tx) => {
+      const created = await tx.coupon.create({
+        data: {
+          code,
+          description: input.description ?? null,
+          discountType: input.type,
+          discountValue: storedDiscount(input.type, input.discount),
+          maxDiscountPaise: input.maxDiscountPaise ?? null,
+          minOrderPaise: input.minOrderPaise ?? 0,
+          usageLimit: input.usageLimit ?? null,
+          validFrom: input.validFrom ?? new Date(),
+          validTill: input.validTill,
+          audience: input.couponType as ShopCouponAudience,
+          oneTimePerUser: input.oneTimePerUser ?? true,
+          isActive: input.isActive ?? true,
+          assignments: { create: assigned.map((userId) => ({ userId })) },
+        },
+        include: ASSIGNMENT_INCLUDE,
+      });
+      await tx.couponScope.create({
+        data: {
+          couponId: created.id,
+          products: scopes.products ?? true,
+          reports: scopes.reports ?? true,
+          consultations: scopes.consultations ?? true,
+        },
+      });
+      return created;
     });
     await audit(actor, 'COUPON_CREATED', `Coupon:${row.id}`, `Created coupon ${row.code} (${row.discountType}, ${row.audience})`);
-    return toAdminCoupon(row);
+    return toAdminCoupon(row, {
+      products: scopes.products ?? true,
+      reports: scopes.reports ?? true,
+      consultations: scopes.consultations ?? true,
+    });
   }
 
   public async update(id: string, input: UpdateCouponInput, actor: AdminActor) {
@@ -219,10 +252,27 @@ export class CouponsService {
           skipDuplicates: true,
         });
       }
+      if (input.scopes !== undefined) {
+        await tx.couponScope.upsert({
+          where: { couponId: id },
+          create: {
+            couponId: id,
+            products: input.scopes.products ?? true,
+            reports: input.scopes.reports ?? true,
+            consultations: input.scopes.consultations ?? true,
+          },
+          update: {
+            ...(input.scopes.products !== undefined ? { products: input.scopes.products } : {}),
+            ...(input.scopes.reports !== undefined ? { reports: input.scopes.reports } : {}),
+            ...(input.scopes.consultations !== undefined ? { consultations: input.scopes.consultations } : {}),
+          },
+        });
+      }
       return tx.coupon.update({ where: { id }, data, include: ASSIGNMENT_INCLUDE });
     });
+    const scope = await prisma.couponScope.findUnique({ where: { couponId: id } });
     await audit(actor, 'COUPON_UPDATED', `Coupon:${id}`, `Updated coupon ${row.code}. Fields: ${Object.keys(input).join(', ') || 'none'}`);
-    return toAdminCoupon(row);
+    return toAdminCoupon(row, scope);
   }
 
   public async toggle(id: string, actor: AdminActor) {
@@ -246,7 +296,10 @@ export class CouponsService {
       await audit(actor, 'COUPON_DEACTIVATED', `Coupon:${id}`, `Coupon ${existing.code} has ${uses} recorded use(s): switched off instead of deleted`);
       return { deleted: false, deactivated: true };
     }
-    await prisma.coupon.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.couponScope.deleteMany({ where: { couponId: id } });
+      await tx.coupon.delete({ where: { id } });
+    });
     await audit(actor, 'COUPON_DELETED', `Coupon:${id}`, `Deleted coupon ${existing.code}`);
     return { deleted: true, deactivated: false };
   }
@@ -276,7 +329,7 @@ export class CouponsService {
    */
   public async evaluate(
     db: Db,
-    params: { code: string; userId: string; itemsTotalPaise: number; now?: Date; ignoreOrderId?: string }
+    params: { code: string; userId: string; itemsTotalPaise: number; saleType?: CouponSaleType; now?: Date; ignoreOrderId?: string }
   ): Promise<{ coupon: Coupon | null; result: CouponEvaluation }> {
     const now = params.now ?? new Date();
     const coupon = await db.coupon.findUnique({ where: { code: params.code.toUpperCase() } });
@@ -291,7 +344,7 @@ export class CouponsService {
       status: ShopCouponRedemptionStatus.RESERVED,
       reservedUntil: { gt: now },
     };
-    const [redeemed, held, userUses, assignment] = await Promise.all([
+    const [redeemed, held, userUses, assignment, scope] = await Promise.all([
       db.couponRedemption.count({ where: { ...counted, status: ShopCouponRedemptionStatus.REDEEMED } }),
       db.couponRedemption.count({ where: { ...counted, ...liveHold } }),
       db.couponRedemption.count({
@@ -300,14 +353,16 @@ export class CouponsService {
       coupon.audience === ShopCouponAudience.INDIVIDUAL
         ? db.couponAssignment.findUnique({ where: { couponId_userId: { couponId: coupon.id, userId: params.userId } } })
         : Promise.resolve(null),
+      db.couponScope.findUnique({ where: { couponId: coupon.id } }),
     ]);
-    const result = evaluateCoupon(toRuleInput(coupon), {
+    const result = evaluateCoupon(toRuleInput(coupon, scope), {
       now,
       itemsTotalPaise: params.itemsTotalPaise,
       isAssigned: Boolean(assignment),
       // `usedCount` carries the website's historic count for migrated coupons.
       activeUses: Math.max(coupon.usedCount, redeemed) + held,
       userUses,
+      saleType: params.saleType,
     });
     return { coupon, result };
   }
@@ -321,7 +376,7 @@ export class CouponsService {
    */
   public async reserveForOrder(
     tx: Prisma.TransactionClient,
-    params: { code: string; userId: string; itemsTotalPaise: number; orderId: string; expectedDiscountPaise: number; now?: Date }
+    params: { code: string; userId: string; itemsTotalPaise: number; orderId: string; expectedDiscountPaise: number; saleType?: CouponSaleType; now?: Date }
   ): Promise<string[]> {
     const now = params.now ?? new Date();
     const code = params.code.toUpperCase();
@@ -342,7 +397,7 @@ export class CouponsService {
     }
     const superseded = ownHolds.map((h) => h.orderId).filter((id): id is string => Boolean(id));
 
-    const { coupon, result } = await this.evaluate(tx, { code, userId: params.userId, itemsTotalPaise: params.itemsTotalPaise, now });
+    const { coupon, result } = await this.evaluate(tx, { code, userId: params.userId, itemsTotalPaise: params.itemsTotalPaise, saleType: params.saleType, now });
     if (!coupon || !result.ok) {
       throw new AppError(result.ok ? 'This coupon is no longer valid' : result.message, 409, 'COUPON_NO_LONGER_VALID');
     }
@@ -368,6 +423,7 @@ export class CouponsService {
    * amount); that is the one case where a limit can be exceeded, and it is logged.
    */
   public async redeemForOrder(tx: Prisma.TransactionClient, orderId: string, now: Date = new Date()): Promise<void> {
+    if (!tx.couponRedemption?.findUnique) return;
     const redemption = await tx.couponRedemption.findUnique({ where: { orderId } });
     if (!redemption || redemption.status === ShopCouponRedemptionStatus.REDEEMED) return;
     const lapsed =
@@ -386,6 +442,7 @@ export class CouponsService {
 
   /** Frees the hold of an order that was cancelled or failed before payment. A redeemed use stays. */
   public async releaseForOrder(db: Db, orderId: string): Promise<void> {
+    if (!db.couponRedemption?.updateMany) return;
     await db.couponRedemption.updateMany({
       where: { orderId, status: ShopCouponRedemptionStatus.RESERVED },
       data: { status: ShopCouponRedemptionStatus.RELEASED, reservedUntil: null },

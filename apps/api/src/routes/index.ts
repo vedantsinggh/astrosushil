@@ -9,6 +9,7 @@ import { vastuRoutes } from '../modules/vastu/vastu.routes';
 import { guptaNadiRoutes } from '../modules/gupta-nadi/gupta-nadi.routes';
 import { predictionsRoutes } from '../modules/predictions/predictions.routes';
 import { paymentsRoutes } from '../modules/payments/payments.routes';
+import { paymentsAdminRoutes } from '../modules/payments/payments.admin.routes';
 import { webhooksRoutes } from '../modules/webhooks/webhooks.routes';
 import { reportsRoutes } from '../modules/reports/reports.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
@@ -53,6 +54,7 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(guptaNadiRoutes, { prefix: '/gupta-nadi' });
       await v1.register(predictionsRoutes, { prefix: '/predictions' });
       await v1.register(paymentsRoutes, { prefix: '/payments' });
+      await v1.register(paymentsAdminRoutes); // POST /admin/payments/orders/:id/refund (staff only)
       await v1.register(webhooksRoutes, { prefix: '/webhooks' });
       await v1.register(reportsRoutes, { prefix: '/reports' });
       await v1.register(consultationsRoutes, { prefix: '/consultations' });

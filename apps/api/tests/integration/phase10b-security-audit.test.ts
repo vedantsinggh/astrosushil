@@ -835,7 +835,7 @@ describe('Phase 10B: Payment, Fulfillment and Customer Access Security Audit', (
             amountPaise: 50000,
             reason: 'Tampered over-refund request',
           },
-          customerA
+          customerA, { staffAuthorised: true }
         )
       ).rejects.toThrow('exceeds maximum refundable balance');
     });

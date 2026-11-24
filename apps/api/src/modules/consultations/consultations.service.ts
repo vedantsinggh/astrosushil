@@ -36,6 +36,7 @@ import {
 } from '../bookings/slot-hold';
 import { computeGst } from './consultation-gst';
 import { consultationTypesService, ResolvedOffering } from './consultation-types.service';
+import { couponsService } from '../coupons/coupons.service';
 
 export interface SlotInterval {
   startTime: string; // HH:mm
@@ -55,6 +56,7 @@ export interface BookConsultationInput {
   pob?: string;
   notes?: string;
   timezone?: string;
+  couponCode?: string;
 }
 
 export interface VerifyConsultationPaymentInput {
@@ -62,6 +64,22 @@ export interface VerifyConsultationPaymentInput {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
+}
+
+/**
+ * Where a confirmed booking takes place: the meeting link of a remote consultation or the office
+ * address of an in-person one. One definition for every path that confirms a booking (payment
+ * verification and the staff resolution of a payment conflict).
+ */
+export function confirmedBookingPlace(booking: { id: string; mode: ConsultationMode }): {
+  meetingLink: string | null;
+  locationAddress: string | null;
+} {
+  const inPerson = booking.mode === ConsultationMode.IN_PERSON;
+  return {
+    meetingLink: inPerson ? null : `https://meet.astrosushil.com/consult-${booking.id.substring(0, 8)}`,
+    locationAddress: inPerson ? 'Astro Sushil Vedic Centre, Sector 18, Noida / Delhi NCR' : null,
+  };
 }
 
 export class ConsultationsService {
@@ -296,16 +314,21 @@ export class ConsultationsService {
               },
             ],
             notes: `Booking for ${tier.title} on ${dateStr} at ${startTime}`,
+            couponCode: input.couponCode,
           },
           { id: userId }
         );
 
         // The customer must be charged exactly the consultation's price with its GST (inclusive:
-        // the price; exclusive: price + GST). The website charged the bare price for exclusive
-        // GST in INR; here a mismatch stops the booking instead of under- or over-charging.
-        if (order.amount !== offering.pricing.totalPaise) {
+        // the price; exclusive: price + GST). If a coupon was applied, the expected price incorporates
+        // that discount.
+        const expectedAmount = input.couponCode && (order.discountAmount ?? 0) > 0
+          ? computeGst(offering.mode.pricePaise - (order.discountAmount ?? 0), offering.mode.gst).totalPaise
+          : offering.pricing.totalPaise;
+
+        if (order.amount !== expectedAmount) {
           logger.error(
-            { bookingId: booking.id, catalogId: tier.id, orderAmount: order.amount, expected: offering.pricing.totalPaise },
+            { bookingId: booking.id, catalogId: tier.id, orderAmount: order.amount, expected: expectedAmount },
             '[ConsultationsService] Commerce order amount differs from the consultation price'
           );
           throw new AppError(
@@ -354,11 +377,18 @@ export class ConsultationsService {
   private async abandonReservation(bookingId: string, reason: string) {
     try {
       await prisma.$transaction(async (tx) => {
+        const booking = await tx.consultationBooking.findUnique({
+          where: { id: bookingId },
+          select: { orderId: true },
+        });
         await tx.consultationBooking.updateMany({
           where: { id: bookingId, status: BookingStatus.PENDING_PAYMENT },
           data: { status: BookingStatus.CANCELLED, cancellationReason: reason, cancelledAt: new Date() },
         });
         await releaseSlot(tx, bookingId);
+        if (booking?.orderId) {
+          await couponsService.releaseForOrder(tx, booking.orderId);
+        }
       });
     } catch (err) {
       // The hold expires by itself after reservationTimeoutMinutes.
@@ -456,15 +486,7 @@ export class ConsultationsService {
       }
     }
 
-    const meetingLink =
-      booking.mode === ConsultationMode.IN_PERSON
-        ? null
-        : `https://meet.astrosushil.com/consult-${booking.id.substring(0, 8)}`;
-
-    const locationAddress =
-      booking.mode === ConsultationMode.IN_PERSON
-        ? 'Astro Sushil Vedic Centre, Sector 18, Noida / Delhi NCR'
-        : null;
+    const { meetingLink, locationAddress } = confirmedBookingPlace(booking);
 
     const slotRange = {
       startMinute: parseTimeOfDay(booking.startTime),
@@ -816,6 +838,9 @@ export class ConsultationsService {
           where: { id: booking.orderId },
           data: { fulfillmentStatus: FulfillmentStatus.CANCELLED },
         });
+      }
+      if (booking.orderId) {
+        await couponsService.releaseForOrder(tx, booking.orderId);
       }
 
       return updatedBooking;

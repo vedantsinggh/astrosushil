@@ -276,13 +276,13 @@ describe('Phase 7: Shop, Digital Products, Physical Products & Customer Account 
       expect(body.data.items[0].unitPrice).toBe(149900);
     });
 
-    it('Applies free shipping threshold for physical orders >= ₹2,000', async () => {
+    it('Applies flat ₹500 shipping everywhere with no free threshold', async () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/products/cart/calculate',
         payload: {
           items: [
-            { productId: physicalHerbProduct.id, quantity: 1 }, // ₹3,999 > ₹2,000 threshold
+            { productId: physicalHerbProduct.id, quantity: 1 }, // ₹3,999
           ],
           shippingAddressId: createdAddressId,
         },
@@ -291,9 +291,9 @@ describe('Phase 7: Shop, Digital Products, Physical Products & Customer Account 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.payload);
       expect(body.data.requiresShipping).toBe(true);
-      expect(body.data.shippingAmount).toBe(0);
-      expect(body.data.eligibleForFreeShipping).toBe(true);
-      expect(body.data.totalAmount).toBe(399900);
+      expect(body.data.shippingAmount).toBe(50000);
+      expect(body.data.eligibleForFreeShipping).toBe(false);
+      expect(body.data.totalAmount).toBe(399900 + 50000);
     });
 
     it('Rejects cart exceeding stock for physical items', async () => {
@@ -350,8 +350,8 @@ describe('Phase 7: Shop, Digital Products, Physical Products & Customer Account 
       const body = JSON.parse(response.payload);
       expect(body.data.orderId).toBeDefined();
       expect(body.data.razorpayOrderId).toBeDefined();
-      expect(body.data.amount).toBe(399900 + 89900); // 489,800 paise = ₹4,898
-      expect(body.data.shippingAmount).toBe(0); // Free shipping because physical subtotal >= ₹2,000
+      expect(body.data.amount).toBe(399900 + 89900 + 50000); // 539,800 paise = ₹5,398 (including flat ₹500 shipping)
+      expect(body.data.shippingAmount).toBe(50000);
       expect(body.data.status).toBe('PENDING');
       expect(body.data.paymentStatus).toBe('PENDING');
 
@@ -549,7 +549,7 @@ describe('Phase 7: Shop, Digital Products, Physical Products & Customer Account 
             entity: {
               id: 'pay_webhook_test_1',
               order_id: razorpayOrderId,
-              amount: 489800,
+              amount: 539800, // 399900 + 89900 + 50000 flat shipping
             },
           },
         },

@@ -238,7 +238,7 @@ describe('payment verification ties the payment to the order', () => {
 describe('refund guard', () => {
   it('never sends a refund to the gateway for an order paid in a foreign currency', async () => {
     mocks.prisma.order.findUnique.mockResolvedValue(storedOrder({ status: 'PAID', razorpayPaymentId: 'pay_1', paidCurrency: 'USD', paidAmountMinor: 599 }));
-    await expect(service.requestRefund({ orderId: 'order-1' }, { id: 'admin-1', role: 'ADMIN' })).rejects.toMatchObject({ code: 'REFUND_UNSUPPORTED_CURRENCY' });
+    await expect(service.requestRefund({ orderId: 'order-1' }, { id: 'admin-1', role: 'ADMIN' }, { staffAuthorised: true })).rejects.toMatchObject({ code: 'REFUND_UNSUPPORTED_CURRENCY' });
     expect(mocks.paymentService.createRazorpayRefund).not.toHaveBeenCalled();
   });
 });

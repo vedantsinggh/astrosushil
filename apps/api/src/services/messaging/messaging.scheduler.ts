@@ -3,6 +3,7 @@ import { consultationReminderSweep } from '../../modules/notifications/consultat
 import { messagingEnv } from './config';
 import { otpSendLimiter } from './otp-delivery.service';
 import { outboxService } from './outbox.service';
+import { reportReleaseSweep } from '../../modules/reports/report-release.sweep';
 
 const REMINDER_INTERVAL_MS = 15 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -10,9 +11,10 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 /**
  * Messaging sweeps, run in the worker process:
  *
- *  - outbox dispatch (every MESSAGING_DISPATCH_INTERVAL_MS): sends due messages,
- *    including report-ready messages whose delay has passed, retries failed ones
- *    and closes sends interrupted by a crash;
+ *  - outbox dispatch (every MESSAGING_DISPATCH_INTERVAL_MS): releases reports whose
+ *    REPORT_SEND_DELAY_HOURS has passed (push and in-app notification, plus their
+ *    e-mail and WhatsApp), sends due messages, retries failed ones and closes sends
+ *    interrupted by a crash;
  *  - consultation reminder (checked every 15 minutes, runs once per IST day);
  *  - clean-up of old OTP send-counter rows (hourly).
  *
@@ -33,6 +35,14 @@ export class MessagingScheduler {
 
     this.every(dispatchIntervalMs, 'outbox dispatch', async () => {
       await outboxService.recoverStale();
+      // Reports whose release time has passed are announced here (push, in-app) and their e-mail
+      // and WhatsApp are queued already due, so `processDue` below sends them in this same run.
+      // A failure here must not stop the outbox.
+      try {
+        await reportReleaseSweep.tick();
+      } catch (err) {
+        logger.error({ err: err instanceof Error ? err.message : String(err) }, '[MessagingScheduler] Report release sweep failed');
+      }
       await outboxService.processDue();
     });
     this.every(REMINDER_INTERVAL_MS, 'consultation reminder', async () => {

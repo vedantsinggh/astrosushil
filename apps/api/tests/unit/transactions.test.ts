@@ -295,6 +295,10 @@ describe('GST report rows', () => {
       paymentMethod: 'razorpay',
       paymentStatus: 'success',
       razorpayTransactionId: 'pay_1',
+      // commerce-decisions (owner decision 2026-11-24, staff refunds): every row says what was refunded.
+      refundedAmount: 0,
+      refundStatus: 'none',
+      refundedAt: null,
     });
   });
 
@@ -388,8 +392,8 @@ describe('GST report rows', () => {
       buildGstRow({ transaction: base(), user, invoice: null, order: null }, SELLER_STATE),
       buildGstRow({ transaction: base({ baseAmountPaise: 99900, taxPaise: 0, taxRateBp: 0 }), user, invoice: null, order: null }, SELLER_STATE),
     ];
-    expect(summariseGstRows(rows)).toEqual({ taxableTotal: 29900 + 99900, gstTotal: 5382, grandTotal: 35282 + 99900, count: 2 });
-    expect(summariseGstRows([])).toEqual({ taxableTotal: 0, gstTotal: 0, grandTotal: 0, count: 0 });
+    expect(summariseGstRows(rows)).toEqual({ taxableTotal: 29900 + 99900, gstTotal: 5382, grandTotal: 35282 + 99900, count: 2, refundedTotal: 0, refundedCount: 0 });
+    expect(summariseGstRows([])).toEqual({ taxableTotal: 0, gstTotal: 0, grandTotal: 0, count: 0, refundedTotal: 0, refundedCount: 0 });
   });
 
   it('CSV export: website columns, rupee figures, Indian dates, quoted fields', () => {
@@ -408,11 +412,11 @@ describe('GST report rows', () => {
     const [header, line, trailing] = csv.split('\r\n');
     expect(header).toBe(GST_CSV_HEADERS.join(','));
     expect(header).toBe(
-      'Date,Invoice No,Type,Customer Name,Email,Phone,Place of Supply,Taxable Value,GST Rate,GST Type,GST Amount,Total Value,Currency,Payment Method,Payment Status,Razorpay Txn ID'
+      'Date,Invoice No,Type,Customer Name,Email,Phone,Place of Supply,Taxable Value,GST Rate,GST Type,GST Amount,Total Value,Currency,Payment Method,Payment Status,Razorpay Txn ID,Refunded Amount,Refund Status'
     );
     // 19:00 UTC on 30 June is 00:30 on 1 July in India.
     expect(line).toBe(
-      '01 Jul 2026,INV-AS/118,Astrology Report,"Rao, Asha ""AR""",asha@example.test,+919876543210,Uttar Pradesh,299.00,18%,Exclusive,53.82,352.82,INR,razorpay,success,pay_1'
+      '01 Jul 2026,INV-AS/118,Astrology Report,"Rao, Asha ""AR""",asha@example.test,+919876543210,Uttar Pradesh,299.00,18%,Exclusive,53.82,352.82,INR,razorpay,success,pay_1,,'
     );
     expect(trailing).toBe('');
   });

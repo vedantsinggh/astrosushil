@@ -191,10 +191,10 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
       const refundResult = await commerceService.requestRefund(
         {
           orderId,
-          amountPaise: 29900,
+          amountPaise: 117882,
           reason: 'Customer requested full cancellation during generation',
         },
-        { id: customerA.id, role: Role.USER }
+        { id: customerA.id, role: Role.USER }, { staffAuthorised: true }
       );
       expect(refundResult.refund.status).toBe('PROCESSED');
       expect(refundResult.order.status).toBe('REFUNDED');
@@ -343,11 +343,11 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
       const claimedKundli = claim1!.id === kundliReportId ? claim1! : claim2!;
       const claimedHoro = claim1!.id === horoReportId ? claim1! : claim2!;
 
-      // Partial refund: Refund Kundli item (29900 paise) only
+      // Partial refund: Refund Kundli item (117882 paise) only
       const refundRecord = await prisma.refund.create({
         data: {
           orderId,
-          amount: 29900,
+          amount: 117882,
           currency: 'INR',
           reason: 'Partial refund of Kundli report',
           status: 'PROCESSED',
@@ -358,7 +358,7 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
         orderId,
         refundId: refundRecord.id,
         orderItemId: kundliUnit.orderItemId,
-        amountPaise: 29900,
+        amountPaise: 117882,
       });
 
       // Verify Kundli fulfillment unit is CANCELLED
@@ -410,7 +410,7 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
   // =========================================================================
   describe('2. End-to-End Customer Journey For All 9 Released SKUs', () => {
     const RELEASED_SKUS = [
-      { sku: 'report-kundli', price: 29900, reportType: ReportType.KUNDLI, isCareer: false },
+      { sku: 'report-kundli', price: 117882, reportType: ReportType.KUNDLI, isCareer: false },
       { sku: 'report-planetary-summary', price: 23482, reportType: ReportType.PLANETARY_SUMMARY, isCareer: false },
       { sku: 'report-horoscope', price: 49900, reportType: ReportType.HOROSCOPE, isCareer: false },
       { sku: 'report-career', price: 49900, reportType: ReportType.CAREER, isCareer: true },

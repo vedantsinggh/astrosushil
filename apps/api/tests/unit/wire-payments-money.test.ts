@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
     user: { findMany: vi.fn() },
     order: { findMany: vi.fn() },
     invoice: { findMany: vi.fn() },
+    // commerce-decisions: the ledger views also read the refunds of each order (none here).
+    refund: { findMany: vi.fn(async () => []) },
     $queryRaw: vi.fn(),
   },
   invoiceService: { isPaused: vi.fn(), allocatePending: vi.fn(), allocateForPaidOrder: vi.fn() },

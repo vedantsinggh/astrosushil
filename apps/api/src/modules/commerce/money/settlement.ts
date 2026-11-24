@@ -5,6 +5,7 @@ import { GatewayPaymentInfo, transactionsService } from '../../transactions/tran
 import { AttemptOptions, deriveSaleType } from '../../transactions/ledger';
 import { LedgerTransactionStatus, OrderStatus } from '@prisma/client';
 import { logger } from '../../../utils/logger';
+import { couponsService } from '../../coupons/coupons.service';
 
 type Tx = Prisma.TransactionClient;
 
@@ -41,6 +42,7 @@ export async function settleOrderPaid(
 
   const transaction = await transactionsService.markOrderPaid(tx, order, payment, options);
   const invoice = await invoiceService.allocateForPaidOrder(tx, { orderId, saleType: deriveSaleType(order.items) });
+  await couponsService.redeemForOrder(tx, orderId);
   return { transactionId: transaction.id, invoice };
 }
 
@@ -86,6 +88,7 @@ export async function recordCaptureForCancelledOrder(
   }
 
   const transaction = await transactionsService.markOrderPaid(tx, order, payment);
+  await couponsService.releaseForOrder(tx, orderId);
   await tx.auditLog.create({
     data: {
       adminId: 'SYSTEM_PAYMENT_GATEWAY',

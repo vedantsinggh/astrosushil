@@ -27,6 +27,7 @@ export const manualBookingSchema = z
     discountType: z.enum(['FLAT', 'PERCENTAGE']).optional(),
     /** FLAT: paise. PERCENTAGE: basis points (1250 = 12.5%). */
     discountValue: z.number().int().min(0).max(1_000_000_000).optional(),
+    couponCode: z.string().trim().min(3).max(20).optional(),
     note: z.string().trim().max(1000).optional(),
   })
   .strict()
@@ -40,6 +41,20 @@ export const manualBookingSchema = z
   });
 
 export const adminRescheduleSchema = z.object({ date: calendarDate, slot, adminNote }).strict();
+
+/** Payment conflict (paid, slot taken): staff give the customer another time. No charge is made. */
+export const resolveConflictSlotSchema = z.object({ date: calendarDate, slot, adminNote }).strict();
+
+/** Payment conflict: the fallback, a staff refund (see payments.admin.routes.ts for the refund itself). */
+export const resolveConflictRefundSchema = z
+  .object({
+    /** INR paise; omitted = everything still refundable on the order. */
+    amountPaise: z.number().int().positive().optional(),
+    reason: z.string().trim().min(3, 'A reason is required').max(500),
+    idempotencyKey: z.string().min(4).max(128).optional(),
+    adminNote,
+  })
+  .strict();
 
 export const changePlanSchema = z
   .object({

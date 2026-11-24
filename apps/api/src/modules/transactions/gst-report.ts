@@ -38,6 +38,42 @@ export interface GstSourceRecord {
     deliveryState: string | null;
     items: Array<{ taxRate: number; taxInclusive: boolean }>;
   } | null;
+  /** Refunds processed against the sale's order (INR paise). Absent = none. */
+  refund?: RefundSummary | null;
+}
+
+/** What has been refunded against one sale. Built by `summariseRefunds`. */
+export interface RefundSummary {
+  /** Sum of PROCESSED refunds, INR paise. */
+  refundedPaise: number;
+  /** Time of the latest processed refund. */
+  lastRefundAt: Date | null;
+}
+
+export type RefundState = 'none' | 'partial' | 'full';
+
+/**
+ * Sums the processed refunds per order. Failed and still-pending refunds are not money returned
+ * and are left out.
+ */
+export function summariseRefunds(
+  refunds: ReadonlyArray<{ orderId: string; amount: number; status: string; createdAt: Date }>
+): Map<string, RefundSummary> {
+  const byOrder = new Map<string, RefundSummary>();
+  for (const refund of refunds) {
+    if (refund.status !== 'PROCESSED') continue;
+    const entry = byOrder.get(refund.orderId) ?? { refundedPaise: 0, lastRefundAt: null };
+    entry.refundedPaise += refund.amount;
+    if (!entry.lastRefundAt || refund.createdAt > entry.lastRefundAt) entry.lastRefundAt = refund.createdAt;
+    byOrder.set(refund.orderId, entry);
+  }
+  return byOrder;
+}
+
+/** `none`, `partial` (some of the sale was returned) or `full` (all of it). */
+export function refundStateFor(refundedPaise: number, saleTotalPaise: number): RefundState {
+  if (refundedPaise <= 0) return 'none';
+  return refundedPaise >= saleTotalPaise ? 'full' : 'partial';
 }
 
 export interface GstReportRow {
@@ -61,6 +97,14 @@ export interface GstReportRow {
   paymentMethod: string;
   paymentStatus: string;
   razorpayTransactionId: string;
+  /**
+   * Refunds processed against this sale, INR paise (owner decision 2026-11-24: staff refunds).
+   * The taxable value, GST and total above stay as invoiced: no credit note is issued, so the tax
+   * is NOT reduced here. This column is what identifies a refunded sale.
+   */
+  refundedAmount: number;
+  refundStatus: RefundState;
+  refundedAt: Date | null;
 }
 
 export interface GstReportSummary {
@@ -68,6 +112,10 @@ export interface GstReportSummary {
   gstTotal: number;
   grandTotal: number;
   count: number;
+  /** Sum of `refundedAmount`, paise. Not deducted from the three totals above. */
+  refundedTotal: number;
+  /** Rows with a refund against them. */
+  refundedCount: number;
 }
 
 function invoiceNoFor(record: GstSourceRecord): string {
@@ -145,6 +193,9 @@ export function buildGstRow(record: GstSourceRecord, sellerState: string): GstRe
     paymentMethod: txn.method.toLowerCase(),
     paymentStatus: txn.status.toLowerCase(),
     razorpayTransactionId: txn.gatewayPaymentId ?? '',
+    refundedAmount: record.refund?.refundedPaise ?? 0,
+    refundStatus: refundStateFor(record.refund?.refundedPaise ?? 0, totalAmount),
+    refundedAt: record.refund?.lastRefundAt ?? null,
   };
 }
 
@@ -154,9 +205,11 @@ export function summariseGstRows(rows: GstReportRow[]): GstReportSummary {
       acc.taxableTotal += row.taxableAmount;
       acc.gstTotal += row.gstAmount;
       acc.grandTotal += row.totalAmount;
+      acc.refundedTotal += row.refundedAmount;
+      if (row.refundedAmount > 0) acc.refundedCount += 1;
       return acc;
     },
-    { taxableTotal: 0, gstTotal: 0, grandTotal: 0, count: rows.length }
+    { taxableTotal: 0, gstTotal: 0, grandTotal: 0, count: rows.length, refundedTotal: 0, refundedCount: 0 }
   );
 }
 
@@ -166,7 +219,12 @@ const TYPE_LABELS: Record<GstReportRow['type'], string> = {
   report: 'Astrology Report',
 };
 
-/** Column order and headings of the website admin's "Export CSV". */
+const REFUND_STATE_LABELS: Record<RefundState, string> = { none: '', partial: 'Partially refunded', full: 'Refunded' };
+
+/**
+ * Column order and headings of the website admin's "Export CSV" (the first 16), followed by two
+ * columns the website does not have: what was refunded against the sale.
+ */
 export const GST_CSV_HEADERS = [
   'Date',
   'Invoice No',
@@ -184,6 +242,8 @@ export const GST_CSV_HEADERS = [
   'Payment Method',
   'Payment Status',
   'Razorpay Txn ID',
+  'Refunded Amount',
+  'Refund Status',
 ];
 
 export function gstRowsToCsv(rows: GstReportRow[]): string {
@@ -206,6 +266,8 @@ export function gstRowsToCsv(rows: GstReportRow[]): string {
       row.paymentMethod,
       row.paymentStatus,
       row.razorpayTransactionId,
+      row.refundedAmount > 0 ? paiseToRupeeText(row.refundedAmount) : '',
+      REFUND_STATE_LABELS[row.refundStatus],
     ])
   );
 }

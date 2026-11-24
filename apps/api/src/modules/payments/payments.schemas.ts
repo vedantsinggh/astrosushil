@@ -16,6 +16,7 @@ export const createOrderSchema = z
     // Language of the report PDF for the legacy single-report input. In the unified input it is
     // `items[].metadata.language`. Chosen before payment and fixed for that purchase; default "en".
     language: z.enum(['en', 'hi']).optional(),
+    couponCode: z.string().trim().min(3).max(20).optional(),
     idempotencyKey: z.string().min(4).max(128).optional(),
     notes: z.string().max(500).optional(),
     // Currency to charge (default INR). Validated against the supported list in the commerce layer;

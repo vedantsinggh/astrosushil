@@ -163,7 +163,7 @@ One row per customer and product. `add` answers 400 "Already in wishlist" as on 
 
 Website rules, in `coupon-rules.ts`: PERCENTAGE or FLAT, maximum discount (percentage coupons only, as on the website), minimum order amount, usage limit, validity window, GLOBAL or INDIVIDUAL (assigned users), one use per customer. Checked when applied, on every cart read, and again at checkout.
 
-**Scope: product carts only**, as on the website. Reports, bookings and in-app courses do not take coupons. The money module's `discountPaise` hook would let them; whether they should is an owner question.
+**Scope: products, reports, and consultations** (owner decision 2026-11-24, open-questions M8). Controlled per coupon by the `CouponScope` model (`products`, `reports`, `consultations`). Unscoped (legacy) coupons are restricted to `products` only. Evaluated and held at checkout across all three sale types, and redeemed when the order is marked paid. Coupons never stack with staff discounts on manual bookings.
 
 **Usage under concurrency.** At checkout, inside the transaction that creates the order, the coupon row is locked (`SELECT ... FOR UPDATE`), the rules are checked again and a hold (`CouponRedemption` RESERVED) is written for the order. Counting uses = redeemed + live holds, so two customers cannot both take the last use. The hold lasts `SHOP_COUPON_HOLD_MINUTES` (default 30). In the transaction that marks the order paid the hold becomes REDEEMED and `usedCount` goes up by one, once. A cancelled or failed unpaid order frees its hold.
 
@@ -320,7 +320,7 @@ The ten seeded products here are the website's products entered by hand. Match t
 2. Cancelling a paid order gives no refund: keep it open to customers, or staff only?
 3. Customer deletion with paid orders: anonymise (built) or remove the row and make orders ownerless?
 4. Courses: do website and app show the same thing (links), or stay different?
-5. Should coupons also work for reports, consultations and in-app courses?
+5. Should coupons also work for reports, consultations and in-app courses? (Resolved: YES for products, reports, and consultations via CouponScope, owner decision 2026-11-24).
 6. Removing a variant on product update (built: allowed) versus the website (never removed).
 7. The website's `GET /cart/admin/all`: wanted?
 8. Unit of the website's product `weight`.

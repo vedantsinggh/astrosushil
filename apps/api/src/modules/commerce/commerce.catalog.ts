@@ -35,7 +35,9 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     itemType: OrderItemType.REPORT,
     title: 'Janma Kundli & Birth Chart Report',
     description: 'Comprehensive astrological life blueprint with planetary placements, Bhavas, and Nakshatra.',
-    pricePaise: 29900, // ₹299
+    // Owner decision 2026-11-24 (open-questions M1): ₹999 + 18% GST, charged on top. Stored here as the
+    // GST-inclusive amount the customer pays, which gives the same net (₹999) and the same GST (₹179.82).
+    pricePaise: 117882, // ₹1,178.82 = ₹999 + GST
     currency: 'INR',
     taxRateBasisPoints: 1800,
     taxIncluded: true,

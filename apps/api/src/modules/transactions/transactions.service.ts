@@ -4,7 +4,7 @@ import { logger } from '../../utils/logger';
 import { getSellerDetails } from '../invoices/seller';
 import { invoiceLabel } from '../invoices/invoice-number';
 import { AttemptOptions, LedgerOrder, buildAttemptData, sanitizeGatewayPayload } from './ledger';
-import { GstReportRow, GstReportSummary, GstSourceRecord, buildGstRow, gstRowsToCsv, summariseGstRows } from './gst-report';
+import { GstReportRow, GstReportSummary, GstSourceRecord, buildGstRow, gstRowsToCsv, refundStateFor, summariseGstRows, summariseRefunds } from './gst-report';
 import { formatDateIst, istDayBoundary, paiseToRupeeText, toCsv } from './csv';
 import { formatMinor } from '../commerce/money/currency';
 import type { GstReportQuery, TransactionsQuery } from './transactions.schemas';
@@ -152,7 +152,7 @@ export class TransactionsService {
     const orderIds = [...new Set(transactions.map((txn) => txn.orderId).filter((id): id is string => !!id))];
     const legacySourceIds = [...new Set(transactions.map((txn) => txn.legacySourceId).filter((id): id is string => !!id))];
 
-    const [users, orders, invoices] = await Promise.all([
+    const [users, orders, invoices, refunds] = await Promise.all([
       prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, fullName: true, email: true, phoneNumber: true } }),
       prisma.order.findMany({
             where: { id: { in: orderIds } },
@@ -170,7 +170,16 @@ export class TransactionsService {
         where: { OR: [{ orderId: { in: orderIds } }, { legacyId: { in: legacySourceIds } }] },
         select: { orderId: true, legacyId: true, number: true, status: true },
       }),
+      // Refunds are recorded per order (`refunds`); the ledger row is joined to them through its
+      // order, so a refunded sale is identifiable in the ledger and in the GST report.
+      orderIds.length
+        ? prisma.refund.findMany({
+            where: { orderId: { in: orderIds }, status: 'PROCESSED' },
+            select: { orderId: true, amount: true, status: true, createdAt: true },
+          })
+        : Promise.resolve([]),
     ]);
+    const refundByOrderId = summariseRefunds(refunds);
 
     const userById = new Map(users.map((user) => [user.id, user]));
     const orderById = new Map(orders.map((order) => [order.id, order]));
@@ -183,7 +192,8 @@ export class TransactionsService {
         (txn.orderId ? invoiceByOrderId.get(txn.orderId) : undefined) ??
         (txn.legacySourceId ? invoiceByLegacyId.get(txn.legacySourceId) : undefined) ??
         null;
-      return { txn, user: userById.get(txn.userId) ?? null, order, invoice };
+      const refund = txn.orderId ? refundByOrderId.get(txn.orderId) ?? null : null;
+      return { txn, user: userById.get(txn.userId) ?? null, order, invoice, refund };
     });
   }
 
@@ -195,6 +205,7 @@ export class TransactionsService {
       order: ctx.order
         ? { paid: ctx.order.paidAt !== null, deliveryState: ctx.order.shippingAddress?.state ?? null, items: ctx.order.items }
         : null,
+      refund: ctx.refund,
     };
   }
 
@@ -224,7 +235,8 @@ export class TransactionsService {
   }
 
   private present(ctx: Awaited<ReturnType<TransactionsService['loadContext']>>[number]) {
-    const { txn, user, order, invoice } = ctx;
+    const { txn, user, order, invoice, refund } = ctx;
+    const refundedPaise = refund?.refundedPaise ?? 0;
     return {
       id: txn.id,
       transactionType: txn.type.toLowerCase(),
@@ -258,6 +270,10 @@ export class TransactionsService {
       transactionId: txn.gatewayPaymentId,
       razorpayOrderId: txn.gatewayOrderId,
       rawResponse: txn.rawResponse,
+      // Processed refunds against the sale (INR paise). The row itself stays SUCCESS: the sale happened.
+      refundedPaise,
+      refundStatus: refundStateFor(refundedPaise, txn.baseAmountPaise > 0 ? txn.baseAmountPaise : txn.amountMinor),
+      refundedAt: refund?.lastRefundAt ?? null,
       createdAt: txn.createdAt,
       updatedAt: txn.updatedAt,
     };
@@ -292,7 +308,7 @@ export class TransactionsService {
     if (transactions.length === cap) logger.warn({ cap }, 'Transactions export reached its row cap');
     const rows = (await this.loadContext(transactions)).map((ctx) => this.present(ctx));
     return toCsv(
-      ['Date', 'Invoice No', 'Type', 'Customer Name', 'Email', 'Phone', 'Amount', 'Currency', 'INR Amount', 'Subtotal', 'Shipping', 'Discount', 'GST', 'Exchange Rate', 'Method', 'Status', 'Razorpay Txn ID', 'Razorpay Order ID'],
+      ['Date', 'Invoice No', 'Type', 'Customer Name', 'Email', 'Phone', 'Amount', 'Currency', 'INR Amount', 'Subtotal', 'Shipping', 'Discount', 'GST', 'Exchange Rate', 'Method', 'Status', 'Razorpay Txn ID', 'Razorpay Order ID', 'Refunded Amount', 'Refund Status'],
       rows.map((row) => [
         formatDateIst(row.createdAt),
         row.invoiceNo,
@@ -312,6 +328,8 @@ export class TransactionsService {
         row.status,
         row.transactionId ?? '',
         row.razorpayOrderId ?? '',
+        row.refundedPaise > 0 ? paiseToRupeeText(row.refundedPaise) : '',
+        row.refundStatus === 'none' ? '' : row.refundStatus,
       ])
     );
   }

@@ -310,6 +310,7 @@ export class WebReportsService {
         items: [{ catalogId: item.id, quantity: 1, metadata: { ...metadata } }],
         currency: input.currency,
         idempotencyKey: input.idempotencyKey,
+        ...(input.couponCode ? { couponCode: input.couponCode } : {}),
       },
       user
     );

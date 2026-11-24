@@ -748,7 +748,7 @@ describe('Phase 3 Commerce and Fulfillment Integration Tests', () => {
         reason: 'Partial return',
         itemAllocations: [{ orderItemId: order.items[0].id, amountPaise: 5000 }],
       },
-      { id: testUserId, role: 'ADMIN' }
+      { id: testUserId, role: 'ADMIN' }, { staffAuthorised: true }
     );
 
     expect(refundResult.order.paymentStatus).toBe(PaymentStatus.PARTIALLY_REFUNDED);
@@ -775,7 +775,7 @@ describe('Phase 3 Commerce and Fulfillment Integration Tests', () => {
         reason: 'Full refund',
         itemAllocations: [{ orderItemId: order.items[0].id, amountPaise: 10000 }],
       },
-      { id: testUserId, role: 'ADMIN' }
+      { id: testUserId, role: 'ADMIN' }, { staffAuthorised: true }
     );
 
     expect(refundResult.order.paymentStatus).toBe(PaymentStatus.REFUNDED);

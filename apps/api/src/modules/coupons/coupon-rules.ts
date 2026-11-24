@@ -1,7 +1,15 @@
 /**
  * Coupon rules of the website (`common/priceengine.js`), as a pure function.
- * Scope: product carts only, as on the website. Reports and bookings do not take coupons.
+ * Scope: products, reports, consultations (owner decision 2026-11-24, open-questions M8).
  */
+
+export type CouponSaleType = 'products' | 'reports' | 'consultations';
+
+export interface CouponScopeInput {
+  products: boolean;
+  reports: boolean;
+  consultations: boolean;
+}
 
 export interface CouponRuleInput {
   code: string;
@@ -16,6 +24,7 @@ export interface CouponRuleInput {
   audience: 'GLOBAL' | 'INDIVIDUAL';
   oneTimePerUser: boolean;
   isActive: boolean;
+  scope?: CouponScopeInput;
 }
 
 export interface CouponContext {
@@ -28,6 +37,8 @@ export interface CouponContext {
   activeUses: number;
   /** This customer's redeemed uses plus live holds of other orders. */
   userUses: number;
+  /** Kind of sale being checked. If omitted, defaults to products. */
+  saleType?: CouponSaleType;
 }
 
 export type CouponRejection =
@@ -37,7 +48,8 @@ export type CouponRejection =
   | 'COUPON_USAGE_LIMIT_REACHED'
   | 'COUPON_MIN_ORDER_NOT_MET'
   | 'COUPON_NOT_FOR_THIS_CUSTOMER'
-  | 'COUPON_ALREADY_USED';
+  | 'COUPON_ALREADY_USED'
+  | 'COUPON_NOT_APPLICABLE';
 
 export type CouponEvaluation =
   | { ok: true; discountPaise: number }
@@ -51,6 +63,7 @@ const MESSAGES: Record<CouponRejection, string> = {
   COUPON_MIN_ORDER_NOT_MET: 'The order amount is below the minimum for this coupon',
   COUPON_NOT_FOR_THIS_CUSTOMER: 'This coupon is not available for your account',
   COUPON_ALREADY_USED: 'You have already used this coupon',
+  COUPON_NOT_APPLICABLE: 'This coupon cannot be used for this purchase',
 };
 
 function reject(reason: CouponRejection): CouponEvaluation {
@@ -82,5 +95,12 @@ export function evaluateCoupon(coupon: CouponRuleInput, ctx: CouponContext): Cou
   if (ctx.itemsTotalPaise < coupon.minOrderPaise) return reject('COUPON_MIN_ORDER_NOT_MET');
   if (coupon.audience === 'INDIVIDUAL' && !ctx.isAssigned) return reject('COUPON_NOT_FOR_THIS_CUSTOMER');
   if (coupon.oneTimePerUser && ctx.userUses > 0) return reject('COUPON_ALREADY_USED');
+  if (coupon.scope) {
+    const sale = ctx.saleType ?? 'products';
+    if (!coupon.scope[sale]) return reject('COUPON_NOT_APPLICABLE');
+  } else if (ctx.saleType && ctx.saleType !== 'products') {
+    // A coupon without a stored scope is legacy: valid on product carts only
+    return reject('COUPON_NOT_APPLICABLE');
+  }
   return { ok: true, discountPaise: couponDiscountPaise(coupon, ctx.itemsTotalPaise) };
 }

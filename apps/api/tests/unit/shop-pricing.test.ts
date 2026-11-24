@@ -4,6 +4,7 @@ import {
   computeGst,
   computeShipping,
   DEFAULT_SHIPPING_POLICY,
+  FORMER_APP_SHIPPING_POLICY,
   deriveSellingPrice,
   priceCart,
   resolveShippingPolicy,
@@ -55,15 +56,19 @@ describe('shop price engine', () => {
   });
 
   describe('shipping', () => {
-    it('defaults to the app rule: Rs 99, free from Rs 2,000 of physical goods', () => {
-      expect(resolveShippingPolicy({})).toEqual(DEFAULT_SHIPPING_POLICY);
-      expect(computeShipping(true, 199900, DEFAULT_SHIPPING_POLICY)).toEqual({ shippingPaise: 9900, freeShipping: false });
-      expect(computeShipping(true, 200000, DEFAULT_SHIPPING_POLICY)).toEqual({ shippingPaise: 0, freeShipping: true });
+    // Owner decision 2026-11-24 (M6): the website rule is the default for website and app alike.
+    it('defaults to the decided rule: a flat Rs 500 when any item ships, with no free-shipping threshold', () => {
+      expect(resolveShippingPolicy({})).toEqual({ flatPaise: 50000, freeFromPaise: null });
+      expect(DEFAULT_SHIPPING_POLICY).toEqual(WEBSITE_SHIPPING_POLICY);
+      expect(computeShipping(true, 100, DEFAULT_SHIPPING_POLICY)).toEqual({ shippingPaise: 50000, freeShipping: false });
+      expect(computeShipping(true, 99999900, DEFAULT_SHIPPING_POLICY)).toEqual({ shippingPaise: 50000, freeShipping: false });
     });
-    it('can be configured as the website rule: a flat Rs 500, never free', () => {
-      const policy = resolveShippingPolicy({ SHOP_SHIPPING_FLAT_PAISE: '50000', SHOP_SHIPPING_FREE_FROM_PAISE: 'none' });
-      expect(policy).toEqual(WEBSITE_SHIPPING_POLICY);
-      expect(computeShipping(true, 99999900, policy)).toEqual({ shippingPaise: 50000, freeShipping: false });
+    it('still honours a configured threshold (the former app rule: Rs 99, free from Rs 2,000)', () => {
+      const policy = resolveShippingPolicy({ SHOP_SHIPPING_FLAT_PAISE: '9900', SHOP_SHIPPING_FREE_FROM_PAISE: '200000' });
+      expect(policy).toEqual(FORMER_APP_SHIPPING_POLICY);
+      expect(computeShipping(true, 199900, policy)).toEqual({ shippingPaise: 9900, freeShipping: false });
+      expect(computeShipping(true, 200000, policy)).toEqual({ shippingPaise: 0, freeShipping: true });
+      expect(resolveShippingPolicy({ SHOP_SHIPPING_FREE_FROM_PAISE: 'none' })).toEqual(WEBSITE_SHIPPING_POLICY);
     });
     it('charges nothing when no item ships', () => {
       expect(computeShipping(false, 0, WEBSITE_SHIPPING_POLICY).shippingPaise).toBe(0);
@@ -89,7 +94,7 @@ describe('shop price engine', () => {
           { key: 'a', unitPricePaise: 399900, quantity: 1, gst: GST18_INCLUSIVE, physical: true },
           { key: 'b', unitPricePaise: 49900, quantity: 2, gst: GST18_INCLUSIVE, physical: false },
         ],
-        { shipping: DEFAULT_SHIPPING_POLICY }
+        { shipping: FORMER_APP_SHIPPING_POLICY }
       );
       const netA = Math.round((399900 * 10000) / 11800);
       const netB = Math.round((99800 * 10000) / 11800);
@@ -203,6 +208,20 @@ describe('coupon rules (website priceengine)', () => {
   it('allows one use per customer unless the coupon says otherwise', () => {
     expect(evaluateCoupon(base, { ...ctx, userUses: 1 })).toMatchObject({ reason: 'COUPON_ALREADY_USED' });
     expect(evaluateCoupon({ ...base, oneTimePerUser: false }, { ...ctx, userUses: 3 })).toMatchObject({ ok: true });
+  });
+  it('enforces scope restrictions across products, reports and consultations', () => {
+    const reportOnly: CouponRuleInput = {
+      ...base,
+      scope: { products: false, reports: true, consultations: false },
+    };
+    expect(evaluateCoupon(reportOnly, { ...ctx, saleType: 'reports' })).toMatchObject({ ok: true, discountPaise: 20000 });
+    expect(evaluateCoupon(reportOnly, { ...ctx, saleType: 'products' })).toMatchObject({ ok: false, reason: 'COUPON_NOT_APPLICABLE' });
+    expect(evaluateCoupon(reportOnly, { ...ctx, saleType: 'consultations' })).toMatchObject({ ok: false, reason: 'COUPON_NOT_APPLICABLE' });
+
+    const legacyUnscoped: CouponRuleInput = { ...base, scope: undefined };
+    expect(evaluateCoupon(legacyUnscoped, { ...ctx, saleType: 'products' })).toMatchObject({ ok: true });
+    expect(evaluateCoupon(legacyUnscoped, { ...ctx, saleType: 'reports' })).toMatchObject({ ok: false, reason: 'COUPON_NOT_APPLICABLE' });
+    expect(evaluateCoupon(legacyUnscoped, { ...ctx, saleType: 'consultations' })).toMatchObject({ ok: false, reason: 'COUPON_NOT_APPLICABLE' });
   });
 });
 

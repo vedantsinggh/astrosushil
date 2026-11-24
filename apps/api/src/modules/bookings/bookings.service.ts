@@ -17,13 +17,13 @@ import {
   SalePaymentMethod,
 } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
-import { ConflictError, NotFoundError, ValidationError } from '../../errors/app-error';
+import { AppError, ConflictError, NotFoundError, ValidationError } from '../../errors/app-error';
 import { logger } from '../../utils/logger';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { calendarDaysBetween, istDateOf, istEndOfDay, istStartOfDay, parseDateBound } from '../../utils/business-time';
 import { notificationService } from '../notifications/notification.service';
 import { BookingConfirmedEvent, notificationEvents, toWebsiteDate } from '../notifications/notification.events';
-import { consultationsService } from '../consultations/consultations.service';
+import { confirmedBookingPlace, consultationsService } from '../consultations/consultations.service';
 import { consultationTypesService } from '../consultations/consultation-types.service';
 import { computeDiscountPaise, computeGst, DiscountType } from '../consultations/consultation-gst';
 import {
@@ -37,6 +37,7 @@ import { settleOrderPaid } from '../commerce/money/settlement';
 import { restateConsultationOrder, restatePaidAmountMinor } from '../commerce/money/restatement';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { claimSlot, OCCUPYING_BOOKING_STATUSES, PRACTITIONER_ID, PRACTITIONER_NAME, releaseSlot } from './slot-hold';
+import { couponsService } from '../coupons/coupons.service';
 
 export interface AdminActor {
   id: string;
@@ -58,6 +59,7 @@ export interface ManualBookingInput {
   discountType?: DiscountType;
   /** FLAT: paise. PERCENTAGE: basis points. */
   discountValue?: number;
+  couponCode?: string;
   note?: string;
 }
 
@@ -312,6 +314,193 @@ export class BookingsService {
     return rows.map((r) => adminView(r));
   }
 
+  /** True when the booking is a payment conflict: its order is paid (captured) and it holds no confirmed slot. */
+  private isPaymentConflict(booking: { status: BookingStatus; order: { paymentStatus: PaymentStatus } | null }): boolean {
+    return (
+      (booking.status === BookingStatus.CANCELLED || booking.status === BookingStatus.PENDING_PAYMENT) &&
+      booking.order?.paymentStatus === PaymentStatus.CAPTURED
+    );
+  }
+
+  /**
+   * Owner decision 2026-11-24 (open-questions M9): a customer paid after the 15-minute hold
+   * expired and the time was taken; staff give them another time. The booking is confirmed
+   * against the payment ALREADY captured: nothing is charged, the order's amounts are not
+   * touched, and the sale is settled through `settleOrderPaid` (ledger row SUCCESS and invoice
+   * number; a no-op when the webhook has already settled it).
+   *
+   * As for a manual booking and a staff reschedule, blocked days and the notice period do not
+   * apply; an overlap with another booking or a live payment hold is refused (`claimSlot`).
+   * The customer is told through the existing booking-confirmed messages, and the booking leaves
+   * the payment-conflicts list because it is CONFIRMED.
+   */
+  public async resolveConflictWithSlot(
+    bookingId: string,
+    input: { date: string; slot: string | { startTime: string; endTime?: string }; adminNote?: string },
+    admin: AdminActor
+  ) {
+    const before = await this.load(bookingId);
+    if (!this.isPaymentConflict(before) || !before.orderId) {
+      throw new ConflictError('This booking is not a payment conflict: its order is not paid, or it already has a slot.');
+    }
+    const orderId = before.orderId;
+    const date = normaliseCalendarDate(input.date);
+    const range = parseSlotInput(input.slot, before.durationMinutes);
+    const startTime = formatTimeOfDay(range.startMinute);
+    const endTime = formatTimeOfDay(range.endMinute);
+    const adminName = await this.staffName(admin);
+    const now = new Date();
+    const place = confirmedBookingPlace(before);
+
+    await prisma.$transaction(async (tx) => {
+      // Calendar first (advisory lock inside claimSlot), then the order row: the order used by
+      // payment verification. Refuses an overlap; nothing below is written in that case.
+      await claimSlot(tx, { bookingId, date, range, status: 'BOOKED', now });
+
+      await tx.$queryRaw`SELECT id FROM "orders" WHERE id = ${orderId} FOR UPDATE;`;
+      // Re-read under the lock: a refund or another staff member may have dealt with it meanwhile.
+      const current = await tx.consultationBooking.findUnique({
+        where: { id: bookingId },
+        select: { status: true, deletedAt: true, order: { select: { paymentStatus: true, razorpayPaymentId: true, razorpayOrderId: true } } },
+      });
+      if (!current || current.deletedAt || !this.isPaymentConflict(current)) {
+        throw new ConflictError('This payment conflict has already been dealt with.');
+      }
+
+      // No new charge: the captured payment settles the sale. Safe to repeat after the webhook.
+      const settlement = await settleOrderPaid(tx, orderId, {
+        gatewayPaymentId: current.order?.razorpayPaymentId ?? null,
+        gatewayOrderId: current.order?.razorpayOrderId ?? null,
+      });
+
+      await fulfillmentService.createFulfillmentUnitsForOrder(orderId, tx);
+      const units = await tx.fulfillmentUnit.findMany({
+        where: { orderId, obligationType: 'CONSULTATION' },
+        orderBy: { unitIndex: 'asc' },
+        take: 1,
+        select: { id: true },
+      });
+      const unitId = units[0]?.id ?? null;
+
+      await tx.consultationBooking.update({
+        where: { id: bookingId },
+        data: {
+          date,
+          startTime,
+          endTime,
+          slotStartTimeUtc: istInstant(date, range.startMinute),
+          slotEndTimeUtc: istInstant(date, range.endMinute),
+          status: BookingStatus.CONFIRMED,
+          confirmedAt: now,
+          reservationExpiresAt: null,
+          cancellationReason: null,
+          cancelledAt: null,
+          meetingLink: place.meetingLink,
+          locationAddress: place.locationAddress,
+          ...(settlement.invoice.number ? { invoiceNumber: settlement.invoice.number } : {}),
+          ...(unitId && !before.fulfillmentUnitId ? { fulfillmentUnitId: unitId } : {}),
+        },
+      });
+      if (unitId) await fulfillmentService.reconcileFulfillmentUnit(orderId, unitId, tx);
+
+      await tx.bookingAdminNote.create({
+        data: {
+          bookingId,
+          action: 'RESCHEDULE',
+          note: input.adminNote?.trim() || null,
+          changes: {
+            paymentConflict: 'RESOLVED_WITH_NEW_SLOT',
+            from: { date: before.date, slot: slotOf(before), status: before.status },
+            to: { date, slot: `${startTime}-${endTime}`, status: BookingStatus.CONFIRMED },
+            chargedAgain: false,
+          },
+          addedByName: adminName,
+          addedById: admin.id,
+        },
+      });
+    });
+
+    const saved = await this.load(bookingId);
+    // The existing booking-confirmed event: push and in-app, then the website channels with the
+    // "includes" list (same pair as a manual booking).
+    await safely('The in-app booking notification', bookingId, () =>
+      notificationService.sendNotification({
+        userId: saved.userId,
+        type: 'BOOKING_CONFIRMED',
+        entityId: bookingId,
+        route: 'OPEN_CONSULTATIONS',
+        templateData: {
+          consultationTitle: saved.title,
+          date: saved.date,
+          startTime: saved.startTime,
+          mode: saved.mode,
+          meetingLink: saved.meetingLink,
+        },
+        websiteChannels: false,
+      })
+    );
+    await safely('The booking-confirmed messages', bookingId, () =>
+      notificationEvents.bookingConfirmed(this.messageOf(saved))
+    );
+
+    return { booking: adminView(saved), oldBooking: { date: before.date, slot: slotOf(before) } };
+  }
+
+  /**
+   * The fallback for a payment conflict: the money is returned. `refund` issues the staff refund
+   * (the one refund path, POST /admin/payments/orders/:id/refund: permission, gateway call,
+   * order state, audit); this records the outcome on the booking. A full refund marks the booking
+   * REFUNDED; a partial one leaves its status and records the amount in the staff history. Either
+   * way the order is no longer "captured", so the booking leaves the payment-conflicts list.
+   */
+  public async resolveConflictWithRefund(
+    bookingId: string,
+    refund: (orderId: string) => Promise<{ refund: { id: string; amount: number; status: string }; order: { status: OrderStatus } }>,
+    input: { adminNote?: string },
+    admin: AdminActor
+  ) {
+    const before = await this.load(bookingId);
+    if (!this.isPaymentConflict(before) || !before.orderId) {
+      throw new ConflictError('This booking is not a payment conflict: its order is not paid, or it already has a slot.');
+    }
+    const result = await refund(before.orderId);
+    const refunded = result.refund.status === 'PROCESSED';
+    const fully = refunded && result.order.status === OrderStatus.REFUNDED;
+    const adminName = await this.staffName(admin);
+
+    await prisma.$transaction(async (tx) => {
+      if (fully) {
+        await releaseSlot(tx, bookingId);
+        await tx.consultationBooking.update({
+          where: { id: bookingId },
+          data: {
+            status: BookingStatus.REFUNDED,
+            cancellationReason: 'PAYMENT_CONFLICT_REFUNDED',
+            cancelledAt: before.cancelledAt ?? new Date(),
+            reservationExpiresAt: null,
+          },
+        });
+      }
+      await tx.bookingAdminNote.create({
+        data: {
+          bookingId,
+          action: 'NOTE',
+          note: input.adminNote?.trim() || null,
+          changes: {
+            paymentConflict: refunded ? (fully ? 'RESOLVED_WITH_REFUND' : 'PARTIALLY_REFUNDED') : 'REFUND_FAILED',
+            refundId: result.refund.id,
+            refundPaise: result.refund.amount,
+            refundStatus: result.refund.status,
+          },
+          addedByName: adminName,
+          addedById: admin.id,
+        },
+      });
+    });
+
+    return { booking: adminView(await this.load(bookingId)), refund: result.refund, fullyRefunded: fully };
+  }
+
   // ---------------------------------------------------------------------------
   // Manual booking
   // ---------------------------------------------------------------------------
@@ -327,13 +516,13 @@ export class BookingsService {
    * the same hardcoded password on every such account.)
    */
   public async createManual(input: ManualBookingInput, admin: AdminActor) {
+    if (input.couponCode && (input.discountType !== undefined || (input.discountValue !== undefined && input.discountValue > 0))) {
+      throw new ValidationError('Coupons cannot be combined with a staff discount');
+    }
     await consultationTypesService.refresh({ force: true });
     const offering = consultationTypesService.resolveOffering(input.consultationId, input.mode, { includeInactive: true });
     const date = normaliseCalendarDate(input.date);
     const range = parseSlotInput(input.slot, offering.type.durationMinutes);
-
-    const discountPaise = computeDiscountPaise(offering.mode.pricePaise, input.discountType, input.discountValue);
-    const pricing = computeGst(offering.mode.pricePaise - discountPaise, offering.mode.gst);
     const adminName = await this.staffName(admin);
     const now = new Date();
 
@@ -371,6 +560,23 @@ export class BookingsService {
           createdUser = true;
         }
 
+        let discountPaise = computeDiscountPaise(offering.mode.pricePaise, input.discountType, input.discountValue);
+        if (input.couponCode) {
+          const { coupon, result: evalResult } = await couponsService.evaluate(tx, {
+            code: input.couponCode,
+            userId: user.id,
+            itemsTotalPaise: offering.mode.pricePaise,
+            saleType: 'consultations',
+          });
+          if (!coupon || !evalResult.ok) {
+            const reason = !evalResult.ok ? evalResult.reason : 'COUPON_INACTIVE';
+            const message = !evalResult.ok ? evalResult.message : 'This coupon is no longer valid';
+            throw new AppError(message, 400, reason);
+          }
+          discountPaise = evalResult.discountPaise;
+        }
+        const pricing = computeGst(offering.mode.pricePaise - discountPaise, offering.mode.gst);
+
         const booking = await tx.consultationBooking.create({
           data: {
             userId: user.id,
@@ -394,8 +600,8 @@ export class BookingsService {
             source: 'ADMIN',
             paymentMethod: 'MANUAL',
             pricePaise: offering.mode.pricePaise,
-            discountType: discountPaise > 0 ? input.discountType ?? null : null,
-            discountValue: discountPaise > 0 ? input.discountValue ?? null : null,
+            discountType: discountPaise > 0 ? (input.couponCode ? 'FLAT' : input.discountType ?? null) : null,
+            discountValue: discountPaise > 0 ? (input.couponCode ? discountPaise : input.discountValue ?? null) : null,
             discountPaise,
             gstRateBasisPoints: pricing.rateBasisPoints,
             gstType: pricing.type,
@@ -452,6 +658,18 @@ export class BookingsService {
           },
           select: { id: true },
         });
+
+        if (input.couponCode && discountPaise > 0) {
+          await couponsService.reserveForOrder(tx, {
+            code: input.couponCode,
+            userId: user.id,
+            itemsTotalPaise: offering.mode.pricePaise,
+            orderId: order.id,
+            expectedDiscountPaise: discountPaise,
+            saleType: 'consultations',
+          });
+        }
+
         const settlement = await settleOrderPaid(tx, order.id, {}, { customerName: user.fullName });
 
         // Same fulfilment bookkeeping as a booking paid at checkout.

@@ -551,7 +551,7 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
   describe('4. Commercial Controls & Invariant Audit', () => {
     it('4.1 should enforce exact authorized prices across all 9 released catalogue items', () => {
       const EXPECTED_RELEASED_PRICES: Record<string, number> = {
-        'report-kundli': 29900,
+        'report-kundli': 117882, // ₹999 + 18% GST (website price since 2026-11-24)
         'report-planetary-summary': 23482, // website price since 2026-11-24 (₹199 + GST)
         'report-horoscope': 49900,
         'report-career': 49900,
@@ -721,7 +721,7 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
           amountPaise: 23482, // the whole amount paid for Planetary Summary (₹199 + GST since 2026-11-24)
           reason: 'Customer requested full refund in staging',
         },
-        { id: stagingUserA.id, role: Role.USER }
+        { id: stagingUserA.id, role: Role.USER }, { staffAuthorised: true }
       );
       expect(refundResult.refund.status).toBe('PROCESSED');
       expect(refundResult.order.status).toBe(OrderStatus.REFUNDED);

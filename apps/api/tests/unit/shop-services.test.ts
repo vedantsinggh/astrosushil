@@ -220,9 +220,9 @@ describe('stateless cart/calculate keeps working', () => {
     expect(result).toMatchObject({
       subtotal: net,
       taxAmount: 100000 - net,
-      shippingAmount: 9900,
+      shippingAmount: 50000,
       discountAmount: 0,
-      totalAmount: 109900,
+      totalAmount: 150000,
       currency: 'INR',
       requiresShipping: true,
       eligibleForFreeShipping: false,
@@ -408,7 +408,7 @@ describe('saved cart', () => {
     cartWith([{ id: 'ci1', productId: 'p-herb', variantKey: '', quantity: 2, product: productRow({ price: 80000 }) }]);
     const cart = await cartService.get('u1');
     expect(cart.items[0]).toMatchObject({ price: 80000, total: 160000, quantity: 2 });
-    expect(cart).toMatchObject({ subTotal: 160000, shipping: 9900, totalAmount: 169900, canCheckout: true });
+    expect(cart).toMatchObject({ subTotal: 160000, shipping: 50000, totalAmount: 210000, canCheckout: true });
   });
 
   it('flags an item that is no longer published and leaves it out of the total', async () => {
@@ -424,7 +424,7 @@ describe('saved cart', () => {
     db.coupon.findUnique.mockResolvedValue(couponRow());
     db.couponRedemption.count.mockResolvedValue(0);
     const cart = await cartService.applyCoupon('u1', 'save10');
-    expect(cart).toMatchObject({ appliedCoupon: 'SAVE10', discount: 10000, totalAmount: 100000 - 10000 + 9900 });
+    expect(cart).toMatchObject({ appliedCoupon: 'SAVE10', discount: 10000, totalAmount: 100000 - 10000 + 50000 });
     expect(db.cart.update.mock.calls[0][0].data).toEqual({ couponCode: 'SAVE10' });
 
     db.cart.update.mockClear();
@@ -483,12 +483,12 @@ describe('checkout of the saved cart', () => {
     const result = await shopOrdersService.checkoutCart('u1', { addressId: ADDRESS.id, paymentMethod: 'razorpay' });
 
     expect(gateway.createOrder).toHaveBeenCalledTimes(1);
-    expect(gateway.createOrder.mock.calls[0].slice(0, 2)).toEqual([109900, 'INR']);
+    expect(gateway.createOrder.mock.calls[0].slice(0, 2)).toEqual([150000, 'INR']);
     const order = db.order.create.mock.calls[0][0].data;
     const net = Math.round((100000 * 10000) / 11800);
     expect(order).toMatchObject({
-      userId: 'u1', razorpayOrderId: 'order_gw_9', amount: 109900, subtotal: net, taxAmount: 100000 - net,
-      shippingAmount: 9900, discountAmount: 0, currency: 'INR', paidCurrency: 'INR', paidAmountMinor: 109900, status: 'PENDING',
+      userId: 'u1', razorpayOrderId: 'order_gw_9', amount: 150000, subtotal: net, taxAmount: 100000 - net,
+      shippingAmount: 50000, discountAmount: 0, currency: 'INR', paidCurrency: 'INR', paidAmountMinor: 150000, status: 'PENDING',
     });
     expect(order.items.create[0]).toMatchObject({ itemType: 'PRODUCT', unitPrice: 100000, quantity: 1, taxRate: 1800, taxInclusive: true, fulfillmentType: 'PHYSICAL' });
     expect(db.shopOrder.create.mock.calls[0][0].data).toMatchObject({
@@ -496,7 +496,7 @@ describe('checkout of the saved cart', () => {
       shippingAddress: { fullName: 'Asha Verma', pincode: '226001', landmark: 'Near GPO' },
     });
     expect(mocks.transactionsService.recordAttempt).toHaveBeenCalledWith(db, expect.objectContaining({ id: 'o1' }), { placeOfSupplyState: 'Uttar Pradesh' });
-    expect(result).toMatchObject({ paymentRequired: true, razorpayConfig: { key: 'rzp_test_key', orderId: 'order_gw_9', amount: 109900, currency: 'INR' } });
+    expect(result).toMatchObject({ paymentRequired: true, razorpayConfig: { key: 'rzp_test_key', orderId: 'order_gw_9', amount: 150000, currency: 'INR' } });
     // The cart is emptied when the order is paid, not when it is created.
     expect(db.cartItem.deleteMany).not.toHaveBeenCalled();
   });

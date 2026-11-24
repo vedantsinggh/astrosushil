@@ -244,19 +244,33 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
       },
     });
 
-    // User B attempts to refund User A's order -> 404 (ownership check)
-    const refundResUserB = await app.inject({
-      method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserB}` },
-      payload: { amountPaise: 49900, reason: 'Unauthorized attempt' },
-    });
-    expect(refundResUserB.statusCode).toBe(404);
+    // Owner decision 2026-11-24 (open-questions M4): refunds are staff-only. The customer path is
+    // retired: it answers 403 REFUND_STAFF_ONLY to everyone, the order's owner included, and a
+    // customer cannot reach the staff route.
+    for (const token of [tokenUserB, tokenUserA]) {
+      const refused = await app.inject({
+        method: 'POST',
+        url: `/api/v1/payments/orders/${order.id}/refund`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { amountPaise: 49900, reason: 'Customer attempt' },
+      });
+      expect(refused.statusCode).toBe(403);
+      expect(JSON.parse(refused.payload).error.code).toBe('REFUND_STAFF_ONLY');
 
-    // Super Admin IS permitted to initiate refund
+      const staffRouteAsCustomer = await app.inject({
+        method: 'POST',
+        url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { amountPaise: 49900, reason: 'Customer attempt' },
+      });
+      expect(staffRouteAsCustomer.statusCode).toBe(403);
+    }
+    expect(await prisma.refund.count({ where: { orderId: order.id } })).toBe(0);
+
+    // Super Admin IS permitted to initiate refund, through the staff route
     const refundResAdmin = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
       headers: { authorization: `Bearer ${tokenAdmin}` },
       payload: { amountPaise: 49900, reason: 'Authorized Admin Refund' },
     });
@@ -463,9 +477,10 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
 
     const refundPendingRes = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${pendingOrder.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 49900 },
+      // Staff route since 2026-11-24 (refunds are staff-only); the rule under test is unchanged.
+      url: `/api/v1/admin/payments/orders/${pendingOrder.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 49900, reason: 'Refund of an unpaid order' },
     });
     expect(refundPendingRes.statusCode).toBe(400);
   });
@@ -560,6 +575,7 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
   // ===========================================================================
   // 13. REFUND OWNERSHIP AND AMOUNT LIMITS (PREVENT OVER-REFUND)
   // ===========================================================================
+  // Refunds go through the staff route since 2026-11-24 (owner decision M4); limits and idempotency are unchanged.
   it('13. Enforces refund limits: prevents over-refunding and transitions through PARTIALLY_REFUNDED to REFUNDED', async () => {
     const order = await prisma.order.create({
       data: {
@@ -575,17 +591,17 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
     // 1. Attempting to refund more than 50000 paise
     const overRefundRes = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 50001 },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 50001, reason: 'Staff refund test' },
     });
     expect(overRefundRes.statusCode).toBe(400);
 
     // 2. Partial refund of 20000 paise (₹200)
     const part1 = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
       payload: { amountPaise: 20000, reason: 'Partial return' },
     });
     expect(part1.statusCode).toBe(200);
@@ -595,18 +611,18 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
     // 3. Attempting to refund 35000 paise when only 30000 remains
     const overpartRes = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 35000 },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 35000, reason: 'Staff refund test' },
     });
     expect(overpartRes.statusCode).toBe(400);
 
     // 4. Refund remaining 30000 paise -> full refund
     const part2 = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 30000 },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 30000, reason: 'Staff refund test' },
     });
     expect(part2.statusCode).toBe(200);
     const body2 = JSON.parse(part2.payload);
@@ -615,9 +631,9 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
     // 5. Subsequent refund attempt when balance is 0
     const emptyRefundRes = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 100 },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 100, reason: 'Staff refund test' },
     });
     expect(emptyRefundRes.statusCode).toBe(400);
   });
@@ -642,9 +658,9 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
     // First refund call
     const res1 = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 10000, idempotencyKey },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 10000, idempotencyKey, reason: 'Staff refund test' },
     });
     expect(res1.statusCode).toBe(200);
     const refundId1 = JSON.parse(res1.payload).refund.id;
@@ -652,9 +668,9 @@ describe('Phase 3 Unified Commerce, Database & Payment Foundation Tests', () => 
     // Duplicate call with same idempotencyKey
     const res2 = await app.inject({
       method: 'POST',
-      url: `/api/v1/payments/orders/${order.id}/refund`,
-      headers: { authorization: `Bearer ${tokenUserA}` },
-      payload: { amountPaise: 10000, idempotencyKey },
+      url: `/api/v1/admin/payments/orders/${order.id}/refund`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { amountPaise: 10000, idempotencyKey, reason: 'Staff refund test' },
     });
     expect(res2.statusCode).toBe(200);
     const refundId2 = JSON.parse(res2.payload).refund.id;

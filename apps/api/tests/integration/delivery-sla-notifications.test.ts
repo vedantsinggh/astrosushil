@@ -611,7 +611,7 @@ describe('Phase 4 Delivery SLA, Notifications and Customer Experience Tests', ()
           amountPaise: 5000,
           reason: 'Defective item',
         },
-        { id: testUserId, role: 'ADMIN' }
+        { id: testUserId, role: 'ADMIN' }, { staffAuthorised: true }
       );
 
       // Refund must be marked FAILED

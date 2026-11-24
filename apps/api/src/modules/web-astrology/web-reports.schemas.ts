@@ -76,6 +76,7 @@ export const webBuyReportSchema = z.object({
       reportLanguage: reportLanguageInput,
     })
     .optional(),
+  couponCode: z.string().trim().min(3).max(20).optional(),
   idempotencyKey: z.string().min(4).max(128).optional(),
 });
 export type WebBuyReportInput = z.infer<typeof webBuyReportSchema>;

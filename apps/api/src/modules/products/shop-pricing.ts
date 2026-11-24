@@ -79,10 +79,15 @@ export interface ShippingPolicy {
   freeFromPaise: number | null;
 }
 
-/** Today's app behaviour: Rs 99, free from Rs 2,000 of physical goods. */
-export const DEFAULT_SHIPPING_POLICY: ShippingPolicy = { flatPaise: 9900, freeFromPaise: 200000 };
-/** The website's behaviour: a hard-coded Rs 500 whenever any item is physical. */
+/** The website's rule: a flat Rs 500 whenever any item is physical, never free. */
 export const WEBSITE_SHIPPING_POLICY: ShippingPolicy = { flatPaise: 50000, freeFromPaise: null };
+/**
+ * Owner decision 2026-11-24 (open-questions M6): the website's rule applies to the website and the
+ * app alike, so it is the default. Cart, checkout and the stateless calculator all resolve it here.
+ */
+export const DEFAULT_SHIPPING_POLICY: ShippingPolicy = WEBSITE_SHIPPING_POLICY;
+/** The app's rule before that decision (Rs 99, free from Rs 2,000 of physical goods). Not used by default. */
+export const FORMER_APP_SHIPPING_POLICY: ShippingPolicy = { flatPaise: 9900, freeFromPaise: 200000 };
 
 function parsePaise(raw: string | undefined): number | null {
   if (raw === undefined || raw.trim() === '') return null;
@@ -92,8 +97,9 @@ function parsePaise(raw: string | undefined): number | null {
 
 /**
  * Shipping settings from the environment (names only: SHOP_SHIPPING_FLAT_PAISE,
- * SHOP_SHIPPING_FREE_FROM_PAISE). Unset = the app's current rule. `SHOP_SHIPPING_FREE_FROM_PAISE=none`
- * switches free shipping off (with SHOP_SHIPPING_FLAT_PAISE=50000 that is the website's rule).
+ * SHOP_SHIPPING_FREE_FROM_PAISE). Unset = the decided rule: a flat Rs 500 when any item ships and no
+ * free-shipping threshold. A threshold exists only when SHOP_SHIPPING_FREE_FROM_PAISE is set to a
+ * number; `none` (or leaving it unset) means shipping is never free.
  */
 export function resolveShippingPolicy(env: Record<string, string | undefined> = process.env): ShippingPolicy {
   const flat = parsePaise(env.SHOP_SHIPPING_FLAT_PAISE);

@@ -11,6 +11,7 @@ import { isPlatformReportType, platformReportTypes, runPlatformReport, PlatformI
 import { ATTEMPT_TIMEOUT_MS, decideRetry, deliveryDeadline, finalFailureMessage } from './report-retry.policy';
 import { verifyDatabaseSessionTimeZone } from './prisma.service';
 import { progressFromEvent, ThrottledProgressWriter } from './report-progress';
+import { announceReportCompleted } from '../modules/reports/report-release.sweep';
 
 /**
  * Whether a report is generated inside the API process as soon as it is enqueued
@@ -792,14 +793,9 @@ export class CareerReportWorker {
         '[ReportPlatform] Report completed'
       );
       try {
-        await notificationService.sendNotification({
-          userId: report.userId,
-          type: 'REPORT_READY',
-          entityId: report.id,
-          idempotencyKey: `report_ready:${report.id}`,
-          route: 'OPEN_REPORT',
-          templateData: { reportName: report.reportType, reportId: report.id },
-        });
+        // Sent now only when REPORT_SEND_DELAY_HOURS is 0. Otherwise the report is released to the
+        // customer, and announced on every channel, by the release sweep (report-release.sweep.ts).
+        await announceReportCompleted({ id: report.id, userId: report.userId, reportType: report.reportType });
       } catch (notifErr) {
         logger.error({ reportId, notifErr }, '[ReportPlatform] Failed to dispatch report completion notification');
       }

@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { paymentsService } from './payments.service';
-import { createOrderSchema, verifyPaymentSchema, refundOrderSchema } from './payments.schemas';
+import { createOrderSchema, verifyPaymentSchema } from './payments.schemas';
+import { AppError } from '../../errors/app-error';
 import { commerceCatalog } from '../commerce/commerce.catalog';
 import { platformReportLanguages } from '../../services/platform-report.runner';
 
@@ -87,17 +88,18 @@ export async function paymentsRoutes(fastify: FastifyInstance, _options: Fastify
     });
 
     // POST /api/v1/payments/orders/:id/refund
+    // Owner decision 2026-11-24 (open-questions M4): refunds are staff-only. The path is kept so an
+    // older client gets a clear, machine-readable refusal instead of a 404; it never reads the order
+    // (so it reveals nothing about one) and never reaches the refund code. Staff use
+    // POST /api/v1/admin/payments/orders/:id/refund (permission `payments:refund`).
     authenticatedScope.post('/orders/:id/refund', {
       schema: {
         tags: ['Payments'],
-        summary: 'Request a refund for an order (with balance validation and idempotency)',
+        summary: 'Retired: refunds are issued by staff only (always 403 REFUND_STAFF_ONLY)',
         security: [{ bearerAuth: [] }],
       },
-      handler: async (request, reply) => {
-        const { id } = request.params as { id: string };
-        const body = refundOrderSchema.parse(request.body || {});
-        const result = await paymentsService.requestRefund({ ...body, orderId: id }, request.user);
-        return reply.status(200).send(result);
+      handler: async () => {
+        throw new AppError('Refunds are issued by our staff. Please contact support.', 403, 'REFUND_STAFF_ONLY');
       },
     });
   });

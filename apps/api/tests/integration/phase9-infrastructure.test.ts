@@ -23,7 +23,7 @@ describe('Phase 9: Infrastructure & External Services Hardening Suite', () => {
 
   describe('1. Razorpay Payment Lifecycle & Cryptographic Hardening', () => {
     it('determines report prices strictly server-side (preventing price tampering)', () => {
-      expect(REPORT_PRICES_PAISE.KUNDLI).toBe(29900);
+      expect(REPORT_PRICES_PAISE.KUNDLI).toBe(117882); // ₹999 + 18% GST (website price since 2026-11-24)
       expect(REPORT_PRICES_PAISE.CAREER).toBe(49900);
       expect(REPORT_PRICES_PAISE.CAREER_PROSITY).toBe(69900);
       expect(REPORT_PRICES_PAISE.MARRIAGE_COMPATIBILITY).toBe(99900); // website price since 2026-11-24

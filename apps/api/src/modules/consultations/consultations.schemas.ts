@@ -30,6 +30,7 @@ export const bookConsultationSchema = z.object({
   pob: z.string().optional(),
   notes: z.string().max(1000).optional(),
   timezone: z.string().optional().default('Asia/Kolkata'),
+  couponCode: z.string().trim().min(3).max(20).optional(),
 });
 
 export const verifyConsultationPaymentSchema = z.object({

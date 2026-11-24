@@ -14,7 +14,7 @@ import type { NotificationType, SendNotificationOptions } from './notification.t
  * NotificationService.sendNotification to the website's SMS / WhatsApp / e-mail
  * events, without touching the modules that raise them:
  *
- *   REPORT_READY         -> reportReady          (delayed e-mail + WhatsApp)
+ *   REPORT_READY         -> reportReady          (e-mail + WhatsApp, due REPORT_SEND_DELAY_HOURS after completion)
  *   BOOKING_CONFIRMED    -> bookingConfirmed
  *   BOOKING_RESCHEDULED  -> bookingRescheduled
  *   PAYMENT_SUCCESS      -> reportOrderConfirmed (order has report items)
@@ -114,9 +114,19 @@ export class NotificationBridge {
   }
 
   private async reportReady(options: SendNotificationOptions, user: BridgeUser): Promise<BridgeOutcome> {
+    // The messages are due REPORT_SEND_DELAY_HOURS after the report was COMPLETED, whenever this is
+    // raised: at completion (no delay configured) or by the release sweep once the delay has passed.
+    let completedAt: Date | undefined;
+    try {
+      const report = await prisma.report.findUnique({ where: { id: options.entityId as string }, select: { completedAt: true } });
+      completedAt = report?.completedAt ?? undefined;
+    } catch {
+      completedAt = undefined; // falls back to "now", as before
+    }
     const result = await this.events.reportReady({
       reportId: options.entityId as string,
       customer: this.customerOf(user),
+      completedAt,
       reportName: reportDisplayName(options.templateData?.reportName),
       reportUrl: strOrNull(options.templateData?.reportUrl),
     });

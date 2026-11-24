@@ -69,10 +69,12 @@ export function isReportHeld(report: ReleasableReport, now: Date, delayMs: numbe
 export function customerDeliveryAt(
   report: ReleasableReport & { expectedDeliveryAt?: Date | null },
   paidAt: Date | null | undefined,
-  delayMs: number
+  delayMs: number,
+  now: Date = new Date()
 ): Date | null {
-  const availableAt = reportAvailableAt(report, delayMs);
-  if (availableAt) return availableAt;
+  if (isReportHeld(report, now, delayMs)) {
+    return reportAvailableAt(report, delayMs);
+  }
   const generationDeadline = report.expectedDeliveryAt ?? (paidAt ? new Date(paidAt.getTime() + GENERATION_WINDOW_MS) : null);
   return generationDeadline ? new Date(generationDeadline.getTime() + delayMs) : null;
 }
@@ -108,9 +110,12 @@ export function customerReportRow<T extends Record<string, unknown> & Releasable
     status: HELD_STATUS,
     stage: HELD_STAGE,
     progress: HELD_PROGRESS,
+    progressDetail: heldProgressDetail(availableAt),
     completedAt: null,
     s3Url: null,
     storageKey: null,
+    pdfUrl: null,
+    pdfKey: null,
     fileName: null,
     fileSize: null,
     pageCount: null,

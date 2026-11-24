@@ -19,8 +19,12 @@ export class PaymentsService {
     return commerceService.getUserOrders(user);
   }
 
-  public async requestRefund(input: RefundOrderInput & { orderId: string }, user: { id: string; role?: string }) {
-    return commerceService.requestRefund(input as RequestRefundParams, user);
+  /**
+   * Staff refund (owner decision 2026-11-24: refunds are staff-only). Call only from a route that
+   * has passed `checkPermission('payments:refund')`.
+   */
+  public async refundAsStaff(input: RefundOrderInput & { orderId: string }, staff: { id: string; role?: string; email?: string | null }) {
+    return commerceService.requestRefund(input as RequestRefundParams, staff, { staffAuthorised: true });
   }
 }
 
