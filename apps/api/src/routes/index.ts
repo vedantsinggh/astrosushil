@@ -32,6 +32,8 @@ import { uploadsRoutes } from '../modules/uploads/uploads.routes';
 import { contentRoutes } from '../modules/content/content.routes';
 import { transactionsRoutes } from '../modules/transactions/transactions.routes';
 import { invoicesRoutes } from '../modules/invoices/invoices.routes';
+import { webAstrologyRoutes } from '../modules/web-astrology/web-astrology.routes';
+import { webReportsRoutes } from '../modules/web-astrology/web-reports.routes';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -79,6 +81,11 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(contentRoutes); // website CMS: public /banners /blogs /faqs /testimonial /media /inquiry /seo /settings, admin /admin/<same>
       await v1.register(transactionsRoutes); // GET /admin/transactions, /admin/gst-report (+ /export)
       await v1.register(invoicesRoutes); // GET /invoices/orders/:orderId, /admin/invoices/*
+      // web-astrology (website integration): docs/integration/modules/web-astrology.md
+      await v1.register(webAstrologyRoutes, { prefix: '/web/astrology' });
+      await v1.register(webAstrologyRoutes, { prefix: '/astrology' }); // website paths: geo-details, generate-kundli, match-making, daily-horoscope
+      await v1.register(webReportsRoutes, { prefix: '/web/reports' });
+      await v1.register(webReportsRoutes, { prefix: '/report' }); // website paths: /report, /report/slug/:slug, /report/buy, /report/verify-payment, /report/orders
       await v1.register(notificationsRoutes, { prefix: '/notifications' });
       await v1.register(jyotiRoutes, { prefix: '/jyoti' });
     },
