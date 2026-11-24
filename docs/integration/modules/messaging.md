@@ -94,8 +94,10 @@ Variable names and positions are the website's (`templates/whatsapp.templates.ts
 `ORDER_UPDATED_ADMIN`, `BOOKING_CONFIRMED_USER`, `BOOKING_UPGRADED_USER`,
 `BOOKING_REMINDER_USER`, `BOOKING_RESCHEDULE_USER`, `BOOKING_CONFIRMED_ADMIN`,
 `BOOKING_RESCHEDULE_ADMIN`, `REPORT_ORDER_CONFIRMED_USER`, `REPORT_READY_USER`. Same
-subjects, wording and layout. Sender name "Astro Sushil". `WELCOME`, `RESET_PASSWORD` and
-the two `CONTACT_*` templates are ported but have no caller yet.
+subjects, wording and layout. Sender name "Astro Sushil". `WELCOME` and `RESET_PASSWORD` are ported but have no caller yet. The two `CONTACT_*`
+templates are sent by `notificationEvents.contactInquiryReceived`, which the content module's
+contact form reaches through `modules/content/contact-inquiry.notifier.ts` (registered in
+`server.ts`).
 
 ## OTP delivery
 
@@ -144,6 +146,7 @@ depend on whether the address has an account.
 | `consultationReminder` | e-mail, WhatsApp | - | e-mail respects `emailEnabled` |
 | `reportOrderConfirmed` ("within 48 hours") | e-mail, WhatsApp, SMS | - | yes |
 | `reportReady` | e-mail, WhatsApp, after `REPORT_SEND_DELAY_HOURS` | - | respects `reportAlerts`; e-mail also `emailEnabled` |
+| `contactInquiryReceived` | e-mail (`CONTACT_USER`), only when the sender gave an address | e-mail (`CONTACT_ADMIN`) to `ADMIN_EMAIL` | yes (the sender need not have an account) |
 
 ### Outbox, retries, idempotency
 
@@ -159,6 +162,7 @@ key `event:entityKey:audience:channel`:
 | consultation-reminder | `bookingId:date` |
 | report-order-confirmed | `reportOrderId` |
 | report-ready | `reportId` |
+| contact-inquiry | `inquiryId` |
 
 Raising an event again (retried request, duplicate webhook, restart) hits the unique index
 and creates nothing. Delivery claims a row with a conditional update (`PENDING -> SENDING`)
@@ -180,7 +184,9 @@ sweep every 15 s is the backstop and the retry engine.
   report-ready sweep: `reportReady` queues its messages with `notBefore = completion +
   REPORT_SEND_DELAY_HOURS` (default 24), and the first dispatch after that time sends them.
 - **Consultation reminder**: once per IST day from `CONSULTATION_REMINDER_IST_HOUR` (8),
-  for bookings dated tomorrow (IST) with status `CONFIRMED` or `RESCHEDULED`.
+  for the bookings `bookingsService.findReminderBookings(tomorrow)` returns: status `CONFIRMED`
+  or `RESCHEDULED`, not deleted by staff, not yet reminded. Each one is recorded with
+  `bookingsService.markReminded` (`reminderSentAt`) once its messages are in the outbox.
 - **OTP send-log clean-up** hourly.
 - The website's hourly deletion of pending orders / bookings / report orders / transactions
   older than two days is **not** part of this module (see finding 13); it belongs to the
@@ -229,7 +235,7 @@ on report orders.
 |---|---|---|
 | `otps` (identifier, channel, otp in plain text, type, expiresAt; TTL index) | `otp_verifications` (hash) | **Do not migrate.** Codes live 5 minutes and are stored in plain text. |
 | BullMQ `notifications` queue (Redis) | `outbound_messages` | Do not migrate; drain the website queue before cut-over. |
-| `bookings.reminderSent`, `reminderSentAt` | outbox key `consultation-reminder:<bookingId>:<DD-MM-YYYY>` | For migrated bookings dated after cut-over with `reminderSent = true`, insert a `SENT` row per channel with that key (or accept one extra reminder). |
+| `bookings.reminderSent`, `reminderSentAt` | `consultation_bookings.reminderSentAt` (selection) and outbox key `consultation-reminder:<bookingId>:<DD-MM-YYYY>` (at most once) | Copy `reminderSentAt` (see bookings.md): the sweep then does not select a booking that the website already reminded, and no outbox row is needed. |
 | `reportorders.isReportSent`, `isEmailSent`, `isWhatsappSent` | outbox key `report-ready:<id>` | Completed report orders are not re-announced unless the reports module calls `reportReady` for them. It must call it only for reports completed after cut-over, or for migrated ones with `isReportSent = false` (passing `completedAt` = the website's `updatedAt`). |
 
 ## Differences from the website, and why
@@ -275,7 +281,7 @@ They are read from `process.env` in `services/messaging/config.ts`, not through
 | Where | What |
 |---|---|
 | `modules/auth/auth.routes.ts`, `POST /phone/send-otp` handler | `authService.sendPhoneOtp(input, { ip: request.ip })`. **Until this is done the per-IP limit is not enforced** (the per-number limit is). Fastify `trustProxy` must be right behind the reverse proxy. |
-| Website-style product orders: payment verified (client verify and Razorpay webhook) | `notificationEvents.orderConfirmed({...})`, or `digitalOrderConfirmed` for a digital order (website sets status `delivered`). |
+| Website-style product orders: payment verified (client verify and Razorpay webhook) | `notificationEvents.orderConfirmed({...})`, or `digitalOrderConfirmed` for a digital order (website sets status `delivered`). **Done (wire-payments):** every path that can mark a product order paid now raises it through `shopOrdersService.notifyOrderStatus(order.id)` after commit, once, by the path that claimed the payment: the shop verification (already), the Razorpay webhook, and `commerceService.verifyPayment` (which then sends its `PAYMENT_SUCCESS` with `websiteChannels: false` for an order of products only). Not changed: when the webhook wins, no app push / in-app `PAYMENT_SUCCESS` is sent for any kind of order (existing behaviour of the webhook). |
 | Admin order status update | `notificationEvents.orderConfirmed` with the new `orderStatus`. |
 | Booking paid (client verify, webhook, admin manual booking) | `notificationEvents.bookingConfirmed`. Already covered for our consultations module by the bridge. |
 | Admin booking upgrade / plan change | `notificationEvents.bookingUpgraded` with a `changeId`. |

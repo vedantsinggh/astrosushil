@@ -92,6 +92,61 @@ export class TransactionsService {
     return result.count;
   }
 
+  /**
+   * Re-states the amounts of the order's ledger row from the order as it stands now (an admin
+   * moved a paid booking to another plan; nothing was charged or refunded). Every figure is
+   * derived from the order with the same function that wrote the row (`buildAttemptData`), so the
+   * ledger cannot drift from the order. Status, method, gateway ids, place of supply, customer
+   * name and dates are left alone.
+   *
+   * Call it in the transaction that changed the order, after locking the order row. Returns null
+   * when the order has no ledger row; the caller decides whether one must be created.
+   */
+  public async restateFromOrder(tx: Tx, order: LedgerOrder): Promise<PaymentTransaction | null> {
+    const existing = await tx.paymentTransaction.findFirst({ where: { orderId: order.id }, orderBy: { createdAt: 'desc' } });
+    if (!existing) return null;
+    const now = buildAttemptData(order);
+    return tx.paymentTransaction.update({
+      where: { id: existing.id },
+      data: {
+        amountMinor: now.amountMinor,
+        baseAmountPaise: now.baseAmountPaise,
+        subtotalPaise: now.subtotalPaise,
+        shippingPaise: now.shippingPaise,
+        taxPaise: now.taxPaise,
+        taxRateBp: now.taxRateBp,
+        taxInclusive: now.taxInclusive,
+        discountPaise: now.discountPaise,
+      },
+    });
+  }
+
+  /**
+   * Money the gateway captured for an order that is not paid in our books: a capture that arrived
+   * after the order was cancelled (see `recordCaptureForCancelledOrder` in
+   * commerce/money/settlement.ts). The ledger row says SUCCESS because the money was received; the
+   * order is still not paid, has no invoice number and delivered nothing. Staff must refund the
+   * payment at the gateway or honour the order.
+   */
+  public async listUnappliedPayments(limit: number = 200) {
+    const take = Math.min(Math.max(Math.trunc(limit) || 0, 1), 500);
+    const hits = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT t.id
+      FROM "payment_transactions" t
+      JOIN "orders" o ON o.id = t."orderId"
+      WHERE t.status = 'SUCCESS'::"LedgerTransactionStatus" AND o."paidAt" IS NULL
+      ORDER BY t."updatedAt" DESC
+      LIMIT ${take};
+    `;
+    if (!hits.length) return { payments: [], total: 0 };
+    const transactions = await prisma.paymentTransaction.findMany({
+      where: { id: { in: hits.map((row) => row.id) } },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const payments = (await this.loadContext(transactions)).map((ctx) => this.present(ctx));
+    return { payments, total: payments.length };
+  }
+
   private async loadContext(transactions: PaymentTransaction[]) {
     const userIds = [...new Set(transactions.map((txn) => txn.userId))];
     const orderIds = [...new Set(transactions.map((txn) => txn.orderId).filter((id): id is string => !!id))];

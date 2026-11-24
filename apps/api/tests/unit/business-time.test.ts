@@ -1,4 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * No database: prisma is substituted, as in the other consultation tests. The slot listing reads
+ * the consultation types and the working hours; only those two reads exist here, so a call that
+ * would write anything (default tiers, a settings row) or read anything else fails the test.
+ */
+const mockPrisma = vi.hoisted(() => ({
+  consultationType: { count: vi.fn(), findMany: vi.fn() },
+  availabilitySetting: { upsert: vi.fn() },
+}));
+vi.mock('../../src/services/prisma.service', () => ({ prisma: mockPrisma }));
+
 import {
   BUSINESS_TIMEZONE,
   calendarDaysBetween,
@@ -12,6 +24,41 @@ import {
 import { parseAnalyticsDateRange } from '../../src/modules/admin/analytics.service';
 import { consultationsService } from '../../src/modules/consultations/consultations.service';
 import { reportPlatform } from '@astro/report-engine';
+import { DEFAULT_CONSULTATION_TIERS } from '../../src/modules/consultations/consultation-types.defaults';
+import { DEFAULT_AVAILABILITY } from '../../src/modules/availability/availability.service';
+
+/** The default tiers as rows of an already seeded database (one type per tier, as `seedDefaults` creates them). */
+const seededAt = new Date('2026-11-01T00:00:00.000Z');
+const seededTypeRows = DEFAULT_CONSULTATION_TIERS.map((tier, index) => ({
+  id: `type-${index}`,
+  legacyId: null,
+  title: tier.title,
+  kind: 'NORMAL',
+  description: tier.description,
+  includes: [],
+  durationMinutes: tier.durationMinutes,
+  responseDays: tier.responseDays,
+  priceLabel: null,
+  note: null,
+  isActive: tier.isActive,
+  deletedAt: null,
+  createdAt: seededAt,
+  updatedAt: seededAt,
+  blockedDates: [],
+  modes: [
+    {
+      id: `mode-${index}`,
+      typeId: `type-${index}`,
+      mode: tier.mode,
+      catalogId: tier.catalogId,
+      pricePaise: tier.pricePaise,
+      gstEnabled: true,
+      gstRateBasisPoints: tier.gstRateBasisPoints,
+      gstType: tier.gstType,
+      isActive: true,
+    },
+  ],
+}));
 
 describe('business time (IST, Asia/Kolkata)', () => {
   afterEach(() => {
@@ -83,6 +130,12 @@ describe('admin analytics uses IST days', () => {
 });
 
 describe('consultation notice window counts IST days', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.consultationType.count.mockResolvedValue(seededTypeRows.length);
+    mockPrisma.consultationType.findMany.mockResolvedValue(seededTypeRows);
+    mockPrisma.availabilitySetting.upsert.mockResolvedValue({ id: 'default', ...DEFAULT_AVAILABILITY });
+  });
   afterEach(() => vi.useRealTimers());
 
   it('at 00:30 IST on 20 Nov, a 4-day notice offering cannot book 23 Nov', async () => {
@@ -95,13 +148,16 @@ describe('consultation notice window counts IST days', () => {
     const res = await consultationsService.getAvailableSlots({ consultationId: 'consult-urgent-audio', date: '2026-11-23' });
     expect(res.available).toBe(false);
     expect(res.message).toMatch(/Minimum booking notice/);
+    // The types came from the substituted table, and the notice refusal needed no other read.
+    expect(mockPrisma.consultationType.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.availabilitySetting.upsert).not.toHaveBeenCalled();
   });
 
   it('a date exactly at the notice boundary passes the notice check', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-19T19:00:00.000Z'));
     // 29 Nov 2026 is a Sunday: past the notice window, then blocked as Sunday
-    // (returns before any database access).
+    // (only the working hours are read; the substitute has no other table to touch).
     const res = await consultationsService.getAvailableSlots({ consultationId: 'consult-urgent-audio', date: '2026-11-29' });
     expect(res.message).toMatch(/Sunday/);
   });

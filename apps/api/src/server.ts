@@ -3,12 +3,20 @@ import { config } from './config';
 import { disconnectPrisma } from './services/prisma.service';
 import { careerReportWorker, isInstantExecutionEnabled } from './services/report-worker.service';
 import { setProcessRole } from './services/process-identity';
+import { registerContactInquiryNotifier } from './modules/content/contact-inquiry.notifier';
+import { registerSiteSettingsSellerDetails } from './modules/invoices/site-settings-seller.provider';
 
 setProcessRole('api');
 
 const app = buildApp();
 
 const start = async () => {
+  // Hooks between modules. Contact form inquiries send the website's two e-mails through the
+  // messaging outbox; invoice seller details come from the admin's site settings, with the
+  // INVOICE_SELLER_* environment values as the fallback (neither call throws).
+  registerContactInquiryNotifier();
+  await registerSiteSettingsSellerDetails();
+
   try {
     await app.listen({ port: config.PORT, host: config.HOST });
     app.log.info(`🚀 Astro Sushil Backend API running on http://${config.HOST}:${config.PORT}`);

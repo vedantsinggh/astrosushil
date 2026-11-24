@@ -1,7 +1,6 @@
-import { BookingStatus } from '@prisma/client';
-import { prisma } from '../../services/prisma.service';
 import { logger } from '../../utils/logger';
 import { messagingEnv } from '../../services/messaging/config';
+import { bookingsService } from '../bookings/bookings.service';
 import { EventConsultationMode, NotificationEvents, notificationEvents, toWebsiteDate } from './notification.events';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -33,42 +32,40 @@ export interface ReminderBooking {
 
 export interface ConsultationReminderSweepOptions {
   events?: NotificationEvents;
+  /** Default: `bookingsService.findReminderBookings` (the bookings module's one definition of "due for a reminder"). */
   findBookings?: (date: string) => Promise<ReminderBooking[]>;
+  /**
+   * Records on the booking that its reminder has been handed to the outbox.
+   * Default: `bookingsService.markReminded` when the default `findBookings` is used; none otherwise.
+   */
+  markReminded?: (bookingId: string) => Promise<unknown>;
   now?: () => Date;
 }
 
-const defaultFindBookings = (date: string): Promise<ReminderBooking[]> =>
-  prisma.consultationBooking.findMany({
-    // A confirmed booking is a paid one in this backend; RESCHEDULED is a confirmed booking that was moved.
-    where: { date, status: { in: [BookingStatus.CONFIRMED, BookingStatus.RESCHEDULED] } },
-    select: {
-      id: true,
-      userId: true,
-      title: true,
-      mode: true,
-      date: true,
-      startTime: true,
-      endTime: true,
-      customerName: true,
-      customerEmail: true,
-      customerPhone: true,
-      user: { select: { fullName: true, email: true, phoneNumber: true } },
-    },
-  });
+/**
+ * Which bookings are due is the bookings module's decision, in one place: live (confirmed or
+ * rescheduled), not deleted by staff, not yet reminded, on that IST day.
+ */
+const defaultFindBookings = (date: string): Promise<ReminderBooking[]> => bookingsService.findReminderBookings(date);
+const defaultMarkReminded = (bookingId: string): Promise<boolean> => bookingsService.markReminded(bookingId);
 
 /**
  * The website's daily consultation reminder: once a day, from
  * CONSULTATION_REMINDER_IST_HOUR (default 08:00 IST), every confirmed booking whose
  * date is TOMORROW (IST) gets a reminder by e-mail and WhatsApp.
  *
- * The website kept a `reminderSent` flag on the booking. Here the outbox's unique
- * key (booking id + date) plays that role, so no column is needed on the booking,
- * a restart cannot send a second reminder, and a booking that is moved to another
- * day is reminded for its new date.
+ * Two records, with different jobs:
+ *  - the outbox's unique key (booking id + date) is what makes a reminder go out at most
+ *    once: a restart, a second worker or a retried tick cannot send it again;
+ *  - `ConsultationBooking.reminderSentAt` (the website's `reminderSent` flag) is set through
+ *    `bookingsService.markReminded` once the reminder is in the outbox, so staff see it on the
+ *    booking and the next run does not select the booking again. A reschedule clears it; a
+ *    booking moved to another day is then reminded for its new date.
  */
 export class ConsultationReminderSweep {
   private readonly events: NotificationEvents;
   private readonly findBookings: (date: string) => Promise<ReminderBooking[]>;
+  private readonly markReminded: ((bookingId: string) => Promise<unknown>) | null;
   private readonly now: () => Date;
   /** IST date on which the sweep last completed in this process. */
   private lastRunDate: string | null = null;
@@ -76,6 +73,7 @@ export class ConsultationReminderSweep {
   constructor(options: ConsultationReminderSweepOptions = {}) {
     this.events = options.events ?? notificationEvents;
     this.findBookings = options.findBookings ?? defaultFindBookings;
+    this.markReminded = options.markReminded ?? (options.findBookings ? null : defaultMarkReminded);
     this.now = options.now ?? (() => new Date());
   }
 
@@ -101,11 +99,13 @@ export class ConsultationReminderSweep {
           date: toWebsiteDate(booking.date),
           slot: `${booking.startTime}-${booking.endTime}`,
         });
+        // After the outbox has it (queued now, or already there from an earlier run).
+        if (this.markReminded) await this.markReminded(booking.id);
       } catch (err) {
         failures += 1;
         logger.error(
           { bookingId: booking.id, err: err instanceof Error ? err.message : String(err) },
-          '[ConsultationReminderSweep] Could not queue a reminder'
+          '[ConsultationReminderSweep] Could not queue or record a reminder'
         );
       }
     }

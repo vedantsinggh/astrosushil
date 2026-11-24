@@ -5,19 +5,21 @@
  * constants. They now live in `consultation_types`; the catalogue should ask this source for
  * every item whose type is CONSULTATION.
  *
- * WHERE IT PLUGS IN (commerce.catalog.ts, owned by the commerce agent / lead):
- *   1. delete the `consult-*` entries from COMMERCE_CATALOG;
- *   2. in `CommerceCatalogService.getItem(id)`:
- *        return COMMERCE_CATALOG[id] || consultationCatalogSource.getItem(id);
- *   3. in `CommerceCatalogService.listItems(filter)`: append
- *        consultationCatalogSource.listItems({ activeOnly: filter?.activeOnly !== false })
- *      when `filter.itemType` is unset or CONSULTATION;
- *   4. in `calculateOrder`, honour `taxIncluded === false` (GST added on top of `pricePaise`):
- *      today the calculation treats every price as GST-inclusive, which is the website's
- *      "exclusive GST not charged" bug;
- *   5. call `await consultationCatalogSource.refresh()` at the start of the async callers
- *      (`commerceService.createOrder`, `GET /payments/catalog`) so a price edited in the admin
- *      is picked up. `getItem` / `listItems` themselves stay synchronous.
+ * WHERE IT IS PLUGGED IN (commerce.catalog.ts; done, the `consult-*` constants are gone):
+ *   - `CommerceCatalogService.getItem(id)`: a code constant if there is one, else
+ *     `consultationCatalogSource.getItem(id)`;
+ *   - `CommerceCatalogService.listItems(filter)`: appends `consultationCatalogSource.listItems()`
+ *     when `filter.itemType` is unset or CONSULTATION;
+ *   - `calculateOrder` honours `taxIncluded === false` (GST added on top of `pricePaise`);
+ *   - `commerceCatalog.refresh()` delegates to `refresh()` here. Asynchronous callers await it
+ *     before reading: `commerceService.createOrder` with `force: true` whenever an item is not a
+ *     code constant (money: re-read now, fail if the database cannot be read, so the first request
+ *     after start-up and a price edited a moment ago are right), `GET /payments/catalog` without
+ *     `force` (at most one read every 30 seconds). `getItem` / `listItems` stay synchronous.
+ *
+ * The seeded rows give exactly the catalogue items the constants gave (ids, titles, prices, GST,
+ * modes, durations, notice days): proved by tests/unit/wire-payments-catalogue.test.ts against a
+ * frozen copy of the former constants.
  *
  * Both methods read the in-memory snapshot kept by ConsultationTypesService.
  */

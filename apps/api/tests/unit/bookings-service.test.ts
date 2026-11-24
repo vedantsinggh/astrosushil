@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
     bookingUpgraded: vi.fn(),
     rescheduleBooking: vi.fn(),
     settleOrderPaid: vi.fn(),
+    restateConsultationOrder: vi.fn(),
     createFulfillmentUnitsForOrder: vi.fn(),
     reconcileFulfillmentUnit: vi.fn(),
   };
@@ -40,6 +41,12 @@ vi.mock('../../src/modules/notifications/notification.events', () => ({
   toWebsiteDate: (d: string) => d.split('-').reverse().join('-'),
 }));
 vi.mock('../../src/modules/commerce/money/settlement', () => ({ settleOrderPaid: mocks.settleOrderPaid }));
+// The order / line / ledger re-statement of a plan change belongs to the money module
+// (tested in wire-payments-restatement.test.ts); here only the call is checked.
+vi.mock('../../src/modules/commerce/money/restatement', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/modules/commerce/money/restatement')>()),
+  restateConsultationOrder: mocks.restateConsultationOrder,
+}));
 vi.mock('../../src/modules/fulfillment/fulfillment.service', () => ({
   fulfillmentService: {
     createFulfillmentUnitsForOrder: mocks.createFulfillmentUnitsForOrder,
@@ -289,18 +296,34 @@ describe('change plan', () => {
     });
     // Same duration: the slot is not touched.
     expect(prisma.appointmentSlot.upsert).not.toHaveBeenCalled();
-    // The order, its line and the ledger row are re-stated, as the website re-states its transaction.
-    expect(prisma.order.update).toHaveBeenCalledWith({
-      where: { id: 'order-1' },
-      data: { amount: 1770000, subtotal: 1500000, taxAmount: 270000, discountAmount: 0 },
+    // The order, its line and the ledger row are re-stated by the money module, in the same
+    // transaction, as the website re-states its transaction. Nothing is written to them from here.
+    expect(mocks.restateConsultationOrder).toHaveBeenCalledTimes(1);
+    expect(mocks.restateConsultationOrder.mock.calls[0][1]).toBe('order-1');
+    expect(mocks.restateConsultationOrder.mock.calls[0][2]).toEqual({
+      catalogId: 'consult-general-video', title: 'General Consultation', description: null,
+      unitPricePaise: 1500000, taxRateBp: 1800, taxInclusive: false, taxablePaise: 1500000, taxPaise: 270000, totalPaise: 1770000,
     });
-    expect(prisma.orderItem.updateMany.mock.calls[0][0].data).toMatchObject({ catalogId: 'consult-general-video', unitPrice: 1500000, taxInclusive: false, totalAmount: 1770000 });
-    expect(prisma.paymentTransaction.updateMany).toHaveBeenCalledWith({
-      where: { orderId: 'order-1' },
-      data: { amountMinor: 1770000, baseAmountPaise: 1770000, subtotalPaise: 1500000, taxPaise: 270000, taxRateBp: 1800, taxInclusive: false, discountPaise: 0 },
-    });
+    expect(prisma.order.update).not.toHaveBeenCalled();
+    expect(prisma.orderItem.updateMany).not.toHaveBeenCalled();
+    expect(prisma.paymentTransaction.updateMany).not.toHaveBeenCalled();
     expect(mocks.bookingUpgraded).toHaveBeenCalledWith(expect.objectContaining({ bookingId: 'bk-1', changeId: 'note-1' }));
     expect(prisma.bookingAdminNote.create.mock.calls[0][0].data).toMatchObject({ action: 'PLAN_CHANGE', note: 'upgrade' });
+  });
+
+  it('an invoice number already issued is kept and written into the staff history of the change', async () => {
+    prisma.consultationBooking.findUnique.mockResolvedValue(bookingRow({ orderId: 'order-1' }));
+    mocks.restateConsultationOrder.mockResolvedValue({ invoiceNumber: 'INV-AS/118' });
+    await service.changePlan('bk-1', { consultationId: 'type-gen', mode: 'VIDEO' }, admin);
+    expect(prisma.bookingAdminNote.create.mock.calls[0][0].data.changes).toMatchObject({ invoiceNumberKept: 'INV-AS/118' });
+
+    // No invoice yet, or a booking without an order: nothing to flag, and no order to re-state.
+    prisma.bookingAdminNote.create.mockClear();
+    mocks.restateConsultationOrder.mockClear();
+    prisma.consultationBooking.findUnique.mockResolvedValue(bookingRow({ orderId: null }));
+    await service.changePlan('bk-1', { consultationId: 'type-gen', mode: 'VIDEO' }, admin);
+    expect(mocks.restateConsultationOrder).not.toHaveBeenCalled();
+    expect(prisma.bookingAdminNote.create.mock.calls[0][0].data.changes).not.toHaveProperty('invoiceNumberKept');
   });
 
   it('a longer plan must fit: the longer slot is claimed, and an overlap is refused', async () => {

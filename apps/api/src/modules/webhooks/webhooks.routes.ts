@@ -5,9 +5,19 @@ import { paymentService } from '../../services/payment.service';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
-import { settleOrderPaid } from '../commerce/money/settlement';
+import { recordCaptureForCancelledOrder, settleOrderPaid } from '../commerce/money/settlement';
+import { shopOrdersService } from '../shop-orders/shop-orders.service';
 import { transactionsService } from '../transactions/transactions.service';
-import { OrderStatus, PaymentStatus, RefundStatus, BookingStatus, SlotStatus, ConsultationMode, FulfillmentStatus, FulfillmentUnitStatus, OrderItemType, FulfillmentType, EntitlementSource, EntitlementStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus, RefundStatus, BookingStatus, SlotStatus, ConsultationMode, FulfillmentStatus, FulfillmentUnitStatus, OrderItemType, EntitlementSource, EntitlementStatus } from '@prisma/client';
+
+/**
+ * What `payment.captured` did with the order, decided under the order row lock:
+ *   claimed          this event marked the order paid and applied everything a paid order triggers;
+ *   already-settled  the customer's own verification (or an earlier event) got there first;
+ *   cancelled        the order was cancelled before the money arrived: not marked paid, the
+ *                    payment recorded in the ledger for staff (see `recordCaptureForCancelledOrder`).
+ */
+type CaptureOutcome = 'claimed' | 'already-settled' | 'cancelled';
 
 export async function webhooksRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // POST /api/v1/webhooks/razorpay (Public webhook with mandatory HMAC-SHA256 signature verification)
@@ -127,11 +137,16 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                 });
               }
 
-              // 3. Out-of-order & terminal state protection: Never transition terminal states (CANCELLED, REFUNDED)
-              if (order.status === OrderStatus.CANCELLED || order.status === OrderStatus.REFUNDED) {
+              // 3. Out-of-order & terminal state protection: Never transition terminal states.
+              // REFUNDED: the payment this event reports was already settled and given back; nothing to do.
+              // CANCELLED is handled under the row lock below: the order stays cancelled and the
+              // captured money is recorded in the ledger for staff instead of being dropped.
+              if (order.status === OrderStatus.REFUNDED) {
                 logger.warn({ orderId: order.id, status: order.status }, 'Webhook payment.captured received for terminal order; skipping transition');
                 return reply.status(200).send({ status: 'ok', message: 'Order in terminal state, ignoring capture', received: true });
               }
+
+              const hasProductItems = order.items.some((item) => item.itemType === OrderItemType.PRODUCT);
 
               // 4. Idempotent check: If order is already PAID, return cleanly and ensure units exist idempotently
               if (order.status === OrderStatus.PAID) {
@@ -142,13 +157,26 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
               }
 
               // 5. Transactionally safe transition using Global Lock Hierarchy: orders -> order_items -> fulfillment_units
-              await prisma.$transaction(async (tx) => {
+              const outcome = await prisma.$transaction(async (tx): Promise<CaptureOutcome> => {
                 // Lock order FIRST
                 const lockedOrders = await tx.$queryRaw<Array<{ id: string; status: OrderStatus }>>`
                   SELECT id, status FROM "orders" WHERE id = ${order.id} FOR UPDATE;
                 `;
-                if (!lockedOrders.length || lockedOrders[0].status === OrderStatus.PAID) {
-                  return; // Concurrently verified by direct verify
+                const lockedStatus = lockedOrders[0]?.status;
+                if (lockedStatus === OrderStatus.CANCELLED) {
+                  // A cancelled order is never marked paid by a late capture (it may have been
+                  // cancelled after the read above, too). The money is recorded, not dropped.
+                  await recordCaptureForCancelledOrder(tx, order.id, {
+                    gatewayPaymentId: razorpayPaymentId || null,
+                    gatewayOrderId: razorpayOrderId,
+                    raw: payload.payload?.payment?.entity,
+                  });
+                  return 'cancelled';
+                }
+                if (lockedStatus !== OrderStatus.PENDING && lockedStatus !== OrderStatus.FAILED) {
+                  // PAID: concurrently verified by direct verify. Fulfilled or refunded meanwhile:
+                  // already settled once; a capture never moves such an order back to PAID.
+                  return 'already-settled';
                 }
 
                 // Lock orderItems SECOND
@@ -171,6 +199,15 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
 
                 // Atomically create fulfillment units for this order
                 await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
+
+                // Product lines: stock (variants included), download entitlements, coupon use, saved
+                // cart and website status, through the same function the customer's own verification
+                // calls, inside this paying transaction. Whichever of the two wins the race, the
+                // result is the same, and `ShopOrder.paidEffectsApplied` makes it happen once.
+                if (hasProductItems) {
+                  await shopOrdersService.applyPaidEffects(tx, order.id);
+                }
+
                 await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
 
                 // Money: ledger transaction -> SUCCESS and the invoice number, in this same
@@ -180,9 +217,23 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                   gatewayOrderId: razorpayOrderId,
                   raw: payload.payload?.payment?.entity,
                 });
+                return 'claimed';
               });
 
-              logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked PAID via webhook payment.captured');
+              if (outcome === 'cancelled') {
+                logger.error(
+                  { orderId: order.id, razorpayOrderId },
+                  'Webhook payment.captured for a cancelled order: order left cancelled, payment recorded for staff'
+                );
+              } else {
+              if (outcome === 'claimed') {
+                logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked PAID via webhook payment.captured');
+                // Shop order: tell the customer (website channels) once, by the path that claimed
+                // the payment. Never throws.
+                if (hasProductItems) {
+                  await shopOrdersService.notifyOrderStatus(order.id);
+                }
+              }
 
               // Auto-confirm linked consultation booking if any
                 const linkedBooking = await prisma.consultationBooking.findFirst({
@@ -262,59 +313,9 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                   });
                 }
 
-                // Auto-fulfill linked products (digital entitlements & stock decrement)
-                const productItems = order.items?.filter((item) => item.itemType === OrderItemType.PRODUCT) || [];
-                for (const item of productItems) {
-                  const product = await prisma.product.findFirst({
-                    where: {
-                      OR: [{ catalogId: item.catalogId }, { id: item.catalogId }, { slug: item.catalogId }],
-                    },
-                  });
-
-                  if (product) {
-                    if (product.requiresShipping) {
-                      if (product.stock > 0) {
-                        await prisma.product.update({
-                          where: { id: product.id },
-                          data: { stock: { decrement: Math.min(item.quantity, product.stock) } },
-                        });
-                      }
-                    } else {
-                      const existingEntitlement = await prisma.digitalProductEntitlement.findFirst({
-                        where: {
-                          userId: order.userId,
-                          productId: product.id,
-                          orderId: order.id,
-                        },
-                      });
-
-                      if (!existingEntitlement) {
-                        await prisma.digitalProductEntitlement.create({
-                          data: {
-                            userId: order.userId,
-                            productId: product.id,
-                            orderId: order.id,
-                            source: EntitlementSource.PURCHASE,
-                            status: EntitlementStatus.ACTIVE,
-                            assetKey: (product.metadata as any)?.digitalAssetKey || product.imageUrl,
-                            bundleAssets: (product.metadata as any)?.bundleAssets || null,
-                          },
-                        });
-                        logger.info({ userId: order.userId, productId: product.id }, 'Digital product entitlement granted via webhook');
-                      }
-                    }
-                  }
-                }
-
-                if (productItems.length > 0) {
-                  const hasPhysical = productItems.some((item) => item.fulfillmentType === FulfillmentType.PHYSICAL);
-                  await prisma.order.update({
-                    where: { id: order.id },
-                    data: {
-                      fulfillmentStatus: hasPhysical ? FulfillmentStatus.PROCESSING : FulfillmentStatus.FULFILLED,
-                    },
-                  });
-                }
+                // Products are not handled here any more: stock, downloads, coupon, cart and status
+                // were applied inside the paying transaction (shopOrdersService.applyPaidEffects).
+              }
               }
             }
           } else if (payload.event === 'payment.failed') {
@@ -322,20 +323,31 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
           if (razorpayOrderId) {
             const order = await prisma.order.findUnique({
               where: { razorpayOrderId },
+              include: { items: { select: { itemType: true } } },
             });
 
-            if (order && order.status === OrderStatus.PENDING) {
-              await prisma.order.update({
-                where: { id: order.id },
-                data: {
-                  status: OrderStatus.FAILED,
-                  paymentStatus: PaymentStatus.FAILED,
-                },
-              });
+            // Conditional on the status still being PENDING, so a failure event that arrives while
+            // the customer's verification is marking the order paid cannot overwrite PAID.
+            const failed =
+              order && order.status === OrderStatus.PENDING
+                ? await prisma.order.updateMany({
+                    where: { id: order.id, status: OrderStatus.PENDING },
+                    data: {
+                      status: OrderStatus.FAILED,
+                      paymentStatus: PaymentStatus.FAILED,
+                    },
+                  })
+                : { count: 0 };
+
+            if (order && failed.count === 1) {
               await transactionsService.markOrderFailed(order.id, {
                 gatewayPaymentId: payload.payload?.payment?.entity?.id,
                 raw: payload.payload?.payment?.entity,
               });
+              // Product order: website status -> payment_failed and the coupon hold is freed.
+              if (order.items.some((item) => item.itemType === OrderItemType.PRODUCT)) {
+                await shopOrdersService.markPaymentFailed(order.id);
+              }
               logger.info({ orderId: order.id, razorpayOrderId }, 'Order marked FAILED via webhook payment.failed');
 
               // Release linked consultation booking slot on payment failure

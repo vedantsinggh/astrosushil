@@ -719,7 +719,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
     // List Bookings
     protectedRoutes.get('/consultations', {
-      preHandler: [checkPermission('live_sessions:read')],
+      preHandler: [checkPermission('live_sessions:read', 'bookings:read')],
       schema: { tags: ['Admin Consultations'], summary: 'List all consultation bookings' },
       handler: async (request, reply) => {
         const query = request.query as any;
@@ -730,7 +730,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
     // Get Booking Details
     protectedRoutes.get('/consultations/:id', {
-      preHandler: [checkPermission('live_sessions:read')],
+      preHandler: [checkPermission('live_sessions:read', 'bookings:read')],
       schema: { tags: ['Admin Consultations'], summary: 'Get booking details by ID' },
       handler: async (request, reply) => {
         const { id } = request.params as { id: string };
@@ -741,7 +741,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
     // Start Live Session for Booking
     protectedRoutes.post('/consultations/:id/start-session', {
-      preHandler: [checkPermission('live_sessions:write')],
+      preHandler: [checkPermission('live_sessions:write', 'bookings:update')],
       schema: { tags: ['Admin Consultations'], summary: 'Start a Live Session associated with a consultation booking' },
       handler: async (request, reply) => {
         const { id } = request.params as { id: string };
@@ -752,7 +752,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
     // Admin Reschedule
     protectedRoutes.post('/consultations/:id/reschedule', {
-      preHandler: [checkPermission('live_sessions:write')],
+      preHandler: [checkPermission('live_sessions:write', 'bookings:update')],
       schema: { tags: ['Admin Consultations'], summary: 'Admin reschedule consultation booking' },
       handler: async (request, reply) => {
         const { id } = request.params as { id: string };
@@ -764,7 +764,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
     // Admin Cancel
     protectedRoutes.post('/consultations/:id/cancel', {
-      preHandler: [checkPermission('live_sessions:write')],
+      preHandler: [checkPermission('live_sessions:write', 'bookings:update')],
       schema: { tags: ['Admin Consultations'], summary: 'Admin cancel consultation booking' },
       handler: async (request, reply) => {
         const { id } = request.params as { id: string };

@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Permission } from '../admin/admin.permissions';
 import { checkPermission } from '../admin/rbac/check-permission';
 import { adminService } from '../admin/admin.service';
-import { featureAccessService } from '../../services/feature-access.service';
+import { ACCOUNT_BLOCKED_MESSAGE, invalidateAccountStatusCache, isAccountBlocked } from '../auth/account-status';
 import { AuthorizationError } from '../../errors/app-error';
 
 /**
@@ -81,37 +81,28 @@ export async function uniqueSlug(base: string, isTaken: (slug: string) => Promis
 /**
  * A blocked (suspended) customer may not use the shop.
  *
- * The backend records suspension as the latest USER_SUSPENDED / USER_ACTIVATED / USER_ACCOUNT_DELETED
- * audit entry (`featureAccessService.isUserSuspended`). The website's customer status BLOCKED is
- * stored the same way, so there is one mechanism. Result cached briefly so a request does not add
- * an audit-log query to every call.
+ * One mechanism for the whole backend: `modules/auth/account-status.ts` (the latest
+ * USER_SUSPENDED / USER_ACTIVATED / USER_ACCOUNT_DELETED audit entry, cached briefly). The login
+ * paths and `fastify.authenticate` use the same check, so these helpers only keep the names the
+ * shop modules already import.
  */
-const BLOCK_CACHE_MS = 30_000;
-const blockCache = new Map<string, { blocked: boolean; at: number }>();
-
 export function forgetCustomerBlockState(userId: string): void {
-  blockCache.delete(userId);
+  invalidateAccountStatusCache(userId);
 }
 
-export async function isCustomerBlocked(userId: string, now: number = Date.now()): Promise<boolean> {
-  const cached = blockCache.get(userId);
-  if (cached && now - cached.at < BLOCK_CACHE_MS) return cached.blocked;
-  const blocked = await featureAccessService.isUserSuspended(userId);
-  blockCache.set(userId, { blocked, at: now });
-  if (blockCache.size > 5000) {
-    for (const [key, value] of blockCache) {
-      if (now - value.at >= BLOCK_CACHE_MS) blockCache.delete(key);
-    }
-  }
-  return blocked;
+export function isCustomerBlocked(userId: string, now: number = Date.now()): Promise<boolean> {
+  return isAccountBlocked(userId, { now });
 }
 
-/** Hook for customer routes: runs after `fastify.authenticate`. */
+/**
+ * Hook for customer routes: runs after `fastify.authenticate`, which already refuses a blocked
+ * account; kept so a route registered without that decorator is still covered (cached, no query).
+ */
 export async function requireActiveCustomer(request: FastifyRequest): Promise<void> {
   const userId = request.user?.id;
   if (!userId) return;
   if (await isCustomerBlocked(userId)) {
-    throw new AuthorizationError('This account is blocked. Please contact support.');
+    throw new AuthorizationError(ACCOUNT_BLOCKED_MESSAGE);
   }
 }
 

@@ -4,7 +4,7 @@ import { adminService } from '../admin/admin.service';
 import { checkPermission, getRequestStaffAccess } from '../admin/rbac/check-permission';
 import { AuthorizationError } from '../../errors/app-error';
 import { invoiceService } from './invoice.service';
-import { settleOrderPaid } from '../commerce/money/settlement';
+import { settlePaidOrderForRecovery } from './invoice-recovery.sweep';
 
 const orderParams = z.object({ orderId: z.string().uuid() });
 const initializeBody = z.object({
@@ -82,7 +82,7 @@ export async function invoicesRoutes(fastify: FastifyInstance, _options: Fastify
       schema: { tags: ['Admin Invoices'], summary: 'Number paid sales whose invoice is still pending', security: [{ bearerAuth: [] }] },
       preHandler: [requireSuperAdmin],
       handler: async (request, reply) => {
-        const result = await invoiceService.allocatePending(200, async (tx, orderId) => (await settleOrderPaid(tx, orderId)).invoice);
+        const result = await invoiceService.allocatePending(200, settlePaidOrderForRecovery);
         await adminService.logAction({
           adminId: request.user.id,
           adminEmail: request.user.id,

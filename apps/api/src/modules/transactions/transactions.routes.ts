@@ -24,6 +24,7 @@ async function auditExport(request: FastifyRequest, action: string, details: str
  * Transactions ledger and GST report for staff (registered without a prefix under /api/v1):
  *   GET /admin/transactions          permission transactions:read
  *   GET /admin/transactions/export   permission transactions:export  (CSV)
+ *   GET /admin/transactions/unapplied-payments   permission transactions:read
  *   GET /admin/gst-report            permission gst_report:read
  *   GET /admin/gst-report/export     permission gst_report:export    (CSV)
  */
@@ -39,6 +40,16 @@ export async function transactionsRoutes(fastify: FastifyInstance, _options: Fas
         const query = transactionsQuerySchema.parse(request.query ?? {});
         return reply.status(200).send(await transactionsService.list(query));
       },
+    });
+
+    adminScope.get('/admin/transactions/unapplied-payments', {
+      schema: {
+        tags: ['Admin Transactions'],
+        summary: 'Payments the gateway captured for orders that are not paid here (capture after cancellation): refund or honour',
+        security: [{ bearerAuth: [] }],
+      },
+      preHandler: [checkPermission('transactions:read')],
+      handler: async (_request, reply) => reply.status(200).send(await transactionsService.listUnappliedPayments()),
     });
 
     adminScope.get('/admin/transactions/export', {

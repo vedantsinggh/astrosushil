@@ -1156,10 +1156,13 @@ export class CoursesService {
     }
 
     // Reject course quantity greater than one (MULTI_SEAT_COURSES_UNSUPPORTED)
-    const courseItem = order.items.find(
-      (it) => it.itemType === OrderItemType.COURSE || it.catalogId.includes(course.sku) || it.catalogId === 'course-gupt-nadi'
-    );
-    if (courseItem && courseItem.quantity > 1) {
+    // The order must have been placed for this very course. Without this check a valid payment for
+    // any other order the customer owns (a cheap report, say) could be used to unlock any course.
+    const courseItem = order.items.find((it) => it.itemType === OrderItemType.COURSE && it.catalogId === course.sku);
+    if (!courseItem) {
+      throw new AppError('This order was not placed for this course.', 400, 'COURSE_ORDER_MISMATCH');
+    }
+    if (courseItem.quantity > 1) {
       throw new AppError('Multi-seat courses are unsupported. Course quantity must be 1.', 400, 'MULTI_SEAT_COURSES_UNSUPPORTED');
     }
 
@@ -1211,18 +1214,40 @@ export class CoursesService {
         SELECT id FROM "order_items" WHERE "orderId" = ${order.id} ORDER BY id ASC FOR UPDATE;
       `;
 
+      // Claim once (as in the shop's verifyShopPayment): under the row lock, an order the webhook,
+      // a parallel request or an earlier call already paid is returned as it is, and one cancelled
+      // meanwhile is refused. A paid order's payment is never stamped again (`paidAt`, version and
+      // payment id stay those of the first claim).
+      const locked = await tx.order.findUnique({ where: { id: order.id }, select: { status: true } });
+      if (locked?.status === OrderStatus.CANCELLED) {
+        throw new ValidationError('Cannot verify payment for a cancelled order');
+      }
+      const alreadyPaid = locked?.status === OrderStatus.PAID;
+      if (alreadyPaid) {
+        const current = await tx.courseEntitlement.findUnique({
+          where: { userId_courseId: { userId, courseId: course.id } },
+        });
+        if (current && current.status === EntitlementStatus.ACTIVE) {
+          return current; // Paid and enrolled already: nothing is written.
+        }
+        // Paid, but the enrolment is not there yet (the webhook grants it just after it commits):
+        // the steps below are idempotent and complete it, without touching the payment.
+      }
+
       // 3. Atomically transition order to PAID, CAPTURED, paidAt = clock_timestamp(), version = version + 1
-      await tx.$executeRaw`
-        UPDATE "orders"
-        SET
-          status = 'PAID'::"OrderStatus",
-          "paymentStatus" = 'CAPTURED'::"PaymentStatus",
-          "paidAt" = clock_timestamp(),
-          "version" = version + 1,
-          "razorpayPaymentId" = ${input.razorpayPaymentId},
-          "updatedAt" = clock_timestamp()
-        WHERE id = ${order.id};
-      `;
+      if (!alreadyPaid) {
+        await tx.$executeRaw`
+          UPDATE "orders"
+          SET
+            status = 'PAID'::"OrderStatus",
+            "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+            "paidAt" = clock_timestamp(),
+            "version" = version + 1,
+            "razorpayPaymentId" = ${input.razorpayPaymentId},
+            "updatedAt" = clock_timestamp()
+          WHERE id = ${order.id};
+        `;
+      }
 
       // 4. Create fulfillment units idempotently
       await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);

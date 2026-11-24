@@ -11,6 +11,7 @@ import { calculateSale } from './money/tax';
 import { quoteCheckout } from './money/checkout';
 import { settleOrderPaid } from './money/settlement';
 import { transactionsService } from '../transactions/transactions.service';
+import { shopOrdersService } from '../shop-orders/shop-orders.service';
 
 export interface CreateOrderParams {
   items?: Array<{ catalogId: string; quantity?: number; metadata?: Record<string, any> }>;
@@ -104,6 +105,14 @@ export class CommerceService {
 
     if (!requestedItems || requestedItems.length === 0) {
       throw new ValidationError('At least one item or valid reportType must be provided');
+    }
+
+    // 2b. Consultation types are database rows edited in the admin; the catalogue reads them from
+    // an in-memory snapshot. Money is about to be charged, so the snapshot is re-read now (and the
+    // request fails if the database cannot be read) whenever an item is not a code constant: a
+    // type created or re-priced a moment ago, or the first request after start-up, is priced right.
+    if (requestedItems.some((item) => commerceCatalog.isDatabaseItem(item.catalogId))) {
+      await commerceCatalog.refresh({ force: true });
     }
 
     // 3. Authoritative server calculation
@@ -271,6 +280,11 @@ export class CommerceService {
       throw new ValidationError('Cannot verify payment for a cancelled order');
     }
 
+    // A shop order normally comes through the shop's own verification; if it is verified here
+    // instead, it must get exactly the same paid effects (stock, downloads, coupon, cart, status).
+    const hasProductItems = order.items.some((item) => item.itemType === OrderItemType.PRODUCT);
+    const onlyProductItems = hasProductItems && order.items.every((item) => item.itemType === OrderItemType.PRODUCT);
+
     // Verify signature
     const isValid = paymentService.verifyCheckoutSignature(
       input.razorpayOrderId,
@@ -286,6 +300,10 @@ export class CommerceService {
           paymentStatus: PaymentStatus.FAILED,
         },
       });
+      // Product order: the website status follows and the coupon hold is freed (as the shop's own verification does).
+      if (hasProductItems) {
+        await shopOrdersService.markPaymentFailed(order.id);
+      }
       await transactionsService.markOrderFailed(order.id);
       logger.warn(
         { orderId: order.id, userId: user.id, razorpayOrderId: input.razorpayOrderId },
@@ -326,6 +344,10 @@ export class CommerceService {
       }
     }
 
+    // Set inside the transaction when this call (not the webhook, not a parallel verify) is the one
+    // that applied the shop's paid effects; only then is the customer told about the order.
+    let shopEffectsApplied = false;
+
     // Atomic transaction for Order state transition, fulfillment units creation, and audit trail
     const updatedOrder = await prisma.$transaction(async (tx) => {
       // 1. Lock Order FIRST (Global Lock Hierarchy)
@@ -356,6 +378,11 @@ export class CommerceService {
         });
         return currentPaid!;
       }
+      // Cancelled while this request was checking the payment (for a shop order: superseded by a
+      // new checkout, its coupon hold already freed). Never marked paid from here.
+      if (lockedOrder.status === OrderStatus.CANCELLED) {
+        throw new ValidationError('Cannot verify payment for a cancelled order');
+      }
 
       // 2. Lock OrderItems SECOND in ASC Order
       await tx.$queryRaw`
@@ -381,6 +408,16 @@ export class CommerceService {
 
       // 4. Create fulfillment units atomically for all purchased items
       await fulfillmentService.createFulfillmentUnitsForOrder(order.id, tx);
+
+      // 4b. Product lines: stock, download entitlements, coupon use, saved cart and website status,
+      // through the one function every paying path uses. It runs once per order: this transaction
+      // holds the order row lock and returned above if the order was already paid, and the function
+      // itself records that it ran (`ShopOrder.paidEffectsApplied`), so the shop verification, this
+      // verification and the webhook can never apply the effects twice between them.
+      if (hasProductItems) {
+        const effects = await shopOrdersService.applyPaidEffects(tx, order.id);
+        shopEffectsApplied = effects.applied;
+      }
 
       // 5. Reconcile order fulfillment status (keeps commercial status = PAID)
       await fulfillmentService.reconcileOrderFulfillment(order.id, tx);
@@ -419,6 +456,12 @@ export class CommerceService {
       'Payment verified and order status transitioned to PAID atomically'
     );
 
+    // Shop order: the website channels' "order confirmed" (never throws). The app's push and in-app
+    // notice below then go out with websiteChannels off, so the customer is not messaged twice.
+    if (shopEffectsApplied) {
+      await shopOrdersService.notifyOrderStatus(updatedOrder.id);
+    }
+
     // Non-blocking notification dispatch
     try {
       await notificationService.sendNotification({
@@ -427,6 +470,7 @@ export class CommerceService {
         entityId: updatedOrder.id,
         idempotencyKey: `payment_success:${updatedOrder.id}`,
         route: 'OPEN_PAYMENTS',
+        ...(onlyProductItems ? { websiteChannels: false } : {}),
         templateData: {
           amountRupees: (updatedOrder.amount / 100).toFixed(2),
           orderId: updatedOrder.id,

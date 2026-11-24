@@ -13,6 +13,9 @@ export async function paymentsRoutes(fastify: FastifyInstance, _options: Fastify
     },
     handler: async (request, reply) => {
       const query = request.query as any;
+      // Consultation items are database rows read through an in-memory snapshot: bring it up to
+      // date first (at most one read every 30 seconds; a failed read keeps the previous snapshot).
+      await commerceCatalog.refresh();
       const items = commerceCatalog
         .listItems({
           itemType: query?.itemType,

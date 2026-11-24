@@ -7,8 +7,9 @@ import { otpService } from './otp.service';
 import { otpDeliveryService, otpSendLimiter } from '../../services/messaging/otp-delivery.service';
 import { googleAuthService } from './google-auth.service';
 import { getMissingProfileFields } from './profile-completeness';
+import { isAccountBlocked, ACCOUNT_BLOCKED_MESSAGE } from './account-status';
 import { logger } from '../../utils/logger';
-import { AppError, AuthenticationError, ConflictError, NotFoundError, RateLimitError } from '../../errors/app-error';
+import { AppError, AuthenticationError, AuthorizationError, ConflictError, NotFoundError, RateLimitError } from '../../errors/app-error';
 import {
   PhoneSendOtpInput,
   PhoneVerifyOtpInput,
@@ -50,6 +51,24 @@ export class AuthService {
     };
   }
 
+  /**
+   * Refuses a blocked (suspended or deleted) account at the moment a session would be issued.
+   *
+   * Always called AFTER the caller has proved who they are (valid OTP, password, Google token or
+   * refresh token), so only the account's owner can learn that it is blocked: everybody else gets
+   * the same "invalid credentials" answer as for an account that does not exist. Reads the
+   * database (no cache) and revokes any refresh token the account still holds.
+   */
+  private async refuseBlockedAccount(userId: string, path: string): Promise<void> {
+    if (!(await isAccountBlocked(userId, { fresh: true }))) return;
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    logger.warn({ userId, path }, '[AuthService] Sign-in refused: account is blocked');
+    throw new AuthorizationError(ACCOUNT_BLOCKED_MESSAGE);
+  }
+
   // =========================================================================
   // PHONE NUMBER + OTP AUTHENTICATION
   // =========================================================================
@@ -62,6 +81,12 @@ export class AuthService {
    * the same whether or not the number already has an account. Sends are limited per
    * phone number and per IP address (`context.ip`, passed by the route) in a counter
    * that a new request cannot reset.
+   *
+   * A blocked account is deliberately NOT refused here: this endpoint is unauthenticated,
+   * so a different answer (or a code that silently never arrives) would tell anyone who
+   * types a phone number that the account exists and is blocked. The code is sent as for
+   * any number, under the same send limits, and the refusal happens in `verifyPhoneOtp`
+   * once the caller has proved they hold the phone.
    */
   public async sendPhoneOtp(input: PhoneSendOtpInput, context: { ip?: string | null } = {}) {
     const normalizedPhone = normalizePhoneNumber(input.phoneNumber);
@@ -166,6 +191,9 @@ export class AuthService {
       throw new AuthenticationError('This code has expired or is invalid. Request a new one.');
     }
 
+    // Only after a valid code: a wrong code gets the same answer whether or not the account is blocked.
+    await this.refuseBlockedAccount(user.id, 'phone-otp');
+
     // Mark phone number as verified
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
@@ -223,6 +251,7 @@ export class AuthService {
     let user = await prisma.user.findFirst({
       where: { googleId: verifiedGoogle.googleId },
     });
+    if (user) await this.refuseBlockedAccount(user.id, 'google');
 
     // 2. If not found by googleId, check if user exists with matching verified email
     if (!user && verifiedGoogle.email) {
@@ -231,6 +260,8 @@ export class AuthService {
       });
 
       if (user) {
+        // A blocked account is refused before anything is linked to it.
+        await this.refuseBlockedAccount(user.id, 'google');
         // Link Google ID to existing account without duplicating user
         user = await prisma.user.update({
           where: { id: user.id },
@@ -486,26 +517,19 @@ export class AuthService {
       throw new AuthenticationError('Invalid email address or verification code.');
     }
 
+    // An already verified address gets no session from this endpoint: it used to issue tokens here
+    // without checking any code, which let anyone who knew a verified e-mail address sign in as that
+    // account (staff included). The answer is the same as for a wrong code, so it reveals nothing.
     if (user.emailVerifiedAt != null) {
-      const accessToken = signJwt({ sub: user.id, role: user.role });
-      const refreshToken = TokenService.generateRawRefreshToken();
-      await TokenService.saveRefreshToken(user.id, refreshToken, config.JWT_REFRESH_EXPIRES_IN);
-
-      return {
-        verified: true,
-        user: this.formatUser(user),
-        tokens: {
-          accessToken,
-          refreshToken,
-          expiresIn: config.JWT_ACCESS_EXPIRES_IN,
-        },
-      };
+      throw new AuthenticationError('Invalid email address or verification code.');
     }
 
     const isValid = await otpService.verifyOtp(user.id, input.otp, VerificationPurpose.EMAIL_VERIFICATION);
     if (!isValid) {
       throw new AuthenticationError('This code has expired or is invalid. Request a new one.');
     }
+
+    await this.refuseBlockedAccount(user.id, 'verify-email');
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
@@ -541,6 +565,9 @@ export class AuthService {
     if (!isValidPassword) {
       throw new AuthenticationError('Invalid email address or password');
     }
+
+    // Only after the password matched: a wrong password never reveals that the account is blocked.
+    await this.refuseBlockedAccount(user.id, 'password');
 
     if (user.emailVerifiedAt == null) {
       const isInCooldown = await otpService.isWithinResendCooldown(user.id, VerificationPurpose.EMAIL_VERIFICATION);
@@ -656,6 +683,11 @@ export class AuthService {
     if (!user) {
       throw new AuthenticationError('Associated user account no longer exists');
     }
+
+    // Blocking revokes refresh tokens, so this is the second line of defence (a token issued
+    // by a path that did not revoke, or a block recorded by another route). It also revokes
+    // the token that the rotation above has just issued.
+    await this.refuseBlockedAccount(user.id, 'refresh');
 
     const accessToken = signJwt({ sub: user.id, role: user.role });
 

@@ -6,6 +6,8 @@ vi.mock('../../src/services/prisma.service', async () => {
   return { prisma: fakePrisma };
 });
 vi.mock('../../src/modules/admin/admin.service', () => ({ adminService: { logAction: vi.fn() } }));
+// `fastify.authenticate` refuses blocked accounts (modules/auth/account-status.ts); nobody is blocked here.
+vi.mock('../../src/services/feature-access.service', () => ({ featureAccessService: { isUserSuspended: vi.fn(async () => false) } }));
 vi.mock('../../src/services/storage/storage-refs', () => ({
   validateUploadedRef: vi.fn((ref: { url?: string; key?: string }) => ({ url: ref.url ?? null, key: ref.key ?? 'derived-key' })),
   deleteUploadedObject: vi.fn(async () => true),

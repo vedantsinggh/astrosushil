@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { prisma } from '../../services/prisma.service';
+import { invalidateAccountStatusCache } from '../auth/account-status';
 import { hashPassword, verifyPassword } from '../../utils/hash';
 import { TokenService } from '../../services/token.service';
 import { config } from '../../config';
@@ -224,6 +225,9 @@ export class AdminService {
       userAgent: reqMeta?.userAgent,
     });
 
+    // The change must reach authenticated requests at once, not after the status cache expires.
+    invalidateAccountStatusCache(targetUserId);
+
     return {
       message: `User ${targetUser.email} suspended successfully`,
       userId: targetUserId,
@@ -252,6 +256,9 @@ export class AdminService {
       ipAddress: reqMeta?.ipAddress,
       userAgent: reqMeta?.userAgent,
     });
+
+    // The change must reach authenticated requests at once, not after the status cache expires.
+    invalidateAccountStatusCache(targetUserId);
 
     return {
       message: `User ${targetUser.email} activated successfully`,

@@ -1,5 +1,6 @@
 import { OrderItemType, FulfillmentType, ReportType } from '@prisma/client';
 import { ValidationError } from '../../errors/app-error';
+import { consultationCatalogSource } from '../consultations/consultation-catalog.adapter';
 
 export interface CatalogItem {
   id: string;
@@ -346,316 +347,12 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   },
 
   // ---------------------------------------------------------------------------
-  // 2. CONSULTATION BOOKINGS (SERVICE) - AUTHORITATIVE 10 SERVICE TIERS
+  // 2. CONSULTATION BOOKINGS (SERVICE)
   // ---------------------------------------------------------------------------
-  'consult-budget-friendly': {
-    id: 'consult-budget-friendly',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Budget Friendly Consultation',
-    description: '15-minute focused phone consultation with Astro Sushil answering up to 3 specific questions with remedial guidance.',
-    pricePaise: 500000, // ₹5,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'AUDIO',
-    durationMinutes: 15,
-    responseDays: 15,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-general-audio': {
-    id: 'consult-general-audio',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'General Consultation (Audio)',
-    description: '30-minute direct one-on-one voice call with Astro Sushil covering comprehensive life issues and remedies.',
-    pricePaise: 1000000, // ₹10,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'AUDIO',
-    durationMinutes: 30,
-    responseDays: 15,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-general-video': {
-    id: 'consult-general-video',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'General Consultation (Video)',
-    description: '30-minute interactive video call with Astro Sushil with thorough chart analysis and solutions.',
-    pricePaise: 1500000, // ₹15,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 15,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-standard-audio': {
-    id: 'consult-standard-audio',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Standard Consultation (Audio)',
-    description: '30-minute priority scheduling voice consultation with Astro Sushil for reliable clarity.',
-    pricePaise: 1500000, // ₹15,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'AUDIO',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-standard-video': {
-    id: 'consult-standard-video',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Standard Consultation (Video)',
-    description: '30-minute priority video consultation with Astro Sushil with comprehensive planetary remedy roadmap.',
-    pricePaise: 2000000, // ₹20,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-urgent-audio': {
-    id: 'consult-urgent-audio',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Urgent Consultation (Audio)',
-    description: '30-minute expedited phone session guaranteed within 4 days (or 48-72h) for critical inflection points.',
-    pricePaise: 2500000, // ₹25,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'AUDIO',
-    durationMinutes: 30,
-    responseDays: 4,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-urgent-video': {
-    id: 'consult-urgent-video',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Urgent Consultation (Video)',
-    description: '30-minute expedited video call guaranteed within 4 days for fast astrological clarity.',
-    pricePaise: 3500000, // ₹35,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 4,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-signature-analysis': {
-    id: 'consult-signature-analysis',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Signature Analysis Consultation',
-    description: '30-minute specialized graphology and astrological session optimizing your signature for wealth, status, and success.',
-    pricePaise: 2500000, // ₹25,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-wrist-watch-therapy': {
-    id: 'consult-wrist-watch-therapy',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Wrist Watch Therapy Consultation',
-    description: '30-minute astrological wrist watch selection, dial element alignment, and metal recommendation session.',
-    pricePaise: 5000000, // ₹50,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-longevity': {
-    id: 'consult-longevity',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Age & Longevity Consultation',
-    description: '30-minute in-depth lifespan, Maraka/Badhaka evaluation, and critical health milestone consultation.',
-    pricePaise: 6000000, // ₹60,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-instant-audio': {
-    id: 'consult-instant-audio',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Instant Consultation (Audio - 24h)',
-    description: '30-minute emergency voice call booked within 24 hours directly with Astro Sushil.',
-    pricePaise: 9000000, // ₹90,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'AUDIO',
-    durationMinutes: 30,
-    responseDays: 1,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-instant-video': {
-    id: 'consult-instant-video',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Instant Consultation (Video - 24h)',
-    description: '30-minute emergency video consultation booked within 24 hours directly with Astro Sushil.',
-    pricePaise: 10000000, // ₹1,00,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 1,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-in-person-delhi': {
-    id: 'consult-in-person-delhi',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Face-to-Face Consultation (Delhi / NCR)',
-    description: '30-minute private in-person consultation at Astro Sushil’s Delhi NCR office.',
-    pricePaise: 10000000, // ₹1,00,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'IN_PERSON',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-in-person-other': {
-    id: 'consult-in-person-other',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Face-to-Face Consultation (Other Cities)',
-    description: 'Exclusive in-person consultation in client’s home city with personalized remedies.',
-    pricePaise: 15000000, // ₹1,50,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'IN_PERSON',
-    durationMinutes: 30,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-
-  // Backward compatibility alias keys
-  'consult-voice-20': {
-    id: 'consult-voice-20',
-    itemType: OrderItemType.CONSULTATION,
-    title: '20-Minute Focused Voice Consultation',
-    description: 'One-on-one direct phone consultation with Astro Sushil focusing on one primary life question.',
-    pricePaise: 150000, // ₹1,500
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'AUDIO',
-    durationMinutes: 20,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-video-45': {
-    id: 'consult-video-45',
-    itemType: OrderItemType.CONSULTATION,
-    title: '45-Minute In-Depth Video Consultation',
-    description: 'Interactive video session covering complete Janma Kundli, current Dasha, and life questions.',
-    pricePaise: 310000, // ₹3,100
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 45,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-in-person-60': {
-    id: 'consult-in-person-60',
-    itemType: OrderItemType.CONSULTATION,
-    title: '60-Minute Office In-Person Consultation',
-    description: 'Private 1-on-1 consultation in Astro Sushil’s office with comprehensive astrological remedies.',
-    pricePaise: 510000, // ₹5,100
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'IN_PERSON',
-    durationMinutes: 60,
-    responseDays: 7,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
-  'consult-urgent-24h': {
-    id: 'consult-urgent-24h',
-    itemType: OrderItemType.CONSULTATION,
-    title: 'Urgent 24-Hour Expedited Video Consultation',
-    description: 'Priority emergency booking guaranteed within 24 hours for critical decisions.',
-    pricePaise: 1100000, // ₹11,000
-    currency: 'INR',
-    taxRateBasisPoints: 1800,
-    taxIncluded: true,
-    fulfillmentType: FulfillmentType.SERVICE,
-    consultationMode: 'VIDEO',
-    durationMinutes: 30,
-    responseDays: 1,
-    isActive: true,
-    minQuantity: 1,
-    maxQuantity: 1,
-  },
+  // Not constants any more: consultation types are rows in `consultation_types`, edited in the
+  // admin. `CommerceCatalogService` reads every `consult-*` item from
+  // `consultationCatalogSource` (consultations/consultation-catalog.adapter.ts). The former
+  // constants are the seed in consultations/consultation-types.defaults.ts.
 
   // ---------------------------------------------------------------------------
   // 3. COURSES & MASTERCLASSES (DIGITAL) - AUTHORITATIVE WEBSITE OFFERINGS
@@ -986,8 +683,29 @@ export interface CalculatedOrder {
 }
 
 export class CommerceCatalogService {
+  /**
+   * Brings the consultation items up to date with the database. `getItem`, `listItems` and
+   * `calculateOrder` are synchronous and read an in-memory snapshot, so every asynchronous caller
+   * awaits this first:
+   *   - before money is involved, with `force: true`: the types are re-read now and the call fails
+   *     if the database cannot be read, so nothing is priced from a stale or default snapshot
+   *     (this is also what makes the first request after start-up correct);
+   *   - for a listing, without `force`: re-read at most every 30 seconds, and a failed read keeps
+   *     the previous snapshot.
+   */
+  public async refresh(options: { force?: boolean } = {}): Promise<void> {
+    await consultationCatalogSource.refresh(options);
+  }
+
+  /** True when `id` is not one of the code constants, i.e. it can only be a consultation row. */
+  public isDatabaseItem(id: string): boolean {
+    return !Object.prototype.hasOwnProperty.call(COMMERCE_CATALOG, id);
+  }
+
   public getItem(id: string): CatalogItem | null {
-    return COMMERCE_CATALOG[id] || null;
+    if (Object.prototype.hasOwnProperty.call(COMMERCE_CATALOG, id)) return COMMERCE_CATALOG[id];
+    // Consultation types are database rows (admin-editable); see consultation-catalog.adapter.ts.
+    return consultationCatalogSource.getItem(id);
   }
 
   public getItemByLegacyReportType(reportType: ReportType): CatalogItem | null {
@@ -1004,6 +722,9 @@ export class CommerceCatalogService {
     }
     if (filter?.activeOnly !== false) {
       items = items.filter((i) => i.isActive);
+    }
+    if (!filter?.itemType || filter.itemType === OrderItemType.CONSULTATION) {
+      items = items.concat(consultationCatalogSource.listItems({ activeOnly: filter?.activeOnly !== false }));
     }
     return items;
   }
@@ -1049,10 +770,21 @@ export class CommerceCatalogService {
       const unitPrice = item.pricePaise;
       const lineGross = unitPrice * qty;
 
-      // Calculate decimal-safe integer tax allocation (inclusive pricing)
-      // Base = round(lineGross * 10000 / (10000 + taxRate))
-      const lineNet = Math.round((lineGross * 10000) / (10000 + item.taxRateBasisPoints));
-      const lineTax = lineGross - lineNet;
+      // Decimal-safe integer tax allocation.
+      // GST inside the price (every code constant): Base = round(lineGross * 10000 / (10000 + taxRate)).
+      // GST on top of the price (`taxIncluded: false`, possible for a consultation type edited in
+      // the admin): Tax = round(lineGross * taxRate / 10000), halves up, and it is added to the total.
+      // Both agree with `calculateSale` (./money/tax.ts), which is what an order is charged from.
+      let lineNet: number;
+      let lineTax: number;
+      if (item.taxIncluded) {
+        lineNet = Math.round((lineGross * 10000) / (10000 + item.taxRateBasisPoints));
+        lineTax = lineGross - lineNet;
+      } else {
+        lineNet = lineGross;
+        lineTax = Math.floor((lineGross * item.taxRateBasisPoints + 5000) / 10000);
+      }
+      const lineTotal = lineNet + lineTax;
 
       calculatedItems.push({
         catalogItem: item,
@@ -1061,13 +793,13 @@ export class CommerceCatalogService {
         taxRate: item.taxRateBasisPoints,
         subtotal: lineNet,
         taxAmount: lineTax,
-        totalAmount: lineGross,
+        totalAmount: lineTotal,
         metadata: req.metadata,
       });
 
       orderSubtotal += lineNet;
       orderTax += lineTax;
-      orderTotal += lineGross;
+      orderTotal += lineTotal;
     }
 
     return {

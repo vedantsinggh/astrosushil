@@ -88,7 +88,7 @@ Every route needs a staff login and the permission shown, checked with `checkPer
 
 `GET /admin/bookings` filters: `tab=upcoming|past`, `search`, `fromDate`, `toDate` (created-on, IST days), `date` (appointment date), `consultationTypeId`, `consultationId`, `mode`, `source`, `status`, `sort`, `page`, `limit`. It returns `counts.upcoming` and `counts.past` for the tabs.
 
-The older endpoints `/admin/consultations`, `/admin/consultations/:id`, `/start-session`, `/reschedule`, `/cancel` in `admin.routes.ts` still work. They still check `live_sessions:*`.
+The older endpoints `/admin/consultations`, `/admin/consultations/:id`, `/start-session`, `/reschedule`, `/cancel` in `admin.routes.ts` still work. They accept either the old key or the website-style one: list and detail `live_sessions:read` or `bookings:read`; start-session, reschedule and cancel `live_sessions:write` or `bookings:update`. The `/admin/live-sessions*` endpoints still need `live_sessions:*`.
 
 ### Permission keys
 
@@ -156,11 +156,12 @@ Each default tier became one `ConsultationType` with one mode whose `catalogId` 
 
 The types are seeded by `prisma/seed.ts` (`consultationTypesService.seedDefaults()`: creates missing tiers by catalog id, never changes an existing one). A process that finds the table completely empty also inserts them on first read.
 
-**Not connected yet.** `commerce.catalog.ts` still holds the consultation constants. Until the commerce catalogue reads from `consultationCatalogSource` (steps are in the header of `consultation-catalog.adapter.ts`):
+**Connected (wire-payments).** The `consult-*` constants are removed from `commerce.catalog.ts`; `commerceCatalog.getItem` / `listItems` read consultation items from `consultationCatalogSource`, and `calculateOrder` adds GST on top for a mode whose GST is exclusive. So a type created in the admin can be paid for, and a re-priced tier is charged its new price.
 
-- booking a seeded tier works, because the constants equal the seeded rows;
-- a type created in the admin cannot be paid for (`Catalog offering not found`);
-- a seeded tier whose price is edited in the admin cannot be booked: `book` compares the order amount with the type's price and stops with `CONSULTATION_PRICE_MISMATCH` rather than charge the wrong amount.
+- Identity: the 18 seeded rows give exactly the 18 catalogue items the constants gave (id, title, description, price, GST rate and type, mode, duration, notice days). `tests/unit/wire-payments-catalogue.test.ts` proves it against a frozen copy of the former constants.
+- Freshness: `commerceService.createOrder` awaits `commerceCatalog.refresh({ force: true })` whenever a requested item is not a code constant, so the price is read from the database at that moment (also on the first request after start-up, when the process only holds the default tiers) and the order fails if the database cannot be read. `GET /payments/catalog` awaits the unforced refresh (one read per 30 seconds).
+- **Deployment note:** the old ids only exist if the default tiers are in the table. An empty table is seeded on first read; a table that already has rows (for example website consultations migrated first) is not, so run `prisma/seed.ts` (`consultationTypesService.seedDefaults()`, which only adds missing tiers) or the mobile app's `consult-*` ids will answer `Catalog offering not found`. A seeded tier deleted in the admin is likewise no longer for sale, which is the intent.
+- In `GET /payments/catalog` the consultation items now come after the code items instead of between reports and courses.
 
 The snapshot: commerce and two existing callers are synchronous, so the service keeps the types in memory, refreshed at most every 30 seconds and after every admin write. Before the first read it holds the default tiers. A booking and every admin read force a fresh read and fail if the database cannot be read. Other processes see an admin change within 30 seconds.
 
@@ -169,7 +170,7 @@ The snapshot: commerce and two existing callers are synchronous, so the service 
 - GST uses `computeGst` from `commerce/money/tax.ts`.
 - Customer bookings go through `commerceService.createOrder`. `verify-payment` reads the payment back from the gateway (`paymentService.fetchRazorpayPayment`), compares order id, amount and currency, and calls `settleOrderPaid` in the transaction that confirms the booking.
 - A manual booking creates an order with `paymentMethod: MANUAL`, already paid, with `razorpayOrderId = "manual_<bookingId>"` (the column is required and unique), and calls `settleOrderPaid` in the same transaction. If settlement fails, the booking fails.
-- A plan change re-states the booking, its order, the order's consultation line and the order's `PaymentTransaction` row. Nothing is charged or refunded, as on the website. This writes the money module's ledger table directly from `bookings.service.ts`; the money module has no function for it.
+- A plan change re-states the booking, its order, the order's consultation line and the order's `PaymentTransaction` row. Nothing is charged or refunded, as on the website. **Done (wire-payments):** the order, line and ledger row are re-stated by the money module's `restateConsultationOrder` (`commerce/money/restatement.ts`), called from `changePlan` inside its transaction; `bookings.service.ts` no longer writes those tables. Changes in behaviour: `Order.paidAmountMinor` of an INR order now follows the new amount (it kept the old one, so the invoice data showed the old charge); a foreign-currency amount is converted with the money module's function (whole yen for JPY); a plan change is refused when the order is unpaid, has a refund against it, or is not a single consultation line; an invoice number already issued is kept (as on the website) and written into the history entry as `changes.invoiceNumberKept`. See money.md open question 10.
 
 ## Messages
 
@@ -185,7 +186,7 @@ The snapshot: commerce and two existing callers are synchronous, so the service 
 - `findReminderBookings(date)`: the same rows in the shape `ConsultationReminderSweep` takes as `findBookings`;
 - `markReminded(bookingId)`: returns `true` only for the first caller; `clearReminded(bookingId)` undoes it.
 
-**Needs connecting.** The sweep in `notifications/consultation-reminder.sweep.ts` uses its own query, which does not exclude bookings deleted by staff. Either add `deletedAt: null` to its default query or construct it with `findBookings: (date) => bookingsService.findReminderBookings(date)`. The sweep deduplicates through the outbox key, so `markReminded` is optional for it.
+**Connected.** The sweep in `notifications/consultation-reminder.sweep.ts` has no query of its own any more: by default it reads `bookingsService.findReminderBookings(date)` (so bookings deleted by staff and bookings already reminded are left out) and calls `bookingsService.markReminded(id)` once the reminder is in the outbox, which sets `reminderSentAt`. The outbox key remains what prevents a second message. Before this, `markReminded` was optional for it.
 
 ## Mapping from the website's collections
 

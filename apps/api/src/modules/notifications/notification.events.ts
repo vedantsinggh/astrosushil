@@ -25,6 +25,7 @@ import type { MessageChannel } from '../../services/messaging/types';
  *   consultation reminder              customer e-mail, WhatsApp
  *   report order confirmed             customer e-mail, WhatsApp, SMS   ("within 48 hours")
  *   report ready                       customer e-mail, WhatsApp, after REPORT_SEND_DELAY_HOURS
+ *   contact inquiry                    admin e-mail, sender e-mail (when an address was given)
  *
  * Calling a function twice for the same occurrence sends nothing the second time.
  * Money is passed in minor units (paise); the templates show major units.
@@ -131,6 +132,17 @@ export interface ReportReadyEvent {
   reportUrl?: string | null;
   /** When the report was completed; the message goes out REPORT_SEND_DELAY_HOURS later. Default: now. */
   completedAt?: Date;
+}
+
+export interface ContactInquiryEvent {
+  /** Id of the saved inquiry: the idempotency key. */
+  inquiryId: string;
+  name: string;
+  /** Empty or null when the sender left no e-mail address. */
+  email?: string | null;
+  phone?: string | null;
+  subject?: string | null;
+  message: string;
 }
 
 export interface EventPreferences {
@@ -422,6 +434,27 @@ export class NotificationEvents {
     else b.preferenceOff('EMAIL');
     b.whatsapp(e.customer.phone, () => whatsappTemplates.REPORT_READY({ reportName, reportUrl }));
     return this.finish('report-ready', b);
+  }
+
+  // ---- contact form ---------------------------------------------------------
+
+  /**
+   * A contact form inquiry was saved (website: `Contact.controller.js`): CONTACT_ADMIN to
+   * ADMIN_EMAIL always, CONTACT_USER to the sender when an e-mail address was given.
+   * The sender need not have an account, so no preference applies. One pair per inquiry id.
+   */
+  public async contactInquiryReceived(e: ContactInquiryEvent): Promise<EventResult> {
+    const env = messagingEnv();
+    const senderEmail = e.email?.trim() || null;
+    const b = new EventBuilder('contact-inquiry', e.inquiryId, e.inquiryId, null);
+    // No ADMIN_EMAIL: recorded as skipped (NO_RECIPIENT), as an inquiry nobody is told about must be visible in the log.
+    b.email(
+      env.adminEmail,
+      () => emailTemplates.CONTACT_ADMIN({ name: e.name, email: senderEmail ?? '', phone: e.phone, subject: e.subject, message: e.message }),
+      'ADMIN'
+    );
+    if (senderEmail) b.email(senderEmail, () => emailTemplates.CONTACT_USER({ name: e.name, message: e.message }));
+    return this.finish('contact-inquiry', b);
   }
 
   // ---- internals ------------------------------------------------------------

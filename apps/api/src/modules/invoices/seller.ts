@@ -43,30 +43,48 @@ function read(name: string, env: NodeJS.ProcessEnv): string | null {
   return value ? value : null;
 }
 
+/** The seller values present in the environment; a missing or blank variable is simply absent. */
+export function readSellerEnv(env: NodeJS.ProcessEnv = process.env): Partial<SellerDetails> {
+  const values: Partial<SellerDetails> = {};
+  for (const field of Object.keys(SELLER_ENV) as Array<keyof typeof SELLER_ENV>) {
+    const value = read(SELLER_ENV[field], env);
+    if (value) values[field] = value;
+  }
+  return values;
+}
+
+/**
+ * Complete seller details from whatever a source could supply. Name, address, GSTIN and state
+ * are required; a missing one is a configuration error (503 `INVOICE_SELLER_UNCONFIGURED`),
+ * reported by the name of the environment variable that would supply it.
+ */
+export function completeSellerDetails(values: Partial<SellerDetails>): SellerDetails {
+  const missing = REQUIRED.filter((field) => !values[field]?.trim()).map((field) => SELLER_ENV[field]);
+  if (missing.length) {
+    throw new AppError(
+      `Invoice seller details are not configured (${missing.join(', ')}).`,
+      503,
+      'INVOICE_SELLER_UNCONFIGURED'
+    );
+  }
+  return {
+    legalName: values.legalName as string,
+    tagline: values.tagline ?? null,
+    address: values.address as string,
+    gstin: values.gstin as string,
+    state: values.state as string,
+    email: values.email ?? null,
+    phone: values.phone ?? null,
+    website: values.website ?? null,
+  };
+}
+
 /** Reads the seller from environment variables. Missing required values are a configuration error. */
 export class EnvSellerDetailsProvider implements SellerDetailsProvider {
   constructor(private readonly env: () => NodeJS.ProcessEnv = () => process.env) {}
 
   public get(): SellerDetails {
-    const env = this.env();
-    const missing = REQUIRED.filter((field) => !read(SELLER_ENV[field], env)).map((field) => SELLER_ENV[field]);
-    if (missing.length) {
-      throw new AppError(
-        `Invoice seller details are not configured (${missing.join(', ')}).`,
-        503,
-        'INVOICE_SELLER_UNCONFIGURED'
-      );
-    }
-    return {
-      legalName: read(SELLER_ENV.legalName, env) as string,
-      tagline: read(SELLER_ENV.tagline, env),
-      address: read(SELLER_ENV.address, env) as string,
-      gstin: read(SELLER_ENV.gstin, env) as string,
-      state: read(SELLER_ENV.state, env) as string,
-      email: read(SELLER_ENV.email, env),
-      phone: read(SELLER_ENV.phone, env),
-      website: read(SELLER_ENV.website, env),
-    };
+    return completeSellerDetails(readSellerEnv(this.env()));
   }
 }
 
@@ -75,6 +93,11 @@ let provider: SellerDetailsProvider = new EnvSellerDetailsProvider();
 /** Swap the source (site settings, or a fixed value in tests). */
 export function setSellerDetailsProvider(next: SellerDetailsProvider): void {
   provider = next;
+}
+
+/** Back to the environment source (tests). */
+export function resetSellerDetailsProvider(): void {
+  provider = new EnvSellerDetailsProvider();
 }
 
 export function getSellerDetails(): SellerDetails {

@@ -34,6 +34,7 @@ import {
   parseTimeOfDay,
 } from '../availability/availability.time';
 import { settleOrderPaid } from '../commerce/money/settlement';
+import { restateConsultationOrder, restatePaidAmountMinor } from '../commerce/money/restatement';
 import { fulfillmentService } from '../fulfillment/fulfillment.service';
 import { claimSlot, OCCUPYING_BOOKING_STATUSES, PRACTITIONER_ID, PRACTITIONER_NAME, releaseSlot } from './slot-hold';
 
@@ -584,11 +585,9 @@ export class BookingsService {
     const durationChanged = endTime !== before.endTime;
     const adminName = await this.staffName(admin);
 
-    // The amount charged in a foreign currency is re-stated with the stored rate, as the website does.
-    const paidAmountMinor =
-      before.paidCurrency && before.paidCurrency !== 'INR' && before.exchangeRate
-        ? Math.round(pricing.totalPaise * Number(before.exchangeRate))
-        : before.paidAmountMinor;
+    // The amount charged in a foreign currency is re-stated with the stored rate, as the website
+    // does (the money module's conversion: the currency's own smallest unit, whole yen for JPY).
+    const paidAmountMinor = restatePaidAmountMinor(pricing.totalPaise, before.paidCurrency, before.exchangeRate, before.paidAmountMinor);
 
     const changeNote = await prisma.$transaction(async (tx) => {
       if (durationChanged) {
@@ -629,44 +628,21 @@ export class BookingsService {
       });
       // Website: the linked transaction is re-stated with the new plan's amounts (nothing is
       // charged or refunded). Here that is the booking's order, its consultation line and the
-      // order's ledger row.
-      if (before.orderId) {
-        await tx.order.update({
-          where: { id: before.orderId },
-          data: {
-            amount: pricing.totalPaise,
-            subtotal: pricing.taxablePaise,
-            taxAmount: pricing.gstPaise,
-            discountAmount: 0,
-            ...(paidAmountMinor !== null && paidAmountMinor !== before.paidAmountMinor ? { paidAmountMinor } : {}),
-          },
-        });
-        await tx.orderItem.updateMany({
-          where: { orderId: before.orderId, itemType: OrderItemType.CONSULTATION },
-          data: {
+      // order's ledger row, re-stated together by the money module. An invoice number already
+      // issued is kept (as on the website) and written into the history entry below.
+      const restated = before.orderId
+        ? await restateConsultationOrder(tx, before.orderId, {
             catalogId: offering.mode.catalogId,
             title: offering.type.title,
             description: offering.type.description,
-            unitPrice: offering.mode.pricePaise,
-            taxRate: pricing.rateBasisPoints,
-            taxAmount: pricing.gstPaise,
+            unitPricePaise: offering.mode.pricePaise,
+            taxRateBp: pricing.rateBasisPoints,
             taxInclusive: pricing.type === 'INCLUSIVE',
-            totalAmount: pricing.totalPaise,
-          },
-        });
-        await tx.paymentTransaction.updateMany({
-          where: { orderId: before.orderId },
-          data: {
-            amountMinor: paidAmountMinor ?? pricing.totalPaise,
-            baseAmountPaise: pricing.totalPaise,
-            subtotalPaise: offering.mode.pricePaise,
+            taxablePaise: pricing.taxablePaise,
             taxPaise: pricing.gstPaise,
-            taxRateBp: pricing.gstPaise > 0 ? pricing.rateBasisPoints : 0,
-            taxInclusive: pricing.gstPaise > 0 && pricing.type === 'INCLUSIVE',
-            discountPaise: 0,
-          },
-        });
-      }
+            totalPaise: pricing.totalPaise,
+          })
+        : null;
 
       return tx.bookingAdminNote.create({
         data: {
@@ -688,6 +664,9 @@ export class BookingsService {
               durationMinutes: offering.type.durationMinutes,
               amountPaise: pricing.totalPaise,
             },
+            // Set when a tax invoice had already been issued for this sale: its number is
+            // unchanged and the invoice now states the new plan and amount.
+            ...(restated?.invoiceNumber ? { invoiceNumberKept: restated.invoiceNumber } : {}),
           },
           addedByName: adminName,
           addedById: admin.id,

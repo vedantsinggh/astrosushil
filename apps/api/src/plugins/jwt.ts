@@ -3,6 +3,7 @@ import fastifyJwt from '@fastify/jwt';
 import fp from 'fastify-plugin';
 import { config } from '../config';
 import { AuthenticationError, AuthorizationError } from '../errors/app-error';
+import { assertAccountActive } from '../modules/auth/account-status';
 
 async function jwtPlugin(app: FastifyInstance) {
   await app.register(fastifyJwt, {
@@ -33,6 +34,10 @@ async function jwtPlugin(app: FastifyInstance) {
       }
       throw new AuthenticationError(err.message || 'Invalid or expired access token');
     }
+    // A blocked (suspended or deleted) account's still-valid access token stops working on every
+    // route. Cached per user (modules/auth/account-status.ts), so this is normally no query.
+    // Outside the try block on purpose: the refusal is a 403, and a failed lookup is not a 401.
+    await assertAccountActive(request.user.id);
   });
 
   // Optional Authentication Decorator
@@ -51,7 +56,11 @@ async function jwtPlugin(app: FastifyInstance) {
       }
     } catch (_err) {
       // Ignore token verification error for optional auth
+      return;
     }
+    // A valid token of a blocked account is refused here too: presenting it is acting as that account.
+    const verified = request.user as { id?: string } | undefined;
+    if (verified?.id) await assertAccountActive(verified.id);
   });
 
   // Role Authorization Decorator

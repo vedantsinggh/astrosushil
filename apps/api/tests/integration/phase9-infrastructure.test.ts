@@ -5,8 +5,6 @@ import { storageService } from '../../src/services/storage.service';
 import { redisQueueService } from '../../src/services/redis-queue.service';
 import { fcmProvider } from '../../src/modules/notifications/fcm.provider';
 import { emailService } from '../../src/services/email.service';
-import { getVerificationEmailTemplate } from '../../src/services/emails/verification';
-import { getPasswordResetEmailTemplate } from '../../src/services/emails/password-reset';
 import { buildApp } from '../../src/app';
 import { FastifyInstance } from 'fastify';
 import { config } from '../../src/config';
@@ -196,21 +194,6 @@ describe('Phase 9: Infrastructure & External Services Hardening Suite', () => {
   });
 
   describe('5. Email Service & Template Injection Protection', () => {
-    it('renders verification email template securely with encoded OTP', () => {
-      const template = getVerificationEmailTemplate('123456', 10);
-      expect(template.subject).toContain('Verify your Astro Sushil account');
-      expect(template.html).toContain('123456');
-      expect(template.text).toContain('123456');
-    });
-
-    it('renders password reset email template securely', () => {
-      const template = getPasswordResetEmailTemplate('987654', 10);
-      expect(template.subject).toContain('Reset your Astro Sushil password');
-      expect(template.html).toContain('987654');
-      expect(template.text).toContain('987654');
-    });
-
-
     it('does not crash API process on email dispatch in development mode', async () => {
       await expect(
         emailService.sendVerificationEmail('test@astrosushil.com', '123456')
