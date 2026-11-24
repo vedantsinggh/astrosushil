@@ -4,3 +4,4 @@
  * ./platform/registry.ts; see docs/report-system/PLATFORM.md.
  */
 export * as reportPlatform from './platform';
+export * as invoicePdf from './invoice';

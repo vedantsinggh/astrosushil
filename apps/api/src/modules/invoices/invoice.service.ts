@@ -61,6 +61,11 @@ export interface InvoiceDocumentData {
     taxRateBp: number;
     taxInclusive: boolean;
     taxPaise: number;
+    /**
+     * Value the GST was charged on: the line's stored payable total (after its share of any
+     * discount, GST included) minus its GST. Null if the stored figures do not allow it.
+     */
+    taxablePaise: number | null;
   }>;
   totals: {
     subTotalPaise: number;
@@ -367,6 +372,7 @@ export class InvoiceService {
         taxRateBp: item.taxRate,
         taxInclusive: item.taxInclusive,
         taxPaise: item.taxAmount,
+        taxablePaise: item.totalAmount >= item.taxAmount ? item.totalAmount - item.taxAmount : null,
       })),
       totals: {
         subTotalPaise: order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),

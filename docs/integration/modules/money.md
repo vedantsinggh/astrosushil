@@ -1,6 +1,6 @@
 # Money: currencies, GST, invoices, transactions ledger, GST report
 
-**Status:** built on `staging`, not migrated (the lead generates the migration). Invoice PDF is **not** built: see "Not done".
+**Status:** built on `staging`, not migrated (the lead generates the migration). Invoice PDF: **done**, see section 4.
 **Website sources:** `src/common/taxEngine.js`, `src/common/priceengine.js`, `src/utils/exchangeRate.js`, `src/utils/razorpay.js`, `src/modules/Invoice/*`, `src/modules/Transaction/*`, `src/webhooks/razorpay.js`, the three invoice templates, `src/scripts/*`, admin `GstReportPage.jsx` and `Transactionspage.jsx`.
 
 ## Where things are
@@ -13,8 +13,10 @@
 | Checkout quote (INR total to charged amount) | `apps/api/src/modules/commerce/money/checkout.ts` |
 | "Order is paid" hook (ledger + invoice) | `apps/api/src/modules/commerce/money/settlement.ts` |
 | Invoice numbers, labels, counter, invoice data | `apps/api/src/modules/invoices/*` |
+| Invoice PDF: access, guards, routes | `apps/api/src/modules/invoices/invoice-pdf.service.ts`, `invoices.routes.ts` |
+| Invoice PDF: renderer (XeLaTeX) and style | `packages/report-engine/src/invoice/*`, `packages/report-engine/templates/invoice/astrosushil-invoice.sty` |
 | Ledger, GST report, CSV | `apps/api/src/modules/transactions/*` |
-| Tests | `apps/api/tests/unit/money.test.ts`, `money-checkout.test.ts`, `invoice.test.ts`, `transactions.test.ts` |
+| Tests | `apps/api/tests/unit/money.test.ts`, `money-checkout.test.ts`, `invoice.test.ts`, `invoice-pdf.test.ts`, `transactions.test.ts`, `packages/report-engine/src/__tests__/invoice-pdf.test.ts` |
 
 In this backend every sale (report, consultation, product, course) is one `Order`. The website has three separate records (order, booking, report order); the ledger's `type` keeps that distinction: all items are reports gives `report`, all consultations gives `consultation`, anything else gives `order`.
 
@@ -28,7 +30,9 @@ All under `/api/v1`. Admin routes sit behind `authenticate`, the staff role gate
 | POST | `/payments/verify` | customer | none | Now also reads the payment back from Razorpay and compares order id, amount and currency. Mismatch: 400 `PAYMENT_MISMATCH` |
 | POST | `/webhooks/razorpay` | signature | none | Compares the captured amount and currency with the paid amount and currency; settles ledger and invoice |
 | GET | `/invoices/orders/:orderId` | customer | owner only | Invoice data (JSON) for one of the caller's orders; 404 for anyone else's |
+| GET | `/invoices/orders/:orderId/pdf` | customer | owner only | The invoice as a PDF (`application/pdf`, attachment `invoice-<orderId>.pdf`), generated on each request; 404 for anyone else's order; 10 per minute per customer |
 | GET | `/admin/invoices/orders/:orderId` | staff | `transactions:read` | Same data for any order |
+| GET | `/admin/invoices/orders/:orderId/pdf` | staff | `transactions:read` | The PDF of any order; 30 per minute per staff member |
 | GET | `/admin/transactions` | staff | `transactions:read` | Filters: `status`, `method`, `fromDate`, `toDate`, `search`, `page` (1), `limit` (10, max 100) |
 | GET | `/admin/transactions/export` | staff | `transactions:export` | CSV of the filtered ledger; audit entry `TRANSACTIONS_EXPORTED` |
 | GET | `/admin/transactions/unapplied-payments` | staff | `transactions:read` | Payments the gateway captured for orders that are not paid here (capture after cancellation); newest first, at most 200 |
@@ -121,7 +125,59 @@ Delivered: the data model and `GET /invoices/orders/:orderId` returning everythi
 
 **Seller details** are configuration, not code: `INVOICE_SELLER_NAME`, `_TAGLINE`, `_ADDRESS`, `_GSTIN`, `_STATE`, `_EMAIL`, `_PHONE`, `_WEBSITE` through `SellerDetailsProvider` (`setSellerDetailsProvider`; at start-up the API registers the site-settings provider, which uses the admin's settings first and these variables as the fallback). Name, address, GSTIN and state are required; without them invoice data and the GST report answer 503 `INVOICE_SELLER_UNCONFIGURED`. The website's values are hardcoded in `src/utils/invoice.template.js` (`SUPPLIER_GSTIN`, `SUPPLIER_STATE` near line 70, and the `brand-name` / `brand-meta` header block), repeated in `generateBookingInvoiceTemplate.js` and `generateReportInvoiceTemplate.js`, and `SUPPLIER_STATE` again in `src/modules/Transaction/Transaction.controler.js`.
 
-**Not done: the PDF.** Recommended approach, adding no dependency: a LaTeX template rendered by the existing XeLaTeX pipeline in `packages/report-engine`, fed by `InvoiceDocumentData`, stored as a private file through `apps/api/src/services/storage/storage-refs.ts`. The website renders HTML through a remote Chrome, which this backend does not have.
+The invoice data also carries `lines[].taxablePaise`: the line's stored payable total (after its share of any discount, GST included) minus its GST, or null when the stored figures do not allow it.
+
+### Invoice PDF (done)
+
+`GET /invoices/orders/:orderId/pdf` (owner) and `GET /admin/invoices/orders/:orderId/pdf` (`transactions:read`, the permission of the invoice data endpoint). The PDF is built from the same `InvoiceDocumentData` on every request and is **not stored**, as on the website (each of its three download handlers renders and streams). Nothing in this document requires storage; an earlier note here recommended a private stored file, which was not built.
+
+**How.** `invoicePdf.renderInvoicePdf(data)` in `@astro/report-engine` (`src/invoice/`, exported as `invoicePdf`) builds LaTeX and compiles it with XeLaTeX, the engine the reports use, found on `PATH` in the same way (`infrastructure/deployment/vm/setup.sh` installs it with the fonts). It is separate from the report definitions and has its own style file. No package was added. One A4 page in about 2 to 3 seconds; a long order continues on further pages with the column headings repeated and "Page 1 of N" in the footer. Fonts are the report fonts (TeX Gyre Pagella, Open Sans, Noto Serif Devanagari), so Hindi names and titles print in Devanagari; a script none of them covers prints as empty boxes.
+
+**One layout for the three sale types**, with what each website template prints:
+
+| Part | Printed |
+|---|---|
+| Header | Seller legal name (upper case), tagline, address, `GSTIN: ...`, e-mail and phone, website (all from the seller details; nothing is hardcoded). Right: `INVOICE`, the number or fallback label, then `Date:` (product order), `Booked On:` and `Scheduled:` (consultation), `Order Date:` and `Report: <title>` (report). Dates are Indian calendar days, `24 Nov 2026` |
+| Facts strip | `Order ID` (`Booking ID` for a consultation) with the website's short reference; `Order Status` (product orders); `Slot` and `Mode` (consultations); `Place of Supply`; `Reverse Charge: No`; `Payment` PAID / PENDING / FAILED |
+| Customer details | Name, e-mail, phone. Report sales print the ledger's customer name (the report's customer, or bride and groom) |
+| Shipping address | When the order has one: name, phone, address lines, city, state, PIN, country |
+| Payment details | Status, method (Razorpay, Manual, Cash on Delivery), `Txn ID` (gateway payment id), `Paid On` |
+| Lines | `#`, item title with its description beneath (a consultation also shows duration, mode, date and slot), quantity, unit price, **taxable value**, **GST rate** marked `included` or `added`, **GST amount**, line total (unit price x quantity) |
+| Totals | Subtotal; Discount (when any); Shipping (when any); Taxable Value (Excl. GST); one row per GST rate, `GST 18% — Included` or `— Added`; Grand Total |
+| Footer, every page | `For <seller legal name> · Authorized Signatory`, `Thank you for your trust and belief.`, `This is a system-generated invoice and does not require a physical signature.`, the invoice number and page number |
+
+**No HSN or SAC code and no CGST / SGST / IGST split is printed**: confirmed against the three website templates, which print neither (GST is one figure per rate). Open question 13.
+
+**Sale without a number.** The fallback label of section 3 is printed where the number goes: `Invoice being prepared` or `No invoice issued` on a product order, `INV-<last 8 characters>` on a consultation or report the website never numbered. As on the website, a consultation or report whose number is still being allocated is not rendered: 409 `INVOICE_BEING_PREPARED` ("Invoice is being prepared. Please try again shortly."), for the customer and for staff.
+
+**Foreign currency (provisional, open question 8).** Lines and totals stay in INR, with a `Total in INR` row. The Grand Total box shows the amount charged (`USD 14.20`; JPY in whole yen), and beneath it `INR equivalent: ₹1,180.00` and `Exchange rate: 1 INR = 0.0120338983 USD` (the rate stored on the order, printed as stored), with the note "Prices and GST on this invoice are stated in Indian rupees."
+
+**Customer text cannot become LaTeX.** Every value passes through one function: control characters and line breaks become a space, then the report pipeline's `tex()` escapes `\ { } $ & # % _ ^ ~`. XeLaTeX also runs with `-no-shell-escape`. The PDF title is plain ASCII built from the invoice number. Tested with names such as `A & B 100% a_b #1 $5 {x} \input{/etc/passwd} \write18{id}`: printed as typed, nothing read or run.
+
+**Abuse guards** (`INVOICE_PDF_LIMITS` in `invoice-pdf.service.ts`). Held in the API process's memory: with several API processes each applies them on its own (the same limitation as the rate cache, open question 9).
+
+| Guard | Value | Answer when exceeded |
+|---|---|---|
+| Requests per user | 10 per minute (staff 30), refused requests counted too; also set as the route's limit in the global rate limiter, keyed by user | 429 `RATE_LIMIT_EXCEEDED` |
+| Compiles per order | one at a time; requests arriving meanwhile get that compile's result | none |
+| Compiles overall | 2 at once, 8 waiting | 503 `INVOICE_PDF_BUSY` |
+| Compile time | 20 seconds per XeLaTeX pass (one pass for a one-page invoice), then the process is killed | 503 `INVOICE_PDF_TIMEOUT` |
+
+Other answers: 503 `INVOICE_PDF_UNAVAILABLE` (no `xelatex` on the server), 500 `INVOICE_PDF_FAILED` (compile error), 503 `INVOICE_SELLER_UNCONFIGURED`. Only the order id, the kind of failure and the TeX error line are logged, never invoice content. The work directory is private (0700) and deleted after every compile.
+
+**Differences from the website's invoices, and why**
+
+1. One layout instead of three near-identical HTML templates; drawn by XeLaTeX, not a remote Chrome, so fonts, colours and spacing differ. The emoji in the website templates are not printed.
+2. Per-line taxable value, GST rate and GST amount are added. The website's product invoice shows only quantity, unit price and total per line; its booking and report invoices show GST only in the totals.
+3. The totals name each GST row `Included` or `Added` for every sale type (the website does this on bookings and reports only) and add `Taxable Value (Excl. GST)` (the booking template's "Subtotal (Excl. GST)").
+4. A customer block is always printed. The website's product invoice prints only the shipping address, so a digital order names no buyer.
+5. The consultation's duration, mode and slot are a note under the line instead of separate columns. The report's "Report Type" and "Report Status" fields are not printed: this backend has no separate report-order record, and the line title names the report.
+6. Not printed: the website's "Digital items will be delivered ... within 24–48 hours" notice (a delivery promise this backend does not make), the order's free-text notes, the due date, and the digital / physical badge.
+7. Seller name, address, GSTIN and contact come from the seller details, including "For <name>" in the footer; the website hardcodes them.
+8. A foreign-currency sale prints the charged amount with the INR value and rate. The website prints every amount with a rupee sign, whatever was charged.
+9. Dates are Indian calendar days (the website uses the server's local time zone).
+10. Downloads are rate limited and compile failures answer with the standard error shape; the website has neither.
+11. Admin download exists (the website's three downloads are customer-only). It is a read and is not written to the audit log, like the invoice data endpoint.
 
 ## 5. Transactions ledger
 
@@ -257,7 +313,11 @@ Amounts: website rupees (float) in the paid currency. Multiply by 100 and round 
 5. GST inside inclusive product prices: report it (built) or leave it out as the website does?
 6. JPY: confirm no live JPY payments exist, or decide how to treat those charged 100 times too much.
 7. Should staff with role ADMIN be able to verify a payment on a customer's order (existing behaviour, kept)?
-8. Invoice numbers for sales paid in a foreign currency: the invoice data carries INR totals plus the charged currency and amount. Should the printed invoice show INR, the paid currency, or both?
+8. Sales paid in a foreign currency: should the printed invoice show INR, the paid currency, or both? Built provisionally: lines and totals in INR, Grand Total in the paid currency with the INR equivalent and the stored exchange rate beneath (section 4). Confirm or state the wanted form (for an export of services an accountant may also want the rate's source and date).
 9. Rate cache: in-memory per API process (built). Is one API process the deployment, or should the cache move to Redis?
 10. Plan change after an invoice number was issued: the number is kept and the invoice now states the new plan and amount (website behaviour, reproduced and recorded in the booking history). Is that acceptable for a tax invoice, or should a plan change after invoicing issue a credit note and a new invoice?
 11. Money captured for a cancelled order (customer paid an order that a new checkout had replaced, or that they had cancelled): refund it, or reinstate the order? Until someone acts it is a SUCCESS ledger row without an invoice number and is counted in the GST report. No refund or reinstatement is built.
+12. Invoice PDF for a sale that is not paid, or has no number: reproduced from the website. A product order always renders (label `Invoice being prepared` or `No invoice issued`, payment PENDING), and a consultation or report without a number renders with `INV-<last 8 characters>` unless allocation is pending (409). Should a PDF be offered at all before the sale is paid and numbered?
+13. Tax invoice content: the PDF follows the website and prints no HSN / SAC code, no CGST / SGST / IGST split, no buyer GSTIN, the title `INVOICE` (not "Tax Invoice"), and the order's creation date as the invoice date. Does the accountant want any of these changed? HSN / SAC codes and a buyer GSTIN are not stored anywhere today.
+14. Should the PDF carry the website's digital-delivery notice ("within 24–48 hours") or the order's notes? Neither is printed.
+15. Should a staff download of a customer's invoice PDF be written to the audit log? It is not (read-only, like the invoice data endpoint).

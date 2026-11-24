@@ -1,9 +1,10 @@
-import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { FastifyInstance, FastifyPluginOptions, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { adminService } from '../admin/admin.service';
 import { checkPermission, getRequestStaffAccess } from '../admin/rbac/check-permission';
 import { AuthorizationError } from '../../errors/app-error';
 import { invoiceService } from './invoice.service';
+import { INVOICE_PDF_LIMITS, InvoicePdfResult, invoicePdfService } from './invoice-pdf.service';
 import { settlePaidOrderForRecovery } from './invoice-recovery.sweep';
 
 const orderParams = z.object({ orderId: z.string().uuid() });
@@ -15,11 +16,38 @@ const initializeBody = z.object({
 /**
  * Invoices (registered without a prefix under /api/v1):
  *   GET  /invoices/orders/:orderId                 customer, own order only: invoice data
+ *   GET  /invoices/orders/:orderId/pdf             customer, own order only: the invoice as a PDF
  *   GET  /admin/invoices/orders/:orderId           permission transactions:read
+ *   GET  /admin/invoices/orders/:orderId/pdf       permission transactions:read
  *   GET  /admin/invoices/counter                   permission gst_report:read
  *   POST /admin/invoices/counter/initialize        super admin only
  *   POST /admin/invoices/allocate-pending          super admin only
  */
+function sendPdf(reply: FastifyReply, result: InvoicePdfResult) {
+  return reply
+    .status(200)
+    .header('Content-Type', 'application/pdf')
+    .header('Content-Disposition', `attachment; filename="${result.filename}"`)
+    .header('Cache-Control', 'private, no-store')
+    .header('X-Content-Type-Options', 'nosniff')
+    .send(result.pdf);
+}
+
+/**
+ * Per-route limit of the global rate limiter, counted per signed-in user (it runs after
+ * `authenticate`). The PDF service applies the same limit itself, so the route is protected even
+ * where the limiter plugin is not registered.
+ */
+function pdfRateLimit(max: number) {
+  return {
+    rateLimit: {
+      max,
+      timeWindow: INVOICE_PDF_LIMITS.windowMs,
+      keyGenerator: (request: FastifyRequest) => `invoice-pdf:${request.user?.id ?? request.ip}`,
+    },
+  };
+}
+
 export async function invoicesRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   fastify.register(async (customerScope) => {
     customerScope.addHook('onRequest', fastify.authenticate);
@@ -30,6 +58,15 @@ export async function invoicesRoutes(fastify: FastifyInstance, _options: Fastify
         const { orderId } = orderParams.parse(request.params);
         const invoice = await invoiceService.getInvoiceData(orderId, request.user);
         return reply.status(200).send({ invoice });
+      },
+    });
+
+    customerScope.get('/invoices/orders/:orderId/pdf', {
+      schema: { tags: ['Invoices'], summary: 'Invoice PDF for one of the caller\'s orders', security: [{ bearerAuth: [] }] },
+      config: pdfRateLimit(INVOICE_PDF_LIMITS.customerPerWindow),
+      handler: async (request, reply) => {
+        const { orderId } = orderParams.parse(request.params);
+        return sendPdf(reply, await invoicePdfService.getInvoicePdf(orderId, request.user));
       },
     });
   });
@@ -50,6 +87,16 @@ export async function invoicesRoutes(fastify: FastifyInstance, _options: Fastify
         const { orderId } = orderParams.parse(request.params);
         const invoice = await invoiceService.getInvoiceData(orderId, request.user, true);
         return reply.status(200).send({ invoice });
+      },
+    });
+
+    adminScope.get('/admin/invoices/orders/:orderId/pdf', {
+      schema: { tags: ['Admin Invoices'], summary: 'Invoice PDF for any order', security: [{ bearerAuth: [] }] },
+      config: pdfRateLimit(INVOICE_PDF_LIMITS.staffPerWindow),
+      preHandler: [checkPermission('transactions:read')],
+      handler: async (request, reply) => {
+        const { orderId } = orderParams.parse(request.params);
+        return sendPdf(reply, await invoicePdfService.getInvoicePdf(orderId, request.user, true));
       },
     });
 
