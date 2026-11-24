@@ -16,6 +16,9 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@astro/astrology-engine": "*",
     "@astro/shared": "*",
