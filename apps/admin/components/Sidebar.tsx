@@ -25,6 +25,32 @@ export function Sidebar() {
     { label: 'Jyoti AI', href: '/jyoti', perm: 'jyoti:read', icon: '💬' },
     { label: 'System Health', href: '/system', perm: 'system:read', icon: '⚡' },
     { label: 'Audit Log', href: '/audit-log', perm: 'audit_log:read', icon: '📋' },
+    // Website content & settings
+    { label: 'Banners', href: '/banners', perm: 'banners:read', icon: '🖼️' },
+    { label: 'Blogs', href: '/blogs', perm: 'blogs:read', icon: '📝' },
+    { label: 'FAQs', href: '/faqs', perm: 'faqs:read', icon: '❓' },
+    { label: 'Testimonials', href: '/testimonials', perm: 'testimonials:read', icon: '⭐' },
+    { label: 'Media', href: '/media', perm: 'media:read', icon: '🎬' },
+    { label: 'Contact Inquiries', href: '/inquiries', perm: 'contacts:read', icon: '✉️' },
+    { label: 'SEO', href: '/seo', perm: 'seo:read', icon: '🔎' },
+    { label: 'Site Settings', href: '/settings', perm: 'settings:read', icon: '⚙️' },
+    // Catalogue, people & administration
+    { label: 'Categories', href: '/categories', perm: 'categories:read', icon: '🗂️' },
+    { label: 'Shop Products', href: '/shop-products', perm: 'products:read', icon: '🛍️' },
+    { label: 'Course Links', href: '/course-links', perm: 'courses:read', icon: '🎓' },
+    { label: 'PDF Reports', href: '/report-catalogue', perm: 'pdf_reports:read', icon: '📑' },
+    { label: 'Customers', href: '/customers', perm: 'customers:read', icon: '🧑' },
+    { label: 'Roles', href: '/roles', perm: 'roles:read', icon: '🔑' },
+    { label: 'Staff', href: '/staff', perm: 'staff:read', icon: '👤' },
+    // Sales and bookings (website admin screens)
+    { label: 'Shop Orders', href: '/shop-orders', perm: 'orders:read', icon: '📦' },
+    { label: 'Transactions', href: '/transactions', perm: 'transactions:read', icon: '🧾' },
+    { label: 'GST Report', href: '/gst-report', perm: 'gst_report:read', icon: '🏛️' },
+    { label: 'Invoices', href: '/invoices', perm: 'gst_report:read', icon: '📄' },
+    { label: 'Coupons', href: '/coupons', perm: 'coupons:read', icon: '🎟️' },
+    { label: 'Consultation Types', href: '/consultation-types', perm: 'consultations:read', icon: '🗣️' },
+    { label: 'Availability', href: '/availability', perm: 'availability:read', icon: '🗓️' },
+    { label: 'Bookings', href: '/bookings', perm: 'bookings:read', icon: '📅' },
   ];
 
   return (
@@ -74,6 +100,7 @@ export function Sidebar() {
             <div style={{ fontSize: '0.7rem', color: 'var(--accent-gold)', fontWeight: 600, marginTop: '0.1rem' }}>
               {user.role}
             </div>
+            <Link href="/profile" style={{ fontSize: '0.7rem', color: 'var(--text-sidebar)' }}>My profile &amp; password</Link>
           </div>
           <button
             onClick={logout}

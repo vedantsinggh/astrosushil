@@ -31,7 +31,12 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const errorMessage = data?.message || data?.error || `HTTP ${response.status} Error`;
+    // The API answers `{ error: { code, message, requestId } }`; older endpoints sent a plain string.
+    const errorMessage =
+      (typeof data?.error === 'object' && data?.error !== null ? data.error.message : undefined) ||
+      data?.message ||
+      (typeof data?.error === 'string' ? data.error : undefined) ||
+      `HTTP ${response.status} Error`;
     const err = new Error(errorMessage) as any;
     err.status = response.status;
     err.data = data;

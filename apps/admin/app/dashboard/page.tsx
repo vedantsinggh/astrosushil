@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
 import { StatusBadge } from '../../components/StatusBadge';
+import { ShopSalesPanel } from '../../components/catalogue/ShopSalesPanel';
 
 interface DashboardData {
   stats: {
@@ -191,6 +192,9 @@ export default function DashboardPage() {
           <div className="card-subtext">Conversational queries</div>
         </div>
       </div>
+
+      {/* SHOP PRODUCT SALES (GET /admin/shop-orders/reports; needs orders:export) */}
+      <ShopSalesPanel />
 
       {/* SYSTEM HEALTH STATUS */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

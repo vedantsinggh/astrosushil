@@ -25,6 +25,9 @@ interface ReportListItem {
   completedAt: string | null;
   failedAt: string | null;
   user: { id: string; email: string; fullName: string | null };
+  /** Report-order columns: shown when `GET /admin/reports` returns them (it does not yet). */
+  language?: string | null;
+  order?: { id: string; status: string; paymentStatus?: string | null } | null;
   birthProfile: { id: string; name: string };
 }
 
@@ -115,6 +118,11 @@ export default function ReportsPage() {
           <p className="page-subtitle">Inspect report compilation pipelines, debug failures, and monitor operations</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {hasPermission('pdf_reports:read') && (
+            <Link href="/report-catalogue" className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
+              PDF Reports Catalogue
+            </Link>
+          )}
           {hasPermission('reports:clear_cache') && (
             <button onClick={handleClearCache} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
               🗑️ Clear Server Report Cache
@@ -236,6 +244,8 @@ export default function ReportsPage() {
                 <th>Report ID</th>
                 <th>User / Profile</th>
                 <th>Type</th>
+                {items.some((i) => i.language !== undefined) && <th>Language</th>}
+                {items.some((i) => i.order !== undefined) && <th>Payment</th>}
                 <th>Status</th>
                 <th>Stage & Progress</th>
                 <th>Duration</th>
@@ -247,7 +257,7 @@ export default function ReportsPage() {
               {isLoading ? (
                 [1, 2, 3, 4, 5].map((i) => (
                   <tr key={i}>
-                    <td colSpan={8}>
+                    <td colSpan={10}>
                       <div className="skeleton" style={{ height: '24px', width: '100%' }} />
                     </td>
                   </tr>
@@ -260,11 +270,16 @@ export default function ReportsPage() {
                     </td>
                     <td>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.birthProfile?.name || 'Profile'}</div>
+                      {r.user?.fullName && <div style={{ fontSize: '0.75rem' }}>Customer: {r.user.fullName}</div>}
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{r.user?.email}</div>
                     </td>
                     <td>
                       <span className="badge badge-info">{r.reportType}</span>
                     </td>
+                    {items.some((i) => i.language !== undefined) && <td style={{ fontSize: '0.8rem' }}>{r.language === 'hi' ? 'Hindi' : r.language === 'en' ? 'English' : r.language || '-'}</td>}
+                    {items.some((i) => i.order !== undefined) && (
+                      <td>{r.order ? <Link href={`/payments/${r.order.id}`}><StatusBadge status={r.order.paymentStatus || r.order.status} /></Link> : <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No order</span>}</td>
+                    )}
                     <td>
                       {r.isStuck ? (
                         <span className="badge badge-warning">⏳ STUCK</span>
@@ -296,7 +311,7 @@ export default function ReportsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
                     No Career Reports found matching your search criteria.
                   </td>
                 </tr>
