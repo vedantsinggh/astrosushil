@@ -30,10 +30,10 @@ export interface UploadedFile {
 
 /**
  * Image conversion seam. The website converted every uploaded image to WebP and watermarked
- * digital-product previews with `sharp`. No image library is installed in this workspace, so no
- * processor is registered by default: images are stored in the format they were uploaded in and a
- * watermark request is refused. Registering an implementation here is all that is needed once an
- * image library is approved.
+ * digital-product previews with `sharp`. The implementation is in `image-processor.ts` and is
+ * registered at API start-up (`registerImageProcessor()` in server.ts). While none is registered
+ * (unit tests, or a machine where the native library cannot be loaded) images are stored in the
+ * format they were uploaded in and a watermark request is refused with 501.
  */
 export interface ImageProcessor {
   toWebp(image: Buffer): Promise<Buffer>;

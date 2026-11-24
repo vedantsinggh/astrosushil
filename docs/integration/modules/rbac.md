@@ -14,6 +14,7 @@ Staff roles are now rows in the database and can be created and edited, as on th
 | Resolution | `rbac/rbac.resolver.ts` | Reads the acting user's staff profile and role from the database. |
 | Permission gate | `rbac/check-permission.ts` | `checkPermission('module:action')`, same call as before. Also accepts several keys (any one is enough). |
 | Roles, staff | `rbac/role.service.ts`, `rbac/staff.service.ts`, `rbac/rbac.routes.ts`, `rbac/rbac.schemas.ts` | The endpoints below. |
+| Granting rule | `rbac/grant-guard.ts` | A staff member can change only permissions they hold (see "Granting permissions"). |
 | Old column in step | `rbac/staff-link.ts` | Keeps `User.role` correct and links the previous Admin Staff endpoints to roles. |
 | Seed and backfill | `rbac/rbac.seed.ts`, called from `apps/api/prisma/seed.ts` | Creates the system roles and gives existing admins a staff profile. |
 
@@ -130,7 +131,54 @@ Changed responses: `POST /admin/auth/login` (`user`) and `GET /admin/auth/me` no
 | A non-super-admin cannot remove `roles:read` or `roles:update` from their own role | role update |
 | Only an active role can be assigned | staff create, role change |
 | Only catalogue keys can be stored | role create, update |
+| A non-super-admin can change only permissions they hold (next section) | role create, update, status change; staff create, role change, status change, password reset, delete |
 | `isSuperAdmin`, `isSystem`, `slug`, `legacyRole` cannot be sent | all bodies are strict |
+
+### Granting permissions
+
+Owner decision of 2026-11-24 (open-questions S1): a staff member may grant only permissions they
+hold themselves; super admins are unrestricted. The website has no such limit.
+
+The rule built is symmetric: **a staff member who is not a super admin cannot change, in either
+direction, a permission they do not hold.** "Hold" means the keys of the acting staff member's own
+role as read from the database for the request. A role is measured by its stored catalogue keys,
+active or not, because an inactive role grants them again once reactivated.
+
+| Action | Allowed for a non-super-admin when |
+|---|---|
+| Create a role (`POST /roles`) | every key in the request is held |
+| Edit a role's keys (`PUT /roles/:id`) | every key **added** and every key **removed** is held. Keys they do not hold must stay as they are, present or absent. Sending the unchanged list back is not a change |
+| Edit a role's name or description | always (no permission changes) |
+| Activate or deactivate a role (`PATCH /roles/:id/status`, or `status` in `PUT /roles/:id`) | every key of the role is held (the switch gives or takes all of them for every member) |
+| Delete a role (`DELETE /roles/:id`) | unchanged: only an unused, non-system role can be deleted, so nobody's permissions change |
+| Create a staff account (`POST /staff`) | every key of the chosen role is held |
+| Change a staff account's role (`PATCH /staff/:id/role`) | every key of the **new** role is held, and every key of the account's **current** role is held |
+| Suspend or reactivate (`PATCH /staff/:id/status`), remove (`DELETE /staff/:id`), reset the password (`POST /staff/:id/reset-password`) | every key of the account's current role is held |
+| Edit a staff profile (`PATCH /staff/:id`) | always (name, phone, designation and address carry no access) |
+
+Why the last-but-one row is part of the rule: a password reset lets the acting staff member sign in
+as the other account, so without it anyone with `staff:update` could use every permission of a more
+powerful role, which is exactly what the decision forbids. Suspending, reactivating and removing
+change what that account can do and follow the same symmetric rule. This row goes further than the
+wording of the decision; it is one function (`assertCanManageAccess` in `staff.service.ts`) if the
+owner wants only the password reset kept.
+
+A super admin passes every check. The earlier guards still apply first (the super admin role can be
+assigned and its accounts modified only by a super admin, and so on).
+
+Refusal: `403` in the standard shape, code `PERMISSION_GRANT_NOT_ALLOWED`. The message says which
+kind of action was refused and never names a permission key, because someone who may create staff
+is not necessarily allowed to read what a role contains. Nothing is written and no audit entry is
+made for a refused request.
+
+The previous `/admin/admin-users` endpoints are not affected: they stay super-admin-only in the service.
+
+Consequence for the admin panel: the role form should disable the checkboxes of keys the signed-in
+staff member does not hold, and the role picker of the staff form should offer only roles they may
+assign; today both would show an error on save instead. `GET /roles/options` still lists every
+active role (open question 8).
+
+Tests: `apps/api/tests/unit/rbac-granting.test.ts`.
 
 ### Audit log
 
@@ -232,6 +280,7 @@ Quirks seen in the website code:
 | Deleting a role leaves removed admins pointing at a missing role | Their role link is cleared | Foreign key. |
 | List paging is `page` and `limit`, response `{ data, meta }` | `page` and `pageSize`, response `{ items, pagination }` | This admin API's convention. |
 | No audit log | Every change is audited | Required here. |
+| Anyone with `roles.edit` can add any permission to any role except the super admin role; anyone with `staff.create` / `staff.edit` can put an account on any such role, and reset its password | A non-super-admin can change only permissions they hold (see "Granting permissions") | Owner decision of 2026-11-24. |
 | Role and staff ids are MongoDB ids | UUIDs; a staff id is the user id | |
 | `GET /roles` returns `permissionCount: "ALL"` for the super admin | A number, with `isSuperAdmin: true` | One type per field. |
 | Forgot password for admins (`/admin/forgot-password`, `/admin/reset-password`, OTP by email) | Not built here | The existing `/auth/forgot-password` and `/auth/reset-password` work for any user with an email, staff included. See open question 3. |
@@ -256,9 +305,10 @@ None.
 ## Open questions
 
 1. **Tier of custom roles.** A custom role sits on the `SUPPORT` tier outside the admin module. One visible effect: `GET /admin/payments` hides the Razorpay payment id from that tier even when the role has `payments:read`. Should that redaction become a permission instead?
-2. **Who may edit roles.** As on the website, anyone with `roles:update` can add any permission to any role except the super admin role, and anyone with `staff:create` can create an account on any role except super admin. Holding these keys is close to full access. The seed gives them to the super admin only. Should a non-super-admin be limited to granting permissions they hold themselves?
+2. **Who may edit roles.** Decided 2026-11-24 and built: a staff member can change only permissions they hold; super admins are unrestricted (see "Granting permissions"). Left to confirm: the rule also stops a non-super-admin from suspending, reactivating or removing an account on a role with more permissions than their own. Keep that, or limit it to the role change and the password reset?
 3. **Password reset.** Reproduced as on the website: the acting admin types the new password and must pass it to the staff member outside the system. It is never returned, logged or emailed. The alternative is to send the staff member a reset code by email. Also: the staff "forgot password" flow depends on `/auth/forgot-password` and `/auth/reset-password`, which the OTP-only customer login work may remove. They must stay for staff, or a staff-only pair is needed.
 4. **Merging the website's Admin role** with ours: keep the union of permissions?
 5. **An admin and a customer with the same email** on the website: one user with both, or a changed email for one of them?
 6. **Removed staff** keep their password hash and become an ordinary `USER`. Should the password be cleared on removal?
 7. **Login history.** The website keeps every login time on the admin document. Here logins are in the audit log (`ADMIN_LOGIN`) and only the last one is on the profile. Is the old history needed?
+8. **Role picker.** `GET /roles/options` returns every active role, including ones the caller may not assign. Should it return only assignable roles, or mark them, so the staff form does not offer a choice that will be refused?

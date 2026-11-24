@@ -10,6 +10,7 @@ import {
   findUnknownPermissionKeys,
   normalizePermissionKeys,
 } from './permission.catalog';
+import { assertCanChangePermissions, assertHoldsAll } from './grant-guard';
 import { invalidateStaffAccessCache } from './rbac.resolver';
 import type { CreateRoleInput, RolesQueryInput, UpdateRoleInput } from './rbac.schemas';
 import { isUniqueViolation, type RbacActor, type RequestMeta } from './rbac.types';
@@ -134,6 +135,8 @@ export class RoleService {
 
   public async createRole(input: CreateRoleInput, actor: RbacActor, meta?: RequestMeta) {
     assertCatalogueKeys(input.permissions);
+    // A new role may only carry keys the acting staff member holds (super admins: any key).
+    assertHoldsAll(actor, input.permissions, 'ROLE_PERMISSIONS');
     await assertNameFree(input.name);
 
     const slug = slugifyRoleName(input.name);
@@ -191,6 +194,8 @@ export class RoleService {
     if (input.permissions !== undefined) {
       assertCatalogueKeys(input.permissions);
       nextPermissions = normalizePermissionKeys(input.permissions);
+      // Keys the acting staff member does not hold must stay exactly as they are, present or absent.
+      assertCanChangePermissions(actor, role.permissions, nextPermissions);
       if (isOwnRole && !actor.isSuperAdmin) {
         const kept = new Set<string>(nextPermissions);
         if (OWN_ROLE_REQUIRED_PERMISSIONS.some((key) => !kept.has(key))) {
@@ -203,6 +208,8 @@ export class RoleService {
     if (statusChanged && isOwnRole && input.status !== 'ACTIVE') {
       throw new ValidationError('You cannot deactivate your own role');
     }
+    // Switching a role on or off gives or takes all of its keys for every member.
+    if (statusChanged) assertHoldsAll(actor, role.permissions, 'ROLE_STATUS');
 
     const data: Prisma.AdminRoleUpdateInput = {
       ...(renamed && input.name ? { name: input.name } : {}),
@@ -258,6 +265,7 @@ export class RoleService {
     if (actor.roleId === role.id && status !== 'ACTIVE') {
       throw new ValidationError('You cannot deactivate your own role');
     }
+    if (status !== role.status) assertHoldsAll(actor, role.permissions, 'ROLE_STATUS');
 
     const [updated] = await prisma.$transaction([
       prisma.adminRole.update({ where: { id }, data: { status } }),

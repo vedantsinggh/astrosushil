@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { registerSchema } from '../../auth/auth.schemas';
+import { resetPasswordSchema } from '../../auth/auth.schemas';
 
 /**
  * Request schemas for roles, permissions and staff. Every body schema is `.strict()`: a request
@@ -9,8 +9,8 @@ import { registerSchema } from '../../auth/auth.schemas';
 
 const uuid = z.string().uuid('Invalid id');
 
-/** The platform's existing password policy (the same rule as account registration). */
-export const staffPasswordSchema = registerSchema.shape.password;
+/** The platform's existing password policy (the same rule as the staff password reset by e-mailed code). */
+export const staffPasswordSchema = resetPasswordSchema.shape.newPassword;
 
 const trimmedOptional = (max: number) => z.string().trim().max(max).optional();
 

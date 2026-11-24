@@ -5,6 +5,7 @@ import { careerReportWorker, isInstantExecutionEnabled } from './services/report
 import { setProcessRole } from './services/process-identity';
 import { registerContactInquiryNotifier } from './modules/content/contact-inquiry.notifier';
 import { registerSiteSettingsSellerDetails } from './modules/invoices/site-settings-seller.provider';
+import { registerImageProcessor } from './modules/uploads/image-processor';
 
 setProcessRole('api');
 
@@ -16,6 +17,8 @@ const start = async () => {
   // INVOICE_SELLER_* environment values as the fallback (neither call throws).
   registerContactInquiryNotifier();
   await registerSiteSettingsSellerDetails();
+  // WebP conversion and product-preview watermarking of uploaded images (sharp); does not throw.
+  registerImageProcessor();
 
   try {
     await app.listen({ port: config.PORT, host: config.HOST });

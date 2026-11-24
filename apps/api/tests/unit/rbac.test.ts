@@ -545,7 +545,8 @@ describe('roleService', () => {
 
     const created = await roleService.createRole(
       { name: 'Blog Team', permissions: ['blogs:update', 'blogs:read', 'blogs:read'] },
-      MANAGER_ACTOR,
+      // A super admin: since 2026-11-24 anyone else may only put keys they hold on a role (rbac-granting.test.ts).
+      SUPER_ACTOR,
       META
     );
 
@@ -557,11 +558,11 @@ describe('roleService', () => {
       isSuperAdmin: false,
       isSystem: false,
       legacyRole: 'SUPPORT',
-      createdById: MANAGER_ACTOR.id,
+      createdById: SUPER_ACTOR.id,
     });
     expect(created.permissions).toEqual(['blogs:read', 'blogs:update']);
     expect(lastAudit()).toMatchObject({
-      adminId: MANAGER_ACTOR.id,
+      adminId: SUPER_ACTOR.id,
       action: 'ROLE_CREATED',
       resource: 'AdminRole:role-new',
       ipAddress: META.ipAddress,
@@ -808,7 +809,8 @@ describe('staffService', () => {
     mockPrisma.staffProfile.findFirst.mockResolvedValue(staffRecord());
     mockPrisma.adminRole.findUnique.mockResolvedValue(role());
 
-    await staffService.updateStaffRole('staff-2', 'role-custom', MANAGER_ACTOR, META);
+    // A super admin: the manager fixture holds neither the Admin role's keys nor the blog keys (rbac-granting.test.ts).
+    await staffService.updateStaffRole('staff-2', 'role-custom', SUPER_ACTOR, META);
 
     expect(mockPrisma.staffProfile.update).toHaveBeenCalledWith({
       where: { userId: 'staff-2' },

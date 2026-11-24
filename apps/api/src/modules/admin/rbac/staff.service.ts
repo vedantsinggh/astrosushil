@@ -3,6 +3,7 @@ import { AuthenticationError, AuthorizationError, NotFoundError, ValidationError
 import { prisma } from '../../../services/prisma.service';
 import { hashPassword, verifyPassword } from '../../../utils/hash';
 import { adminService } from '../admin.service';
+import { assertHoldsAll } from './grant-guard';
 import { invalidateStaffAccessCache } from './rbac.resolver';
 import type { CreateStaffInput, StaffQueryInput, UpdateStaffInput } from './rbac.schemas';
 import { isUniqueViolation, type RbacActor, type RequestMeta } from './rbac.types';
@@ -10,7 +11,7 @@ import { effectiveLegacyRole } from './staff-link';
 
 const STAFF_INCLUDE = {
   user: { select: { id: true, email: true, fullName: true } },
-  role: { select: { id: true, name: true, slug: true, isSuperAdmin: true, status: true, legacyRole: true } },
+  role: { select: { id: true, name: true, slug: true, isSuperAdmin: true, status: true, legacyRole: true, permissions: true } },
 } satisfies Prisma.StaffProfileInclude;
 
 type StaffRecord = Prisma.StaffProfileGetPayload<{ include: typeof STAFF_INCLUDE }>;
@@ -22,6 +23,7 @@ const ROLE_FOR_ASSIGNMENT = {
   isSuperAdmin: true,
   status: true,
   legacyRole: true,
+  permissions: true,
 } satisfies Prisma.AdminRoleSelect;
 
 /** What the API returns for a staff account. Never includes the password hash or any token. */
@@ -74,10 +76,22 @@ function assertCanTouchSuperAdmin(actor: RbacActor, target: StaffRecord): void {
   }
 }
 
-function assertCanAssignRole(actor: RbacActor, role: { isSuperAdmin: boolean }): void {
+function assertCanAssignRole(actor: RbacActor, role: { isSuperAdmin: boolean; permissions: readonly string[] }): void {
   if (role.isSuperAdmin && !actor.isSuperAdmin) {
     throw new AuthorizationError('Only a Super Admin can assign the Super Admin role');
   }
+  // A staff member can hand out a role only if they hold every permission in it (see grant-guard.ts).
+  assertHoldsAll(actor, role.permissions, 'ASSIGN_ROLE');
+}
+
+/**
+ * Changing the access of an existing account (its role, its status, its password, its removal) is
+ * refused when the account's current role holds a permission the acting staff member lacks.
+ * An account without a role holds nothing, so anyone with the route's permission may manage it.
+ */
+function assertCanManageAccess(actor: RbacActor, target: StaffRecord): void {
+  assertCanTouchSuperAdmin(actor, target);
+  assertHoldsAll(actor, target.role?.permissions ?? [], 'MANAGE_STAFF');
 }
 
 /**
@@ -254,7 +268,7 @@ export class StaffService {
     assertNotSelf(actor, userId, 'change the role of');
 
     const staff = await loadStaff(userId);
-    assertCanTouchSuperAdmin(actor, staff);
+    assertCanManageAccess(actor, staff);
 
     const role = await loadAssignableRole(roleId);
     assertCanAssignRole(actor, role);
@@ -295,7 +309,7 @@ export class StaffService {
     assertNotSelf(actor, userId, 'change the status of');
 
     const staff = await loadStaff(userId);
-    assertCanTouchSuperAdmin(actor, staff);
+    assertCanManageAccess(actor, staff);
     if (status === 'SUSPENDED') await assertNotLastSuperAdmin(staff);
 
     await prisma.$transaction([
@@ -328,7 +342,7 @@ export class StaffService {
    */
   public async resetStaffPassword(userId: string, newPassword: string, actor: RbacActor, meta?: RequestMeta) {
     const staff = await loadStaff(userId);
-    assertCanTouchSuperAdmin(actor, staff);
+    assertCanManageAccess(actor, staff);
 
     const passwordHash = await hashPassword(newPassword);
     await prisma.$transaction([
@@ -354,7 +368,7 @@ export class StaffService {
     assertNotSelf(actor, userId, 'delete');
 
     const staff = await loadStaff(userId);
-    assertCanTouchSuperAdmin(actor, staff);
+    assertCanManageAccess(actor, staff);
     await assertNotLastSuperAdmin(staff);
 
     await prisma.$transaction([

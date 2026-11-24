@@ -18,6 +18,7 @@ Website code this replaces: `src/service/UploadAws.js`, `src/service/s3.js`,
 | `apps/api/src/services/storage/upload-policy.ts` | Purposes, allowed types, size caps, content sniffing, key generation and key classification. |
 | `apps/api/src/services/storage/storage-refs.ts` | **Helpers for other modules**: `validateUploadedRef`, `deleteUploadedObject`, `getUploadedFileSignedUrl`, `resolveManagedKey`. |
 | `apps/api/src/modules/uploads/` | Route, schema and `uploadsService.storeUpload`. |
+| `apps/api/src/modules/uploads/image-processor.ts` | WebP conversion and the product-preview watermark, with `sharp`. Registered at API start-up (`registerImageProcessor()` in `apps/api/src/server.ts`). See §8a. |
 
 No Prisma model was added: an upload is only an object in the bucket until a module stores its
 `{ url, key }` on one of its own records.
@@ -46,16 +47,17 @@ Response `201`:
 
 ```json
 {
-  "url": "https://<bucket>.s3.<region>.amazonaws.com/assets/banner/2026/11/3f6c…e1.png",
-  "key": "assets/banner/2026/11/3f6c…e1.png",
-  "contentType": "image/png",
+  "url": "https://<bucket>.s3.<region>.amazonaws.com/assets/banner/2026/11/3f6c…e1.webp",
+  "key": "assets/banner/2026/11/3f6c…e1.webp",
+  "contentType": "image/webp",
   "size": 48213,
   "visibility": "public",
   "purpose": "banner"
 }
 ```
 
-For a private purpose `url` is `null`.
+For a private purpose `url` is `null`. A public image is always stored as WebP, whatever was
+uploaded, so `contentType`, the key's extension and `size` describe the converted file.
 
 Errors (standard shape `{ "error": { "code", "message", "requestId" } }`):
 
@@ -65,8 +67,9 @@ Errors (standard shape `{ "error": { "code", "message", "requestId" } }`):
 | 401 | `AUTHENTICATION_ERROR` | no or invalid token |
 | 403 | `AUTHORIZATION_ERROR` | not an admin, or the role lacks `uploads:create` |
 | 413 | `FILE_TOO_LARGE` | larger than the cap of the purpose |
-| 415 | `UNSUPPORTED_FILE_TYPE` | the file's bytes are not one of the types allowed for the purpose |
-| 501 | `IMAGE_PROCESSING_UNAVAILABLE` | `watermark=true` while no image processor is installed (§8) |
+| 413 | `IMAGE_DIMENSIONS_TOO_LARGE` | a public image of more than 50 megapixels, or more than 16383 pixels wide or high (§8a) |
+| 415 | `UNSUPPORTED_FILE_TYPE` | the file's bytes are not one of the types allowed for the purpose, or a public image that cannot be decoded (truncated, or only an image signature in front of other content) |
+| 501 | `IMAGE_PROCESSING_UNAVAILABLE` | `watermark=true` on a server where the image library could not be loaded, or where the watermark text drew nothing because no font is installed (§8a). Not expected in a normal deployment. |
 
 ### Purposes
 
@@ -225,17 +228,43 @@ never switch storage.
 | 50 MB for everything | 10 MB images, 50 MB video and sold files | strict limits were asked for; the image cap is a judgement (§10) |
 | Each module's route takes multipart | one upload endpoint, modules take `{ url, key }` | one place for limits, checks and audit |
 | No audit of uploads | `UPLOAD_FILE` audit entry | admin directive |
-| Images converted to WebP (quality 80) with `sharp` | **not done**: images are stored in the format uploaded | `sharp` is not installed in this workspace and adding it was not authorised |
-| Digital-product preview images and thumbnail get a rotated "Astro Sushil" text watermark (`sharp`), the sold file never | **not done**: `watermark=true` is accepted only for `purpose=product` and answers `501 IMAGE_PROCESSING_UNAVAILABLE` | same reason; failing loudly is safer than silently publishing an unwatermarked preview |
+| Images converted to WebP (quality 80) with `sharp` | Same, for every public image purpose. Files of a private purpose (the sold file) are stored byte for byte | Owner approved `sharp` on 2026-11-24 |
+| An animated GIF becomes a still WebP of its first frame (`sharp(buffer)` without `animated: true`) | Same | Website behaviour kept as it is |
+| The EXIF orientation tag is dropped without turning the pixels, so a phone photo can come out sideways | The orientation is applied to the pixels, then all metadata is dropped | The website's result is a bug |
+| Metadata is dropped as a side effect of `sharp` defaults | Same, and tested: no EXIF (GPS position, camera, date), XMP, IPTC or ICC profile in the stored file | Photos must carry no location data |
+| No limit on pixel dimensions beyond the library default (268 megapixels) | 50 megapixels and 16383 pixels per side, checked from the file header before decoding | Decompression bombs: a file of a few kilobytes can claim gigabytes of pixels |
+| Digital-product preview images and thumbnail get a rotated "Astro Sushil" text watermark (`sharp`), the sold file never | Same watermark when the upload is sent with `watermark=true` (accepted only for `purpose=product`); the sold file (`purpose=digital-product`) can never be watermarked or converted | The website decides from the product type inside the product controller; here the upload is a separate request, so the admin panel sends the flag |
+| An image with no usable font on the server is uploaded with an invisible watermark | Refused with `501` | Failing loudly is safer than silently publishing an unwatermarked preview |
 | Video accepted on any upload field | only `purpose=media-video` | the website only uses it for celebrity media |
 
-WebP conversion and watermarking are wired but empty: `uploadsService.setImageProcessor({ toWebp, watermark })`
-(`uploads.service.ts`). With a processor registered, public images are converted to WebP and a
-`watermark=true` product image is watermarked first; private files are never touched. The website's
-watermark, for whoever implements it: white bold text "Astro Sushil", font size `width / 12`,
-centred, rotated −30°, composited over the image, output JPEG quality 90 (then WebP by the upload).
+## 8a. Image processing
+
+`uploadsService.setImageProcessor({ toWebp, watermark })` (`uploads.service.ts`) is the seam;
+`image-processor.ts` is the implementation and `registerImageProcessor()` installs it when the API
+starts. The worker process does not handle uploads and does not register it.
+
+Order for a public image: content type decided from the bytes (§3) → watermark if asked →
+WebP → stored. Nothing else is processed: a private file, a video and any non-image go to storage
+unchanged.
+
+| Step | What happens |
+| :--- | :--- |
+| Accepted input | Only JPEG, PNG, WebP and GIF are decoded. The processor checks the format the library reports as well, so SVG, TIFF, HEIF or PDF are refused even if they reached it. SVG is already refused in §3. |
+| Dimension limit | `MAX_IMAGE_PIXELS` = 50,000,000 (a 50 MP phone photo is 8160 × 6120) and `MAX_IMAGE_SIDE` = 16383 (the most the WebP format can store). Read from the header; a larger image is refused with `413 IMAGE_DIMENSIONS_TOO_LARGE`, not scaled down. The library's own pixel limit is set to the same number as a second barrier. |
+| Orientation | The EXIF orientation is applied to the pixels. |
+| Metadata | None is written: EXIF, XMP, IPTC and ICC are all dropped. |
+| WebP | Quality 80, as on the website. Only the first frame of an animated GIF or animated WebP is kept, as on the website. |
+| Watermark | The website's SVG overlay: the text `Astro Sushil` (`WATERMARK_TEXT`), white (`rgb(255, 255, 255)`), bold, font size `floor(width / 12)` pixels, anchored at the centre, rotated −30° around the centre (it rises from lower left to upper right), composited over the full image and encoded as JPEG quality 90, then converted to WebP by the step above. As on the website, JPEG has no transparency, so a transparent preview is flattened onto black. |
+| Watermark font | The website's SVG names no font family, and neither does this one: the text is drawn in the server's default font (fontconfig). The typeface therefore depends on the fonts installed, exactly as on the website. If the text draws no pixel at all (no font installed), the upload is refused with `501`. |
+| Library missing | If `sharp`'s native library cannot be loaded at start-up, the API still starts, logs an error, stores images unconverted and answers `501` to `watermark=true`. |
+
 In the two-step flow the admin panel must send `watermark=true` when it uploads a preview image or
-thumbnail of a **digital** product; the website decided this server-side from the product type.
+thumbnail of a **digital** product; the website decided this server-side from the product type
+(`isDigital` in `product.controller.js`, on create and on update, for `images[]` and `thumbnail`).
+Nothing on the server can check that the flag was sent, because the upload does not know which
+product it is for (§10, question 9).
+
+Tests: `apps/api/tests/unit/uploads-image.test.ts` (generated images, real `sharp`, local disk).
 
 ## 9. Dependency added
 
@@ -243,11 +272,14 @@ thumbnail of a **digital** product; the website decided this server-side from th
 `apps/api/package.json` (the root `package-lock.json` changed with it). Registered in
 `apps/api/src/app.ts` with `files: 1` and a 50 MB ceiling. No AWS SDK was added.
 
+`sharp` `^0.35.5` (Apache-2.0), approved by the owner on 2026-11-24, in `apps/api/package.json`.
+It installs a prebuilt `libvips` for the platform as optional `@img/*` packages (LGPL-3.0-or-later,
+dynamically linked), so no compiler or system library is needed; it needs Node 20.9 or later. The
+lock file lists the binaries for every platform, including Alpine (musl) for the Docker image.
+
 ## 10. Open questions and things not done
 
-1. **Image library.** Approve `sharp` (Apache-2.0; bundles prebuilt libvips, LGPL-3.0, dynamically
-   linked) or another library, or accept that images are stored unconverted and previews are not
-   watermarked.
+1. **Image library.** Decided 2026-11-24: `sharp` approved and built (§8a).
 2. **Image size cap.** 10 MB per image is a judgement; the website allowed 50 MB.
 3. **Bucket settings.** Does the bucket still allow ACLs (the website relies on `public-read`)? If
    ACLs are disabled, set `AWS_S3_PUBLIC_ACL=none` and add a bucket policy for `assets/*`. New
@@ -262,3 +294,12 @@ thumbnail of a **digital** product; the website decided this server-side from th
    types in development that route (owned by the reports module) should use `storageService.getMetadata`.
 8. **Both stores at once.** One process talks to one store. If report PDFs already exist in R2 on
    some deployment, switching to S3 needs those objects copied; no such production data exists today.
+9. **Who sends `watermark=true`.** The admin product form must send it for the preview images and
+   thumbnail of a digital product. If it forgets, the preview is published without a watermark and
+   the server cannot tell. The products module could close this by refusing to attach, to a digital
+   product, an image that was not uploaded with the flag (the upload would have to record it, for
+   example in the object key). Not built.
+10. **Watermark typeface.** It is the server's default font, as on the website. If the look must be
+    identical on every machine, a font file has to be chosen and shipped; the website's code names none.
+11. **Oversized photos are refused, not scaled down.** An admin who uploads a photo above 50
+    megapixels gets an error and must resize it. Scaling down on the server is possible if preferred.

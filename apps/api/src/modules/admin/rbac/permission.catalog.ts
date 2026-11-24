@@ -90,7 +90,7 @@ const MODULES = [
   },
   { module: 'bookings', moduleLabel: 'Bookings', group: 'Sales', actions: crud('Bookings') },
   { module: 'coupons', moduleLabel: 'Coupons', group: 'Sales', actions: crud('Coupons') },
-  { module: 'payments', moduleLabel: 'Payments', group: 'Sales', actions: { read: 'View Payments' } },
+  { module: 'payments', moduleLabel: 'Payments', group: 'Sales', actions: { read: 'View Payments', refund: 'Refund Payments' } },
   { module: 'subscriptions', moduleLabel: 'Subscriptions', group: 'Sales', actions: { read: 'View Subscriptions' } },
   { module: 'plans', moduleLabel: 'Plans', group: 'Sales', actions: { read: 'View Plans' } },
 
