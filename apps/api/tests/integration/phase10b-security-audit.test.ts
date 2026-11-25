@@ -759,13 +759,13 @@ describe('Phase 10B: Payment, Fulfillment and Customer Access Security Audit', (
       expect(resp.statusCode).toBe(404);
     });
 
-    it('should reject unauthenticated access to download-secure with 401 Unauthorized', async () => {
+    it('should reject an invalid signed download URL without requiring a bearer token', async () => {
       const resp = await app.inject({
         method: 'GET',
         url: `/api/v1/reports/download-secure?key=reports/test.pdf&expires=${Date.now() + 60000}&token=forged_token`,
       });
 
-      expect(resp.statusCode).toBe(401);
+      expect(resp.statusCode).toBe(403);
     });
 
     it('should reject tampered download-secure signature with 403 Forbidden when authenticated', async () => {

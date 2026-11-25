@@ -3,23 +3,54 @@ import cors from '@fastify/cors';
 import fp from 'fastify-plugin';
 
 export const registerCors = fp(async function registerCors(app: FastifyInstance) {
+  const allowedOrigins = new Set(
+    (process.env.CORS_ORIGIN || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        try {
+          return new URL(item).origin;
+        } catch {
+          return item;
+        }
+      })
+  );
+
   await app.register(cors, {
     origin: (origin, cb) => {
-      // Allow non-browser clients (like curl, postman, mobile) or any localhost/127.0.0.1/trycloudflare origin in dev
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+
+      let normalizedOrigin = origin;
+      let hostname = '';
+      try {
+        const parsed = new URL(origin);
+        normalizedOrigin = parsed.origin;
+        hostname = parsed.hostname;
+      } catch {
+        cb(null, false);
+        return;
+      }
+
+      // Allow localhost / 127.0.0.1 / local tunnels only in non-production environments
       if (
-        !origin ||
-        process.env.NODE_ENV !== 'production' ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
-        origin.includes('trycloudflare.com')
+        process.env.NODE_ENV !== 'production' &&
+        (hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          hostname.endsWith('.trycloudflare.com'))
       ) {
         cb(null, true);
         return;
       }
-      if (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(',').some((allowed) => origin.includes(allowed.trim()))) {
+
+      if (allowedOrigins.has(normalizedOrigin)) {
         cb(null, true);
         return;
       }
+
       cb(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

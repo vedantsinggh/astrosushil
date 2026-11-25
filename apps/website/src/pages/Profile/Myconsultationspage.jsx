@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Phone,
@@ -102,11 +103,13 @@ function normaliseBooking(b) {
 
   // slot: "11:20-11:50" → show start time
   const scheduledTime = b.slot ? b.slot.split("-")[0] : "—";
+  const id = b.id ?? b._id;
 
   return {
-    id: b._id,
-    bookingId: `#${b._id.slice(-8).toUpperCase()}`,
-    name: b.consultationId?.title || "Consultation",
+    id,
+    orderId: b.orderId ?? null,
+    bookingId: `#${String(id || "").slice(-8).toUpperCase()}`,
+    name: b.consultationId?.title || b.title || "Consultation",
     astrologer: {
       name: "Astro Sushil",
       avatar: null,
@@ -116,22 +119,34 @@ function normaliseBooking(b) {
     bookedOn: b.createdAt,
     scheduledDate,
     scheduledTime,
-    duration: b.duration,
-    status: b.status === "booked" ? "upcoming" : b.status,
-    amount: b.amount || b.price?.inr || 0,
+    duration: b.duration ?? b.durationMinutes,
+    status: b.status === "booked" || b.status === "confirmed" ? "upcoming" : String(b.status || "").toLowerCase(),
+    amount: b.amount || b.price?.inr || (b.amountPaise != null ? b.amountPaise / 100 : 0),
   };
 }
 
 function ConsultationCard({ item, index }) {
   const st = STATUS[item.status] || STATUS.pending;
-  const { downloadBookingInvoice } = useConsultationStore();
+  const navigate = useNavigate();
+  const { downloadBookingInvoice, cancelBooking } = useConsultationStore();
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const handleInvoice = async () => {
     setInvoiceLoading(true);
-    await downloadBookingInvoice(item.id);
+    await downloadBookingInvoice(item.id, item.orderId);
     setInvoiceLoading(false);
   };
+
+  const handleCancel = async () => {
+    setCancelLoading(true);
+    await cancelBooking(item.id);
+    setCancelLoading(false);
+    setConfirmCancel(false);
+  };
+
+  const canCancel = item.status === "upcoming" || item.status === "pending";
 
   return (
     <motion.div
@@ -211,7 +226,7 @@ function ConsultationCard({ item, index }) {
             ₹{item.amount.toLocaleString("en-IN")}
           </p>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-center">
             <motion.button
               whileTap={{ scale: 0.96 }}
               type="button"
@@ -228,14 +243,59 @@ function ConsultationCard({ item, index }) {
             <motion.button
               whileTap={{ scale: 0.96 }}
               type="button"
+              onClick={() => navigate("/online-consultations/")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gold text-white font-body text-[11px] font-medium hover:bg-gold cursor-pointer transition-colors duration-700 disabled:opacity-60"
             >
               {/* <RotateCcw size={11} />  */}
               Book Again
             </motion.button>
+
+            {canCancel && (
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                type="button"
+                onClick={() => setConfirmCancel(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-400/70 text-red-200 font-body text-[11px] font-medium hover:bg-red-500/80 hover:text-white cursor-pointer transition-colors duration-300"
+              >
+                Cancel
+              </motion.button>
+            )}
           </div>
         </div>
       </div>
+
+      {confirmCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <h3 className="font-heading font-bold text-primary text-base">
+              Cancel Consultation?
+            </h3>
+            <p className="text-xs font-body text-black/60 leading-relaxed">
+              Are you sure you want to cancel{" "}
+              <span className="font-semibold text-primary">{item.name}</span>{" "}
+              ({item.bookingId})? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={cancelLoading}
+                onClick={() => setConfirmCancel(false)}
+                className="px-4 py-2 rounded-xl border border-black/15 text-xs font-body font-medium text-black/60 hover:text-primary"
+              >
+                Keep Booking
+              </button>
+              <button
+                type="button"
+                disabled={cancelLoading}
+                onClick={handleCancel}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-body font-semibold hover:bg-red-700 disabled:opacity-60"
+              >
+                {cancelLoading ? "Cancelling..." : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -287,7 +347,6 @@ export default function MyConsultationsPage() {
   );
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("All");
-  const loading = false;
 
   const filtered = useMemo(() => {
     let list = consultations;
@@ -349,7 +408,7 @@ export default function MyConsultationsPage() {
           })}
         </motion.div>
 
-        {loading ? (
+        {myBookingsLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
               <SkeletonCard key={i} />

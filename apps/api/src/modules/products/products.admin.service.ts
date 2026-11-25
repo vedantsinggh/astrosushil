@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Prisma, ProductType, ShopDiscountType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
+import { sanitizeRichText } from '../content/content.sanitizer';
 import { NotFoundError, ValidationError } from '../../errors/app-error';
 import { AdminActor, audit, pageParams, slugify, uniqueSlug } from './shop-http';
 import { deriveSellingPrice } from './shop-pricing';
@@ -273,7 +274,7 @@ export class ProductsAdminService {
         title: input.name,
         hindiTitle: input.hindiTitle ?? null,
         shortDescription: input.shortDescription ?? null,
-        description: input.description ?? null,
+        description: input.description ? sanitizeRichText(input.description) : null,
         hindiDescription: input.hindiDescription ?? null,
         category: category?.slug ?? type.toUpperCase(),
         categoryId: input.categoryId ?? null,
@@ -409,7 +410,9 @@ export class ProductsAdminService {
     if (input.name !== undefined) data.title = input.name;
     if (input.hindiTitle !== undefined) data.hindiTitle = input.hindiTitle;
     if (input.shortDescription !== undefined) data.shortDescription = input.shortDescription;
-    if (input.description !== undefined) data.description = input.description;
+    if (input.description !== undefined) {
+      data.description = input.description ? sanitizeRichText(input.description) : null;
+    }
     if (input.hindiDescription !== undefined) data.hindiDescription = input.hindiDescription;
     if (input.type !== undefined) {
       data.productType = productTypeFor(type);

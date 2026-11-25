@@ -756,7 +756,7 @@ export default function Bookappointment() {
   const handleConfirmAndPay = async () => {
     if (!token) {
       toast.error("Please login to book a consultation");
-      navigate("/login");
+      navigate("/register");
       return;
     }
 
@@ -765,7 +765,7 @@ export default function Bookappointment() {
       mode: activeMode.mode,
       date: toBackendDate(selectedDate),
       slot: toBackendSlot(selectedSlot),
-      userId: user?._id,
+      userId: user?.id ?? user?._id,
       name: form.name,
       phone: form.phone,
       dob: form.dob,
@@ -778,17 +778,17 @@ export default function Bookappointment() {
     if (!bookingRes?.success) return;
 
     const data = bookingRes.data || {};
-    const bookingId = data.booking?._id;
+    const bookingId = data.booking?.id ?? data.booking?._id;
     const { key, orderId, amount, currency } = data.razorpayConfig || {};
 
     if (!key || !orderId) {
-      alert("Payment config error: missing key or orderId from server.");
+      toast.error("Payment config error: missing key or orderId from server.");
       return;
     }
 
     const razorpayLoaded = await loadRazorpay();
     if (!razorpayLoaded) {
-      alert("Failed to load payment gateway.");
+      toast.error("Failed to load payment gateway.");
       return;
     }
 
@@ -808,10 +808,10 @@ export default function Bookappointment() {
       handler: async (response) => {
         const verifyRes = await verifyConsultationPayment(
           {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
             bookingId,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
           },
           token,
         );
@@ -830,7 +830,7 @@ export default function Bookappointment() {
 
     const rzp = new window.Razorpay(options);
     rzp.on("payment.failed", (r) =>
-      alert(`Payment failed: ${r.error?.description || "Please try again."}`),
+      toast.error(`Payment failed: ${r.error?.description || "Please try again."}`),
     );
     rzp.open();
   };

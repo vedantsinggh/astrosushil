@@ -13,6 +13,7 @@ import { KundliChartSvg } from '../../../components/KundliChartSvg';
 import { SafeMarkdownRenderer } from '../../../components/SafeMarkdownRenderer';
 import { KeyboardShortcutsModal } from '../../../components/KeyboardShortcutsModal';
 import { LiveSessionSearchModal } from '../../../components/LiveSessionSearchModal';
+import { ConfirmDialog, ErrorBanner } from '../../../components/sales/ui';
 
 // -----------------------------------------------------------------------
 // Helper functions & constants
@@ -1148,6 +1149,8 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
   const [editSubject, setEditSubject] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const isReadOnly = session?.status !== 'ACTIVE';
 
@@ -1191,12 +1194,17 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
     }
   };
 
-  const handleDelete = async (noteId: string) => {
-    if (!confirm('Delete this note?')) return;
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    setDeleting(true);
     try {
-      await deleteNote(noteId);
+      await deleteNote(deleteTargetId);
+      setDeleteTargetId(null);
     } catch (err: any) {
       setError(err?.message || 'Failed to delete note');
+      setDeleteTargetId(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1336,7 +1344,7 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
                   {!isReadOnly && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexShrink: 0 }}>
                       <button onClick={() => startEdit(note)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }} title="Edit">✏️</button>
-                      <button onClick={() => handleDelete(note.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--badge-danger-text)', fontSize: '0.8rem' }} title="Delete">🗑</button>
+                      <button onClick={() => setDeleteTargetId(note.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--badge-danger-text)', fontSize: '0.8rem' }} title="Delete">🗑</button>
                     </div>
                   )}
                 </div>
@@ -1344,6 +1352,19 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
             </div>
           ))}
         </div>
+      )}
+
+      {deleteTargetId && (
+        <ConfirmDialog
+          title="Delete note?"
+          confirmLabel="Delete"
+          danger
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTargetId(null)}
+        >
+          Are you sure you want to delete this consultation note?
+        </ConfirmDialog>
       )}
     </div>
   );
@@ -1530,17 +1551,21 @@ function ReportsPanel({ birthProfileId }: { birthProfileId: string }) {
   const { reports, refresh } = useLiveSession();
   const { hasPermission } = useAuth();
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [regenerateTargetId, setRegenerateTargetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleRegenerate = async (reportId: string) => {
-    if (!confirm('Regenerate this report? This will queue a fresh compilation job.')) return;
+  const confirmRegenerate = async () => {
+    if (!regenerateTargetId) return;
+    const reportId = regenerateTargetId;
     setRegenerating(reportId);
     setError(null);
     try {
       await apiFetch(`/api/v1/admin/reports/${reportId}/regenerate`, { method: 'POST' });
+      setRegenerateTargetId(null);
       await refresh();
     } catch (err: any) {
       setError(err?.message || 'Failed to regenerate report');
+      setRegenerateTargetId(null);
     } finally {
       setRegenerating(null);
     }
@@ -1619,7 +1644,7 @@ function ReportsPanel({ birthProfileId }: { birthProfileId: string }) {
                       </Link>
                       {hasPermission('reports:regenerate') && r.status === 'COMPLETED' && (
                         <button
-                          onClick={() => handleRegenerate(r.id)}
+                          onClick={() => setRegenerateTargetId(r.id)}
                           className="btn btn-secondary"
                           style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
                           disabled={regenerating === r.id}
@@ -1634,6 +1659,18 @@ function ReportsPanel({ birthProfileId }: { birthProfileId: string }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {regenerateTargetId && (
+        <ConfirmDialog
+          title="Regenerate report?"
+          confirmLabel="Regenerate"
+          busy={regenerating !== null}
+          onConfirm={confirmRegenerate}
+          onCancel={() => setRegenerateTargetId(null)}
+        >
+          Regenerate this report? This will queue a fresh compilation job.
+        </ConfirmDialog>
       )}
     </div>
   );
@@ -1854,10 +1891,16 @@ function EndSessionModal({
   onConfirm,
   onCancel,
   summary,
+  hasUnsavedChanges,
+  error,
+  busy,
 }: {
   onConfirm: () => void;
   onCancel: () => void;
   summary: { notesCount: number; observationsCount: number; duration: string };
+  hasUnsavedChanges?: boolean;
+  error?: string | null;
+  busy?: boolean;
 }) {
   return (
     <div style={{
@@ -1866,6 +1909,12 @@ function EndSessionModal({
     }}>
       <div className="card" style={{ maxWidth: '440px', width: '90%', padding: '1.75rem' }}>
         <h3 style={{ marginTop: 0, fontSize: '1.1rem', fontWeight: 700 }}>End Consultation?</h3>
+        <ErrorBanner message={error} />
+        {hasUnsavedChanges && (
+          <div style={{ padding: '0.65rem 0.85rem', borderRadius: '6px', background: 'var(--badge-warning-bg)', color: 'var(--badge-warning-text)', fontSize: '0.82rem', marginBottom: '1rem' }}>
+            You have unsaved changes in notes. Ending now will leave them unsaved.
+          </div>
+        )}
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
           This will permanently conclude the live consultation. All notes, observations, and chart insights will be preserved for history and reporting.
         </p>
@@ -1884,12 +1933,13 @@ function EndSessionModal({
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={onCancel} disabled={busy} className="btn btn-secondary">Cancel</button>
           <button
             onClick={onConfirm}
-            style={{ background: '#7F1D1D', border: '1px solid #991B1B', color: '#FCA5A5', borderRadius: '4px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+            disabled={busy}
+            style={{ background: '#7F1D1D', border: '1px solid #991B1B', color: '#FCA5A5', borderRadius: '4px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}
           >
-            🔒 Conclude Consultation
+            {busy ? 'Ending...' : '🔒 Conclude Consultation'}
           </button>
         </div>
       </div>
@@ -1923,13 +1973,17 @@ export function ConsultationWorkspace() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [clientPanelOpen, setClientPanelOpen] = useState(true);
   const [showEndModal, setShowEndModal] = useState(false);
+  const [endingSession, setEndingSession] = useState(false);
+  const [endSessionError, setEndSessionError] = useState<string | null>(null);
+  const [pendingNavSection, setPendingNavSection] = useState<string | null>(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   const navigate = useCallback(
     (section: string) => {
       if (hasUnsavedChanges && section !== activeSection && activeSection === 'notes') {
-        if (!confirm('You have unsaved changes in notes. Leave without saving?')) return;
+        setPendingNavSection(section);
+        return;
       }
       setActiveSection(section);
       recordSectionVisit(section, SECTION_LABELS[section] || section);
@@ -2001,18 +2055,20 @@ export function ConsultationWorkspace() {
   }, [hasUnsavedChanges]);
 
   const handleEndSessionClick = () => {
-    if (hasUnsavedChanges) {
-      if (!confirm('You have unsaved changes. End consultation anyway?')) return;
-    }
+    setEndSessionError(null);
     setShowEndModal(true);
   };
 
   const handleConfirmEnd = async () => {
+    setEndingSession(true);
+    setEndSessionError(null);
     try {
       await endSession();
       setShowEndModal(false);
     } catch (err: any) {
-      alert(err?.message || 'Failed to end session');
+      setEndSessionError(err?.message || 'Failed to end session');
+    } finally {
+      setEndingSession(false);
     }
   };
 
@@ -2155,12 +2211,32 @@ export function ConsultationWorkspace() {
         <EndSessionModal
           onConfirm={handleConfirmEnd}
           onCancel={() => setShowEndModal(false)}
+          hasUnsavedChanges={hasUnsavedChanges}
+          error={endSessionError}
+          busy={endingSession}
           summary={{
             notesCount: notes.length,
             observationsCount: observations.length,
             duration: formatDuration(elapsedSeconds),
           }}
         />
+      )}
+
+      {pendingNavSection && (
+        <ConfirmDialog
+          title="Unsaved note changes"
+          confirmLabel="Leave without saving"
+          danger
+          onConfirm={() => {
+            const target = pendingNavSection;
+            setPendingNavSection(null);
+            setActiveSection(target);
+            recordSectionVisit(target, SECTION_LABELS[target] || target);
+          }}
+          onCancel={() => setPendingNavSection(null)}
+        >
+          You have unsaved changes in notes. Leave without saving?
+        </ConfirmDialog>
       )}
 
       {/* Live Session Quick Search Palette (Cmd+K) */}

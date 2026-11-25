@@ -45,6 +45,8 @@ Each item says what is built today, so nothing is blocked while it is open. Full
 
 The items below are still open unless listed above.
 
+> The lower tables preserve the original questions and the behavior observed at the time of the first audit. Where they conflict with the dated decision tables above, the owner decisions above are authoritative. In particular, use the 2026-11-24 and 2026-11-25 decision rows for R1, S1–S4, M1–M10, B1–B3, C1–C5, and A1–A2.
+
 ## Money
 
 | # | Question | Built today |

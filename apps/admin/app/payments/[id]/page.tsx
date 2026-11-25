@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { apiFetch } from '../../../lib/api-client';
+import { useAuth } from '../../../lib/auth-context';
+import { errorMessage, refundOrder } from '../../../lib/api/sales';
 import { StatusBadge } from '../../../components/StatusBadge';
+import { ConfirmDialog, dangerButton, Field, SuccessBanner } from '../../../components/sales/ui';
 
 interface PaymentDetailsResponse {
   payment: {
@@ -36,10 +39,19 @@ interface PaymentDetailsResponse {
 export default function PaymentDetailsPage() {
   const params = useParams();
   const paymentId = params.id as string;
+  const { hasPermission } = useAuth();
+  const canRefund = hasPermission('payments:refund');
 
   const [data, setData] = useState<PaymentDetailsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [partialAmountInr, setPartialAmountInr] = useState('');
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   const fetchDetails = async () => {
     setIsLoading(true);
@@ -81,6 +93,40 @@ export default function PaymentDetailsPage() {
   }
 
   const { payment, webhookDiagnostics } = data;
+  const normalizedStatus = payment.status.toUpperCase();
+  const isRefundable = normalizedStatus !== 'REFUNDED' && normalizedStatus !== 'FAILED' && normalizedStatus !== 'PENDING';
+
+  const handleRefund = async () => {
+    if (refundReason.trim().length < 3) {
+      setRefundError('A refund reason (minimum 3 characters) is required.');
+      return;
+    }
+    let amountPaise: number | undefined;
+    if (partialAmountInr.trim()) {
+      const parsed = Number(partialAmountInr.trim());
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setRefundError('Partial refund amount must be a positive number.');
+        return;
+      }
+      amountPaise = Math.round(parsed * 100);
+    }
+
+    setRefundBusy(true);
+    setRefundError(null);
+    try {
+      const result = await refundOrder(payment.id, {
+        reason: refundReason.trim(),
+        ...(amountPaise ? { amountPaise } : {}),
+      });
+      setRefundOpen(false);
+      setNotice(`Refund ${result.refund.id} issued (${result.refund.status}). Order status is now ${result.order.status}.`);
+      await fetchDetails();
+    } catch (err) {
+      setRefundError(errorMessage(err));
+    } finally {
+      setRefundBusy(false);
+    }
+  };
 
   return (
     <div>
@@ -109,11 +155,28 @@ export default function PaymentDetailsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {canRefund && isRefundable && (
+            <button
+              type="button"
+              className="btn"
+              style={{ ...dangerButton, fontSize: '0.85rem' }}
+              onClick={() => {
+                setRefundReason('');
+                setPartialAmountInr('');
+                setRefundError(null);
+                setRefundOpen(true);
+              }}
+            >
+              Issue Refund
+            </button>
+          )}
           <Link href={`/users/${payment.user.id}`} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
             👤 View User
           </Link>
         </div>
       </div>
+
+      <SuccessBanner message={notice} onClose={() => setNotice(null)} />
 
       {/* OVERVIEW CARD */}
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
@@ -166,6 +229,44 @@ export default function PaymentDetailsPage() {
           </div>
         </div>
       </div>
+
+      {refundOpen && (
+        <ConfirmDialog
+          title="Issue Staff Refund"
+          confirmLabel="Issue Refund"
+          danger
+          busy={refundBusy}
+          error={refundError}
+          onConfirm={handleRefund}
+          onCancel={() => setRefundOpen(false)}
+        >
+          <p style={{ marginBottom: '0.75rem' }}>
+            Issue a refund for order <code>{payment.razorpayOrderId}</code> (paid ₹{payment.amount.toFixed(2)} INR).
+          </p>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <Field label="Reason (required, min 3 chars)">
+              <input
+                type="text"
+                className="input-control"
+                placeholder="e.g. Customer requested cancellation"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+              />
+            </Field>
+            <Field label="Partial amount in INR (optional)" hint="Leave blank to refund the full refundable balance.">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input-control"
+                placeholder={`Max ${payment.amount.toFixed(2)}`}
+                value={partialAmountInr}
+                onChange={(e) => setPartialAmountInr(e.target.value)}
+              />
+            </Field>
+          </div>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

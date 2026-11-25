@@ -125,9 +125,11 @@ class NativeRazorpayCheckoutService implements IRazorpayCheckoutService {
     _isCheckoutActive = true;
     _hasHandledCallback = false;
 
-    final key = order.razorpayKey.isNotEmpty
-        ? order.razorpayKey
-        : 'rzp_test_TzKn7xm9pztKyo';
+    final key = order.razorpayKey;
+    if (key.isEmpty) {
+      _isCheckoutActive = false;
+      throw StateError('Razorpay key was not provided by the backend.');
+    }
 
     final options = {
       'key': key,

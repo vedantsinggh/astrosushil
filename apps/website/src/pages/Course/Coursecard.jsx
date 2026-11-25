@@ -1,6 +1,5 @@
 import { AlignRightIcon, ArrowRight, Clock } from "lucide-react";
 import PropTypes from "prop-types";
-import { useNavigate } from "react-router-dom";
 import { useCurrency } from "../../hooks/useCurrency";
 function StarRating({ rating = 5 }) {
   return (
@@ -66,10 +65,8 @@ export default function CourseCard({
   duration = "",
   originalPrice = 0,
   salePrice = 0,
-  onBook,
   link,
 }) {
-  const navigate = useNavigate();
   const { convert } = useCurrency();
   console.log({
     salePrice,

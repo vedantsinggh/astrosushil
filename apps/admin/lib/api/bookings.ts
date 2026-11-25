@@ -325,6 +325,26 @@ export function listPaymentConflicts(): Promise<Booking[]> {
   return callData<Booking[]>('/admin/bookings/payment-conflicts');
 }
 
+export function assignPaymentConflictSlot(
+  id: string,
+  body: { date: string; slot: string; adminNote?: string }
+): Promise<Booking> {
+  return callData<Booking>(`/admin/bookings/${encodeURIComponent(id)}/payment-conflict/assign-slot`, jsonBody('POST', body));
+}
+
+export interface ConflictRefundResult {
+  booking: Booking;
+  refund: { id: string; amount: number; status: string };
+  fullyRefunded: boolean;
+}
+
+export function refundPaymentConflict(
+  id: string,
+  body: { reason: string; amountPaise?: number; adminNote?: string }
+): Promise<ConflictRefundResult> {
+  return callData<ConflictRefundResult>(`/admin/bookings/${encodeURIComponent(id)}/payment-conflict/refund`, jsonBody('POST', body));
+}
+
 export function getBooking(id: string): Promise<Booking> {
   return callData<Booking>(`/admin/bookings/${encodeURIComponent(id)}`);
 }

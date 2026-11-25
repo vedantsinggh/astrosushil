@@ -96,8 +96,14 @@ export const useCartStore = create((set, get) => {
       }
     },
 
-    removeCoupon: () => {
-      set({ appliedCoupon: null, couponError: null });
+    removeCoupon: async () => {
+      try {
+        await axios.delete(`${CART_URL}/coupon`, getAuthHeaders());
+        set({ appliedCoupon: null, couponError: null });
+        await get().getCartItems();
+      } catch {
+        set({ appliedCoupon: null, couponError: null });
+      }
     },
     addToCart: async (product) => {
       try {

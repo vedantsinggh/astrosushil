@@ -48,3 +48,12 @@ final lessonPlaybackProvider =
   final service = ref.watch(coursesServiceProvider);
   return service.fetchLessonPlayback(lessonId);
 });
+
+/// Async provider for external course links (`GET /course-links`)
+final courseLinksProvider = FutureProvider<List<CourseLinkModel>>((ref) async {
+  final service = ref.watch(coursesServiceProvider);
+  final search = ref.watch(courseSearchQueryProvider);
+  return service.fetchCourseLinks(
+    search: search.isNotEmpty ? search : null,
+  );
+});

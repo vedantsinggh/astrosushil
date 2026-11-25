@@ -3,15 +3,26 @@
 import React from 'react';
 import { useAuth } from '../lib/auth-context';
 
-export function Header() {
+export function Header({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { user } = useAuth();
+  const envLabel = process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || 'Staging';
 
   return (
     <header className="admin-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        {onMenuToggle && (
+          <button
+            type="button"
+            className="admin-menu-toggle"
+            onClick={onMenuToggle}
+            aria-label="Toggle navigation menu"
+          >
+            ☰
+          </button>
+        )}
         <span className="badge badge-info">Internal System</span>
         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Environment: <strong>Production Ready</strong>
+          Environment: <strong>{envLabel}</strong>
         </span>
       </div>
 
@@ -22,14 +33,14 @@ export function Header() {
             <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{user.email}</strong>
             <span
               className={`badge ${
-                user.role === 'SUPER_ADMIN'
+                user.isSuperAdmin || user.role === 'SUPER_ADMIN'
                   ? 'badge-warning'
                   : user.role === 'ADMIN'
                   ? 'badge-info'
                   : 'badge-success'
               }`}
             >
-              {user.role}
+              {user.staffRole?.name || user.role}
             </span>
           </div>
         )}

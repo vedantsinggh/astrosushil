@@ -18,6 +18,7 @@ import { MODE_LABELS, fmt } from "./Consultationconstants";
 import { useCurrency } from "../../hooks/useCurrency";
 import { trackPurchase } from "../../utils/analytics";
 import PhoneInput from "../../lib/phoneInput";
+import toast from "react-hot-toast";
 
 const STEPS = ["Date & Slot", "Your Details", "Confirm"];
 
@@ -376,7 +377,7 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
 
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
-  const userId = user?._id;
+  const userId = user?.id ?? user?._id;
 
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -485,7 +486,7 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
     if (!bookingRes?.success) return;
 
     const data = bookingRes.data || {};
-    const bookingId = data.booking?._id;
+    const bookingId = data.booking?.id ?? data.booking?._id;
     const {
       key,
       orderId,
@@ -494,13 +495,13 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
     } = data.razorpayConfig || {};
 
     if (!key || !orderId) {
-      alert("Payment config error: missing key or orderId from server.");
+      toast.error("Payment config error: missing key or orderId from server.");
       return;
     }
 
     const razorpayLoaded = await loadRazorpay();
     if (!razorpayLoaded) {
-      alert("Failed to load payment gateway. Check your internet connection.");
+      toast.error("Failed to load payment gateway. Check your internet connection.");
       return;
     }
 
@@ -521,10 +522,10 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
       handler: async (response) => {
         const verifyRes = await verifyConsultationPayment(
           {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
             bookingId,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
           },
           token,
         );
@@ -551,7 +552,7 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
 
     const rzp = new window.Razorpay(options);
     rzp.on("payment.failed", (r) =>
-      alert(`Payment failed: ${r.error?.description || "Please try again."}`),
+      toast.error(`Payment failed: ${r.error?.description || "Please try again."}`),
     );
     rzp.open();
   };

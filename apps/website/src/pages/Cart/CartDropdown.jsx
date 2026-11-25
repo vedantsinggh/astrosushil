@@ -10,10 +10,11 @@ export const CartDropdown = ({ onClose }) => {
   };
   const { cart, removeFromCart, loading } = useCartStore();
   const items = cart?.items ?? [];
+  const hasPhysicalProduct = items.some((item) => item?.productType === "physical");
   const tax = cart?.tax ?? 0;
   const subtotal =
     cart?.subTotal ?? items.reduce((s, i) => s + (i.total || 0), 0);
-  const shipping = cart?.shipping ?? (subtotal > 499 ? 0 : 49);
+  const shipping = cart?.shipping ?? (hasPhysicalProduct ? 500 : 0);
   const total = cart?.totalAmount ?? subtotal + shipping;
 
   return (
@@ -117,7 +118,7 @@ export const CartDropdown = ({ onClose }) => {
               <span
                 className={`font-semibold ${shipping === 0 ? "text-green-600" : "text-primary"}`}
               >
-                {shipping === 0 ? "Free" : `₹${shipping}`}
+                {shipping === 0 ? "Free" : formatPrice(shipping)}
               </span>
             </div>
              {tax > 0 && (

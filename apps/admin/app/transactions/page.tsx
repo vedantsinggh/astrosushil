@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '../../lib/auth-context';
 import {
   countTransactions,
@@ -240,7 +241,9 @@ function TransactionsScreen() {
                 rows.map((txn) => (
                   <tr key={txn.id}>
                     <td style={mono} title={txn.id}>
-                      {txn.transactionId || `…${txn.id.slice(-8)}`}
+                      <Link href={`/transactions/${txn.id}`} style={{ fontFamily: 'monospace' }}>
+                        {txn.transactionId || `…${txn.id.slice(-8)}`}
+                      </Link>
                     </td>
                     <td>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{transactionCustomer(txn)}</div>
@@ -260,9 +263,14 @@ function TransactionsScreen() {
                     </td>
                     <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{formatDateTime(txn.createdAt)}</td>
                     <td>
-                      <button type="button" className="btn btn-secondary" style={tinyButton} onClick={() => setSelected(txn)}>
-                        View
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <Link href={`/transactions/${txn.id}`} className="btn btn-secondary" style={tinyButton}>
+                          Details
+                        </Link>
+                        <button type="button" className="btn btn-secondary" style={tinyButton} onClick={() => setSelected(txn)}>
+                          Quick view
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

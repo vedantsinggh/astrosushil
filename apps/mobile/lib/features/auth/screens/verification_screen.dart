@@ -16,12 +16,16 @@ import '../providers/auth_provider.dart';
 class VerificationScreen extends ConsumerStatefulWidget {
   final String? phoneNumber;
   final String? email;
+  final String? fullName;
+  final Map<String, dynamic>? birthProfile;
   final VoidCallback? onVerificationSuccess;
 
   const VerificationScreen({
     super.key,
     this.phoneNumber,
     this.email,
+    this.fullName,
+    this.birthProfile,
     this.onVerificationSuccess,
   }) : assert(phoneNumber != null || email != null, 'Either phoneNumber or email must be provided');
 
@@ -226,11 +230,14 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       success = await ref.read(authStateProvider.notifier).verifyPhoneOtp(
             widget.phoneNumber!,
             code,
+            widget.birthProfile,
           );
     } else if (widget.email != null) {
-      success = await ref.read(authStateProvider.notifier).verifyEmail(
+      success = await ref.read(authStateProvider.notifier).verifyEmailOtp(
             widget.email!,
             code,
+            fullName: widget.fullName,
+            birthProfile: widget.birthProfile,
           );
     }
 
@@ -275,8 +282,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       resendSuccess = await ref.read(authStateProvider.notifier).sendPhoneOtp(widget.phoneNumber!);
       msg = resendSuccess ? 'New verification code sent.' : null;
     } else if (widget.email != null) {
-      msg = await ref.read(authStateProvider.notifier).resendVerification(widget.email!);
-      resendSuccess = msg != null;
+      resendSuccess = await ref.read(authStateProvider.notifier).sendEmailOtp(widget.email!);
+      msg = resendSuccess ? 'New verification code sent.' : null;
     }
 
     if (!mounted) return;

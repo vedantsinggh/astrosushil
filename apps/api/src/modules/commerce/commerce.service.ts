@@ -256,7 +256,7 @@ export class CommerceService {
       await transactionsService.recordAttempt(tx, createdOrder);
 
       if (input.couponCode && couponDiscountPaise > 0) {
-        await couponsService.reserveForOrder(tx, {
+        const superseded = await couponsService.reserveForOrder(tx, {
           code: input.couponCode,
           userId: user.id,
           itemsTotalPaise: calculated.subtotal,
@@ -264,6 +264,17 @@ export class CommerceService {
           expectedDiscountPaise: couponDiscountPaise,
           saleType,
         });
+
+        if (superseded.length > 0) {
+          await tx.order.updateMany({
+            where: {
+              id: { in: superseded },
+              userId: user.id,
+              status: OrderStatus.PENDING,
+            },
+            data: { status: OrderStatus.CANCELLED },
+          });
+        }
       }
 
       return createdOrder;

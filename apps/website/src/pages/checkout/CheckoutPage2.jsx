@@ -413,7 +413,8 @@ export default function CheckoutPage2() {
   const tax = cart?.tax ?? 0;
 
   const couponDiscount = appliedCoupon?.discount ?? 0;
-  const total = Math.max(0, subtotal + shipping + tax - couponDiscount);
+  const total =
+    cart?.totalAmount ?? Math.max(0, subtotal + shipping + tax - couponDiscount);
 
   const selectedAddress = (addresses || []).find(
     (a) => a._id === selectedAddressId,
@@ -492,7 +493,7 @@ export default function CheckoutPage2() {
     }
   };
 
-  if (!cart || cart.length === 0) {
+  if ((cart?.items || []).length === 0) {
     return (
       <motion.div
         initial={{ opacity: 0 }}

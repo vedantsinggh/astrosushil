@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import axios from "axios";
 import { showError } from "../utils/toast";
+import toast from "react-hot-toast";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
@@ -308,18 +309,37 @@ export const useConsultationStore = create((set) => ({
       });
     }
   },
-  downloadBookingInvoice: async (bookingId) => {
+  downloadBookingInvoice: async (bookingId, orderId) => {
     try {
       const token = localStorage.getItem("token");
+      let resolvedOrderId = orderId;
+
+      if (!resolvedOrderId) {
+        const infoRes = await axios.get(
+          `${BOOKING_URL}/my-bookings/${bookingId}/invoice`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        resolvedOrderId = infoRes.data?.data?.orderId ?? infoRes.data?.orderId;
+      }
+
+      if (!resolvedOrderId) {
+        toast.error("Invoice PDF is not available for this booking.");
+        return { success: false };
+      }
+
       const res = await axios.get(
-        `${BOOKING_URL}/my-bookings/${bookingId}/invoice`,
+        `${BASE_URL}/invoices/orders/${resolvedOrderId}/pdf`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: "blob",
         },
       );
 
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: "application/pdf" }),
+      );
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `invoice-${bookingId}.pdf`);
@@ -332,6 +352,35 @@ export const useConsultationStore = create((set) => ({
     } catch (err) {
       showError(err);
       return { success: false };
+    }
+  },
+
+  cancelBooking: async (bookingId, reason = "") => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${BOOKING_URL}/bookings/${bookingId}/cancel`,
+        reason ? { reason } : {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const updated = res.data?.data;
+      set((state) => ({
+        myBookings: state.myBookings.map((b) =>
+          (b.id ?? b._id) === bookingId
+            ? { ...b, ...(updated || {}), status: updated?.status ?? "cancelled" }
+            : b,
+        ),
+      }));
+      toast.success("Consultation cancelled successfully.");
+      return { success: true, data: updated };
+    } catch (err) {
+      showError(err);
+      return {
+        success: false,
+        error: err.response?.data?.message || "Failed to cancel booking",
+      };
     }
   },
 

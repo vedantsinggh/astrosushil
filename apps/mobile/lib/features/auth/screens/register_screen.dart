@@ -7,7 +7,6 @@ import '../../../shared/widgets/error_banner.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_text_field.dart';
 import 'login_screen.dart';
-import 'register_success_screen.dart';
 import 'verification_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -30,12 +29,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  String _passwordInput = '';
 
   // Step 2 Controllers (Birth Profile)
   final _step2FormKey = GlobalKey<FormState>();
@@ -65,8 +58,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _dateController.dispose();
     _timeController.dispose();
     _placeNameController.dispose();
@@ -74,11 +65,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _longitudeController.dispose();
     super.dispose();
   }
-
-  // Dynamic Password Validation Checks
-  bool get _hasMinLength => _passwordInput.length >= 8;
-  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordInput);
-  bool get _hasSpecialOrNumber => RegExp(r'[0-9!@#$%^&*(),.?":{}|<>]').hasMatch(_passwordInput);
 
   Future<void> _pickDate() async {
     final picked = await showAstroDatePicker(
@@ -151,9 +137,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (_step2FormKey.currentState?.validate() ?? false) {
       FocusScope.of(context).unfocus();
       final email = _emailController.text.trim();
-      final password = _passwordController.text;
       final fullName = _nameController.text.trim();
-      final phone = _phoneController.text.trim();
 
       final latitude = double.tryParse(_latitudeController.text.trim());
       final longitude = double.tryParse(_longitudeController.text.trim());
@@ -175,33 +159,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         'placeName': _placeNameController.text.trim(),
       };
 
-      final result = await ref.read(authStateProvider.notifier).register(
-            email,
-            password,
-            fullName: fullName,
-            phoneNumber: phone,
-            birthProfile: birthProfileData,
-          );
-
-      if (result != null && result.requiresEmailVerification && mounted) {
+      final sent = await ref.read(authStateProvider.notifier).sendEmailOtp(email);
+      if (sent && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => VerificationScreen(email: result.email),
+            builder: (_) => VerificationScreen(
+              email: email,
+              fullName: fullName.isNotEmpty ? fullName : null,
+              birthProfile: birthProfileData,
+              onVerificationSuccess: widget.onRegisterSuccess,
+            ),
           ),
         );
-        return;
-      }
-
-      if (result != null && !result.requiresEmailVerification && mounted) {
-        if (widget.onRegisterSuccess != null) {
-          widget.onRegisterSuccess!();
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => const RegisterSuccessScreen(),
-            ),
-          );
-        }
       }
     }
   }
@@ -338,78 +307,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             autofillHints: const [AutofillHints.telephoneNumber],
             prefixIcon: const Icon(Icons.phone_outlined),
           ),
-          const SizedBox(height: 16),
-
-          // Password
-          AuthTextField(
-            controller: _passwordController,
-            labelText: 'Password',
-            isPassword: _obscurePassword,
-            autofillHints: const [AutofillHints.newPassword],
-            prefixIcon: const Icon(Icons.lock_outline),
-            onChanged: (val) {
-              setState(() {
-                _passwordInput = val;
-              });
-            },
-            suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-            ),
-            validator: (val) {
-              if (val == null || val.isEmpty) {
-                return 'Enter a password.';
-              }
-              if (val.length < 8) {
-                return 'Password must be at least 8 characters.';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Confirm Password
-          AuthTextField(
-            controller: _confirmPasswordController,
-            labelText: 'Confirm Password',
-            isPassword: _obscureConfirmPassword,
-            prefixIcon: const Icon(Icons.lock_reset_outlined),
-            suffixIcon: IconButton(
-              icon: Icon(_obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-            ),
-            validator: (val) {
-              if (val == null || val.isEmpty) {
-                return 'Confirm your password.';
-              }
-              if (val != _passwordController.text) {
-                return 'Passwords do not match.';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 18),
-
-          // Dynamic Password Requirements Checklist
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.cardSurface,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: AstroShadows.card,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildCheckItem('At least 8 characters', _hasMinLength),
-                const SizedBox(height: 6),
-                _buildCheckItem('One uppercase letter', _hasUppercase),
-                const SizedBox(height: 6),
-                _buildCheckItem('One number or special character', _hasSpecialOrNumber),
-              ],
-            ),
-          ),
-
           const SizedBox(height: 24),
 
           // Login Link
@@ -445,29 +342,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
         ],
       ),
-    );
-  }
-
-  Widget _buildCheckItem(String label, bool isMet) {
-    return Row(
-      children: [
-        Icon(
-          isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-          size: 18,
-          color: isMet ? AppColors.successText : AppColors.textMuted,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
-              color: isMet ? AppColors.primary : AppColors.lightTextSecondary,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

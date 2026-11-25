@@ -10,9 +10,11 @@ const ADDRESS_URL = `${BASE_URL}/account/addresses`;
 export const useAuthStore = create((set, get) => ({
   user: null,
   token: localStorage.getItem("token") || null,
+  refreshToken: localStorage.getItem("refreshToken") || null,
   loading: false,
   error: null,
   identifier: null,
+  pendingFullName: null,
 
   authHeader: () => ({
     headers: {
@@ -30,7 +32,7 @@ export const useAuthStore = create((set, get) => ({
         ? await axios.post(`${AUTH_URL}/email/send-otp`, { email: identifier, fullName: payload.fullName })
         : await axios.post(`${AUTH_URL}/phone/send-otp`, { phoneNumber: identifier, fullName: payload.fullName });
 
-      set({ identifier });
+      set({ identifier, pendingFullName: payload.fullName || null });
 
       showSuccess(res);
       return { success: true };
@@ -53,7 +55,7 @@ export const useAuthStore = create((set, get) => ({
         ? await axios.post(`${AUTH_URL}/email/send-otp`, { email: payload.identifier })
         : await axios.post(`${AUTH_URL}/phone/send-otp`, { phoneNumber: payload.identifier });
 
-      set({ identifier: payload.identifier });
+      set({ identifier: payload.identifier, pendingFullName: null });
 
       showSuccess(res);
       return { success: true };
@@ -71,24 +73,41 @@ export const useAuthStore = create((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const identifier = get().identifier || "";
+      const identifier = get().identifier || payload.identifier || "";
+      const fullName = payload.fullName || get().pendingFullName;
       const isEmail = identifier.includes("@");
       const res = isEmail
-        ? await axios.post(`${AUTH_URL}/email/verify-otp`, { email: identifier, otp: payload.otp })
-        : await axios.post(`${AUTH_URL}/phone/verify-otp`, { phoneNumber: identifier, otp: payload.otp });
+        ? await axios.post(`${AUTH_URL}/email/verify-otp`, {
+            email: identifier,
+            otp: payload.otp,
+            ...(fullName ? { fullName } : {}),
+          })
+        : await axios.post(`${AUTH_URL}/phone/verify-otp`, {
+            phoneNumber: identifier,
+            otp: payload.otp,
+            ...(fullName ? { fullName } : {}),
+          });
 
       const token =
         res.data?.tokens?.accessToken ||
         res.data?.accessToken ||
         res.data?.data?.tokens?.accessToken ||
         res.data?.data?.accessToken;
+      const refreshToken =
+        res.data?.tokens?.refreshToken ||
+        res.data?.refreshToken ||
+        res.data?.data?.tokens?.refreshToken ||
+        res.data?.data?.refreshToken;
       const user = res.data?.user || res.data?.data?.user || null;
 
       if (token) localStorage.setItem("token", token);
+      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
 
       set({
         token,
+        refreshToken: refreshToken || get().refreshToken,
         user,
+        pendingFullName: null,
       });
 
       showSuccess(res);
@@ -96,7 +115,10 @@ export const useAuthStore = create((set, get) => ({
       return { success: true };
     } catch (err) {
       showError(err);
-      const message = err.response?.data?.message || "OTP verification failed";
+      const message =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        "OTP verification failed";
       set({ error: message });
       return { success: false, error: message };
     } finally {
@@ -104,45 +126,94 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
- getProfile: async () => {
-  try {
-    set({ loading: true });
+  refreshAccessToken: async () => {
+    try {
+      const refreshToken =
+        get().refreshToken || localStorage.getItem("refreshToken");
+      if (!refreshToken) return false;
 
-    const res = await axios.get(
-      `${AUTH_URL}/me`,
-      get().authHeader()
-    );
+      const res = await axios.post(`${AUTH_URL}/refresh`, { refreshToken });
+      const token =
+        res.data?.tokens?.accessToken ||
+        res.data?.accessToken ||
+        res.data?.data?.tokens?.accessToken ||
+        res.data?.data?.accessToken;
+      const nextRefresh =
+        res.data?.tokens?.refreshToken ||
+        res.data?.refreshToken ||
+        res.data?.data?.tokens?.refreshToken ||
+        res.data?.data?.refreshToken;
 
-    const user = res.data?.user || res.data?.data || res.data;
-    set({ user });
+      if (token) localStorage.setItem("token", token);
+      if (nextRefresh) localStorage.setItem("refreshToken", nextRefresh);
 
-    return {
-      success: true,
-      data: user,
-    };
-  } catch (err) {
-    if (err.response?.status === 401) {
-      get().logout();
-    } else {
-      set({ user: null });
+      set({
+        token: token || get().token,
+        refreshToken: nextRefresh || get().refreshToken,
+      });
+
+      return Boolean(token);
+    } catch {
+      return false;
     }
+  },
 
-    return {
-      success: false,
-      error: err.response?.data?.message,
-    };
-  } finally {
-    set({ loading: false });
-  }
-},
+  getProfile: async () => {
+    try {
+      set({ loading: true });
+
+      const res = await axios.get(`${AUTH_URL}/me`, get().authHeader());
+
+      const user = res.data?.user || res.data?.data || res.data;
+      set({ user });
+
+      return {
+        success: true,
+        data: user,
+      };
+    } catch (err) {
+      if (err.response?.status === 401) {
+        const refreshed = await get().refreshAccessToken();
+        if (refreshed) {
+          try {
+            const retryRes = await axios.get(
+              `${AUTH_URL}/me`,
+              get().authHeader(),
+            );
+            const user =
+              retryRes.data?.user || retryRes.data?.data || retryRes.data;
+            set({ user });
+            return { success: true, data: user };
+          } catch {
+            // fall through to logout
+          }
+        }
+        await get().logout();
+      } else {
+        set({ user: null });
+      }
+
+      return {
+        success: false,
+        error: err.response?.data?.error?.message || err.response?.data?.message,
+      };
+    } finally {
+      set({ loading: false });
+    }
+  },
 
   updateProfile: async (payload) => {
     try {
       set({ loading: true, error: null });
 
+      const body =
+        payload.fullName !== undefined
+          ? { fullName: payload.fullName }
+          : payload;
+
       const res = await axios.patch(
         `${AUTH_URL}/me`,
-        payload,
+        body,
         get().authHeader(),
       );
 
@@ -150,54 +221,23 @@ export const useAuthStore = create((set, get) => ({
 
       return { success: true };
     } catch (err) {
-      const message = err.response?.data?.message || "Update failed";
+      const message =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        "Update failed";
       set({ error: message });
       return { success: false, error: message };
     } finally {
       set({ loading: false });
     }
   },
-  updateProfilePhoto: async (file) => {
-    try {
-      set({ loading: true, error: null });
-
-      const formData = new FormData();
-
-      formData.append("profilePhoto", file);
-
-      const res = await axios.patch(`${AUTH_URL}/avatar`, formData, {
-        ...get().authHeader(),
-        headers: {
-          ...get().authHeader().headers,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      set({
-        user: res.data?.data,
-      });
-
-      showSuccess(res);
-
-      return {
-        success: true,
-        data: res.data?.data,
-      };
-    } catch (err) {
-      showError(err);
-
-      const message =
-        err.response?.data?.message || "Failed to update profile photo";
-
-      set({ error: message });
-
-      return {
-        success: false,
-        error: message,
-      };
-    } finally {
-      set({ loading: false });
-    }
+  updateProfilePhoto: async () => {
+    const message = "Profile photo upload is currently unavailable.";
+    set({ error: message });
+    return {
+      success: false,
+      error: message,
+    };
   },
   getAddresses: async () => {
     try {
@@ -359,8 +399,30 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: false });
     }
   },
-  logout: () => {
-    localStorage.removeItem("token");
-    set({ user: null, token: null, identifier: null });
+  logout: async () => {
+    const token = get().token || localStorage.getItem("token");
+    const refreshToken =
+      get().refreshToken || localStorage.getItem("refreshToken");
+    try {
+      if (token || refreshToken) {
+        await axios.post(
+          `${AUTH_URL}/logout`,
+          refreshToken ? { refreshToken } : {},
+          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+        );
+      }
+    } catch {
+      // ignore logout network errors
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      set({
+        user: null,
+        token: null,
+        refreshToken: null,
+        identifier: null,
+        pendingFullName: null,
+      });
+    }
   },
 }));

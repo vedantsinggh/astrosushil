@@ -3,11 +3,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiFetch } from './api-client';
 
+export interface StaffRoleSummary {
+  id: string | null;
+  name: string;
+  slug: string;
+  isSuperAdmin: boolean;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
 export interface AdminUser {
   id: string;
   email: string;
   fullName?: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT';
+  isSuperAdmin?: boolean;
+  staffRole?: StaffRoleSummary | null;
   permissions: string[];
 }
 
@@ -47,7 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await apiFetch<{
-        user: { id: string; email: string; fullName?: string; role: 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' };
+        user: {
+          id: string;
+          email: string;
+          fullName?: string;
+          role: 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT';
+          isSuperAdmin?: boolean;
+          staffRole?: StaffRoleSummary | null;
+        };
         permissions: string[];
         tokens: { accessToken: string; refreshToken: string };
       }>('/api/v1/admin/auth/login', {
@@ -57,6 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const adminUser: AdminUser = {
         ...res.user,
+        isSuperAdmin: res.user.isSuperAdmin,
+        staffRole: res.user.staffRole ?? null,
         permissions: res.permissions || [],
       };
 
@@ -85,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermissionCheck = (permission: string) => {
     if (!user) return false;
-    if (user.role === 'SUPER_ADMIN') return true;
+    if (user.isSuperAdmin || user.role === 'SUPER_ADMIN') return true;
     return user.permissions ? user.permissions.includes(permission) : false;
   };
 

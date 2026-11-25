@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 export const useWishlistStore = create((set, get) => ({
   wishlist: [],
@@ -30,11 +30,12 @@ export const useWishlistStore = create((set, get) => ({
     try {
       const res = await axios.post(
         `${BASE_URL}/wishlist/toggle`,
-        { productId: product._id, type },
+        { productId: product._id ?? product.id, type },
         { headers: get()._headers() },
       );
-      set({ wishlist: res.data.data?.products || [] });
-      return res.data.inWishlist; 
+      const payload = res.data?.data ?? res.data ?? {};
+      set({ wishlist: payload.products || [] });
+      return payload.inWishlist ?? res.data?.inWishlist ?? null;
     } catch (err) {
       console.error("toggleWishlist error:", err);
       return null;
@@ -47,7 +48,7 @@ isWishlisted: (productId) => {
   return get().wishlist.some((item) => {
     const id =
       typeof item.product === "object"
-        ? item.product?._id
+        ? item.product?._id ?? item.product?.id
         : item.product;
 
     return id?.toString() === productId?.toString();
@@ -57,11 +58,13 @@ isWishlisted: (productId) => {
   removeFromWishlist: async (productId, type = "Product") => {
     set({ loading: true });
     try {
-      const res = await axios.delete(
-        `${BASE_URL}/wishlist/${productId}?type=${type}`,
+      const res = await axios.post(
+        `${BASE_URL}/wishlist/remove`,
+        { productId, type },
         { headers: get()._headers() },
       );
-      set({ wishlist: res.data.items || [] });
+      const payload = res.data?.data ?? res.data ?? {};
+      set({ wishlist: payload.products || payload.items || [] });
     } catch (err) {
       console.error("removeFromWishlist error:", err);
     } finally {
@@ -83,16 +86,7 @@ isWishlisted: (productId) => {
     }
   },
 
-  checkWishlistStatus: async (productId, type = "Product") => {
-    try {
-      const res = await axios.get(
-        `${BASE_URL}/wishlist/check/${productId}?type=${type}`,
-        { headers: get()._headers() },
-      );
-      return res.data.inWishlist;
-    } catch (err) {
-      console.error("checkWishlistStatus error:", err);
-      return false;
-    }
+  checkWishlistStatus: async (productId) => {
+    return get().isWishlisted(productId);
   },
 }));

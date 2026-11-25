@@ -93,8 +93,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Continue with Google'));
-      await tester.tap(find.text('Continue with Google'));
+      await tester.enterText(find.byType(TextFormField).first, '9876543210');
+      await tester.ensureVisible(find.text('Send OTP'));
+      await tester.tap(find.text('Send OTP'));
+      await tester.pumpAndSettle();
+
+      final otpFields = find.byType(TextField);
+      for (var i = 0; i < 6; i++) {
+        await tester.enterText(otpFields.at(i), '${i + 1}');
+      }
       await tester.pumpAndSettle();
     }
 

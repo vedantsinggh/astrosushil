@@ -1,8 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 export const useAstrologyStore = create(
   // persist(
@@ -24,20 +23,24 @@ export const useAstrologyStore = create(
 
       dailyHoroscope: null,
 
-      handleRequest: async (url, params, key) => {
+      handleRequest: async (url, params, key, method = "get") => {
         try {
           set({ loading: true, error: null });
 
-          const res = await axios.get(`${BASE_URL}${url}`, { params });
-
-          console.log(res);
+          const m = String(method || "get").toLowerCase();
+          const res =
+            m === "post"
+              ? await axios.post(`${BASE_URL}${url}`, params)
+              : await axios.get(`${BASE_URL}${url}`, { params });
 
           set({ [key]: res.data?.data || res.data });
 
           return { success: true, data: res.data };
         } catch (err) {
           const message =
-            err?.response?.data?.message || "Something went wrong";
+            err?.response?.data?.error?.message ||
+            err?.response?.data?.message ||
+            "Something went wrong";
 
           set({ error: message });
 

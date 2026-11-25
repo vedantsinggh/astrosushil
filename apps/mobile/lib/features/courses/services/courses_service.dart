@@ -112,4 +112,43 @@ class CoursesService {
 
     return response['data'] as Map<String, dynamic>? ?? {};
   }
+
+  /// Fetch public external course links (`GET /course-links`)
+  Future<List<CourseLinkModel>> fetchCourseLinks({
+    String? search,
+    String? category,
+    bool? featured,
+    int? page,
+    int? limit,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
+    }
+    if (category != null && category.trim().isNotEmpty) {
+      queryParams['category'] = category.trim();
+    }
+    if (featured != null) {
+      queryParams['featured'] = featured.toString();
+    }
+    if (page != null) queryParams['page'] = page;
+    if (limit != null) queryParams['limit'] = limit;
+
+    final response = await _apiClient.get(
+      '/course-links',
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
+    );
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    final items = data['items'] as List<dynamic>? ?? [];
+    return items
+        .map((e) => CourseLinkModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Record click on an external course link (`POST /course-links/$idOrSlug/click`)
+  Future<String> registerCourseLinkClick(String idOrSlug) async {
+    final response = await _apiClient.post('/course-links/$idOrSlug/click');
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return data['redirectUrl'] as String? ?? '';
+  }
 }

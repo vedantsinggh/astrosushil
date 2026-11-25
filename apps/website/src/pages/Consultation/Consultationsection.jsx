@@ -195,9 +195,8 @@ function ConsultationCard({ plan, onBook }) {
 
 export default function ConsultationSection() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const defaultTab =
+  const activeTab =
     searchParams.get("type") === "special" ? "special" : "normal";
-  const [activeTab, setActiveTab] = useState(defaultTab);
   const [selectedPlan, setSelectedPlan] = useState(null);
 
   const { consultations, consultationsLoading, getConsultations } =
@@ -208,11 +207,6 @@ export default function ConsultationSection() {
   useEffect(() => {
     getConsultations();
   }, []);
-
-  useEffect(() => {
-    const type = searchParams.get("type");
-    setActiveTab(type === "special" ? "special" : "normal");
-  }, [searchParams]);
 
   const plans = consultations.filter((c) => c.type === activeTab && c.isActive);
 
@@ -264,7 +258,6 @@ export default function ConsultationSection() {
                   const nextParams = new URLSearchParams(searchParams);
                   nextParams.set("type", tab.id);
                   setSearchParams(nextParams, { replace: true });
-                  setActiveTab(tab.id);
                 }}
                 type="button"
                 className={`relative cursor-pointer flex items-center gap-2 px-8 sm:px-10 lg:px-20 py-2.5 rounded-xl font-heading font-semibold text-sm sm:text-lg transition-all duration-700

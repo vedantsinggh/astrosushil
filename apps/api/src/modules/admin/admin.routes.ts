@@ -33,6 +33,12 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
   // 1. PUBLIC ADMIN LOGIN
   fastify.post('/auth/login', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       tags: ['Admin Auth'],
       summary: 'Admin Panel Login',
@@ -755,6 +761,15 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
       handler: async (request, reply) => {
         const { id } = request.params as { id: string };
         const result = await consultationsService.adminStartLiveSession(request.user, id);
+        await adminService.logAction({
+          adminId: request.user.id,
+          adminEmail: (request.user as { email?: string }).email || 'admin@astrosushil.internal',
+          action: 'START_CONSULTATION_SESSION',
+          resource: `ConsultationBooking:${id}`,
+          details: JSON.stringify({ sessionId: (result as any)?.id }),
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
         return reply.status(201).send({ statusCode: 201, success: true, data: result });
       },
     });
@@ -767,6 +782,15 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         const { id } = request.params as { id: string };
         const body = request.body as any;
         const result = await consultationsService.rescheduleBooking(request.user.id, id, body, true);
+        await adminService.logAction({
+          adminId: request.user.id,
+          adminEmail: (request.user as { email?: string }).email || 'admin@astrosushil.internal',
+          action: 'RESCHEDULE_CONSULTATION',
+          resource: `ConsultationBooking:${id}`,
+          details: JSON.stringify({ date: body?.date, startTime: body?.startTime }),
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
         return reply.status(200).send({ statusCode: 200, success: true, data: result });
       },
     });
@@ -779,6 +803,15 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         const { id } = request.params as { id: string };
         const body = request.body as any;
         const result = await consultationsService.cancelBooking(request.user.id, id, body?.reason, true);
+        await adminService.logAction({
+          adminId: request.user.id,
+          adminEmail: (request.user as { email?: string }).email || 'admin@astrosushil.internal',
+          action: 'CANCEL_CONSULTATION',
+          resource: `ConsultationBooking:${id}`,
+          details: JSON.stringify({ reason: body?.reason }),
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
         return reply.status(200).send({ statusCode: 200, success: true, data: result });
       },
     });

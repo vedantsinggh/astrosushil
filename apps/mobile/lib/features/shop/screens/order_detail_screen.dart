@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/app_date_time.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
@@ -36,6 +37,23 @@ class OrderDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Support: +91 9621127233')),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadInvoicePdf(BuildContext context, WidgetRef ref, String shortId, bool isHindi) async {
+    try {
+      final bytes = await ref.read(shopServiceProvider).downloadOrderInvoicePdf(orderId);
+      await Printing.sharePdf(bytes: bytes, filename: 'invoice-$shortId.pdf');
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isHindi ? 'इनवॉइस डाउनलोड नहीं हो सका। कृपया पुनः प्रयास करें।' : 'Could not download invoice PDF.',
+            ),
+          ),
         );
       }
     }
@@ -307,6 +325,13 @@ class OrderDetailScreen extends ConsumerWidget {
                           ),
                           const Divider(height: 24, color: AppColors.cardBorder),
                           ShopTotalRow(label: isHindi ? 'कुल भुगतान' : 'Total Paid', value: order.formattedAmount),
+                          const SizedBox(height: 16),
+                          AstroSecondaryButton(
+                            key: const ValueKey('order-download-invoice-pdf'),
+                            label: isHindi ? 'इनवॉइस PDF डाउनलोड करें' : 'Download Invoice PDF',
+                            icon: Icons.picture_as_pdf_outlined,
+                            onPressed: () => _downloadInvoicePdf(context, ref, shortId, isHindi),
+                          ),
                         ],
                       ),
                     ),

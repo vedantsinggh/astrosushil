@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import FaqSection from "../Faqs/Faqsection";
 import useReportStore from "@/store/useReportStore";
@@ -28,11 +28,12 @@ export default function ReportsDetails() {
   const { report, loading, getReportBySlug } = useReportStore();
   const { convert } = useCurrency();
 const { user } = useAuthStore();
+const [loginModalOpen, setLoginModalOpen] = useState(false);
 
 
 const handleOrderNow = () => {
   if (!user) {
-    navigate("/register/");
+    setLoginModalOpen(true);
     return;
   }
 
@@ -115,7 +116,7 @@ const handleOrderNow = () => {
                     report?.name?.length > 30
                       ? `${report.name.slice(0, 30)}...`
                       : report?.name,
-                  href: "/home",
+                  href: "/",
                 },
               ]}
             />
@@ -291,7 +292,11 @@ const handleOrderNow = () => {
         <TestimonialsSection />
         <FaqSection faqs={report.faqs} />
       </div>
-      
+      <LoginRequiredModal
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        redirectTo={`/report-order/${slug}`}
+      />
     </>
   );
 }

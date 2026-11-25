@@ -199,22 +199,20 @@ void main() {
         reason: 'the shell is the root route');
   }
 
-  /// Google sign-in from the root login screen (as reached from onboarding),
-  /// completes the missing phone, accepts the "create profile" prompt and
-  /// saves the first profile.
+  /// Phone OTP sign-in from the root login screen (as reached from onboarding),
+  /// accepts the "create profile" prompt and saves the first profile.
   Future<void> signUpAndCreateFirstProfile(WidgetTester tester) async {
     await pumpApp(tester, home: const LoginScreen());
 
-    await tester.ensureVisible(find.text('Continue with Google'));
-    await tester.tap(find.text('Continue with Google'));
+    await tester.enterText(find.byType(TextFormField).first, '9876543210');
+    await tester.ensureVisible(find.text('Send OTP'));
+    await tester.tap(find.text('Send OTP'));
     await tester.pumpAndSettle();
 
-    // Complete profile (Google account without a phone number).
-    await tester.enterText(find.byKey(const Key('complete_profile_phone')), '9876543210');
-    await tester.tap(find.text('Send code'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('complete_profile_code')), '123456');
-    await tester.tap(find.text('Confirm'));
+    final otpFields = find.byType(TextField);
+    for (var i = 0; i < 6; i++) {
+      await tester.enterText(otpFields.at(i), '${i + 1}');
+    }
     await tester.pumpAndSettle();
 
     // No profiles yet: the app offers to create one.
@@ -306,7 +304,7 @@ void main() {
       ),
     );
     // Signed-in user with one profile already on the account.
-    await authRepo.signInWithGoogle('token');
+    await authRepo.verifyPhoneOtp(phoneNumber: '+919876543210', otp: '123456');
     final container = ProviderScope.containerOf(tester.element(find.text('Open profiles')));
     await container.read(authStateProvider.notifier).checkSession();
     await tester.pumpAndSettle();

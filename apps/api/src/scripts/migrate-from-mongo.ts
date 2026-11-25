@@ -10,6 +10,7 @@ import {
   LedgerTransactionStatus,
   LedgerTransactionType,
   OrderStatus,
+  OrderItemType,
   PaymentStatus,
   PrismaClient,
   ProductType,
@@ -23,6 +24,9 @@ import {
   ShopOrderStatus,
   StaffStatus,
 } from '@prisma/client';
+import { storageService } from '../services/storage.service';
+import { sanitizeGatewayPayload } from '../modules/transactions/ledger';
+import { mapInvoiceStatus, mapLegacyPaymentState, toInrPaise } from './migration-mappers';
 
 /**
  * Idempotent MongoDB -> PostgreSQL migration script.
@@ -84,7 +88,14 @@ function toMinorUnits(val: unknown, currency: string): number {
 
 function toDate(val: unknown, fallback = new Date()): Date {
   if (!val) return fallback;
-  const d = new Date(String(val));
+  const raw = String(val).trim();
+  const ddmmyyyy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(raw);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy] = ddmmyyyy;
+    const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+  }
+  const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? fallback : d;
 }
 
@@ -199,6 +210,8 @@ async function main() {
   const bookings = readJson(backupDir, 'bookings');
   const transactions = readJson(backupDir, 'transactions');
   const invoiceCounters = readJson(backupDir, 'invoicecounters');
+  const carts = readJson(backupDir, 'carts');
+  const wishlists = readJson(backupDir, 'wishlists');
 
   // S3 analysis: detect overlapping admin + customer emails
   const adminByEmail = new Map<string, AnyDoc>();
@@ -245,6 +258,7 @@ async function main() {
   const mongoRoleToPgId = new Map<string, string>();
   const mongoCategoryToPgId = new Map<string, string>();
   const mongoProductToPgId = new Map<string, string>();
+  const mongoVariantToPgId = new Map<string, string>();
   const mongoConsultationToPgId = new Map<string, string>();
   const mongoSaleToOrderPgId = new Map<string, string>();
 
@@ -723,7 +737,7 @@ async function main() {
               : { legacyId: vLegacyId },
           });
           if (!existingVar) {
-            await prisma.productVariant.create({
+            const createdVariant = await prisma.productVariant.create({
               data: {
                 legacyId: vLegacyId,
                 productId: row.id,
@@ -735,8 +749,47 @@ async function main() {
                 stock: clampInt4(v.stock, 0),
               },
             });
+            mongoVariantToPgId.set(vLegacyId, createdVariant.id);
+          } else {
+            mongoVariantToPgId.set(vLegacyId, existingVar.id);
           }
         }
+      }
+    }
+
+    // Saved carts and wishlists keep only live catalogue references; stale products are skipped.
+    for (const c of carts) {
+      const legacyId = String(c._id);
+      const userId = mongoUserToPgId.get(String(c.user));
+      if (!userId) continue;
+      const cart = await prisma.cart.upsert({
+        where: { userId }, create: { legacyId, userId, couponCode: c.couponCode ? String(c.couponCode) : null },
+        update: { legacyId, couponCode: c.couponCode ? String(c.couponCode) : null },
+      });
+      for (const item of Array.isArray(c.items) ? c.items : []) {
+        const productId = mongoProductToPgId.get(String(item.product));
+        if (!productId) continue;
+        const variantId = item.variantId ? mongoVariantToPgId.get(String(item.variantId)) : undefined;
+        await prisma.cartItem.upsert({
+          where: { cartId_productId_variantKey: { cartId: cart.id, productId, variantKey: variantId ?? '' } },
+          create: { cartId: cart.id, productId, variantKey: variantId ?? '', quantity: Math.max(1, Number(item.quantity ?? 1)) },
+          update: { quantity: Math.max(1, Number(item.quantity ?? 1)) },
+        });
+      }
+    }
+    for (const w of wishlists) {
+      const userId = mongoUserToPgId.get(String(w.user));
+      if (!userId) continue;
+      for (const item of Array.isArray(w.products) ? w.products : []) {
+        const mongoProductId = String(typeof item === 'object' ? item.product ?? item._id : item);
+        const productId = mongoProductToPgId.get(mongoProductId);
+        if (!productId) continue;
+        await prisma.wishlistItem.upsert({
+          where: { userId_productId: { userId, productId } },
+          create: { legacyId: `${String(w._id)}:${mongoProductId}`, userId, productId,
+            addedAt: typeof item === 'object' && item.addedAt ? toDate(item.addedAt) : toDate(w.updatedAt ?? w.createdAt) },
+          update: {},
+        });
       }
     }
 
@@ -744,9 +797,7 @@ async function main() {
       const legacyId = String(c._id);
       const code = String(c.code).trim().toUpperCase();
       const existingCoupon = await prisma.coupon.findFirst({ where: { OR: [{ legacyId }, { code }] } });
-      if (!existingCoupon) {
-        await prisma.coupon.create({
-          data: {
+      const couponData = {
             legacyId,
             code,
             description: c.description ? String(c.description) : null,
@@ -766,7 +817,35 @@ async function main() {
             validFrom: c.validFrom ? toDate(c.validFrom) : new Date(),
             validTill: c.validTill ? toDate(c.validTill) : new Date(Date.now() + 365 * 86400_000),
             isActive: Boolean(c.isActive ?? true),
-          },
+            audience: String(c.couponType ?? '').toUpperCase() === 'INDIVIDUAL' ? 'INDIVIDUAL' as const : 'GLOBAL' as const,
+      };
+      if (!existingCoupon) {
+        await prisma.coupon.create({
+          data: couponData,
+        });
+      } else {
+        await prisma.coupon.update({ where: { id: existingCoupon.id }, data: couponData });
+      }
+      const couponRow = await prisma.coupon.findFirst({ where: { OR: [{ legacyId }, { code }] } });
+      if (!couponRow) continue;
+      for (const assigned of Array.isArray(c.assignedUsers) ? c.assignedUsers : []) {
+        const userId = mongoUserToPgId.get(String(assigned));
+        if (userId) await prisma.couponAssignment.upsert({
+          where: { couponId_userId: { couponId: couponRow.id, userId } },
+          create: { couponId: couponRow.id, userId }, update: {},
+        });
+      }
+      for (const used of Array.isArray(c.usedBy) ? c.usedBy : []) {
+        const mongoUserId = String(typeof used === 'object' ? used.user ?? used.userId ?? used._id : used);
+        const userId = mongoUserToPgId.get(mongoUserId);
+        if (!userId) continue;
+        const usedAt = typeof used === 'object' ? (used.usedAt ? toDate(used.usedAt) : null) : null;
+        const usedLegacyId = typeof used === 'object' && used._id ? String(used._id) : `${mongoUserId}:${usedAt?.toISOString() ?? ''}`;
+        const redemptionId = deterministicUuid(`coupon-redemption:${legacyId}:${usedLegacyId}`);
+        await prisma.couponRedemption.upsert({
+          where: { id: redemptionId },
+          create: { id: redemptionId, couponId: couponRow.id, userId, status: 'REDEEMED', usedAt: usedAt ?? undefined },
+          update: { couponId: couponRow.id, userId, status: 'REDEEMED', usedAt: usedAt ?? undefined },
         });
       }
     }
@@ -880,7 +959,11 @@ async function main() {
       const userId = mongoUserToPgId.get(String(o.user));
       if (!userId) continue;
       const currency = String(o.currency ?? 'INR').toUpperCase();
-      const paid = String(o.payment?.status).toLowerCase() === 'paid';
+      const paymentState = mapLegacyPaymentState(o.payment?.status);
+      const paid = paymentState.paid;
+      const paymentMethod = String(o.payment?.method ?? '').toLowerCase() === 'cod'
+        ? SalePaymentMethod.COD
+        : String(o.payment?.method ?? '').toLowerCase() === 'manual' ? SalePaymentMethod.MANUAL : SalePaymentMethod.RAZORPAY;
       const orderId = deterministicUuid(`order:${legacyId}`);
       const totalPaise = toPaise(o.baseAmount ?? o.totalAmount);
 
@@ -889,8 +972,10 @@ async function main() {
         create: {
           id: orderId,
           userId,
-          status: paid ? OrderStatus.PAID : OrderStatus.PENDING,
-          paymentStatus: paid ? PaymentStatus.CAPTURED : PaymentStatus.PENDING,
+          status: paymentState.orderStatus,
+          paymentStatus: paymentState.paymentStatus,
+          paymentMethod,
+          paidAt: paid ? toDate(o.payment?.paidAt ?? o.updatedAt ?? o.createdAt) : null,
           amount: totalPaise,
           currency: 'INR',
           paidCurrency: currency,
@@ -903,9 +988,35 @@ async function main() {
           razorpayPaymentId: o.payment?.razorpayPaymentId ? String(o.payment.razorpayPaymentId) : null,
           createdAt: toDate(o.createdAt),
         },
-        update: {},
+        update: { status: paymentState.orderStatus, paymentStatus: paymentState.paymentStatus, paymentMethod,
+          paidAt: paid ? toDate(o.payment?.paidAt ?? o.updatedAt ?? o.createdAt) : null },
       });
       mongoSaleToOrderPgId.set(legacyId, createdOrder.id);
+
+      for (const [index, item] of (Array.isArray(o.items) ? o.items : []).entries()) {
+        const productId = mongoProductToPgId.get(String(item.product));
+        if (!productId) continue;
+        const variantId = item.variantId ? mongoVariantToPgId.get(String(item.variantId)) ?? null : null;
+        const quantity = Math.max(1, Number(item.quantity ?? 1));
+        const total = toPaise(item.price) * quantity;
+        const product = await prisma.product.findUnique({ where: { id: productId }, select: { catalogId: true, requiresShipping: true, gstRateBp: true, productType: true } });
+        const taxInclusive = String(item.taxType ?? '').toLowerCase() !== 'exclusive';
+        const taxAmountPaise = toInrPaise(item.taxAmount, Number(o.exchangeRate ?? 1));
+        await prisma.orderItem.upsert({
+          where: { id: deterministicUuid(`order-item:${legacyId}:${index}`) },
+          create: {
+            id: deterministicUuid(`order-item:${legacyId}:${index}`), orderId: createdOrder.id,
+            itemType: OrderItemType.PRODUCT, catalogId: product?.catalogId ?? String(item.product), title: String(item.name ?? 'Product'),
+            quantity, unitPrice: toPaise(item.price), taxRate: item.taxRate != null ? Math.round(Number(item.taxRate) * 100) : product?.gstRateBp ?? 0,
+            taxAmount: taxAmountPaise, taxInclusive,
+            totalAmount: taxInclusive ? total : total + taxAmountPaise,
+            currency: 'INR', fulfillmentType: product?.productType === ProductType.SERVICE ? 'SERVICE' : product?.requiresShipping ? 'PHYSICAL' : 'DIGITAL',
+            fulfillmentStatus: paid ? 'FULFILLED' : 'UNFULFILLED',
+            metadata: { productId, variantId, image: item.image ?? null, mrpPaise: toPaise(item.mrp) },
+            createdAt: toDate(o.createdAt),
+          }, update: {},
+        });
+      }
 
       await prisma.shopOrder.upsert({
         where: { legacyId },
@@ -926,6 +1037,14 @@ async function main() {
         },
         update: {},
       });
+      if (o.invoiceNumber || o.invoiceAllocationStatus) await prisma.invoice.upsert({
+        where: { legacyId }, create: { legacyId, orderId: createdOrder.id, saleType: LedgerTransactionType.ORDER,
+          number: o.invoiceNumber ? String(o.invoiceNumber) : null, status: mapInvoiceStatus(o.invoiceAllocationStatus, o.invoiceNumber),
+          allocatedAt: String(o.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(o.updatedAt ?? o.createdAt) : null },
+        update: { orderId: createdOrder.id, number: o.invoiceNumber ? String(o.invoiceNumber) : null,
+          status: mapInvoiceStatus(o.invoiceAllocationStatus, o.invoiceNumber),
+          allocatedAt: String(o.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(o.updatedAt ?? o.createdAt) : null },
+      });
     }
 
     // 11. Downloads -> DigitalProductEntitlement
@@ -935,6 +1054,9 @@ async function main() {
       const orderId = mongoSaleToOrderPgId.get(String(d.order));
       const productId = mongoProductToPgId.get(String(d.product));
       if (!userId || !orderId || !productId) continue;
+      const sourceOrder = orders.find((o) => String(o._id) === String(d.order));
+      const itemIndex = (Array.isArray(sourceOrder?.items) ? sourceOrder.items : []).findIndex((item: AnyDoc) =>
+        String(item.product) === String(d.product) && (!d.variantId || String(item.variantId) === String(d.variantId)));
       await prisma.digitalProductEntitlement.upsert({
         where: { legacyId },
         create: {
@@ -944,9 +1066,19 @@ async function main() {
           orderId,
           productId,
           downloadCount: Number(d.totalDownloads ?? 0),
+          variantId: d.variantId ? mongoVariantToPgId.get(String(d.variantId)) ?? null : null,
+          orderItemId: itemIndex >= 0 ? deterministicUuid(`order-item:${String(d.order)}:${itemIndex}`) : null,
+          assetKey: storageService.resolveKey(d.file),
+          assetName: d.variantName ? String(d.variantName) : d.productName ? String(d.productName) : null,
+          grantedAt: toDate(d.createdAt),
           createdAt: toDate(d.createdAt),
         },
-        update: {},
+        update: {
+          variantId: d.variantId ? mongoVariantToPgId.get(String(d.variantId)) ?? null : null,
+          assetKey: storageService.resolveKey(d.file),
+          assetName: d.variantName ? String(d.variantName) : d.productName ? String(d.productName) : null,
+          downloadCount: Number(d.totalDownloads ?? 0), grantedAt: toDate(d.createdAt),
+        },
       });
     }
 
@@ -955,17 +1087,20 @@ async function main() {
       const legacyId = String(ro._id);
       const userId = mongoUserToPgId.get(String(ro.userId));
       if (!userId) continue;
-      const paid = String(ro.paymentStatus).toLowerCase() === 'paid';
+      const paymentState = mapLegacyPaymentState(ro.paymentStatus);
+      const paid = paymentState.paid;
       const orderId = deterministicUuid(`reportorder:${legacyId}`);
       const currency = String(ro.currency ?? 'INR').toUpperCase();
+      const paidAt = paid ? toDate(ro.paidAt ?? ro.updatedAt ?? ro.createdAt) : null;
 
       await prisma.order.upsert({
         where: { id: orderId },
         create: {
           id: orderId,
           userId,
-          status: paid ? OrderStatus.PAID : OrderStatus.PENDING,
-          paymentStatus: paid ? PaymentStatus.CAPTURED : PaymentStatus.PENDING,
+          status: paymentState.orderStatus,
+          paymentStatus: paymentState.paymentStatus,
+          paidAt,
           amount: toPaise(ro.baseAmount ?? ro.amount),
           currency: 'INR',
           paidCurrency: currency,
@@ -975,7 +1110,7 @@ async function main() {
           razorpayPaymentId: ro.razorpayPaymentId ? String(ro.razorpayPaymentId) : null,
           createdAt: toDate(ro.createdAt),
         },
-        update: {},
+        update: { status: paymentState.orderStatus, paymentStatus: paymentState.paymentStatus, paidAt },
       });
       mongoSaleToOrderPgId.set(legacyId, orderId);
 
@@ -1018,6 +1153,22 @@ async function main() {
         },
         update: {},
       });
+      if (ro.invoiceNumber || ro.invoiceAllocationStatus) await prisma.invoice.upsert({
+        where: { legacyId }, create: { legacyId, orderId, saleType: LedgerTransactionType.REPORT,
+          number: ro.invoiceNumber ? String(ro.invoiceNumber) : null,
+          status: mapInvoiceStatus(ro.invoiceAllocationStatus, ro.invoiceNumber),
+          allocatedAt: String(ro.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(ro.updatedAt ?? ro.createdAt) : null },
+        update: { orderId, number: ro.invoiceNumber ? String(ro.invoiceNumber) : null,
+          status: mapInvoiceStatus(ro.invoiceAllocationStatus, ro.invoiceNumber),
+          allocatedAt: String(ro.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(ro.updatedAt ?? ro.createdAt) : null },
+      });
+      await prisma.orderItem.upsert({ where: { id: deterministicUuid(`report-item:${legacyId}`) }, create: {
+        id: deterministicUuid(`report-item:${legacyId}`), orderId, itemType: OrderItemType.REPORT,
+        catalogId: String(ro.reportType ?? 'report'), title: String(ro.reportType ?? 'Report'),
+        unitPrice: toPaise(ro.baseAmount ?? ro.amount), totalAmount: toPaise(ro.baseAmount ?? ro.amount),
+        currency: 'INR', fulfillmentType: 'DIGITAL', fulfillmentStatus: paid ? 'FULFILLED' : 'UNFULFILLED',
+        createdAt: toDate(ro.createdAt),
+      }, update: {} });
     }
 
     // 13. Consultation Bookings
@@ -1030,17 +1181,23 @@ async function main() {
       const userId = mongoUserToPgId.get(String(b.userId));
       const consultationTypeId = mongoConsultationToPgId.get(String(b.consultationId));
       if (!userId) continue;
-      const paid = String(b.paymentStatus).toLowerCase() === 'paid';
+      const paymentState = mapLegacyPaymentState(b.paymentStatus);
+      const paid = paymentState.paid;
       const orderId = deterministicUuid(`bookingorder:${legacyId}`);
       const currency = String(b.currency ?? 'INR').toUpperCase();
+      const paidAt = paid ? toDate(b.paidAt ?? b.updatedAt ?? b.createdAt) : null;
+      const bookingPaymentMethod = String(b.paymentMethod ?? '').toLowerCase() === 'manual' || String(b.bookingSource ?? '').toLowerCase() === 'admin'
+        ? SalePaymentMethod.MANUAL : SalePaymentMethod.RAZORPAY;
 
       await prisma.order.upsert({
         where: { id: orderId },
         create: {
           id: orderId,
           userId,
-          status: paid ? OrderStatus.PAID : OrderStatus.PENDING,
-          paymentStatus: paid ? PaymentStatus.CAPTURED : PaymentStatus.PENDING,
+          status: paymentState.orderStatus,
+          paymentStatus: paymentState.paymentStatus,
+          paymentMethod: bookingPaymentMethod,
+          paidAt,
           amount: toPaise(b.baseAmount ?? b.amount),
           currency: 'INR',
           paidCurrency: currency,
@@ -1049,7 +1206,8 @@ async function main() {
           razorpayOrderId: `legacy_booking_${legacyId}`,
           createdAt: toDate(b.createdAt),
         },
-        update: {},
+        update: { status: paymentState.orderStatus, paymentStatus: paymentState.paymentStatus,
+          paymentMethod: bookingPaymentMethod, paidAt },
       });
       mongoSaleToOrderPgId.set(legacyId, orderId);
 
@@ -1089,6 +1247,24 @@ async function main() {
         },
         update: {},
       });
+      if (b.invoiceNumber || b.invoiceAllocationStatus) {
+        await prisma.consultationBooking.update({ where: { legacyId }, data: { invoiceNumber: b.invoiceNumber ? String(b.invoiceNumber) : null } });
+        await prisma.invoice.upsert({ where: { legacyId }, create: { legacyId, orderId, saleType: LedgerTransactionType.CONSULTATION,
+          number: b.invoiceNumber ? String(b.invoiceNumber) : null,
+          status: mapInvoiceStatus(b.invoiceAllocationStatus, b.invoiceNumber),
+          allocatedAt: String(b.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(b.updatedAt ?? b.createdAt) : null },
+          update: { orderId, number: b.invoiceNumber ? String(b.invoiceNumber) : null,
+            status: mapInvoiceStatus(b.invoiceAllocationStatus, b.invoiceNumber),
+            allocatedAt: String(b.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(b.updatedAt ?? b.createdAt) : null } });
+      }
+      await prisma.orderItem.upsert({ where: { id: deterministicUuid(`booking-item:${legacyId}`) }, create: {
+        id: deterministicUuid(`booking-item:${legacyId}`), orderId, itemType: OrderItemType.CONSULTATION,
+        catalogId: `consult-${String(b.consultationId)}-${modeEnum.toLowerCase()}`,
+        title: consultationTitleByLegacyId.get(String(b.consultationId)) ?? 'Consultation',
+        unitPrice: toPaise(b.baseAmount ?? b.amount), totalAmount: toPaise(b.baseAmount ?? b.amount),
+        currency: 'INR', fulfillmentType: 'SERVICE', fulfillmentStatus: paid ? 'FULFILLED' : 'UNFULFILLED',
+        metadata: { bookingId: deterministicUuid(`booking:${legacyId}`) }, createdAt: toDate(b.createdAt),
+      }, update: {} });
     }
 
     // 14. Payment Transactions
@@ -1099,6 +1275,22 @@ async function main() {
       const legacySourceId = tx.order ? String(tx.order) : tx.report ? String(tx.report) : tx.booking ? String(tx.booking) : null;
       const orderId = legacySourceId ? mongoSaleToOrderPgId.get(legacySourceId) ?? null : null;
       const currency = String(tx.currency ?? 'INR').toUpperCase();
+      const exchangeRate = Number(tx.exchangeRate ?? 1);
+      const sourceReport = tx.report ? reportOrders.find((row) => String(row._id) === String(tx.report)) : null;
+      const sourceShopOrder = tx.order ? orders.find((row) => String(row._id) === String(tx.order)) : null;
+      const method = String(tx.method ?? tx.paymentMethod ?? '').toLowerCase() === 'manual'
+        ? SalePaymentMethod.MANUAL
+        : String(tx.method ?? tx.paymentMethod ?? '').toLowerCase() === 'cod' ? SalePaymentMethod.COD : SalePaymentMethod.RAZORPAY;
+      const transactionType = String(tx.transactionType ?? '').toLowerCase();
+      const inferredType = transactionType === 'consultation' || tx.booking
+        ? LedgerTransactionType.CONSULTATION
+        : transactionType === 'report' || tx.report ? LedgerTransactionType.REPORT : LedgerTransactionType.ORDER;
+      const customerName = sourceReport?.customerDetails?.fullName
+        ?? sourceShopOrder?.shippingAddress?.fullName
+        ?? mongoUserDisplay.get(String(tx.user))?.name
+        ?? null;
+      const placeOfSupply = sourceShopOrder?.shippingAddress?.state ?? null;
+      const baseAmount = tx.baseAmount ?? (sourceReport?.baseAmount ?? tx.amount);
 
       await prisma.paymentTransaction.upsert({
         where: { legacyId },
@@ -1107,54 +1299,69 @@ async function main() {
           legacySourceId,
           userId,
           orderId,
-          type:
-            tx.transactionType === 'consultation'
-              ? LedgerTransactionType.CONSULTATION
-              : tx.transactionType === 'report'
-              ? LedgerTransactionType.REPORT
-              : LedgerTransactionType.ORDER,
+          type: inferredType,
           amountMinor: toMinorUnits(tx.amount, currency),
           currency,
           baseCurrency: String(tx.baseCurrency ?? 'INR').toUpperCase(),
-          baseAmountPaise: toPaise(tx.baseAmount ?? tx.amount),
-          subtotalPaise: toPaise(tx.subTotal),
-          shippingPaise: toPaise(tx.shipping),
-          taxPaise: toPaise(tx.tax),
+          baseAmountPaise: toPaise(baseAmount),
+          subtotalPaise: toInrPaise(tx.subTotal, exchangeRate),
+          shippingPaise: toInrPaise(tx.shipping, exchangeRate),
+          taxPaise: toInrPaise(tx.tax, exchangeRate),
           taxRateBp: tx.taxRate != null ? Math.round(Number(tx.taxRate) * 100) : 0,
           taxInclusive: Boolean(tx.taxInclusive),
-          discountPaise: toPaise(tx.discount),
-          exchangeRate: Number(tx.exchangeRate ?? 1),
-          method: SalePaymentMethod.RAZORPAY,
+          discountPaise: toInrPaise(tx.discount, exchangeRate),
+          exchangeRate,
+          method,
           status:
             tx.status === 'success'
               ? LedgerTransactionStatus.SUCCESS
               : tx.status === 'failed'
               ? LedgerTransactionStatus.FAILED
-              : LedgerTransactionStatus.PENDING,
+              : tx.status === 'paid' ? LedgerTransactionStatus.SUCCESS : LedgerTransactionStatus.PENDING,
           gatewayPaymentId: tx.transactionId ? String(tx.transactionId) : null,
           gatewayOrderId: tx.razorpayOrderId ? String(tx.razorpayOrderId) : null,
-          rawResponse: tx.rawResponse ?? null,
+          rawResponse: sanitizeGatewayPayload(tx.rawResponse) ?? undefined,
+          placeOfSupply: tx.placeOfSupply ? String(tx.placeOfSupply) : placeOfSupply ? String(placeOfSupply) : null,
+          customerName: tx.customerName ? String(tx.customerName) : customerName ? String(customerName) : null,
+          legacyData: {
+            websiteAmounts: {
+              amount: tx.amount ?? null, baseAmount: tx.baseAmount ?? null, subTotal: tx.subTotal ?? null,
+              shipping: tx.shipping ?? null, tax: tx.tax ?? null, discount: tx.discount ?? null,
+            },
+            source: tx.legacyData ?? null,
+          },
           createdAt: toDate(tx.createdAt),
         },
-        update: {},
-      });
-    }
-
-    // 15. Invoice Counter
-    for (const ic of invoiceCounters) {
-      await prisma.invoiceCounter.upsert({
-        where: { key: String(ic.key ?? 'INV-AS') },
-        create: {
-          key: String(ic.key ?? 'INV-AS'),
-          lastValue: BigInt(ic.lastValue ?? 0),
-          initializedBy: 'mongo-migration',
-        },
         update: {
-          lastValue: BigInt(ic.lastValue ?? 0),
+          method,
+          type: inferredType,
+          baseAmountPaise: toPaise(baseAmount),
+          subtotalPaise: toInrPaise(tx.subTotal, exchangeRate),
+          shippingPaise: toInrPaise(tx.shipping, exchangeRate),
+          taxPaise: toInrPaise(tx.tax, exchangeRate),
+          discountPaise: toInrPaise(tx.discount, exchangeRate),
+          exchangeRate,
+          status: tx.status === 'success' || tx.status === 'paid' ? LedgerTransactionStatus.SUCCESS
+            : tx.status === 'failed' ? LedgerTransactionStatus.FAILED : LedgerTransactionStatus.PENDING,
+          rawResponse: sanitizeGatewayPayload(tx.rawResponse) ?? undefined,
+          placeOfSupply: tx.placeOfSupply ? String(tx.placeOfSupply) : placeOfSupply ? String(placeOfSupply) : null,
+          customerName: tx.customerName ? String(tx.customerName) : customerName ? String(customerName) : null,
+          legacyData: {
+            websiteAmounts: {
+              amount: tx.amount ?? null, baseAmount: tx.baseAmount ?? null, subTotal: tx.subTotal ?? null,
+              shipping: tx.shipping ?? null, tax: tx.tax ?? null, discount: tx.discount ?? null,
+            },
+            source: tx.legacyData ?? null,
+          },
         },
       });
+      if (orderId && method !== SalePaymentMethod.RAZORPAY) {
+        await prisma.order.update({ where: { id: orderId }, data: { paymentMethod: method } });
+      }
     }
 
+    // Historical counters are reported in preflight only. Per money.md, a super admin
+    // initializes the PostgreSQL counter after reviewing migrated invoice numbers.
     console.log('\nMigration completed successfully.');
   } finally {
     await prisma.$disconnect();

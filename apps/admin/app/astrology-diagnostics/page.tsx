@@ -1,15 +1,55 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api-client';
+import { RequirePermission } from '../../components/sales/ui';
 
-export default function AstrologyDiagnosticsPage() {
+interface BirthProfileSearchItem {
+  id: string;
+  name: string;
+  dateOfBirth: string;
+  timeOfBirth: string;
+  placeName: string | null;
+  user: {
+    id: string;
+    email: string;
+    fullName: string | null;
+  };
+}
+
+function AstrologyDiagnosticsScreen() {
   const [profileId, setProfileId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<BirthProfileSearchItem[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<BirthProfileSearchItem | null>(null);
   const [domain, setDomain] = useState('CAREER');
   const [loading, setLoading] = useState(false);
   const [evidenceData, setEvidenceData] = useState<any>(null);
   const [predictionsData, setPredictionsData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await apiFetch<{ items: BirthProfileSearchItem[] }>(
+          `/api/v1/admin/birth-profiles?search=${encodeURIComponent(trimmed)}&pageSize=10`
+        );
+        setSearchResults(res.items || []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleRunDiagnostics = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +96,81 @@ export default function AstrologyDiagnosticsPage() {
       </div>
 
       <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem', background: '#1E293B', borderRadius: '8px' }}>
+        <div style={{ marginBottom: '1rem', position: 'relative' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '0.25rem' }}>
+            Search Birth Profile by Name or User Email
+          </label>
+          <input
+            type="text"
+            placeholder="Type name or email to search birth profiles..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              borderRadius: '4px',
+              border: '1px solid #334155',
+              background: '#0F172A',
+              color: '#FFF',
+            }}
+          />
+          {searching && (
+            <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.35rem' }}>Searching profiles...</div>
+          )}
+          {searchResults.length > 0 && (
+            <div
+              style={{
+                marginTop: '0.4rem',
+                background: '#0F172A',
+                border: '1px solid #334155',
+                borderRadius: '6px',
+                maxHeight: '220px',
+                overflowY: 'auto',
+              }}
+            >
+              {searchResults.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setProfileId(p.id);
+                    setSelectedProfile(p);
+                    setSearchResults([]);
+                    setSearchQuery('');
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.6rem 0.75rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '1px solid #1E293B',
+                    color: '#E2E8F0',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '1rem',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#FFF' }}>{p.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                      {p.user?.email} · DOB: {p.dateOfBirth} {p.timeOfBirth} {p.placeName ? `· ${p.placeName}` : ''}
+                    </div>
+                  </div>
+                  <code style={{ fontSize: '0.7rem', color: '#38BDF8' }}>{p.id.slice(0, 8)}…</code>
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedProfile && (
+            <div style={{ fontSize: '0.78rem', color: '#38BDF8', marginTop: '0.4rem' }}>
+              Selected: <strong>{selectedProfile.name}</strong> ({selectedProfile.user?.email}) — DOB {selectedProfile.dateOfBirth}
+            </div>
+          )}
+        </div>
+
         <form onSubmit={handleRunDiagnostics} style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
             <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '0.25rem' }}>
@@ -65,7 +180,12 @@ export default function AstrologyDiagnosticsPage() {
               type="text"
               placeholder="e.g. 33333333-3333-3333-3333-333333333333"
               value={profileId}
-              onChange={(e) => setProfileId(e.target.value)}
+              onChange={(e) => {
+                setProfileId(e.target.value);
+                if (selectedProfile && e.target.value !== selectedProfile.id) {
+                  setSelectedProfile(null);
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '0.5rem',
@@ -175,5 +295,13 @@ export default function AstrologyDiagnosticsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AstrologyDiagnosticsPage() {
+  return (
+    <RequirePermission permission="birth_profiles:read">
+      <AstrologyDiagnosticsScreen />
+    </RequirePermission>
   );
 }

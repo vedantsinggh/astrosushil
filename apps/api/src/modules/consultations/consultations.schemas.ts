@@ -30,6 +30,7 @@ export const bookConsultationSchema = z.object({
   pob: z.string().optional(),
   notes: z.string().max(1000).optional(),
   timezone: z.string().optional().default('Asia/Kolkata'),
+  currency: z.string().regex(/^[A-Za-z]{3}$/).transform((value) => value.toUpperCase()).optional(),
   couponCode: z.string().trim().min(3).max(20).optional(),
 });
 

@@ -5,7 +5,12 @@ import { storageService } from '../../services/storage.service';
 import { createReportSchema, reportLanguageSchema } from './reports.schemas';
 
 export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
-  fastify.addHook('onRequest', fastify.authenticate);
+  fastify.addHook('onRequest', async (request, reply) => {
+    if (request.routeOptions?.url === '/api/v1/reports/download-secure') {
+      return;
+    }
+    return fastify.authenticate(request, reply);
+  });
 
   function setNoCacheHeaders(reply: any) {
     reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -188,16 +193,27 @@ export async function reportsRoutes(fastify: FastifyInstance, _options: FastifyP
 
   // GET /api/v1/reports/download-secure (Tokenized download URL for local fallback)
   fastify.get('/download-secure', {
-    onRequest: [],
     handler: async (request, reply) => {
       const { key, expires, token } = request.query as { key: string; expires: string; token: string };
       if (!key || !expires || !token) {
-        return reply.status(400).send({ error: 'Missing signature parameters' });
+        return reply.status(400).send({
+          error: {
+            code: 'MISSING_SIGNATURE_PARAMS',
+            message: 'Missing signature parameters',
+            requestId: request.id,
+          },
+        });
       }
       const expiresMs = parseInt(expires, 10);
       const isValid = storageService.verifyLocalSignedUrl(key, expiresMs, token);
       if (!isValid) {
-        return reply.status(403).send({ error: 'Invalid or expired download signature' });
+        return reply.status(403).send({
+          error: {
+            code: 'INVALID_DOWNLOAD_SIGNATURE',
+            message: 'Invalid or expired download signature',
+            requestId: request.id,
+          },
+        });
       }
       const buffer = await storageService.downloadBuffer(key);
       const filename = path.basename(key);

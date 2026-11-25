@@ -115,9 +115,12 @@ export default function MyProfile() {
 
   useEffect(() => {
     if (!user) return;
+    const parts = (user.fullName || "").trim().split(/\s+/).filter(Boolean);
+    const firstName = user.firstName || parts[0] || "";
+    const lastName = user.lastName || parts.slice(1).join(" ") || "";
     setForm({
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
+      firstName,
+      lastName,
       email: user.email || "",
       phoneNumber: user.phoneNumber || "",
       birthPlace: user.birthPlace || "",
@@ -148,16 +151,8 @@ export default function MyProfile() {
   };
 
   const handleSubmit = async () => {
-    const res = await updateProfile({
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      phoneNumber: form.phoneNumber,
-      birthPlace: form.birthPlace,
-      birthTime: form.birthTime,
-      gender: form.gender,
-      dob: form.dob,
-    });
+    const fullName = `${form.firstName} ${form.lastName}`.trim();
+    const res = await updateProfile({ fullName });
     if (res?.success) toast.success("Profile updated!");
     else toast.error(res?.error || "Failed to update");
   };

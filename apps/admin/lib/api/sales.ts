@@ -405,6 +405,23 @@ export function listTransactions(filters: TransactionFilters, page: number, limi
   return call<TransactionListResult>(`/admin/transactions${qs({ ...transactionQuery(filters), page, limit })}`);
 }
 
+export function getTransaction(id: string): Promise<LedgerTransaction> {
+  return call<LedgerTransaction>(`/admin/transactions/${encodeURIComponent(id)}`);
+}
+
+export interface StaffRefundResult {
+  refund: { id: string; amount: number; status: string };
+  order: { id: string; status: string };
+  fullyRefunded?: boolean;
+}
+
+export function refundOrder(
+  orderId: string,
+  body: { reason: string; amountPaise?: number; idempotencyKey?: string }
+): Promise<StaffRefundResult> {
+  return call<StaffRefundResult>(`/admin/payments/orders/${encodeURIComponent(orderId)}/refund`, jsonBody('POST', body));
+}
+
 /** The server's count of ledger rows matching the filters with one status (not a count of the visible page). */
 export async function countTransactions(filters: TransactionFilters, status: LedgerStatus | ''): Promise<number> {
   const result = await listTransactions({ ...filters, status }, 1, 1);

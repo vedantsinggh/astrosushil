@@ -49,7 +49,6 @@ class FakeAuthRepository extends AuthRepository {
   @override
   Future<UserModel?> getCachedUser() async => _current;
 
-  @override
   Future<AuthResponseDto> signInWithGoogle(String idToken, {Map<String, dynamic>? birthProfile}) async {
     calls.add('google:$idToken');
     _current = googleUser;
@@ -57,6 +56,48 @@ class FakeAuthRepository extends AuthRepository {
       user: googleUser,
       tokens: const AuthTokensModel(accessToken: 'access', refreshToken: 'refresh'),
     );
+  }
+
+  @override
+  Future<AuthResponseDto> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+    Map<String, dynamic>? birthProfile,
+  }) async {
+    calls.add('verifyPhoneOtp:$phoneNumber:$otp');
+    _current = googleUser;
+    return AuthResponseDto(
+      user: googleUser,
+      tokens: const AuthTokensModel(accessToken: 'access', refreshToken: 'refresh'),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> sendEmailOtp(String email) async {
+    calls.add('emailOtp:$email');
+    return {'success': true};
+  }
+
+  @override
+  Future<AuthResponseDto> verifyEmailOtp({
+    required String email,
+    required String otp,
+    String? fullName,
+    Map<String, dynamic>? birthProfile,
+  }) async {
+    calls.add('verifyEmailOtp:$email:$otp');
+    _current = googleUser;
+    return AuthResponseDto(
+      user: googleUser,
+      tokens: const AuthTokensModel(accessToken: 'access', refreshToken: 'refresh'),
+    );
+  }
+
+  @override
+  Future<UserModel> linkEmail({required String email, required String otp}) async {
+    calls.add('linkEmail:$email:$otp');
+    _current = userAfterPhoneLinked ?? _current;
+    return _current!;
   }
 
   @override

@@ -35,6 +35,7 @@ import { transactionsRoutes } from '../modules/transactions/transactions.routes'
 import { invoicesRoutes } from '../modules/invoices/invoices.routes';
 import { webAstrologyRoutes } from '../modules/web-astrology/web-astrology.routes';
 import { webReportsRoutes } from '../modules/web-astrology/web-reports.routes';
+import { exchangeRateService } from '../modules/commerce/money/rates';
 
 export async function registerRoutes(app: FastifyInstance) {
   // Register health route at root level /health
@@ -90,6 +91,15 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(webReportsRoutes, { prefix: '/report' }); // website paths: /report, /report/slug/:slug, /report/buy, /report/verify-payment, /report/orders
       await v1.register(notificationsRoutes, { prefix: '/notifications' });
       await v1.register(jyotiRoutes, { prefix: '/jyoti' });
+      v1.get('/utils/exchange-rates', async (_request, reply) => {
+        const snapshot = await exchangeRateService.getPublicRates();
+        return reply.status(200).send({
+          success: true,
+          base: snapshot.base,
+          rates: snapshot.rates,
+          fetchedAt: snapshot.fetchedAt,
+        });
+      });
     },
     { prefix: '/api/v1' }
   );

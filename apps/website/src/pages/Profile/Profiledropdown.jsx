@@ -119,9 +119,10 @@ export default function ProfileDropdown({ isOpen, onClose, triggerRef, dropUp = 
                     Signed in as
                   </p>
                   <p className="text-[13px] font-heading text-primary truncate leading-snug">
-                    {user?.firstName
-                      ? `${user.firstName} ${user.lastName || ""}`.trim()
-                      : user?.email || "User"}
+                    {user?.fullName ||
+                      (user?.firstName
+                        ? `${user.firstName} ${user.lastName || ""}`.trim()
+                        : user?.email || user?.phoneNumber || "User")}
                   </p>
                 </div>
               </div>

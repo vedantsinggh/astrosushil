@@ -56,6 +56,7 @@ export interface BookConsultationInput {
   pob?: string;
   notes?: string;
   timezone?: string;
+  currency?: string;
   couponCode?: string;
 }
 
@@ -313,6 +314,7 @@ export class ConsultationsService {
                 },
               },
             ],
+            currency: input.currency,
             notes: `Booking for ${tier.title} on ${dateStr} at ${startTime}`,
             couponCode: input.couponCode,
           },
@@ -505,8 +507,8 @@ export class ConsultationsService {
       // 1. Update order and create fulfillment units
       if (booking.orderId) {
         // Lock Order FIRST
-        await tx.$queryRaw`
-          SELECT id FROM "orders" WHERE id = ${booking.orderId} FOR UPDATE;
+        const lockedOrders = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+          SELECT id, status::text FROM "orders" WHERE id = ${booking.orderId} FOR UPDATE;
         `;
 
         // Lock OrderItems SECOND
@@ -514,18 +516,20 @@ export class ConsultationsService {
           SELECT id FROM "order_items" WHERE "orderId" = ${booking.orderId} ORDER BY id ASC FOR UPDATE;
         `;
 
-        // Transition order to PAID atomically
-        await tx.$executeRaw`
-          UPDATE "orders"
-          SET
-            status = 'PAID'::"OrderStatus",
-            "paymentStatus" = 'CAPTURED'::"PaymentStatus",
-            "paidAt" = clock_timestamp(),
-            "version" = version + 1,
-            "razorpayPaymentId" = ${input.razorpayPaymentId},
-            "updatedAt" = clock_timestamp()
-          WHERE id = ${booking.orderId};
-        `;
+        // Transition order to PAID atomically if not already PAID
+        if (lockedOrders[0]?.status !== 'PAID') {
+          await tx.$executeRaw`
+            UPDATE "orders"
+            SET
+              status = 'PAID'::"OrderStatus",
+              "paymentStatus" = 'CAPTURED'::"PaymentStatus",
+              "paidAt" = COALESCE("paidAt", clock_timestamp()),
+              "version" = version + 1,
+              "razorpayPaymentId" = ${input.razorpayPaymentId},
+              "updatedAt" = clock_timestamp()
+            WHERE id = ${booking.orderId};
+          `;
+        }
 
         // Money: ledger transaction -> SUCCESS and the invoice number, in this same transaction
         // (the order row is locked above; settleOrderPaid is safe to repeat after the webhook).

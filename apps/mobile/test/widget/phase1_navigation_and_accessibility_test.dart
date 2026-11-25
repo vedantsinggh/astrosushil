@@ -9,7 +9,6 @@ import 'package:astro_mobile/home/widgets/home_bottom_navigation.dart';
 import 'package:astro_mobile/home/screens/consult_screen.dart';
 import 'package:astro_mobile/home/screens/profile_screen.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart' hide secureStorageProvider;
-import 'package:astro_mobile/features/auth/data/auth_repository.dart';
 import 'package:astro_mobile/features/birth_profile/providers/birth_profile_provider.dart';
 import 'package:astro_mobile/features/birth_profile/models/birth_profile_model.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
@@ -186,23 +185,10 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   Future<void> checkSession() async {}
 
   @override
-  Future<AuthRegistrationResult?> login(String email, String password) async => null;
-
-  @override
-  Future<AuthRegistrationResult?> register(String email, String password,
-      {Map<String, dynamic>? birthProfile, String? fullName, String? phoneNumber}) async => null;
-
-  @override
-  Future<bool> verifyEmail(String email, String otp) async => true;
-
-  @override
   Future<String?> forgotPassword(String email) async => 'OTP sent';
 
   @override
   Future<bool> resetPassword(String email, String otp, String newPassword) async => true;
-
-  @override
-  Future<String?> resendVerification(String email) async => 'OTP sent';
 
   @override
   Future<void> handleSessionExpired() async {}
@@ -219,13 +205,16 @@ class TestAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   Future<bool> verifyPhoneOtp(String phoneNumber, String otp, [Map<String, dynamic>? birthProfile]) async => true;
 
   @override
-  Future<bool> signInWithGoogle(String idToken, [Map<String, dynamic>? birthProfile]) async => true;
+  Future<bool> sendEmailOtp(String email) async => true;
+
+  @override
+  Future<bool> verifyEmailOtp(String email, String otp, {String? fullName, Map<String, dynamic>? birthProfile}) async => true;
 
   @override
   Future<bool> linkPhone(String phoneNumber, String otp) async => true;
 
   @override
-  Future<bool> linkGoogle(String idToken) async => true;
+  Future<bool> linkEmail(String email, String otp) async => true;
 
   @override
   Future<void> continueAsGuest() async {

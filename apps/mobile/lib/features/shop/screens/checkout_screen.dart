@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../reports/models/report_purchase_models.dart';
+import '../../reports/services/razorpay_checkout_service.dart';
 import '../providers/cart_provider.dart';
 import '../providers/shop_provider.dart';
 import '../widgets/shop_ui.dart';
@@ -29,16 +32,19 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isProcessing = false;
   String? _errorMessage;
+  late String _idempotencyKey;
+  IRazorpayCheckoutService? _razorpay;
 
   @override
   void initState() {
     super.initState();
+    _idempotencyKey = 'mob_shop_${DateTime.now().millisecondsSinceEpoch}';
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(cartProvider.notifier).recalculate();
     });
   }
 
-  Future<void> _handlePayment() async {
+  Future<void> _placeOrder() async {
     final cartState = ref.read(cartProvider);
     final locale = ref.read(localeProvider);
     final isHindi = locale.languageCode == 'hi';
@@ -60,31 +66,143 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final shopService = ref.read(shopServiceProvider);
 
-      // 1. Create shop order on backend
+      // 1. Create shop order on backend using the per-attempt idempotencyKey
       final orderResult = await shopService.createShopOrder(
         cartState.items,
         shippingAddressId: cartState.selectedAddress?.id,
-        idempotencyKey: 'mob_shop_${DateTime.now().millisecondsSinceEpoch}',
+        idempotencyKey: _idempotencyKey,
       );
 
-      final orderId = orderResult['orderId'] as String;
-      final razorpayOrderId = orderResult['razorpayOrderId'] as String;
+      final nestedOrder = orderResult['order'] as Map<String, dynamic>?;
+      final orderId = (orderResult['orderId'] ?? nestedOrder?['id'] ?? '') as String;
+      final razorpayOrderId =
+          (orderResult['razorpayOrderId'] ?? nestedOrder?['razorpayOrderId'] ?? '') as String;
+      final razorpayConfig = orderResult['razorpayConfig'] as Map<String, dynamic>?;
+      final razorpayKey = (orderResult['razorpayKey'] ??
+              orderResult['razorpayKeyId'] ??
+              orderResult['key'] ??
+              razorpayConfig?['key'] ??
+              '')
+          as String;
 
-      // 2. Verified Payment Completion (Development/Test Mode HMAC verification)
-      final simulatedPaymentId = 'pay_mob_${DateTime.now().millisecondsSinceEpoch}';
+      if (orderId.isEmpty || razorpayOrderId.isEmpty) {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = isHindi
+              ? 'ऑर्डर बनाने में समस्या हुई। कृपया पुनः प्रयास करें।'
+              : 'Could not initialize payment order. Please try again.';
+        });
+        return;
+      }
 
+      if (razorpayKey.isEmpty) {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = isHindi
+              ? 'भुगतान गेटवे कुंजी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।'
+              : 'Payment gateway key is missing. Please try again later.';
+        });
+        return;
+      }
+
+      final rawAmount = orderResult['amount'] ??
+          nestedOrder?['amount'] ??
+          cartState.calculation?.totalAmountPaise ??
+          cartState.localSubtotalPaise;
+      final amount = rawAmount is int ? rawAmount : int.tryParse(rawAmount.toString()) ?? 0;
+      final rawSubtotal = orderResult['subtotal'] ?? nestedOrder?['subtotal'] ?? amount;
+      final subtotal = rawSubtotal is int ? rawSubtotal : int.tryParse(rawSubtotal.toString()) ?? amount;
+      final rawTax = orderResult['taxAmount'] ?? nestedOrder?['taxAmount'] ?? 0;
+      final taxAmount = rawTax is int ? rawTax : int.tryParse(rawTax.toString()) ?? 0;
+      final currency = (orderResult['currency'] ?? nestedOrder?['currency'] ?? 'INR') as String;
+
+      final user = ref.read(authStateProvider).user;
+      final IRazorpayCheckoutService razorpay = _razorpay ?? ref.read(razorpayCheckoutServiceProvider);
+      _razorpay = razorpay;
+
+      razorpay.init(
+        onSuccess: ({
+          required String razorpayOrderId,
+          required String razorpayPaymentId,
+          required String razorpaySignature,
+        }) {
+          if (!mounted) return;
+          _verifyShopPayment(
+            orderResult: orderResult,
+            orderId: orderId,
+            razorpayOrderId: razorpayOrderId.isNotEmpty ? razorpayOrderId : (orderResult['razorpayOrderId'] as String? ?? ''),
+            razorpayPaymentId: razorpayPaymentId,
+            razorpaySignature: razorpaySignature,
+          );
+        },
+        onFailure: ({required String errorCode, required String errorMessage}) {
+          if (!mounted) return;
+          setState(() {
+            _isProcessing = false;
+            _errorMessage = errorMessage.isNotEmpty
+                ? errorMessage
+                : (isHindi ? 'भुगतान विफल रहा। कृपया पुनः प्रयास करें।' : 'Payment failed. Please try again.');
+          });
+        },
+        onCancel: () {
+          if (!mounted) return;
+          setState(() {
+            _isProcessing = false;
+            _errorMessage = isHindi
+                ? 'भुगतान रद्द कर दिया गया। आप पुनः प्रयास कर सकते हैं।'
+                : 'Payment was cancelled. You can try again.';
+          });
+        },
+      );
+
+      razorpay.openCheckout(
+        order: ReportPaymentOrder(
+          orderId: orderId,
+          razorpayOrderId: razorpayOrderId,
+          amount: amount,
+          subtotal: subtotal,
+          taxAmount: taxAmount,
+          currency: currency,
+          status: (orderResult['status'] ?? 'PENDING') as String,
+          paymentStatus: (orderResult['paymentStatus'] ?? 'PENDING') as String,
+          razorpayKey: razorpayKey,
+        ),
+        reportTitle: isHindi ? 'एस्ट्रो सुशील शॉप ऑर्डर' : 'Astro Sushil Shop Order',
+        userEmail: user?.email,
+        userContact: user?.phoneNumber,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _verifyShopPayment({
+    required Map<String, dynamic> orderResult,
+    required String orderId,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    try {
+      final shopService = ref.read(shopServiceProvider);
       final verifyResult = await shopService.verifyPayment(
         orderId: orderId,
         razorpayOrderId: razorpayOrderId,
-        razorpayPaymentId: simulatedPaymentId,
-        razorpaySignature: 'dev_simulated_verified_signature',
+        razorpayPaymentId: razorpayPaymentId,
+        razorpaySignature: razorpaySignature,
       );
 
-      // 3. Clear cart and navigate to confirmation
+      // Clear cart and navigate to confirmation
       ref.read(cartProvider.notifier).clearCart();
       ref.invalidate(customerOrdersProvider);
       ref.invalidate(digitalDownloadsProvider);
       ref.invalidate(accountSummaryProvider);
+      // Generate a fresh key for any future checkout session.
+      _idempotencyKey = 'mob_shop_${DateTime.now().millisecondsSinceEpoch}';
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -97,6 +215,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isProcessing = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -140,7 +259,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               label: isHindi ? 'सुरक्षित भुगतान करें (Razorpay)' : 'Pay via Razorpay Secure',
               icon: Icons.lock_outline,
               isLoading: _isProcessing,
-              onPressed: _handlePayment,
+              onPressed: _placeOrder,
             ),
           ],
         ),

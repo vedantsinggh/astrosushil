@@ -93,11 +93,12 @@ class AuthInterceptor extends Interceptor {
         return handler.next(err);
       }
 
-      // 2. Ignore auth endpoints themselves to avoid loops during login/register/refresh
-      if (path.contains('/auth/login') ||
-          path.contains('/auth/register') ||
+      // 2. Ignore auth endpoints themselves to avoid loops during OTP sign-in/refresh
+      if (path.contains('/auth/phone/send-otp') ||
+          path.contains('/auth/phone/verify-otp') ||
+          path.contains('/auth/email/send-otp') ||
+          path.contains('/auth/email/verify-otp') ||
           path.contains('/auth/refresh') ||
-          path.contains('/auth/verify-email') ||
           path.contains('/auth/forgot-password') ||
           path.contains('/auth/reset-password')) {
         return handler.next(err);

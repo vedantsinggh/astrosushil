@@ -71,6 +71,9 @@ class MockShopTestService extends ShopService {
     String? category,
     String? productType,
     String? search,
+    int? page,
+    int? limit,
+    int? offset,
   }) async {
     var list = mockProducts;
     if (category != null && category != 'ALL') {

@@ -10,15 +10,21 @@ class NotificationsState {
   final NotificationCategory selectedCategory;
   final bool isLoading;
   final String? errorMessage;
+  final int? serverUnreadCount;
+  final int currentPage;
+  final bool hasMore;
 
   const NotificationsState({
     required this.items,
     this.selectedCategory = NotificationCategory.all,
     this.isLoading = false,
     this.errorMessage,
+    this.serverUnreadCount,
+    this.currentPage = 1,
+    this.hasMore = false,
   });
 
-  int get unreadCount => items.where((item) => !item.isRead).length;
+  int get unreadCount => serverUnreadCount ?? items.where((item) => !item.isRead).length;
 
   List<NotificationItemModel> get filteredItems {
     if (selectedCategory == NotificationCategory.all) {
@@ -33,12 +39,19 @@ class NotificationsState {
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
+    int? serverUnreadCount,
+    bool clearServerUnreadCount = false,
+    int? currentPage,
+    bool? hasMore,
   }) {
     return NotificationsState(
       items: items ?? this.items,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      serverUnreadCount: clearServerUnreadCount ? null : (serverUnreadCount ?? this.serverUnreadCount),
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 }
@@ -56,12 +69,12 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     }
   }
 
-  Future<void> load() async {
+  Future<void> load({int page = 1, int pageSize = 50}) async {
     final client = _apiClient;
     if (client == null) return;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final response = await client.get('/notifications', queryParameters: {'page': 1, 'pageSize': 50});
+      final response = await client.get('/notifications', queryParameters: {'page': page, 'pageSize': pageSize});
       final raw = response['notifications'];
       if (raw is! List) {
         throw const FormatException('Notifications response has no list');
@@ -71,8 +84,24 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
           .map((e) => notificationFromServer(Map<String, dynamic>.from(e)))
           .whereType<NotificationItemModel>()
           .toList();
+      final total = response['total'] as int?;
+      final hasMore = total != null
+          ? (page * pageSize) < total
+          : items.length >= pageSize;
+      int? unreadCount;
+      try {
+        final unreadResp = await client.get('/notifications/unread-count');
+        final rawCount = unreadResp['unreadCount'] ?? unreadResp['count'];
+        if (rawCount is int) unreadCount = rawCount;
+      } catch (_) {}
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, items: items);
+      state = state.copyWith(
+        isLoading: false,
+        items: page == 1 ? items : [...state.items, ...items],
+        currentPage: page,
+        hasMore: hasMore,
+        serverUnreadCount: unreadCount,
+      );
     } catch (_) {
       if (!mounted) return;
       state = state.copyWith(
@@ -80,6 +109,11 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         errorMessage: 'Notifications could not be loaded. Please try again.',
       );
     }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || !state.hasMore) return;
+    await load(page: state.currentPage + 1);
   }
 
   /// Maps a backend notification row ({id, type, title, body, metadata,
@@ -128,7 +162,12 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
   void markAsRead(String id) {
     _apiClient?.patch('/notifications/$id/read').catchError((_) => <String, dynamic>{});
+    final wasUnread = state.items.any((item) => item.id == id && !item.isRead);
+    final nextServerUnread = wasUnread && state.serverUnreadCount != null
+        ? (state.serverUnreadCount! > 0 ? state.serverUnreadCount! - 1 : 0)
+        : state.serverUnreadCount;
     state = state.copyWith(
+      serverUnreadCount: nextServerUnread,
       items: state.items.map((item) {
         if (item.id == id) {
           return item.copyWith(isRead: true);
@@ -141,6 +180,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   void markAllAsRead() {
     _apiClient?.post('/notifications/read-all').catchError((_) => <String, dynamic>{});
     state = state.copyWith(
+      serverUnreadCount: state.serverUnreadCount != null ? 0 : null,
       items: state.items.map((item) => item.copyWith(isRead: true)).toList(),
     );
   }

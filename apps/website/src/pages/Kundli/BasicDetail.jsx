@@ -45,7 +45,9 @@ export default function BasicDetails({ data }) {
 
   const name       = user.name       ?? user.fullName    ?? "—";
   const dob        = user.dob        ?? user.dateOfBirth ?? "—";
-  const birthTime  = user.birthTime  ?? user.hour + ":" + user.min ?? "—";
+  const birthTime  =
+    user.birthTime ??
+    (user.hour != null && user.min != null ? `${user.hour}:${user.min}` : "—");
   const birthPlace = user.birthPlace ?? "—";
   const latitude   = user.latitude   ?? user.lat         ?? "—";
   const longitude  = user.longitude  ?? user.lng         ?? user.lon   ?? "—";

@@ -4,9 +4,8 @@ import { Link } from "react-router-dom";
 
 function stripHtml(html) {
   if (!html) return "";
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
+  const doc = new DOMParser().parseFromString(String(html), "text/html");
+  return doc.body?.textContent || "";
 }
 
 function getReadTime(content) {

@@ -1,5 +1,6 @@
 import { Prisma, Product, ProductType, ProductVariant } from '@prisma/client';
 import { computeGst, GstConfig } from './shop-pricing';
+import { sanitizeRichText } from '../content/content.sanitizer';
 
 /**
  * What a product looks like to the public, to the admin, and to the price engine.
@@ -166,7 +167,7 @@ export function toPublicProduct(product: ProductRow) {
     name: product.title,
     hindiTitle: product.hindiTitle,
     shortDescription: product.shortDescription,
-    description: product.description,
+    description: product.description ? sanitizeRichText(product.description) : product.description,
     hindiDescription: product.hindiDescription,
     category: product.category,
     categoryId: product.categoryId,

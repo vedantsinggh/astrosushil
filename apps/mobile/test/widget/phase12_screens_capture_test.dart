@@ -658,7 +658,14 @@ class _P12FakeShopService extends Fake implements ShopService {
   ];
 
   @override
-  Future<List<ProductModel>> fetchProducts({String? category, String? productType, String? search}) async =>
+  Future<List<ProductModel>> fetchProducts({
+    String? category,
+    String? productType,
+    String? search,
+    int? page,
+    int? limit,
+    int? offset,
+  }) async =>
       mockProducts;
 
   @override

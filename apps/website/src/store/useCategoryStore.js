@@ -2,7 +2,7 @@ import { create } from "zustand";
 import axios from "axios";
 import { showError } from "../utils/toast";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const CATEGORY_URL = `${BASE_URL}/categories`;
 
 // Same-named categories can exist as separate documents (e.g. seeded more

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -63,9 +64,10 @@ export default function OrderSuccessPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  const order = state?.order.order || null;
+  const order = state?.order?.order ?? state?.order ?? null;
 
-  const orderId = order?._id ? order._id.toString() : "—";
+  const rawOrderId = order?.id ?? order?._id;
+  const orderId = rawOrderId ? rawOrderId.toString() : "—";
   const shortId = orderId !== "—" ? orderId.slice(-8).toUpperCase() : "—";
 
   const copyOrderId = () => {
@@ -157,6 +159,44 @@ export default function OrderSuccessPage() {
             </span>
             <Copy className="w-3.5 h-3.5 text-gold" />
           </motion.button>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
+        {Array.isArray(order?.items) && order.items.length > 0 && (
+          <div className="bg-white rounded-2xl border border-black/8 p-6 shadow-sm">
+            <h2 className="font-heading font-bold text-primary text-base mb-4">
+              Order Items
+            </h2>
+            <div>
+              {order.items.map((item, idx) => (
+                <OrderItemRow key={item._id || item.id || idx} item={item} />
+              ))}
+            </div>
+            {order?.totalAmount != null && (
+              <InfoRow
+                label="Total Paid"
+                value={`₹${Number(order.totalAmount).toLocaleString("en-IN")}`}
+                highlight
+              />
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/dashboard?tab=orders"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-gold transition-colors duration-300"
+          >
+            View My Orders <ArrowRight className="w-4 h-4" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => navigate("/products/")}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-primary/20 text-primary text-sm font-semibold hover:bg-primary/5 transition-colors"
+          >
+            Continue Shopping
+          </button>
         </div>
       </div>
     </div>

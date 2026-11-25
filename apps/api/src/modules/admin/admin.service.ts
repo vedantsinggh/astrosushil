@@ -1677,6 +1677,7 @@ export class AdminService {
               status: true,
               paymentStatus: true,
               amount: true,
+              currency: true,
             },
           },
         },
@@ -1734,6 +1735,7 @@ export class AdminService {
               status: r.order.status,
               paymentStatus: r.order.paymentStatus,
               totalPaise: r.order.amount,
+              currency: r.order.currency,
               invoiceNumber: r.order.id ? (invoiceByOrderId.get(r.order.id) ?? null) : null,
             }
           : null,

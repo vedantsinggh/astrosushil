@@ -68,15 +68,28 @@ class AuthRepository {
     return authResult;
   }
 
-  /// Authenticate with Google credential token (idToken)
-  Future<AuthResponseDto> signInWithGoogle(
-    String idToken, {
+  /// Request OTP code sent to user's email address
+  Future<Map<String, dynamic>> sendEmailOtp(String email) async {
+    final response = await _apiClient.post(
+      '/auth/email/send-otp',
+      data: {'email': email},
+    );
+    return response;
+  }
+
+  /// Verify email OTP and save session tokens upon success
+  Future<AuthResponseDto> verifyEmailOtp({
+    required String email,
+    required String otp,
+    String? fullName,
     Map<String, dynamic>? birthProfile,
   }) async {
     final response = await _apiClient.post(
-      '/auth/google',
+      '/auth/email/verify-otp',
       data: {
-        'idToken': idToken,
+        'email': email,
+        'otp': otp,
+        if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
         if (birthProfile != null) 'birthProfile': birthProfile,
       },
     );
@@ -103,8 +116,25 @@ class AuthRepository {
     return user;
   }
 
-  /// Save the signed-in user's full name (PATCH /auth/me). Phone numbers are
-  /// never set here; they are linked through OTP with [linkPhone].
+  /// Link email address to currently authenticated account
+  Future<UserModel> linkEmail({
+    required String email,
+    required String otp,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/link-email',
+      data: {
+        'email': email,
+        'otp': otp,
+      },
+    );
+    final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
+    await saveUser(user);
+    return user;
+  }
+
+  /// Save the signed-in user's full name (PATCH /auth/me). Phone numbers and
+  /// email addresses are linked through OTP with [linkPhone] / [linkEmail].
   Future<UserModel> updateFullName(String fullName) async {
     final response = await _apiClient.patch(
       '/auth/me',
@@ -113,114 +143,6 @@ class AuthRepository {
     final user = UserModel.fromJson(response);
     await saveUser(user);
     return user;
-  }
-
-  /// Link Google identity to currently authenticated account
-  Future<UserModel> linkGoogle(String idToken) async {
-    final response = await _apiClient.post(
-      '/auth/link-google',
-      data: {'idToken': idToken},
-    );
-    final user = UserModel.fromJson(response['user'] as Map<String, dynamic>);
-    await saveUser(user);
-    return user;
-  }
-
-  /// Register a new user with email, password, and optional birth profile (legacy/fallback)
-  Future<AuthRegistrationResult> register({
-    required String email,
-    required String password,
-    String? fullName,
-    String? phoneNumber,
-    Map<String, dynamic>? birthProfile,
-  }) async {
-    final response = await _apiClient.post(
-      '/auth/register',
-      data: {
-        'email': email,
-        'password': password,
-        if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
-        if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
-        if (birthProfile != null) 'birthProfile': birthProfile,
-      },
-    );
-
-    if (response['requiresEmailVerification'] == true) {
-      return AuthRegistrationResult(
-        requiresEmailVerification: true,
-        email: response['email'] as String? ?? email,
-        message: response['message'] as String? ?? 'Verification code sent to email.',
-      );
-    }
-
-    final authResult = AuthResponseDto.fromJson(response);
-    await saveTokens(authResult.tokens);
-    await saveUser(authResult.user);
-    return AuthRegistrationResult(
-      requiresEmailVerification: false,
-      email: email,
-      message: 'Registration successful',
-      authData: authResult,
-    );
-  }
-
-  /// Verify email OTP and save session tokens (legacy/fallback)
-  Future<AuthResponseDto> verifyEmail({
-    required String email,
-    required String otp,
-  }) async {
-    final response = await _apiClient.post(
-      '/auth/verify-email',
-      data: {
-        'email': email,
-        'otp': otp,
-      },
-    );
-    final authResult = AuthResponseDto.fromJson(response);
-    await saveTokens(authResult.tokens);
-    await saveUser(authResult.user);
-    return authResult;
-  }
-
-  /// Login user with email and password (legacy/fallback)
-  Future<AuthRegistrationResult> login({
-    required String email,
-    required String password,
-  }) async {
-    final response = await _apiClient.post(
-      '/auth/login',
-      data: {
-        'email': email,
-        'password': password,
-      },
-    );
-
-    if (response['requiresEmailVerification'] == true) {
-      return AuthRegistrationResult(
-        requiresEmailVerification: true,
-        email: response['email'] as String? ?? email,
-        message: response['message'] as String? ?? 'Please verify your email address.',
-      );
-    }
-
-    final authResult = AuthResponseDto.fromJson(response);
-    await saveTokens(authResult.tokens);
-    await saveUser(authResult.user);
-    return AuthRegistrationResult(
-      requiresEmailVerification: false,
-      email: email,
-      message: 'Login successful',
-      authData: authResult,
-    );
-  }
-
-  /// Resend verification OTP code
-  Future<String> resendVerification({required String email}) async {
-    final response = await _apiClient.post(
-      '/auth/resend-verification',
-      data: {'email': email},
-    );
-    return response['message'] as String? ?? 'Verification code sent.';
   }
 
   /// Request password reset code

@@ -117,7 +117,7 @@ export async function compileLatex(source: string, jobName = 'report', timeoutMs
     // Three passes: TOC, LastPage and hyperref anchors settle.
     for (let pass = 0; pass < 3; pass++) {
       try {
-        const { stdout } = await execFileAsync('xelatex', ['-interaction=nonstopmode', '-halt-on-error', `${jobName}.tex`], {
+        const { stdout } = await execFileAsync('xelatex', ['-no-shell-escape', '-interaction=nonstopmode', '-halt-on-error', `${jobName}.tex`], {
           cwd: dir, timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024,
         });
         log = stdout;

@@ -11,6 +11,17 @@ import { useDownloadStore } from "../../store/useDownloadStore";
 const ITEMS_PER_PAGE = 8;
 
 function DownloadCard({ item, index }) {
+  const { getSignedDownloadUrl } = useDownloadStore();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    const id = item.id ?? item._id;
+    if (!id) return;
+    setDownloading(true);
+    await getSignedDownloadUrl(id);
+    setDownloading(false);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -47,18 +58,17 @@ function DownloadCard({ item, index }) {
           </p>
         </div>
 
-        <motion.a
-          href={item.file}
-          target="_blank"
-          rel="noreferrer"
-          download
+        <motion.button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
-          className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-white text-sm font-body font-semibold rounded-xl hover:bg-primary/90 transition-colors"
+          className="mt-auto flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-white text-sm font-body font-semibold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60 cursor-pointer"
         >
           <Download className="w-4 h-4" />
-          Download
-        </motion.a>
+          {downloading ? "Preparing..." : "Download"}
+        </motion.button>
       </div>
     </motion.div>
   );

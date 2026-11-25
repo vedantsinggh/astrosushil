@@ -36,6 +36,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
           error: {
             code: 'WEBHOOK_SIGNATURE_MISSING',
             message: 'Missing x-razorpay-signature header',
+            requestId: request.id,
           },
         });
       }
@@ -48,6 +49,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
           error: {
             code: 'WEBHOOK_SIGNATURE_INVALID',
             message: 'Invalid webhook signature',
+            requestId: request.id,
           },
         });
       }
@@ -58,6 +60,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
           error: {
             code: 'INVALID_PAYLOAD',
             message: 'Invalid webhook payload structure',
+            requestId: request.id,
           },
         });
       }
@@ -105,6 +108,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                   error: {
                     code: 'PAYMENT_AMOUNT_MISSING',
                     message: 'Captured payment amount and currency are required',
+                    requestId: request.id,
                   },
                 });
               }
@@ -119,6 +123,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                   error: {
                     code: 'PAYMENT_AMOUNT_MISMATCH',
                     message: `Captured payment amount (${capturedAmount}) does not match order amount (${expectedAmount})`,
+                    requestId: request.id,
                   },
                 });
               }
@@ -133,6 +138,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                   error: {
                     code: 'PAYMENT_CURRENCY_MISMATCH',
                     message: `Captured payment currency (${paymentCurrency}) does not match order currency (${expectedCurrency})`,
+                    requestId: request.id,
                   },
                 });
               }
@@ -476,6 +482,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
           error: {
             code: 'WEBHOOK_PROCESSING_ERROR',
             message: 'Failed to process webhook event',
+            requestId: request.id,
           },
         });
       }
@@ -514,7 +521,13 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
         return reply.status(200).send(challenge);
       }
 
-      return reply.status(403).send({ error: 'Verification failed' });
+      return reply.status(403).send({
+        error: {
+          code: 'VERIFICATION_FAILED',
+          message: 'Verification failed',
+          requestId: request.id,
+        },
+      });
     },
   });
 }

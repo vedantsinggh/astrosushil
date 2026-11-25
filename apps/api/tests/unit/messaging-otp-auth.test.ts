@@ -13,6 +13,7 @@ const db = vi.hoisted(() => {
     seq: 0,
   };
   const prisma = {
+    $transaction: async (callback: (tx: any) => Promise<any>) => callback(prisma),
     user: {
       findFirst: async ({ where }: { where: { phoneNumber?: string; email?: string } }) =>
         state.users.find((u) => (where.email ? u.email === where.email : u.phoneNumber === where.phoneNumber)) ?? null,
@@ -35,9 +36,20 @@ const db = vi.hoisted(() => {
         Object.assign(o, data);
         return o;
       },
-      updateMany: async ({ where }: { where: { userId: string; purpose: string } }) => {
-        const hit = state.otps.filter((o) => o.userId === where.userId && o.purpose === where.purpose && o.usedAt === null);
-        hit.forEach((o) => (o.usedAt = new Date()));
+      updateMany: async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
+        const hit = state.otps.filter((o) => {
+          if (where.id && o.id !== where.id) return false;
+          if (where.userId && o.userId !== where.userId) return false;
+          if (where.purpose && o.purpose !== where.purpose) return false;
+          if ('usedAt' in where && o.usedAt !== where.usedAt) return false;
+          if (where.attempts?.lt != null && o.attempts >= where.attempts.lt) return false;
+          if (where.attempts?.gte != null && o.attempts < where.attempts.gte) return false;
+          return true;
+        });
+        hit.forEach((o) => {
+          if (data.usedAt) o.usedAt = data.usedAt as Date;
+          if (data.attempts?.increment) o.attempts += data.attempts.increment as number;
+        });
         return { count: hit.length };
       },
       create: async ({ data }: { data: { userId: string; purpose: string; codeHash: string; expiresAt: Date } }) => {

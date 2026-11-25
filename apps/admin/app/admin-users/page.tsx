@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
 import { useAuth } from '../../lib/auth-context';
+import { ErrorBanner } from '../../components/sales/ui';
 
 interface AdminStaffUser {
   id: string;
@@ -33,6 +34,8 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [createModalError, setCreateModalError] = useState<string | null>(null);
+  const [roleModalError, setRoleModalError] = useState<string | null>(null);
 
   // Role mutation modal state
   const [targetUser, setTargetUser] = useState<AdminStaffUser | null>(null);
@@ -70,7 +73,7 @@ export default function AdminUsersPage() {
   const handleUpdateRole = async () => {
     if (!targetUser) return;
     setIsUpdating(true);
-    setError(null);
+    setRoleModalError(null);
 
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/admin-users/${targetUser.id}/role`, {
@@ -81,7 +84,7 @@ export default function AdminUsersPage() {
       setTargetUser(null);
       fetchAdminUsers(pagination.page);
     } catch (err: any) {
-      setError(err?.message || 'Failed to update administrative role');
+      setRoleModalError(err?.message || 'Failed to update administrative role');
     } finally {
       setIsUpdating(false);
     }
@@ -90,12 +93,12 @@ export default function AdminUsersPage() {
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.email || !createForm.password || createForm.password.length < 8) {
-      alert('Valid email and password (minimum 8 characters) are required.');
+      setCreateModalError('Valid email and password (minimum 8 characters) are required.');
       return;
     }
 
     setIsCreating(true);
-    setError(null);
+    setCreateModalError(null);
 
     try {
       const res = await apiFetch<{ message: string; user: any }>('/api/v1/admin/admin-users', {
@@ -107,7 +110,7 @@ export default function AdminUsersPage() {
       setCreateForm({ email: '', fullName: '', password: '', role: 'SUPPORT' });
       fetchAdminUsers(1);
     } catch (err: any) {
-      setError(err?.message || 'Failed to create administrative user');
+      setCreateModalError(err?.message || 'Failed to create administrative user');
     } finally {
       setIsCreating(false);
     }
@@ -131,7 +134,14 @@ export default function AdminUsersPage() {
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {hasPermission('admin_users:manage') && currentAdmin?.role === 'SUPER_ADMIN' && (
-            <button onClick={() => setShowCreateModal(true)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>
+            <button
+              onClick={() => {
+                setCreateModalError(null);
+                setShowCreateModal(true);
+              }}
+              className="btn btn-primary"
+              style={{ fontSize: '0.85rem' }}
+            >
               ➕ Create Admin Account
             </button>
           )}
@@ -241,6 +251,7 @@ export default function AdminUsersPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
               Create a new operator account for Astro Sushil internal management.
             </p>
+            <ErrorBanner message={createModalError} />
 
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Email Address *</label>
@@ -310,6 +321,7 @@ export default function AdminUsersPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
               Select new administrative role. Changing roles will be recorded in the security audit log.
             </p>
+            <ErrorBanner message={roleModalError} />
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>

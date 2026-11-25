@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
 import { Sidebar } from './Sidebar';
@@ -10,6 +10,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, token, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isLoginPage = pathname === '/login' || pathname === '/admin/login';
 
@@ -40,9 +41,9 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="admin-layout">
-      <Sidebar />
+      <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
       <div className="admin-content">
-        <Header />
+        <Header onMenuToggle={() => setMobileMenuOpen((v) => !v)} />
         <main className="admin-main">{children}</main>
       </div>
     </div>

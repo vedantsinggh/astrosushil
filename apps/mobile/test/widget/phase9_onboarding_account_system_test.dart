@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:astro_mobile/core/localization/locale_provider.dart' hide secureStorageProvider;
 import 'package:astro_mobile/core/storage/secure_storage_service.dart';
-import 'package:astro_mobile/features/auth/data/auth_repository.dart';
 import 'package:astro_mobile/features/auth/models/user_model.dart';
 import 'package:astro_mobile/features/auth/providers/auth_provider.dart';
 import 'package:astro_mobile/features/auth/screens/forgot_password_screen.dart';
@@ -127,9 +126,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Welcome to Astro Sushil'), findsOneWidget);
+      expect(find.text('Phone OTP'), findsOneWidget);
+      expect(find.text('Email OTP'), findsOneWidget);
       expect(find.text('Phone Number'), findsOneWidget);
       expect(find.text('Send OTP'), findsOneWidget);
-      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(find.text('Continue with Google'), findsNothing);
       expect(find.text('Explore as Guest'), findsOneWidget);
 
       // Tap Send OTP with empty phone field
@@ -165,7 +166,7 @@ void main() {
       expect(find.text('Please enter the full 6-digit verification code.'), findsOneWidget);
     });
 
-    testWidgets('4. RegisterScreen renders Step 1 form and validates password confirmation', (tester) async {
+    testWidgets('4. RegisterScreen renders Step 1 OTP form and validates required fields', (tester) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -183,20 +184,16 @@ void main() {
       expect(find.text('Step 1 of 2'), findsOneWidget);
       expect(find.text('Full Name'), findsOneWidget);
       expect(find.text('Email Address'), findsOneWidget);
-      expect(find.text('Password'), findsOneWidget);
-      expect(find.text('Confirm Password'), findsOneWidget);
+      expect(find.text('Password'), findsNothing);
+      expect(find.text('Confirm Password'), findsNothing);
       expect(find.text('Continue'), findsOneWidget);
 
-      // Enter mismatched passwords
-      await tester.enterText(find.byType(TextFormField).at(0), 'Rahul Sharma');
-      await tester.enterText(find.byType(TextFormField).at(1), 'rahul@example.com');
-      await tester.enterText(find.byType(TextFormField).at(3), 'Password123!');
-      await tester.enterText(find.byType(TextFormField).at(4), 'Mismatch123!');
       await tester.ensureVisible(find.text('Continue'));
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Passwords do not match.'), findsOneWidget);
+      expect(find.text('Enter your full name.'), findsOneWidget);
+      expect(find.text('Enter your email address.'), findsOneWidget);
     });
 
     testWidgets('5. ForgotPasswordScreen renders email input and submit CTA', (tester) async {
@@ -403,25 +400,19 @@ class AuthNotifierMock extends StateNotifier<AuthState> implements AuthNotifier 
   @override
   Future<void> handleSessionExpired() async {}
   @override
-  Future<bool> linkGoogle(String idToken) async => true;
+  Future<bool> linkEmail(String email, String otp) async => true;
   @override
   Future<bool> linkPhone(String phoneNumber, String otp) async => true;
   @override
-  Future<AuthRegistrationResult?> login(String email, String password) async => null;
-  @override
   Future<void> logout() async {}
-  @override
-  Future<AuthRegistrationResult?> register(String email, String password, {String? fullName, String? phoneNumber, Map<String, dynamic>? birthProfile}) async => null;
-  @override
-  Future<String?> resendVerification(String email) async => null;
   @override
   Future<bool> resetPassword(String email, String otp, String newPassword) async => true;
   @override
+  Future<bool> sendEmailOtp(String email) async => true;
+  @override
   Future<bool> sendPhoneOtp(String phoneNumber) async => true;
   @override
-  Future<bool> signInWithGoogle(String idToken, [Map<String, dynamic>? birthProfile]) async => true;
-  @override
-  Future<bool> verifyEmail(String email, String otp) async => true;
+  Future<bool> verifyEmailOtp(String email, String otp, {String? fullName, Map<String, dynamic>? birthProfile}) async => true;
   @override
   Future<bool> verifyPhoneOtp(String phoneNumber, String otp, [Map<String, dynamic>? birthProfile]) async => true;
   @override

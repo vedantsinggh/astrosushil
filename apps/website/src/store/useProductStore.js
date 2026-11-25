@@ -4,7 +4,7 @@ import { showError } from "../utils/toast";
 
 const BASE_URL =
   import.meta.env.VITE_API_URL ||
-  "http://localhost:3000";
+  "http://localhost:3000/api/v1";
 
 const PRODUCT_URL = `${BASE_URL}/products`;
 

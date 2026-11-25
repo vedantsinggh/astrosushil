@@ -64,14 +64,30 @@ function ReportCard({ report, index, onDownloadInvoice, downloading }) {
 
 export default function MyReportsSection() {
   const [reportOrders, setReportOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
 
   const { getReportOrders, downloadReportInvoice } = useReportStore();
 
   useEffect(() => {
     const fetchReportOrders = async () => {
-      const reports = await getReportOrders();
-      setReportOrders(reports.data);
+      try {
+        setLoading(true);
+        setError(null);
+        const reports = await getReportOrders();
+        if (reports?.success && Array.isArray(reports.data)) {
+          setReportOrders(reports.data);
+        } else {
+          setReportOrders([]);
+          if (reports?.error) setError(reports.error);
+        }
+      } catch (err) {
+        setReportOrders([]);
+        setError(err?.message || "Failed to load reports");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchReportOrders();
   }, []);
@@ -101,7 +117,15 @@ export default function MyReportsSection() {
   return (
     <section className="min-h-screen">
       <div className="p-6">
-        {paginated.length === 0 ? (
+        {loading ? (
+          <div className="py-20 text-center text-sm font-body text-black/40">
+            Loading reports...
+          </div>
+        ) : error ? (
+          <div className="py-20 text-center text-sm font-body text-red-500">
+            {error}
+          </div>
+        ) : paginated.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <FileText className="w-7 h-7 text-primary/40" />

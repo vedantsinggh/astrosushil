@@ -97,13 +97,14 @@ export const useCourseStore = create((set) => ({
 
     const res = await axios.get(`${COURSE_URL}/slug/${slug}`);
 
+    const item = normalizeCourse(res.data?.data || null);
     set({
-      course: res.data?.data || null,
+      course: item,
     });
 
     return {
       success: true,
-      data: res.data?.data,
+      data: item,
     };
   } catch (err) {
     showError(err);

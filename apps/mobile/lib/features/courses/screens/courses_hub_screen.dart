@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../shared/widgets/astro_design_system.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
@@ -101,10 +102,29 @@ class _ExploreCatalogueView extends ConsumerWidget {
     ref.read(selectedCourseLanguageProvider.notifier).state = 'ALL';
   }
 
+  Future<void> _openCourseLink(BuildContext context, WidgetRef ref, CourseLinkModel link) async {
+    var targetUrl = link.redirectUrl;
+    try {
+      final trackedUrl = await ref
+          .read(coursesServiceProvider)
+          .registerCourseLinkClick(link.slug.isNotEmpty ? link.slug : link.id);
+      if (trackedUrl.isNotEmpty) {
+        targetUrl = trackedUrl;
+      }
+    } catch (_) {
+      // Fallback to link.redirectUrl if click tracking fails
+    }
+    final uri = Uri.tryParse(targetUrl);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final coursesAsync = ref.watch(coursesListProvider);
+    final courseLinksAsync = ref.watch(courseLinksProvider);
     final selectedLevel = ref.watch(selectedCourseLevelProvider);
     final selectedLanguage = ref.watch(selectedCourseLanguageProvider);
 
@@ -247,9 +267,68 @@ class _ExploreCatalogueView extends ConsumerWidget {
       },
     );
 
+    final externalLinks = courseLinksAsync.valueOrNull ?? const <CourseLinkModel>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [header, ...body],
+      children: [
+        header,
+        ...body,
+        if (externalLinks.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          AstroSectionHeading(
+            langCode == 'hi' ? 'बाहरी पाठ्यक्रम एवं कार्यशालाएँ' : 'External Courses & Workshops',
+          ),
+          const SizedBox(height: 12),
+          for (final link in externalLinks) ...[
+            AstroSurfaceCard(
+              onTap: () => _openCourseLink(context, ref, link),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const AstroIconSquare(icon: Icons.open_in_new_rounded, tint: AstroTint.amber),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (link.platformName != null && link.platformName!.isNotEmpty)
+                              Text(
+                                link.platformName!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.goldDark,
+                                ),
+                              ),
+                            Text(
+                              link.title,
+                              style: AppTypography.headlineMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                    ],
+                  ),
+                  if (link.shortDescription != null && link.shortDescription!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      link.shortDescription!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 15, color: AppColors.lightTextSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ],
     );
   }
 }

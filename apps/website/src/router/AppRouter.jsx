@@ -101,7 +101,7 @@ export default function AppRouter() {
             <Route path="/product/:slug" element={<ProductDetailPage />} />
             <Route
               path="/thank-you"
-              element={<ThankYouPage type="product" />}
+              element={<OrderSuccessPage />}
             />
             <Route path="/blog/" element={<BlogsList />} />
             <Route path="/terms-conditions/" element={<TermsConditions />} />

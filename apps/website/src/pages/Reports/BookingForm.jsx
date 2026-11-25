@@ -85,7 +85,6 @@ export default function BookingForm() {
     groomLongitude: "",
   });
   const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
   const [btnState, setBtnState] = useState("idle"); // "idle" | "buying" | "verifying"
 
   const [suggestions, setSuggestions] = useState([]);
@@ -356,7 +355,6 @@ export default function BookingForm() {
               productId: report._id,
               productName: report.name || "Astrology Report",
             });
-            setSubmitted(true);
             navigate("/report/generated-successfully");
           }
         },

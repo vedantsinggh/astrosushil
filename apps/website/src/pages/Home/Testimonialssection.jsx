@@ -195,7 +195,7 @@ export default function TestimonialsSection() {
           className="w-full pb-16 overflow-visible"
         >
           {!loading &&
-            testimonials?.map((t, i) => (
+            testimonials?.map((t) => (
               <SwiperSlide
                 key={t._id}
                 className="h-auto! pt-6 pb-10 overflow-visible"

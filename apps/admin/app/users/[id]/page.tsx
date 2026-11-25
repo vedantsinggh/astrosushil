@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { apiFetch } from '../../../lib/api-client';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { useAuth } from '../../../lib/auth-context';
+import { ErrorBanner } from '../../../components/sales/ui';
 
 interface UserDetailsResponse {
   user: {
@@ -110,6 +111,7 @@ export default function UserDetailsPage() {
   const [selectedFeature, setSelectedFeature] = useState('CAREER_REPORT');
   const [expiresInDays, setExpiresInDays] = useState(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const fetchUserDetails = async () => {
     setIsLoading(true);
@@ -131,16 +133,17 @@ export default function UserDetailsPage() {
   const closeModal = () => {
     setActiveModal(null);
     setReasonInput('');
+    setModalError(null);
     setIsSubmitting(false);
   };
 
   const handleSuspendUser = async () => {
     if (!reasonInput.trim() || reasonInput.trim().length < 3) {
-      alert('A valid reason (minimum 3 characters) is required for user suspension.');
+      setModalError('A valid reason (minimum 3 characters) is required for user suspension.');
       return;
     }
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/users/${userId}/suspend`, {
         method: 'POST',
@@ -150,14 +153,14 @@ export default function UserDetailsPage() {
       closeModal();
       fetchUserDetails();
     } catch (err: any) {
-      setError(err?.message || 'Failed to suspend user');
+      setModalError(err?.message || 'Failed to suspend user');
       setIsSubmitting(false);
     }
   };
 
   const handleActivateUser = async () => {
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/users/${userId}/activate`, {
         method: 'POST',
@@ -167,18 +170,18 @@ export default function UserDetailsPage() {
       closeModal();
       fetchUserDetails();
     } catch (err: any) {
-      setError(err?.message || 'Failed to activate user');
+      setModalError(err?.message || 'Failed to activate user');
       setIsSubmitting(false);
     }
   };
 
   const handleGrantEntitlement = async () => {
     if (!reasonInput.trim() || reasonInput.trim().length < 3) {
-      alert('A valid reason is required to grant manual support entitlement.');
+      setModalError('A valid reason (minimum 3 characters) is required to grant manual support entitlement.');
       return;
     }
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/users/${userId}/entitlements`, {
         method: 'POST',
@@ -192,18 +195,18 @@ export default function UserDetailsPage() {
       closeModal();
       fetchUserDetails();
     } catch (err: any) {
-      setError(err?.message || 'Failed to grant entitlement');
+      setModalError(err?.message || 'Failed to grant entitlement');
       setIsSubmitting(false);
     }
   };
 
   const handleRevokeEntitlement = async () => {
     if (!reasonInput.trim() || reasonInput.trim().length < 3) {
-      alert('A valid reason is required to revoke manual entitlement.');
+      setModalError('A valid reason (minimum 3 characters) is required to revoke manual entitlement.');
       return;
     }
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/users/${userId}/entitlements/${selectedFeature}`, {
         method: 'DELETE',
@@ -213,14 +216,14 @@ export default function UserDetailsPage() {
       closeModal();
       fetchUserDetails();
     } catch (err: any) {
-      setError(err?.message || 'Failed to revoke entitlement');
+      setModalError(err?.message || 'Failed to revoke entitlement');
       setIsSubmitting(false);
     }
   };
 
   const handleRevokeSessions = async () => {
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/users/${userId}/sessions/revoke`, {
         method: 'POST',
@@ -229,14 +232,14 @@ export default function UserDetailsPage() {
       closeModal();
       fetchUserDetails();
     } catch (err: any) {
-      setError(err?.message || 'Failed to revoke sessions');
+      setModalError(err?.message || 'Failed to revoke sessions');
       setIsSubmitting(false);
     }
   };
 
   const handlePasswordReset = async () => {
     setIsSubmitting(true);
-    setError(null);
+    setModalError(null);
     try {
       const res = await apiFetch<{ message: string }>(`/api/v1/admin/users/${userId}/password-reset`, {
         method: 'POST',
@@ -245,7 +248,7 @@ export default function UserDetailsPage() {
       closeModal();
       fetchUserDetails();
     } catch (err: any) {
-      setError(err?.message || 'Failed to initiate password reset');
+      setModalError(err?.message || 'Failed to initiate password reset');
       setIsSubmitting(false);
     }
   };
@@ -409,6 +412,7 @@ export default function UserDetailsPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               The user <strong>{user.email}</strong> will be suspended and logged out from all active sessions.
             </p>
+            <ErrorBanner message={modalError} />
             <div style={{ marginBottom: '1.25rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
                 Suspension Reason (Required) *
@@ -439,6 +443,7 @@ export default function UserDetailsPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               Re-activate <strong>{user.email}</strong> to restore feature access.
             </p>
+            <ErrorBanner message={modalError} />
             <div style={{ marginBottom: '1.25rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
                 Activation Notes (Optional)
@@ -469,6 +474,7 @@ export default function UserDetailsPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               Grant manual feature access to <strong>{user.email}</strong>. Does not mutate billing orders.
             </p>
+            <ErrorBanner message={modalError} />
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Feature</label>
               <select className="input-control" value={selectedFeature} onChange={(e) => setSelectedFeature(e.target.value)}>
@@ -504,6 +510,7 @@ export default function UserDetailsPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
               Are you sure you want to sign out <strong>{user.email}</strong> from all devices? {sessions.length} active sessions will be invalidated.
             </p>
+            <ErrorBanner message={modalError} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <button onClick={closeModal} className="btn btn-secondary" disabled={isSubmitting}>Cancel</button>
               <button onClick={handleRevokeSessions} className="btn btn-danger" disabled={isSubmitting}>
@@ -522,6 +529,7 @@ export default function UserDetailsPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
               Initiate a secure password reset request for <strong>{user.email}</strong>. No passwords will be exposed or created manually.
             </p>
+            <ErrorBanner message={modalError} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <button onClick={closeModal} className="btn btn-secondary" disabled={isSubmitting}>Cancel</button>
               <button onClick={handlePasswordReset} className="btn btn-primary" disabled={isSubmitting}>
@@ -686,6 +694,7 @@ export default function UserDetailsPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               Revoke manual entitlement <strong>{selectedFeature}</strong> for <strong>{user.email}</strong>.
             </p>
+            <ErrorBanner message={modalError} />
             <div style={{ marginBottom: '1.25rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
                 Revocation Reason *

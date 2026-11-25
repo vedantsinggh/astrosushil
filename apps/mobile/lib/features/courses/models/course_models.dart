@@ -462,3 +462,71 @@ class MyLearningCourseModel {
     return (completedLessons / totalLessons).clamp(0.0, 1.0);
   }
 }
+
+/// External course link card from `GET /course-links`.
+class CourseLinkModel {
+  final String id;
+  final String title;
+  final String slug;
+  final String? shortDescription;
+  final String? category;
+  final String? instructorName;
+  final String? language;
+  final String? platformName;
+  final String redirectUrl;
+  final int pricePaise;
+  final int? originalPricePaise;
+  final String currency;
+  final bool isFree;
+  final bool isFeatured;
+  final String? thumbnailUrl;
+  final String? courseId;
+
+  const CourseLinkModel({
+    required this.id,
+    required this.title,
+    required this.slug,
+    this.shortDescription,
+    this.category,
+    this.instructorName,
+    this.language,
+    this.platformName,
+    required this.redirectUrl,
+    this.pricePaise = 0,
+    this.originalPricePaise,
+    this.currency = 'INR',
+    this.isFree = false,
+    this.isFeatured = false,
+    this.thumbnailUrl,
+    this.courseId,
+  });
+
+  factory CourseLinkModel.fromJson(Map<String, dynamic> json) {
+    final rawThumb = json['thumbnail'];
+    final thumbUrl = rawThumb is Map ? rawThumb['url'] as String? : rawThumb as String?;
+    return CourseLinkModel(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
+      shortDescription: json['shortDescription'] as String?,
+      category: json['category'] as String?,
+      instructorName: json['instructorName'] as String?,
+      language: json['language'] as String?,
+      platformName: json['platformName'] as String?,
+      redirectUrl: json['redirectUrl'] as String? ?? '',
+      pricePaise: json['pricePaise'] is int
+          ? json['pricePaise'] as int
+          : int.tryParse(json['pricePaise']?.toString() ?? '0') ?? 0,
+      originalPricePaise: json['originalPricePaise'] is int
+          ? json['originalPricePaise'] as int
+          : int.tryParse(json['originalPricePaise']?.toString() ?? ''),
+      currency: json['currency'] as String? ?? 'INR',
+      isFree: json['isFree'] as bool? ?? false,
+      isFeatured: json['isFeatured'] as bool? ?? false,
+      thumbnailUrl: thumbUrl,
+      courseId: json['courseId'] as String?,
+    );
+  }
+
+  int get priceRupees => (pricePaise / 100).round();
+}

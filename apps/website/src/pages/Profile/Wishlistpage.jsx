@@ -250,7 +250,7 @@ export default function WishlistPage() {
           Please login to view your wishlist
         </p>
         <button
-          onClick={() => navigate("/login")}
+          onClick={() => navigate("/register")}
           className="px-6 py-2.5 rounded-xl font-body text-sm font-semibold text-white cursor-pointer"
           style={{ background: "var(--gradient-primary)" }}
         >

@@ -109,7 +109,6 @@ function CheckItem({ text }) {
 }
 
 function ServiceCard({ icon, title, description, checks, btnLabel, link }) {
-  const navigate = useNavigate();
   return (
     <div className="card-bg backdrop-blur-xl border border-[#F4EEFF33] rounded-2xl shadow-lg p-6 flex flex-col gap-2 h-full">
       <div className="flex justify-center items-center h-16">

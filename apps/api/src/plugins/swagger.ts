@@ -35,12 +35,14 @@ export async function registerSwagger(app: FastifyInstance) {
     },
   });
 
-  await app.register(swaggerUi, {
-    routePrefix: '/documentation',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: false,
-    },
-    staticCSP: true,
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    await app.register(swaggerUi, {
+      routePrefix: '/documentation',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: false,
+      },
+      staticCSP: true,
+    });
+  }
 }

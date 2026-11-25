@@ -236,8 +236,9 @@ const CartPage = () => {
   }, [user]);
 
   const items      = cart?.items    ?? (Array.isArray(cart) ? cart : []);
+  const hasPhysicalProduct = items.some((item) => item?.productType === "physical");
   const subtotal   = cart?.subTotal ?? items.reduce((s, i) => s + (i.total || 0), 0);
-  const shipping   = cart?.shipping ?? (subtotal > 499 ? 0 : 49);
+  const shipping   = cart?.shipping ?? (hasPhysicalProduct ? 500 : 0);
   const discount   = cart?.discount ?? 0;
   const tax        = cart?.tax ?? 0;
   const grandTotal = cart?.totalAmount ?? subtotal + shipping - discount + tax;

@@ -7,6 +7,7 @@ import { useAuth } from '../../../lib/auth-context';
 import {
   errorMessage,
   getShopOrder,
+  refundOrder,
   SHOP_ORDER_SETTABLE_STATUSES,
   ShopOrderDetail,
   ShopOrderStatus,
@@ -16,6 +17,7 @@ import { formatDateTime, formatMinor, formatPaise, shortId, titleCase } from '..
 import { StatusPill } from '../../../components/sales/badges';
 import {
   ConfirmDialog,
+  dangerButton,
   Field,
   InfoBox,
   KeyValue,
@@ -67,6 +69,7 @@ function ShopOrderDetailScreen() {
   const { hasPermission } = useAuth();
   const canUpdate = hasPermission('orders:update');
   const canSeeInvoice = hasPermission('transactions:read');
+  const canRefund = hasPermission('payments:refund');
 
   const [order, setOrder] = useState<ShopOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,6 +82,12 @@ function ShopOrderDetailScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [partialAmountInr, setPartialAmountInr] = useState('');
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -117,6 +126,38 @@ function ShopOrderDetailScreen() {
       setSaveError(errorMessage(err));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (refundReason.trim().length < 3) {
+      setRefundError('A refund reason (minimum 3 characters) is required.');
+      return;
+    }
+    let amountPaise: number | undefined;
+    if (partialAmountInr.trim()) {
+      const parsed = Number(partialAmountInr.trim());
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        setRefundError('Partial refund amount must be a positive number.');
+        return;
+      }
+      amountPaise = Math.round(parsed * 100);
+    }
+
+    setRefundBusy(true);
+    setRefundError(null);
+    try {
+      const result = await refundOrder(orderId, {
+        reason: refundReason.trim(),
+        ...(amountPaise ? { amountPaise } : {}),
+      });
+      setRefundOpen(false);
+      setNotice(`Refund ${result.refund.id} issued (${result.refund.status}). Order status is now ${result.order.status}.`);
+      await load();
+    } catch (err) {
+      setRefundError(errorMessage(err));
+    } finally {
+      setRefundBusy(false);
     }
   };
 
@@ -357,6 +398,23 @@ function ShopOrderDetailScreen() {
             <KeyValue label="Paid at">{formatDateTime(order.paidAt)}</KeyValue>
             <KeyValue label="Razorpay order ID">{order.payment.razorpayOrderId || '—'}</KeyValue>
             <KeyValue label="Transaction ID">{order.payment.transactionId || '—'}</KeyValue>
+            {canRefund && isPaid && (
+              <div style={{ marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ ...dangerButton, ...smallButton, width: '100%' }}
+                  onClick={() => {
+                    setRefundReason('');
+                    setPartialAmountInr('');
+                    setRefundError(null);
+                    setRefundOpen(true);
+                  }}
+                >
+                  Issue Staff Refund
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="card">
@@ -416,6 +474,44 @@ function ShopOrderDetailScreen() {
               The order will move from <strong>{titleCase(order.orderStatus)}</strong> to <strong>{titleCase(nextStatus)}</strong> and the customer is notified.
             </>
           )}
+        </ConfirmDialog>
+      )}
+
+      {refundOpen && (
+        <ConfirmDialog
+          title="Issue Staff Refund"
+          confirmLabel="Issue Refund"
+          danger
+          busy={refundBusy}
+          error={refundError}
+          onConfirm={handleRefund}
+          onCancel={() => setRefundOpen(false)}
+        >
+          <p style={{ marginBottom: '0.75rem' }}>
+            Issue a refund for order <code>{shortId(order.id)}</code> (charged {formatMinor(order.payment.amountMinor, order.payment.currency)}).
+          </p>
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <Field label="Reason (required, min 3 chars)">
+              <input
+                type="text"
+                className="input-control"
+                placeholder="e.g. Order cancelled / item damaged"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+              />
+            </Field>
+            <Field label="Partial amount in INR (optional)" hint="Leave blank to refund the full refundable balance.">
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                className="input-control"
+                placeholder="Leave blank for full refund"
+                value={partialAmountInr}
+                onChange={(e) => setPartialAmountInr(e.target.value)}
+              />
+            </Field>
+          </div>
         </ConfirmDialog>
       )}
 

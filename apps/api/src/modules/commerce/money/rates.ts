@@ -167,6 +167,24 @@ export class ExchangeRateService {
     const rateScaled = rateToScaled(raw);
     return { currency, rateScaled, rate: scaledRateToDecimalString(rateScaled), fetchedAt: snapshot.fetchedAt };
   }
+
+  /** Public INR-based display rates for frontend currency selectors. */
+  public async getPublicRates(): Promise<ExchangeRateSnapshot> {
+    try {
+      const snap = await this.snapshot();
+      return {
+        base: 'INR',
+        rates: { INR: 1, ...snap.rates },
+        fetchedAt: snap.fetchedAt,
+      };
+    } catch {
+      return {
+        base: 'INR',
+        rates: { INR: 1 },
+        fetchedAt: new Date().toISOString(),
+      };
+    }
+  }
 }
 
 export const exchangeRateService = new ExchangeRateService(new ExchangeRateApiProvider(), new InMemoryExchangeRateCache());

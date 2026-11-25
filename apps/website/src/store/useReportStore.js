@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import axios from "axios";
 import { showError, showSuccess } from "../utils/toast";
-import { useAuthStore } from "./useAuthStore";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const REPORT_URL = `${BASE_URL}/report`;
@@ -21,7 +20,7 @@ const withReportCover = (r) => {
   };
 };
 
-const useReportStore = create((set, get) => {
+const useReportStore = create((set) => {
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
 

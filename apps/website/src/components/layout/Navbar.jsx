@@ -501,14 +501,14 @@ const Navbar = () => {
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <Link
             to="/"
-            aria-label="Astro Samarth - Home"
+            aria-label="Astro Sushil - Home"
             onClick={() => setMenuOpen(false)}
           >
             <picture>
               <source media="(max-width: 768px)" srcSet="/logo/logo.webp" />
               <img
                 src="/logo/logo.webp"
-                alt="Astro Samarth"
+                alt="Astro Sushil"
                 width={48}
                 height={48}
                 loading="lazy"

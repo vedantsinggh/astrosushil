@@ -227,6 +227,12 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
 
   // POST /api/v1/auth/forgot-password
   fastify.post('/forgot-password', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       tags: ['Auth'],
       summary: 'Staff: request a password reset code',
@@ -248,6 +254,12 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
 
   // POST /api/v1/auth/reset-password
   fastify.post('/reset-password', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
     schema: {
       tags: ['Auth'],
       summary: 'Staff: reset the password with the e-mailed code',

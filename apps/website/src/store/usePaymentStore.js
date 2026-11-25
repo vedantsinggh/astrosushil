@@ -22,8 +22,9 @@ export const usePaymentStore = create((set, get) => {
     }
 
     if (typeof errorData === "string") return errorData;
+    if (errorData?.error?.message) return errorData.error.message;
     if (errorData?.message) return errorData.message;
-    if (errorData?.error) return errorData.error;
+    if (typeof errorData?.error === "string") return errorData.error;
     if (err?.message) return err.message;
     return defaultMessage;
   };
@@ -123,7 +124,6 @@ export const usePaymentStore = create((set, get) => {
     },
 
     processPayment: async ({
-      paymentMethod,
       addressId,
       userDetails,
       currency = "INR",
@@ -131,17 +131,6 @@ export const usePaymentStore = create((set, get) => {
     }) => {
       try {
         set({ processingPayment: true, error: null });
-
-      
-        if (paymentMethod === "cod") {
-          const result = await get().createOrder({ paymentMethod, addressId, currency, currencyRate });
-          set({ processingPayment: false });
-          if (result.success) {
-            useCartStore.getState().clearCart();
-            toast.success("Order placed successfully!");
-          }
-          return result;
-        }
 
         const scriptLoaded = await loadRazorpayScript();
         if (!scriptLoaded) throw new Error("Failed to load Razorpay SDK");

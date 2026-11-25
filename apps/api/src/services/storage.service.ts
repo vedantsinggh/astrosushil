@@ -95,8 +95,20 @@ export class StorageService {
     return (process.env.PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
   }
 
+  private ephemeralSigningKey?: string;
+
   private get signingSecretKey(): string {
-    return process.env.JWT_SECRET || process.env.STORAGE_SECRET || 'astro-sushil-storage-secret-key-v1';
+    const configured = process.env.JWT_SECRET || process.env.STORAGE_SECRET;
+    if (configured) {
+      return configured;
+    }
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET or STORAGE_SECRET must be configured in production');
+    }
+    if (!this.ephemeralSigningKey) {
+      this.ephemeralSigningKey = crypto.randomBytes(32).toString('hex');
+    }
+    return this.ephemeralSigningKey;
   }
 
   private validateKey(key: string): void {

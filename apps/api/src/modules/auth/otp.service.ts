@@ -122,56 +122,63 @@ export class OtpService {
     inputOtp: string,
     purpose: VerificationPurpose
   ): Promise<boolean> {
-    const record = await prisma.otpVerification.findFirst({
-      where: {
-        userId,
-        purpose,
-        usedAt: null,
-        expiresAt: {
-          gt: new Date(),
+    return prisma.$transaction(async (tx) => {
+      const record = await tx.otpVerification.findFirst({
+        where: {
+          userId,
+          purpose,
+          usedAt: null,
+          expiresAt: {
+            gt: new Date(),
+          },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    if (!record) {
-      return false;
-    }
-
-    // Attempt limit check (Max 5 attempts)
-    if (record.attempts >= 5) {
-      await prisma.otpVerification.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
+        orderBy: {
+          createdAt: 'desc',
+        },
       });
-      return false;
-    }
 
-    const isMasterMatch = this.isDevMasterOtp(inputOtp);
-    const isHashMatch = this.hashOtp(inputOtp) === record.codeHash;
+      if (!record) {
+        return false;
+      }
 
-    if (isMasterMatch || isHashMatch) {
-      // Mark OTP as used immediately (single-use)
-      await prisma.otpVerification.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
+      // Attempt limit check (Max 5 attempts)
+      if (record.attempts >= 5) {
+        await tx.otpVerification.updateMany({
+          where: { id: record.id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
+        return false;
+      }
+
+      const isMasterMatch = this.isDevMasterOtp(inputOtp);
+      const isHashMatch = this.hashOtp(inputOtp) === record.codeHash;
+
+      if (isMasterMatch || isHashMatch) {
+        // Atomically mark OTP as used (single-use, preventing concurrent replay)
+        const claimed = await tx.otpVerification.updateMany({
+          where: { id: record.id, usedAt: null, attempts: { lt: 5 } },
+          data: { usedAt: new Date() },
+        });
+        return claimed.count === 1;
+      }
+
+      // Atomically increment attempt count on incorrect OTP
+      const updated = await tx.otpVerification.updateMany({
+        where: { id: record.id, usedAt: null, attempts: { lt: 5 } },
+        data: {
+          attempts: { increment: 1 },
+        },
       });
-      return true;
-    }
 
-    // Increment attempt count on incorrect OTP
-    const updatedAttempts = record.attempts + 1;
-    await prisma.otpVerification.update({
-      where: { id: record.id },
-      data: {
-        attempts: updatedAttempts,
-        usedAt: updatedAttempts >= 5 ? new Date() : null,
-      },
+      if (updated.count === 1 && record.attempts + 1 >= 5) {
+        await tx.otpVerification.updateMany({
+          where: { id: record.id, usedAt: null, attempts: { gte: 5 } },
+          data: { usedAt: new Date() },
+        });
+      }
+
+      return false;
     });
-
-    return false;
   }
 }
 

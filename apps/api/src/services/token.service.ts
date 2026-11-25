@@ -78,28 +78,56 @@ export class TokenService {
   ): Promise<{ userId: string; newRawRefreshToken: string }> {
     const tokenHash = this.hashToken(rawRefreshToken);
 
-    const tokenRecord = await prisma.refreshToken.findUnique({
-      where: { tokenHash },
+    return prisma.$transaction(async (tx) => {
+      const tokenRecord = await tx.refreshToken.findUnique({
+        where: { tokenHash },
+      });
+
+      if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+        throw new AuthenticationError('Invalid, expired, or revoked refresh token');
+      }
+
+      // Replay detection: if a previously revoked token is reused, revoke all active tokens for this user
+      if (tokenRecord.revokedAt) {
+        await tx.refreshToken.updateMany({
+          where: { userId: tokenRecord.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        throw new AuthenticationError('Invalid, expired, or revoked refresh token');
+      }
+
+      // Atomically claim and revoke the old token so concurrent requests cannot both rotate it
+      const claim = await tx.refreshToken.updateMany({
+        where: { id: tokenRecord.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      if (claim.count !== 1) {
+        await tx.refreshToken.updateMany({
+          where: { userId: tokenRecord.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        throw new AuthenticationError('Invalid, expired, or revoked refresh token');
+      }
+
+      // Create new token inside the same transaction
+      const newRawRefreshToken = this.generateRawRefreshToken();
+      const newTokenHash = this.hashToken(newRawRefreshToken);
+      const expiresAt = new Date(Date.now() + this.parseDurationToMs(refreshDurationStr));
+
+      await tx.refreshToken.create({
+        data: {
+          userId: tokenRecord.userId,
+          tokenHash: newTokenHash,
+          expiresAt,
+        },
+      });
+
+      return {
+        userId: tokenRecord.userId,
+        newRawRefreshToken,
+      };
     });
-
-    if (!tokenRecord || tokenRecord.revokedAt || tokenRecord.expiresAt < new Date()) {
-      throw new AuthenticationError('Invalid, expired, or revoked refresh token');
-    }
-
-    // Revoke old token
-    await prisma.refreshToken.update({
-      where: { id: tokenRecord.id },
-      data: { revokedAt: new Date() },
-    });
-
-    // Create new token
-    const newRawRefreshToken = this.generateRawRefreshToken();
-    await this.saveRefreshToken(tokenRecord.userId, newRawRefreshToken, refreshDurationStr);
-
-    return {
-      userId: tokenRecord.userId,
-      newRawRefreshToken,
-    };
   }
 
   /**

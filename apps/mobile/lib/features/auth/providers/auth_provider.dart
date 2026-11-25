@@ -226,12 +226,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Authenticate with Google Sign-In idToken
-  Future<bool> signInWithGoogle(String idToken, [Map<String, dynamic>? birthProfile]) async {
+  /// Request OTP for Email authentication
+  Future<bool> sendEmailOtp(String email) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final authResult = await _repository.signInWithGoogle(
-        idToken,
+      await _repository.sendEmailOtp(email);
+      state = state.copyWith(
+        isLoading: false,
+        pendingVerificationEmail: email,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
+      return false;
+    }
+  }
+
+  /// Verify Email OTP and authenticate session
+  Future<bool> verifyEmailOtp(
+    String email,
+    String otp, {
+    String? fullName,
+    Map<String, dynamic>? birthProfile,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final authResult = await _repository.verifyEmailOtp(
+        email: email,
+        otp: otp,
+        fullName: fullName,
         birthProfile: birthProfile,
       );
       await _storage.delete(key: StorageKeys.isGuestMode);
@@ -256,105 +279,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Link Google account to existing account
-  Future<bool> linkGoogle(String idToken) async {
+  /// Link Email address to existing account
+  Future<bool> linkEmail(String email, String otp) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final updatedUser = await _repository.linkGoogle(idToken);
+      final updatedUser = await _repository.linkEmail(email: email, otp: otp);
       state = AuthState.authenticated(updatedUser);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
       return false;
-    }
-  }
-
-  /// Register user with email/password (legacy fallback)
-  Future<AuthRegistrationResult?> register(
-    String email,
-    String password, {
-    String? fullName,
-    String? phoneNumber,
-    Map<String, dynamic>? birthProfile,
-  }) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final result = await _repository.register(
-        email: email,
-        password: password,
-        fullName: fullName,
-        phoneNumber: phoneNumber,
-        birthProfile: birthProfile,
-      );
-
-      if (result.requiresEmailVerification) {
-        state = state.copyWith(
-          isLoading: false,
-          pendingVerificationEmail: email,
-        );
-        return result;
-      }
-
-      if (result.authData != null) {
-        await _storage.delete(key: StorageKeys.isGuestMode);
-        state = AuthState.authenticated(result.authData!.user);
-      }
-      return result;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
-      return null;
-    }
-  }
-
-  /// Verify email OTP (legacy fallback)
-  Future<bool> verifyEmail(String email, String otp) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final authResult = await _repository.verifyEmail(email: email, otp: otp);
-      await _storage.delete(key: StorageKeys.isGuestMode);
-      state = AuthState.authenticated(authResult.user);
-      return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
-      return false;
-    }
-  }
-
-  /// Login user with email/password (legacy fallback)
-  Future<AuthRegistrationResult?> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final result = await _repository.login(email: email, password: password);
-
-      if (result.requiresEmailVerification) {
-        state = state.copyWith(
-          isLoading: false,
-          pendingVerificationEmail: email,
-        );
-        return result;
-      }
-
-      if (result.authData != null) {
-        await _storage.delete(key: StorageKeys.isGuestMode);
-        state = AuthState.authenticated(result.authData!.user);
-      }
-      return result;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
-      return null;
-    }
-  }
-
-  /// Resend verification OTP code
-  Future<String?> resendVerification(String email) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    try {
-      final msg = await _repository.resendVerification(email: email);
-      state = state.copyWith(isLoading: false);
-      return msg;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: _mapUserFriendlyError(e));
-      return null;
     }
   }
 

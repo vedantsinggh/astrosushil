@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../lib/auth-context';
+import { ConfirmDialog } from '../../components/sales/ui';
 
 interface ReportListItem {
   id: string;
@@ -25,7 +26,7 @@ interface ReportListItem {
   completedAt: string | null;
   failedAt: string | null;
   user: { id: string; email: string; fullName: string | null };
-  /** Report-order columns: shown when `GET /admin/reports` returns them (it does not yet). */
+  /** Report summary fields returned by `GET /admin/reports`. */
   language?: string | null;
   order?: { id: string; status: string; paymentStatus?: string | null } | null;
   birthProfile: { id: string; name: string };
@@ -94,19 +95,24 @@ export default function ReportsPage() {
     }
   };
 
-  const handleClearCache = async () => {
-    if (!window.confirm('Clear report cache?\n\nThis removes cached report responses. Existing stored reports will not be deleted.')) {
-      return;
-    }
+  const [clearCacheOpen, setClearCacheOpen] = useState(false);
+  const [clearingCache, setClearingCache] = useState(false);
+  const [clearCacheError, setClearCacheError] = useState<string | null>(null);
 
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    setClearCacheError(null);
     try {
       const res = await apiFetch<{ message: string }>('/api/v1/admin/reports/cache/clear', {
         method: 'POST',
       });
+      setClearCacheOpen(false);
       setActionMessage(res.message);
       setTimeout(() => setActionMessage(null), 5000);
     } catch (err: any) {
-      setError(err?.message || 'Failed to clear server report cache');
+      setClearCacheError(err?.message || 'Failed to clear server report cache');
+    } finally {
+      setClearingCache(false);
     }
   };
 
@@ -124,7 +130,14 @@ export default function ReportsPage() {
             </Link>
           )}
           {hasPermission('reports:clear_cache') && (
-            <button onClick={handleClearCache} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
+            <button
+              onClick={() => {
+                setClearCacheError(null);
+                setClearCacheOpen(true);
+              }}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.85rem' }}
+            >
               🗑️ Clear Server Report Cache
             </button>
           )}
@@ -346,6 +359,20 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+
+      {clearCacheOpen && (
+        <ConfirmDialog
+          title="Clear report cache?"
+          confirmLabel="Clear Cache"
+          danger
+          busy={clearingCache}
+          error={clearCacheError}
+          onConfirm={handleClearCache}
+          onCancel={() => setClearCacheOpen(false)}
+        >
+          This removes cached report responses. Existing stored reports will not be deleted.
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

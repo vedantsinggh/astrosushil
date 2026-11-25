@@ -7,6 +7,8 @@ class UserModel {
   final String? phoneNumber;
   final String? googleId;
   final bool isPhoneVerified;
+  final bool isEmailVerified;
+  final DateTime? emailVerifiedAt;
   final String role;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -28,6 +30,8 @@ class UserModel {
     this.phoneNumber,
     this.googleId,
     this.isPhoneVerified = false,
+    this.isEmailVerified = false,
+    this.emailVerifiedAt,
     required this.role,
     required this.createdAt,
     this.updatedAt,
@@ -44,12 +48,15 @@ class UserModel {
   bool get requiresGoogleProfileCompletion => googleId != null && !profileComplete;
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final emailVerifiedAt = AppDateTime.parseInstant(json['emailVerifiedAt']);
     return UserModel(
       id: json['id'] as String? ?? '',
       email: json['email'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String?,
       googleId: json['googleId'] as String?,
       isPhoneVerified: json['phoneVerifiedAt'] != null || json['isPhoneVerified'] == true,
+      isEmailVerified: emailVerifiedAt != null || json['isEmailVerified'] == true,
+      emailVerifiedAt: emailVerifiedAt,
       role: json['role'] as String? ?? 'USER',
       createdAt: AppDateTime.parseInstant(json['createdAt']) ?? DateTime.now(),
       updatedAt: AppDateTime.parseInstant(json['updatedAt']),
@@ -69,6 +76,8 @@ class UserModel {
       if (phoneNumber != null) 'phoneNumber': phoneNumber,
       if (googleId != null) 'googleId': googleId,
       'isPhoneVerified': isPhoneVerified,
+      'isEmailVerified': isEmailVerified,
+      if (emailVerifiedAt != null) 'emailVerifiedAt': AppDateTime.toJsonInstant(emailVerifiedAt!),
       'role': role,
       'createdAt': AppDateTime.toJsonInstant(createdAt),
       if (updatedAt != null) 'updatedAt': AppDateTime.toJsonInstant(updatedAt!),
