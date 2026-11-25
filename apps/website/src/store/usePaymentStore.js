@@ -25,6 +25,7 @@ export const usePaymentStore = create((set, get) => {
     if (errorData?.error?.message) return errorData.error.message;
     if (errorData?.message) return errorData.message;
     if (typeof errorData?.error === "string") return errorData.error;
+    if (typeof err?.error === "string") return err.error;
     if (err?.message) return err.message;
     return defaultMessage;
   };
@@ -134,6 +135,11 @@ export const usePaymentStore = create((set, get) => {
         if (!orderResult.success) throw new Error(orderResult.error);
 
         const { order, razorpayConfig } = orderResult.data;
+        const internalOrderId = order?.id || order?._id;
+        if (!internalOrderId) throw new Error("The order response is missing its order ID. Please retry checkout.");
+        if (!razorpayConfig?.key || !razorpayConfig?.orderId || !razorpayConfig?.amount) {
+          throw new Error("Payment gateway configuration is incomplete. Please contact support.");
+        }
 
         return new Promise((resolve, reject) => {
           const rzp = new window.Razorpay({
@@ -146,7 +152,7 @@ export const usePaymentStore = create((set, get) => {
 
             handler: async (response) => {
               const verifyResult = await get().verifyPayment({
-                orderId: order._id,
+                orderId: internalOrderId,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_signature: response.razorpay_signature,
@@ -164,7 +170,7 @@ export const usePaymentStore = create((set, get) => {
                 });
                 resolve(verifyResult);
               } else {
-                reject(verifyResult);
+                reject(new Error(verifyResult.error || "Payment verification failed. Contact support before retrying."));
               }
             },
 

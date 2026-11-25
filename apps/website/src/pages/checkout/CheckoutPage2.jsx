@@ -479,15 +479,17 @@ export default function CheckoutPage2() {
         },
       });
 
-      console.log("RESULT OF ORDER", result);
-
       if (result?.success) {
         removeCoupon();
         navigate("/thank-you", { state: { order: result.data } });
+      } else if (result?.error && result.error !== "Payment cancelled by user") {
+        toast.error(result.error);
       }
     } catch (err) {
       if (err?.error && err.error !== "Payment cancelled by user") {
         toast.error(err.error || "Payment failed");
+      } else if (err?.message && err.message !== "Payment cancelled by user") {
+        toast.error(err.message);
       }
     }
   };
