@@ -35,6 +35,10 @@ Astro Sushil provides accessible free foundational astrology tools alongside pre
 - **Custom Personalized PDF Reports**: Comprehensive multi-page deep-dive analytical dossiers.
 - **Gupta Nadi Reports (Flagship)**: Specialized reports powered by the client's proprietary Brihaspati Nandi Nadi (BNN) engine.
 
+### Consultation Booking
+- Customers first check available slots for a consultation type. Availability follows that type's schedule and booking notice period, including for types that offer multiple consultation modes.
+- Customers select a consultation mode when choosing the offering to book; the selected mode determines its price and currency.
+
 ---
 
 ## Flagship Product: Gupta Nadi Engine
