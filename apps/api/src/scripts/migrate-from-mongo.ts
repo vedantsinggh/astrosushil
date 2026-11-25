@@ -53,14 +53,31 @@ function readJson(backupDir: string, name: string): AnyDoc[] {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
+function toNum(val: unknown): number {
+  if (val != null && typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    if ('$numberDecimal' in obj) return Number(obj.$numberDecimal);
+    if ('$numberInt' in obj) return Number(obj.$numberInt);
+    if ('$numberLong' in obj) return Number(obj.$numberLong);
+    if ('$numberDouble' in obj) return Number(obj.$numberDouble);
+  }
+  return Number(val);
+}
+
 function toPaise(val: unknown): number {
-  const n = Number(val);
+  const n = toNum(val);
   if (!Number.isFinite(n)) return 0;
   return Math.round(n * 100);
 }
 
+function clampInt4(val: unknown, fallback = 0): number {
+  const n = Math.trunc(toNum(val));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(-2147483648, Math.min(2147483647, n));
+}
+
 function toMinorUnits(val: unknown, currency: string): number {
-  const n = Number(val);
+  const n = toNum(val);
   if (!Number.isFinite(n)) return 0;
   return currency.toUpperCase() === 'JPY' ? Math.round(n) : Math.round(n * 100);
 }
@@ -238,33 +255,41 @@ async function main() {
       if (p._id && p.name) permIdToName.set(String(p._id), String(p.name));
     }
 
-    // 2. Admin roles
+    // 2. Admin roles (match by legacyId, slug, or name so pre-seeded roles don't collide)
     for (const r of roles) {
       const legacyId = String(r._id);
       const id = deterministicUuid(`role:${legacyId}`);
+      const slug = String(r.slug);
+      const name = String(r.name);
       const permNames = Array.isArray(r.permissions)
         ? r.permissions.map((pid: unknown) => permIdToName.get(String(pid)) ?? String(pid)).filter(Boolean)
         : [];
-      const row = await prisma.adminRole.upsert({
-        where: { legacyId },
-        create: {
-          id,
-          legacyId,
-          name: String(r.name),
-          slug: String(r.slug),
-          description: r.description ? String(r.description) : null,
-          permissions: permNames,
-          isSystem: Boolean(r.isSystem),
-          isSuperAdmin: Boolean(r.isSuperAdmin),
-          legacyRole: r.isSuperAdmin ? Role.SUPER_ADMIN : Role.ADMIN,
-          status: r.status === 'INACTIVE' ? AdminRoleStatus.INACTIVE : AdminRoleStatus.ACTIVE,
-        },
-        update: {
-          name: String(r.name),
-          permissions: permNames,
-          isSuperAdmin: Boolean(r.isSuperAdmin),
-        },
+      const existing = await prisma.adminRole.findFirst({
+        where: { OR: [{ legacyId }, { slug }, { name }] },
       });
+      const row = existing
+        ? await prisma.adminRole.update({
+            where: { id: existing.id },
+            data: {
+              legacyId,
+              permissions: permNames,
+              isSuperAdmin: Boolean(r.isSuperAdmin),
+            },
+          })
+        : await prisma.adminRole.create({
+            data: {
+              id,
+              legacyId,
+              name,
+              slug,
+              description: r.description ? String(r.description) : null,
+              permissions: permNames,
+              isSystem: Boolean(r.isSystem),
+              isSuperAdmin: Boolean(r.isSuperAdmin),
+              legacyRole: r.isSuperAdmin ? Role.SUPER_ADMIN : Role.ADMIN,
+              status: r.status === 'INACTIVE' ? AdminRoleStatus.INACTIVE : AdminRoleStatus.ACTIVE,
+            },
+          });
       mongoRoleToPgId.set(legacyId, row.id);
     }
 
@@ -457,12 +482,17 @@ async function main() {
 
     for (const blog of blogs) {
       const legacyId = String(blog._id);
-      await prisma.blogPost.upsert({
-        where: { legacyId },
-        create: {
+      const slug = String(blog.slug ?? legacyId);
+      const existingBlog = await prisma.blogPost.findFirst({ where: { OR: [{ legacyId }, { slug }] } });
+      if (existingBlog) {
+        if (!existingBlog.legacyId) await prisma.blogPost.update({ where: { id: existingBlog.id }, data: { legacyId } });
+        continue;
+      }
+      await prisma.blogPost.create({
+        data: {
           legacyId,
           title: String(blog.title ?? ''),
-          slug: String(blog.slug ?? legacyId),
+          slug,
           shortDescription: String(blog.shortDescription ?? ''),
           content: String(blog.content ?? ''),
           category: String(blog.category ?? 'General'),
@@ -477,7 +507,6 @@ async function main() {
           views: Number(blog.views ?? 0),
           publishedAt: blog.publishedAt ? toDate(blog.publishedAt) : null,
         },
-        update: {},
       });
     }
 
@@ -561,66 +590,76 @@ async function main() {
 
     for (const s of seos) {
       const legacyId = String(s._id);
-      await prisma.seoPage.upsert({
-        where: { legacyId },
-        create: {
-          legacyId,
-          name: String(s.name ?? legacyId).toLowerCase(),
-          metaTitle: String(s.metaTitle ?? ''),
-          metaDescription: String(s.metaDescription ?? ''),
-          imageUrl: s.image ? String(s.image) : null,
-        },
-        update: {},
-      });
+      const name = String(s.name ?? legacyId).toLowerCase();
+      const existing = await prisma.seoPage.findFirst({ where: { OR: [{ legacyId }, { name }] } });
+      if (existing) {
+        if (!existing.legacyId) await prisma.seoPage.update({ where: { id: existing.id }, data: { legacyId } });
+      } else {
+        await prisma.seoPage.create({
+          data: {
+            legacyId,
+            name,
+            metaTitle: String(s.metaTitle ?? ''),
+            metaDescription: String(s.metaDescription ?? ''),
+            imageUrl: s.image ? String(s.image) : null,
+          },
+        });
+      }
     }
 
     for (const cl of courses) {
       const legacyId = String(cl._id);
-      await prisma.courseLink.upsert({
-        where: { legacyId },
-        create: {
-          legacyId,
-          title: String(cl.title ?? ''),
-          slug: String(cl.slug ?? legacyId),
-          shortDescription: cl.shortDescription ? String(cl.shortDescription) : null,
-          category: cl.category ? String(cl.category) : null,
-          tags: Array.isArray(cl.tags) ? cl.tags.map(String) : [],
-          instructorName: cl.instructorName ? String(cl.instructorName) : null,
-          language: cl.language ? String(cl.language) : 'English',
-          pricePaise: toPaise(cl.price),
-          originalPricePaise: cl.originalPrice != null ? toPaise(cl.originalPrice) : null,
-          currency: String(cl.currency ?? 'INR'),
-          isFree: Boolean(cl.isFree),
-          thumbnailUrl: cl.thumbnail ? String(cl.thumbnail) : null,
-          thumbnailKey: cl.thumbnailKey ? String(cl.thumbnailKey) : null,
-          platformName: cl.platformName ? String(cl.platformName) : 'External',
-          redirectUrl: String(cl.redirectUrl ?? ''),
-          clickCount: Number(cl.clickCount ?? 0),
-          isFeatured: Boolean(cl.isFeatured),
-        },
-        update: {},
-      });
+      const slug = String(cl.slug ?? legacyId);
+      const existing = await prisma.courseLink.findFirst({ where: { OR: [{ legacyId }, { slug }] } });
+      if (existing) {
+        if (!existing.legacyId) await prisma.courseLink.update({ where: { id: existing.id }, data: { legacyId } });
+      } else {
+        await prisma.courseLink.create({
+          data: {
+            legacyId,
+            title: String(cl.title ?? ''),
+            slug,
+            shortDescription: cl.shortDescription ? String(cl.shortDescription) : null,
+            category: cl.category ? String(cl.category) : null,
+            tags: Array.isArray(cl.tags) ? cl.tags.map(String) : [],
+            instructorName: cl.instructorName ? String(cl.instructorName) : null,
+            language: cl.language ? String(cl.language) : 'English',
+            pricePaise: toPaise(cl.price),
+            originalPricePaise: cl.originalPrice != null ? toPaise(cl.originalPrice) : null,
+            currency: String(cl.currency ?? 'INR'),
+            isFree: Boolean(cl.isFree),
+            thumbnailUrl: cl.thumbnail ? String(cl.thumbnail) : null,
+            thumbnailKey: cl.thumbnailKey ? String(cl.thumbnailKey) : null,
+            platformName: cl.platformName ? String(cl.platformName) : 'External',
+            redirectUrl: String(cl.redirectUrl ?? ''),
+            clickCount: Number(cl.clickCount ?? 0),
+            isFeatured: Boolean(cl.isFeatured),
+          },
+        });
+      }
     }
 
     // 8. Shop Categories, Products, Variants, Coupons
     for (const cat of categories) {
       const legacyId = String(cat._id);
-      const row = await prisma.productCategory.upsert({
-        where: { legacyId },
-        create: {
-          legacyId,
-          name: String(cat.name ?? ''),
-          slug: String(cat.slug ?? legacyId),
-          description: String(cat.description ?? ''),
-          imageUrl: cat.image ? String(cat.image) : null,
-          productType:
-            String(cat.productType ?? '').toLowerCase() === 'digital'
-              ? ShopCategoryProductType.DIGITAL
-              : ShopCategoryProductType.PHYSICAL,
-          isActive: Boolean(cat.isActive ?? true),
-        },
-        update: {},
-      });
+      const slug = String(cat.slug ?? legacyId);
+      const existing = await prisma.productCategory.findFirst({ where: { OR: [{ legacyId }, { slug }] } });
+      const row = existing
+        ? await prisma.productCategory.update({ where: { id: existing.id }, data: { legacyId } })
+        : await prisma.productCategory.create({
+            data: {
+              legacyId,
+              name: String(cat.name ?? ''),
+              slug,
+              description: String(cat.description ?? ''),
+              imageUrl: cat.image ? String(cat.image) : null,
+              productType:
+                String(cat.productType ?? '').toLowerCase() === 'digital'
+                  ? ShopCategoryProductType.DIGITAL
+                  : ShopCategoryProductType.PHYSICAL,
+              isActive: Boolean(cat.isActive ?? true),
+            },
+          });
       mongoCategoryToPgId.set(legacyId, row.id);
     }
 
@@ -630,93 +669,105 @@ async function main() {
       const isDigital = String(prod.type ?? '').toLowerCase() === 'digital';
       const pricePaise = toPaise(prod.priceWithGst ?? prod.price ?? prod.mrp);
       const slug = String(prod.slug ?? legacyId);
-      const row = await prisma.product.upsert({
-        where: { legacyId },
-        create: {
-          legacyId,
-          catalogId: `shop-${slug}`,
-          slug,
-          title: String(prod.name ?? ''),
-          shortDescription: prod.shortDescription ? String(prod.shortDescription) : null,
-          description: prod.description ? String(prod.description) : null,
-          mrp: prod.mrp != null ? toPaise(prod.mrp) : pricePaise,
-          price: pricePaise,
-          gstRateBp: prod.gst?.rate != null ? Math.round(Number(prod.gst.rate) * 100) : 0,
-          currency: 'INR',
-          productType: isDigital ? ProductType.DIGITAL_ART : ProductType.PHYSICAL,
-          requiresShipping: !isDigital,
-          category: prod.type ? String(prod.type) : 'spiritual',
-          categoryId,
-          thumbnailUrl: prod.thumbnail ? String(prod.thumbnail) : null,
-          imageUrl: prod.thumbnail ? String(prod.thumbnail) : null,
-          galleryImages: prod.images ?? [],
-          stock: Number(prod.stock ?? 0),
-          sku: prod.sku ? String(prod.sku) : null,
-          hasVariants: Boolean(prod.hasVariants),
-          discountType:
-            String(prod.discountType ?? '').toLowerCase() === 'fixed'
-              ? ShopDiscountType.FIXED
-              : ShopDiscountType.PERCENTAGE,
-          discountValue: Number(prod.discountValue ?? 0),
-          isPublished: Boolean(prod.isPublished ?? true),
-          isAvailable: Boolean(prod.isPublished ?? true),
-          isFeatured: Boolean(prod.isFeatured),
-          isTrending: Boolean(prod.isTrending),
-          isBestSeller: Boolean(prod.isBestSeller),
-          managedByAdmin: true,
-        },
-        update: {},
+      const catalogId = `shop-${slug}`;
+      const existingProd = await prisma.product.findFirst({
+        where: { OR: [{ legacyId }, { slug }, { catalogId }] },
       });
+      const row = existingProd
+        ? await prisma.product.update({ where: { id: existingProd.id }, data: { legacyId } })
+        : await prisma.product.create({
+            data: {
+              legacyId,
+              catalogId,
+              slug,
+              title: String(prod.name ?? ''),
+              shortDescription: prod.shortDescription ? String(prod.shortDescription) : null,
+              description: prod.description ? String(prod.description) : null,
+              mrp: prod.mrp != null ? toPaise(prod.mrp) : pricePaise,
+              price: pricePaise,
+              gstRateBp: prod.gst?.rate != null ? Math.round(Number(prod.gst.rate) * 100) : 0,
+              currency: 'INR',
+              productType: isDigital ? ProductType.DIGITAL_ART : ProductType.PHYSICAL,
+              requiresShipping: !isDigital,
+              category: prod.type ? String(prod.type) : 'spiritual',
+              categoryId,
+              thumbnailUrl: prod.thumbnail ? String(prod.thumbnail) : null,
+              imageUrl: prod.thumbnail ? String(prod.thumbnail) : null,
+              galleryImages: prod.images ?? [],
+              stock: clampInt4(prod.stock, 0),
+              sku: prod.sku ? String(prod.sku) : null,
+              hasVariants: Boolean(prod.hasVariants),
+              discountType:
+                String(prod.discountType ?? '').toLowerCase() === 'fixed'
+                  ? ShopDiscountType.FIXED
+                  : ShopDiscountType.PERCENTAGE,
+              discountValue: Number(prod.discountValue ?? 0),
+              isPublished: Boolean(prod.isPublished ?? true),
+              isAvailable: Boolean(prod.isPublished ?? true),
+              isFeatured: Boolean(prod.isFeatured),
+              isTrending: Boolean(prod.isTrending),
+              isBestSeller: Boolean(prod.isBestSeller),
+              managedByAdmin: true,
+            },
+          });
       mongoProductToPgId.set(legacyId, row.id);
 
       if (Array.isArray(prod.variants)) {
         for (const v of prod.variants) {
           const vLegacyId = String(v._id ?? `${legacyId}:${v.sku ?? v.name}`);
-          await prisma.productVariant.upsert({
-            where: { legacyId: vLegacyId },
-            create: {
-              legacyId: vLegacyId,
-              productId: row.id,
-              code: v.sku ? String(v.sku) : null,
-              name: String(v.name ?? 'Variant'),
-              value: String(v.value ?? v.name ?? 'Default'),
-              mrp: v.mrp != null ? toPaise(v.mrp) : toPaise(v.price ?? prod.price),
-              price: toPaise(v.priceWithGst ?? v.price ?? prod.price),
-              stock: Number(v.stock ?? 0),
-            },
-            update: {},
+          const code = v.sku ? String(v.sku) : null;
+          const existingVar = await prisma.productVariant.findFirst({
+            where: code
+              ? { OR: [{ legacyId: vLegacyId }, { productId: row.id, code }] }
+              : { legacyId: vLegacyId },
           });
+          if (!existingVar) {
+            await prisma.productVariant.create({
+              data: {
+                legacyId: vLegacyId,
+                productId: row.id,
+                code,
+                name: String(v.name ?? 'Variant'),
+                value: String(v.value ?? v.name ?? 'Default'),
+                mrp: v.mrp != null ? toPaise(v.mrp) : toPaise(v.price ?? prod.price),
+                price: toPaise(v.priceWithGst ?? v.price ?? prod.price),
+                stock: clampInt4(v.stock, 0),
+              },
+            });
+          }
         }
       }
     }
 
     for (const c of coupons) {
       const legacyId = String(c._id);
-      await prisma.coupon.upsert({
-        where: { legacyId },
-        create: {
-          legacyId,
-          code: String(c.code).trim().toUpperCase(),
-          description: c.description ? String(c.description) : null,
-          discountType:
-            String(c.type).toLowerCase() === 'percentage'
-              ? ShopCouponDiscountType.PERCENTAGE
-              : ShopCouponDiscountType.FLAT,
-          discountValue:
-            String(c.type).toLowerCase() === 'percentage'
-              ? Math.round(Number(c.discount ?? 0) * 100)
-              : toPaise(c.discount),
-          maxDiscountPaise: c.maxDiscount != null ? toPaise(c.maxDiscount) : null,
-          minOrderPaise: c.minOrderAmount != null ? toPaise(c.minOrderAmount) : 0,
-          usageLimit: c.usageLimit != null ? Number(c.usageLimit) : null,
-          usedCount: Number(c.usedCount ?? 0),
-          oneTimePerUser: Boolean(c.oneTimePerUser),
-          validFrom: c.validFrom ? toDate(c.validFrom) : new Date(),
-          validTill: c.validTill ? toDate(c.validTill) : new Date(Date.now() + 365 * 86400_000),
-          isActive: Boolean(c.isActive ?? true),
-        },
-        update: {},
-      });
+      const code = String(c.code).trim().toUpperCase();
+      const existingCoupon = await prisma.coupon.findFirst({ where: { OR: [{ legacyId }, { code }] } });
+      if (!existingCoupon) {
+        await prisma.coupon.create({
+          data: {
+            legacyId,
+            code,
+            description: c.description ? String(c.description) : null,
+            discountType:
+              String(c.type).toLowerCase() === 'percentage'
+                ? ShopCouponDiscountType.PERCENTAGE
+                : ShopCouponDiscountType.FLAT,
+            discountValue:
+              String(c.type).toLowerCase() === 'percentage'
+                ? Math.round((toNum(c.discount) || 0) * 100)
+                : toPaise(c.discount),
+            maxDiscountPaise: c.maxDiscount != null ? toPaise(c.maxDiscount) : null,
+            minOrderPaise: c.minOrderAmount != null ? toPaise(c.minOrderAmount) : 0,
+            usageLimit: c.usageLimit != null ? Number(c.usageLimit) : null,
+            usedCount: Number(c.usedCount ?? 0),
+            oneTimePerUser: Boolean(c.oneTimePerUser),
+            validFrom: c.validFrom ? toDate(c.validFrom) : new Date(),
+            validTill: c.validTill ? toDate(c.validTill) : new Date(Date.now() + 365 * 86400_000),
+            isActive: Boolean(c.isActive ?? true),
+          },
+        });
+      }
     }
 
     // 9. Consultations (B1 & B2)
