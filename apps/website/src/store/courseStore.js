@@ -16,7 +16,11 @@ export const useCourseStore = create((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const res = await axios.get(COURSE_URL, { params });
+      const safeParams =
+        params.limit !== undefined
+          ? { ...params, limit: Math.min(Number(params.limit) || 50, 200) }
+          : params;
+      const res = await axios.get(COURSE_URL, { params: safeParams });
       const raw = res.data?.data;
       const list = Array.isArray(raw) ? raw : (raw?.items || []);
 

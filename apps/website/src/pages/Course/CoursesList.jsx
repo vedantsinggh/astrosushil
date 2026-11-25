@@ -69,7 +69,7 @@ export default function CoursesPage() {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    getCourses({ limit: 1000 });
+    getCourses({ limit: 200 });
   }, [getCourses]);
 
   const filtered = useMemo(() => {
