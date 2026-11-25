@@ -8,6 +8,30 @@ const CONSULTATION_URL = `${BASE_URL}/consultation`;
 
 const BOOKING_URL = `${BASE_URL}/consultation`;
 
+const normalizeConsultation = (c) => {
+  if (!c) return c;
+  return {
+    ...c,
+    _id: c._id ?? c.id,
+    duration: c.duration ?? c.durationMinutes,
+    modes: Array.isArray(c.modes)
+      ? c.modes.map((m, idx) => ({
+          ...m,
+          _id: m._id ?? m.catalogId ?? String(idx),
+          mode: String(m.mode || "").toLowerCase(),
+          price: m.price ?? (m.pricePaise != null ? m.pricePaise / 100 : 0),
+          priceWithGst:
+            m.priceWithGst ??
+            (m.priceWithGstPaise != null
+              ? m.priceWithGstPaise / 100
+              : m.pricePaise != null
+                ? m.pricePaise / 100
+                : 0),
+        }))
+      : [],
+  };
+};
+
 export const useConsultationStore = create((set) => ({
   consultations: [],
   consultation: null,
@@ -34,13 +58,15 @@ export const useConsultationStore = create((set) => ({
         params,
       });
 
+      const list = (res.data?.data || []).map(normalizeConsultation);
+
       set({
-        consultations: res.data?.data || [],
+        consultations: list,
       });
 
       return {
         success: true,
-        data: res.data?.data || [],
+        data: list,
       };
     } catch (err) {
       showError(err);
@@ -72,13 +98,15 @@ export const useConsultationStore = create((set) => ({
 
       const res = await axios.get(`${CONSULTATION_URL}/types/${id}`);
 
+      const item = normalizeConsultation(res.data?.data || null);
+
       set({
-        consultation: res.data?.data || null,
+        consultation: item,
       });
 
       return {
         success: true,
-        data: res.data?.data,
+        data: item,
       };
     } catch (err) {
       showError(err);
