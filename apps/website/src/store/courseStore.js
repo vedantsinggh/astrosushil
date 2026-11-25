@@ -6,6 +6,18 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 const COURSE_URL = `${BASE_URL}/course-links`;
 
+const normalizeCourse = (c) => {
+  if (!c || typeof c !== "object") return c;
+  return {
+    ...c,
+    _id: c._id ?? c.id,
+    price: c.price ?? (c.pricePaise != null ? c.pricePaise / 100 : 0),
+    originalPrice:
+      c.originalPrice ??
+      (c.originalPricePaise != null ? c.originalPricePaise / 100 : null),
+  };
+};
+
 export const useCourseStore = create((set) => ({
   courses: [],
   course: null,
@@ -22,7 +34,7 @@ export const useCourseStore = create((set) => ({
           : params;
       const res = await axios.get(COURSE_URL, { params: safeParams });
       const raw = res.data?.data;
-      const list = Array.isArray(raw) ? raw : (raw?.items || []);
+      const list = (Array.isArray(raw) ? raw : (raw?.items || [])).map(normalizeCourse);
 
       set({
         courses: list,
@@ -54,13 +66,14 @@ export const useCourseStore = create((set) => ({
 
       const res = await axios.get(`${COURSE_URL}/${id}`);
 
+      const item = normalizeCourse(res.data?.data || null);
       set({
-        course: res.data?.data || null,
+        course: item,
       });
 
       return {
         success: true,
-        data: res.data?.data,
+        data: item,
       };
     } catch (err) {
       showError(err);
