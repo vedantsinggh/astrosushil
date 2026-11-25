@@ -191,6 +191,24 @@ export default defineConfig(async ({ command, mode }) => {
         "react-dom": fileURLToPath(new URL("./node_modules/react-dom", import.meta.url)),
       },
     },
+    optimizeDeps: {
+      rolldownOptions: {
+        plugins: [
+          {
+            name: "force-local-react",
+            resolveId(source) {
+              const localReact = fileURLToPath(new URL("./node_modules/react", import.meta.url));
+              const localReactDom = fileURLToPath(new URL("./node_modules/react-dom", import.meta.url));
+              if (source === "react") return path.join(localReact, "index.js");
+              if (source === "react/jsx-runtime") return path.join(localReact, "jsx-runtime.js");
+              if (source === "react/jsx-dev-runtime") return path.join(localReact, "jsx-dev-runtime.js");
+              if (source === "react-dom") return path.join(localReactDom, "index.js");
+              if (source === "react-dom/client") return path.join(localReactDom, "client.js");
+            },
+          },
+        ],
+      },
+    },
     plugins: [
       previewCacheHeadersPlugin(),
       deferNonCriticalCSS(),

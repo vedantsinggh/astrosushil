@@ -135,10 +135,14 @@ export default function ConsultationSection() {
       badge: c.responseDays > 0 ? `On ${c.responseDays} Day` : undefined,
       title: c.title,
       // ← modes[] array se har mode ka alag price row
-      items: (c.modes || []).map((m) => ({
-        label: MODE_LABELS[m.mode] || m.mode,
-        price: m.price?.inr ? convert(m.price.inr) : "—",
-      })),
+      items: (c.modes || []).map((m) => {
+        const modeRupees =
+          m.priceWithGst ?? m.price?.inr ?? (typeof m.price === "number" ? m.price : 0);
+        return {
+          label: MODE_LABELS[m.mode] || m.mode,
+          price: modeRupees > 0 ? convert(modeRupees) : "—",
+        };
+      }),
       note: c.note || c.description || undefined,
       includes: c.includes || [],
       featured: c.type === "special",

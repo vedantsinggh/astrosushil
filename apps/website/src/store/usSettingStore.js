@@ -185,12 +185,15 @@ export const useSettingStore = create((set) => ({
       set({ loading: true, error: null });
 
       const res = await axios.get(FAQ_URL, { params });
+      const list = (Array.isArray(res.data?.data) ? res.data.data : res.data?.data?.items || []).map(
+        (item) => ({ ...item, _id: item._id ?? item.id, isActive: item.isActive ?? true }),
+      );
 
       set({
-        faqs: res.data?.data || [],
+        faqs: list,
       });
 
-      return res.data?.data;
+      return list;
     } catch (err) {
       set({
         error: err.response?.data?.message || "Failed to fetch FAQs",
@@ -208,12 +211,15 @@ export const useSettingStore = create((set) => ({
       const res = await axios.get(FAQ_URL, {
         params: { page },
       });
+      const list = (Array.isArray(res.data?.data) ? res.data.data : res.data?.data?.items || []).map(
+        (item) => ({ ...item, _id: item._id ?? item.id, isActive: item.isActive ?? true }),
+      );
 
       set({
-        faqs: res.data?.data || [],
+        faqs: list,
       });
 
-      return res.data?.data;
+      return list;
     } catch (err) {
       set({
         error: err.response?.data?.message || "Failed to fetch FAQs",
@@ -251,14 +257,15 @@ export const useSettingStore = create((set) => ({
       set({ loading: true, error: null });
 
       const res = await axios.get(MEDIA_URL, { params });
+      const list = (Array.isArray(res.data?.data) ? res.data.data : res.data?.data?.items || []).map(
+        (item) => ({ ...item, _id: item._id ?? item.id, isActive: item.isActive ?? true }),
+      );
 
       set({
-        media: Array.isArray(res.data?.data)
-          ? res.data.data
-          : res.data?.data?.items || [],
+        media: list,
       });
 
-      return res.data?.data;
+      return list;
     } catch (err) {
       set({
         error: err.response?.data?.message || "Failed to fetch media",

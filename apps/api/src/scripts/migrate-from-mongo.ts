@@ -652,7 +652,8 @@ async function main() {
               name: String(cat.name ?? ''),
               slug,
               description: String(cat.description ?? ''),
-              imageUrl: cat.image ? String(cat.image) : null,
+              imageUrl: typeof cat.image === 'string' ? cat.image : cat.image?.url ? String(cat.image.url) : null,
+              imageKey: typeof cat.image === 'object' && cat.image?.key ? String(cat.image.key) : null,
               productType:
                 String(cat.productType ?? '').toLowerCase() === 'digital'
                   ? ShopCategoryProductType.DIGITAL

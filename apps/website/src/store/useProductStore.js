@@ -37,6 +37,7 @@ const normalizeProduct = (p) => {
   return {
     ...p,
     _id: p._id ?? p.id,
+    isPublished: p.isPublished ?? p.isAvailable ?? true,
     mrp: p.mrp != null ? p.mrp / 100 : 0,
     price: p.price != null ? p.price / 100 : 0,
     priceWithGst:
