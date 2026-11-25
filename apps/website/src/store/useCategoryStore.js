@@ -40,7 +40,12 @@ let latestSubcategoriesRequestId = 0;
 
 const extractCategories = (res) => {
   const raw = res.data?.data;
-  return Array.isArray(raw) ? raw : (raw?.categories || raw?.items || []);
+  const list = Array.isArray(raw) ? raw : (raw?.categories || raw?.items || []);
+  return list.map((c) => ({
+    ...c,
+    _id: c._id ?? c.id,
+    image: c.image?.url === "[object Object]" ? null : c.image,
+  }));
 };
 
 export const useCategoryStore = create((set) => ({

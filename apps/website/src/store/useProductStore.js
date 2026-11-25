@@ -16,6 +16,39 @@ const PRODUCT_URL = `${BASE_URL}/products`;
 // ago. Only the most recently *issued* call is allowed to write state.
 let latestProductsRequestId = 0;
 
+const normalizeVariant = (v) => {
+  if (!v || typeof v !== "object") return v;
+  return {
+    ...v,
+    _id: v._id ?? v.id,
+    mrp: v.mrp != null ? v.mrp / 100 : 0,
+    price: v.price != null ? v.price / 100 : 0,
+    priceWithGst:
+      v.priceWithGst != null
+        ? v.priceWithGst / 100
+        : v.price != null
+          ? v.price / 100
+          : 0,
+  };
+};
+
+const normalizeProduct = (p) => {
+  if (!p || typeof p !== "object") return p;
+  return {
+    ...p,
+    _id: p._id ?? p.id,
+    mrp: p.mrp != null ? p.mrp / 100 : 0,
+    price: p.price != null ? p.price / 100 : 0,
+    priceWithGst:
+      p.priceWithGst != null
+        ? p.priceWithGst / 100
+        : p.price != null
+          ? p.price / 100
+          : 0,
+    variants: Array.isArray(p.variants) ? p.variants.map(normalizeVariant) : [],
+  };
+};
+
 export const useProductStore = create((set) => ({
   products: [],
   product: null,
@@ -48,7 +81,7 @@ export const useProductStore = create((set) => ({
 
       const meta = res.data?.meta || {};
       const raw = res.data?.data;
-      const list = Array.isArray(raw) ? raw : (raw?.products || raw?.items || []);
+      const list = (Array.isArray(raw) ? raw : (raw?.products || raw?.items || [])).map(normalizeProduct);
 
       if (requestId === latestProductsRequestId) {
         set({
@@ -106,13 +139,14 @@ export const useProductStore = create((set) => ({
         },
       );
 
+      const item = normalizeProduct(res.data?.data?.product || res.data?.data || null);
       set({
-        product: res.data?.data || null,
+        product: item,
       });
 
       return {
         success: true,
-        data: res.data?.data,
+        data: item,
       };
     } catch (err) {
       showError(err);
@@ -149,13 +183,14 @@ export const useProductStore = create((set) => ({
         },
       );
 
+      const item = normalizeProduct(res.data?.data?.product || res.data?.data || null);
       set({
-        product: res.data?.data || null,
+        product: item,
       });
 
       return {
         success: true,
-        data: res.data?.data,
+        data: item,
       };
     } catch (err) {
       showError(err);
