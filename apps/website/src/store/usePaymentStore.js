@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { useCartStore } from "./useCartStore";
 import { trackPurchase } from "../utils/analytics";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const ORDER_URL = `${BASE_URL}/orders`;
 
 export const usePaymentStore = create((set, get) => {
@@ -242,7 +242,7 @@ export const usePaymentStore = create((set, get) => {
 
     downloadInvoice: async (orderId) => {
       try {
-        const url = `${ORDER_URL}/${orderId}/invoice`;
+        const url = `${BASE_URL}/invoices/orders/${orderId}/pdf`;
 
         const token = getToken();
 

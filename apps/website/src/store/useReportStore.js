@@ -240,7 +240,7 @@ const useReportStore = create((set, get) => {
         const headers = getAuthHeaders();
 
         const response = await axios.get(
-          `${REPORT_URL}/orders/${orderId}/invoice`,
+          `${BASE_URL}/invoices/orders/${orderId}/pdf`,
           {
             ...headers,
             responseType: "blob",
