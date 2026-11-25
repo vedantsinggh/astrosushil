@@ -3,8 +3,23 @@ import axios from "axios";
 import { showError, showSuccess } from "../utils/toast";
 import { useAuthStore } from "./useAuthStore";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const REPORT_URL = `${BASE_URL}/report`;
+
+const FALLBACK_COVER_IMAGES = {
+  "mini-horoscope": "/Image/Reports/mini-horscope.webp",
+  "basic-horoscope": "/Image/Reports/basic-horscope.webp",
+  "pro-horoscope": "/Image/Reports/pro-horscope.webp",
+  "match-making": "/Image/Reports/match-making.webp",
+};
+
+const withReportCover = (r) => {
+  if (!r || typeof r !== "object") return r;
+  return {
+    ...r,
+    coverImage: r.coverImage || FALLBACK_COVER_IMAGES[r.slug] || "/Image/Reports.webp",
+  };
+};
 
 const useReportStore = create((set, get) => {
   const getAuthHeaders = () => {
@@ -36,13 +51,15 @@ const useReportStore = create((set, get) => {
 
         const res = await axios.get(REPORT_URL, { params });
 
+        const list = (res.data?.data || []).map(withReportCover);
+
         set({
-          reports: res.data?.data || [],
+          reports: list,
         });
 
         return {
           success: true,
-          data: res.data?.data || [],
+          data: list,
         };
       } catch (err) {
         showError(err);
@@ -67,13 +84,15 @@ const useReportStore = create((set, get) => {
 
         const res = await axios.get(`${REPORT_URL}/${id}`);
 
+        const item = withReportCover(res.data?.data || null);
+
         set({
-          report: res.data?.data || null,
+          report: item,
         });
 
         return {
           success: true,
-          data: res.data?.data,
+          data: item,
         };
       } catch (err) {
         showError(err);
@@ -97,13 +116,15 @@ const useReportStore = create((set, get) => {
 
         const res = await axios.get(`${REPORT_URL}/slug/${slug}`);
 
+        const item = withReportCover(res.data?.data || null);
+
         set({
-          report: res.data?.data || null,
+          report: item,
         });
 
         return {
           success: true,
-          data: res.data?.data,
+          data: item,
         };
       } catch (err) {
         showError(err);
