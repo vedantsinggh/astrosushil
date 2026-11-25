@@ -184,6 +184,13 @@ export default defineConfig(async ({ command, mode }) => {
   );
 
   return {
+    resolve: {
+      dedupe: ["react", "react-dom"],
+      alias: {
+        react: fileURLToPath(new URL("./node_modules/react", import.meta.url)),
+        "react-dom": fileURLToPath(new URL("./node_modules/react-dom", import.meta.url)),
+      },
+    },
     plugins: [
       previewCacheHeadersPlugin(),
       deferNonCriticalCSS(),
