@@ -30,7 +30,7 @@ export const useConsultationStore = create((set) => ({
         error: null,
       });
 
-      const res = await axios.get(CONSULTATION_URL, {
+      const res = await axios.get(`${CONSULTATION_URL}/types`, {
         params,
       });
 
@@ -70,7 +70,7 @@ export const useConsultationStore = create((set) => ({
         error: null,
       });
 
-      const res = await axios.get(`${CONSULTATION_URL}/${id}`);
+      const res = await axios.get(`${CONSULTATION_URL}/types/${id}`);
 
       set({
         consultation: res.data?.data || null,
