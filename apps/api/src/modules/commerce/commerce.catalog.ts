@@ -107,11 +107,11 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
     itemType: OrderItemType.REPORT,
     title: 'Marriage & Relationship Compatibility Report',
     description: 'Ashtakoota 36-Guna Kundli Milan, 7th house partner dynamics, and planetary harmony evaluation.',
-    // Website price (astrosushil.com, read 2026-11-24): ₹999 with GST rate 0 (website "Match Making").
-    pricePaise: 99900, // ₹999
+    // Owner decision 2026-11-25 (M2): ₹999 + 18% GST, stored as GST-inclusive amount (matching report-kundli).
+    pricePaise: 117882, // ₹1,178.82 = ₹999 + GST
     originalPricePaise: 199900,
     currency: 'INR',
-    taxRateBasisPoints: 0,
+    taxRateBasisPoints: 1800,
     taxIncluded: true,
     fulfillmentType: FulfillmentType.DIGITAL,
     isActive: true,

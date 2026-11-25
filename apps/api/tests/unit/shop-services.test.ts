@@ -616,21 +616,27 @@ describe('cancelling an order', () => {
   });
 
   it('refuses once the order has shipped', async () => {
-    db.order.findFirst.mockResolvedValue(order('SHIPPED', true));
+    db.order.findFirst.mockResolvedValue(order('SHIPPED', false));
     await expect(shopOrdersService.cancelMine('u1', 'o1')).rejects.toMatchObject({ statusCode: 400 });
     expect(db.shopOrder.update).not.toHaveBeenCalled();
   });
 
-  it('puts the stock back, keeps the payment (no refund) and sends no message', async () => {
+  it('refuses customer cancellation of a paid order (staff only)', async () => {
+    db.order.findFirst.mockResolvedValue(order('PLACED', true));
+    await expect(shopOrdersService.cancelMine('u1', 'o1')).rejects.toMatchObject({ statusCode: 400 });
+    expect(db.shopOrder.update).not.toHaveBeenCalled();
+  });
+
+  it('admin cancel puts the stock back, keeps the payment (no refund) and sends no message', async () => {
     db.order.findFirst.mockResolvedValue(order('PLACED', true));
     db.shopOrder.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...order('PLACED', true).shopOrder, ...data }));
     db.order.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...order('PLACED', true), ...data }));
 
-    const view = await shopOrdersService.cancelMine('u1', 'o1');
+    const view = await shopOrdersService.adminUpdateStatus('o1', { orderStatus: 'cancelled' }, ACTOR);
 
     expect(db.product.updateMany.mock.calls[0][0]).toEqual({ where: { id: 'p-herb', stock: { gte: 0 } }, data: { stock: { increment: 2 } } });
     expect(db.order.update.mock.calls[0][0].data).toEqual({ status: 'PAID', fulfillmentStatus: 'CANCELLED' });
-    expect(db.shopOrder.update.mock.calls[0][0].data).toMatchObject({ status: 'CANCELLED', stockRestored: true, cancelledBy: 'customer:u1' });
+    expect(db.shopOrder.update.mock.calls[0][0].data).toMatchObject({ status: 'CANCELLED', stockRestored: true, cancelledBy: `admin:${ACTOR.id}` });
     expect(view).toMatchObject({ orderStatus: 'cancelled', payment: { status: 'paid' } });
     expect(mocks.notificationEvents.orderConfirmed).not.toHaveBeenCalled();
     expect(db.refund.create).not.toHaveBeenCalled();

@@ -201,7 +201,7 @@ describe('GET /web/reports: the four website products, priced from our catalogue
     });
     expect(by.basic_horoscope_pdf).toMatchObject({ originalPrice: 799, salePrice: 299, priceWithGst: 352.82 });
     expect(by.pro_horoscope_pdf).toMatchObject({ originalPrice: 1499, salePrice: 699, priceWithGst: 824.82 });
-    expect(by.match_making_pdf).toMatchObject({ originalPrice: 1999, salePrice: 999, priceWithGst: 999, gst: { enabled: false, rate: 0 }, requires: 'matchMakingDetails' });
+    expect(by.match_making_pdf).toMatchObject({ originalPrice: 1999, salePrice: 999, priceWithGst: 1178.82, gst: { enabled: true, rate: 18 }, requires: 'matchMakingDetails' });
     for (const report of reports) {
       for (const key of ['name', 'slug', 'description', 'originalPrice', 'salePrice', 'gst', 'priceWithGst', 'languages']) {
         expect(report, `${report.slug}.${key}`).toHaveProperty(key);
@@ -328,7 +328,7 @@ describe('POST /web/reports/buy', () => {
     expect(metadata.contact.fullName).toBe('Vikram Shah');
     expect(metadata.partnerContact.fullName).toBe('Asha Rao');
     expect(h.createOrder.mock.calls[0][0].items[0].catalogId).toBe('report-marriage');
-    expect(bought.razorpayConfig.amount).toBe(99900);
+    expect(bought.razorpayConfig.amount).toBe(117882);
 
     await h.service.verifyPayment(verifyBody(bought.razorpayConfig.orderId), USER);
     expect(h.createReportJob).toHaveBeenCalledWith(

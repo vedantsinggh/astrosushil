@@ -10,7 +10,7 @@ export const REPORT_PRICES_PAISE: Record<ReportType, number> = {
   KUNDLI_BASIC: 35282,           // ₹299 + GST
   PLANETARY_SUMMARY: 23482,      // ₹199 + GST
   CAREER: 49900,                 // ₹499
-  MARRIAGE_COMPATIBILITY: 99900, // ₹999 (GST rate 0 on the website)
+  MARRIAGE_COMPATIBILITY: 117882, // ₹999 + GST
   CAREER_PROSITY: 69900,         // ₹699
   CHILDBIRTH_FAMILY: 49900,      // ₹499
   GUPTA_NADI_DOSSIER: 99900,     // ₹999

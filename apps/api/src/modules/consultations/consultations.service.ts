@@ -77,7 +77,7 @@ export function confirmedBookingPlace(booking: { id: string; mode: ConsultationM
 } {
   const inPerson = booking.mode === ConsultationMode.IN_PERSON;
   return {
-    meetingLink: inPerson ? null : `https://meet.astrosushil.com/consult-${booking.id.substring(0, 8)}`,
+    meetingLink: null,
     locationAddress: inPerson ? 'Astro Sushil Vedic Centre, Sector 18, Noida / Delhi NCR' : null,
   };
 }

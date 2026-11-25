@@ -310,7 +310,7 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
     expect(verifyRes.statusCode).toBe(200);
     const confirmed = JSON.parse(verifyRes.payload).data;
     expect(confirmed.status).toBe('CONFIRMED');
-    expect(confirmed.meetingLink).toContain('https://meet.astrosushil.com/consult-');
+    expect(confirmed.meetingLink).toBeNull();
     expect(confirmed.confirmedAt).toBeDefined();
 
     // Verify appointment slot is marked BOOKED

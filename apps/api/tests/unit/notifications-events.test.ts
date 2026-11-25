@@ -174,6 +174,7 @@ describe('booking confirmed', () => {
   it('skips channels without a usable recipient and admin copies that are not configured', async () => {
     delete process.env.ADMIN_EMAIL;
     delete process.env.ADMIN_PHONE;
+    delete process.env.SUPPORT_PHONE;
     const result = await events.bookingConfirmed({ ...event, customer: { name: 'Ravi', email: null, phone: 'not-a-phone' } });
     expect(keys()).toEqual([]);
     expect(result.skipped).toEqual([

@@ -253,9 +253,7 @@ export async function webhooksRoutes(fastify: FastifyInstance, _options: Fastify
                         status: BookingStatus.CONFIRMED,
                         confirmedAt: new Date(),
                         reservationExpiresAt: null,
-                        meetingLink: linkedBooking.mode === ConsultationMode.IN_PERSON
-                          ? null
-                          : `https://meet.astrosushil.com/consult-${linkedBooking.id.substring(0, 8)}`,
+                        meetingLink: null,
                       },
                     });
                     await prisma.appointmentSlot.update({

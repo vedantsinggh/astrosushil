@@ -109,7 +109,7 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
         'report-love': { price: 49900, reportType: ReportType.LOVE, isActive: true },
         'report-fortune': { price: 49900, reportType: ReportType.FORTUNE, isActive: true },
         // Website price since 2026-11-24: ₹999, GST rate 0.
-        'report-marriage': { price: 99900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isActive: true },
+        'report-marriage': { price: 117882, reportType: ReportType.MARRIAGE_COMPATIBILITY, isActive: true },
         'report-saturn': { price: 49900, reportType: ReportType.SATURN, isActive: true },
       };
 
@@ -140,7 +140,7 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
       expect(COMMERCE_CATALOG['report-kundli-basic'].isActive).toBe(true);
       expect(REPORT_PRICES_PAISE[ReportType.KUNDLI_BASIC]).toBe(35282);
       // Marriage compatibility carries GST rate 0 on the website.
-      expect(COMMERCE_CATALOG['report-marriage'].taxRateBasisPoints).toBe(0);
+      expect(COMMERCE_CATALOG['report-marriage'].taxRateBasisPoints).toBe(1800);
     });
 
     it('should keep all 4 unreleased reports inactive at 0 paise with checkout blocked', () => {

@@ -807,6 +807,9 @@ export class ShopOrdersService {
       }
 
       const paid = isPaid(order);
+      if (ownerId && paid) {
+        throw new ValidationError('Paid orders can only be cancelled by staff');
+      }
       let stockRestored = shop.stockRestored;
       if (shop.paidEffectsApplied && !shop.stockRestored) {
         const shortfall = Array.isArray(shop.stockShortfall) ? (shop.stockShortfall as unknown as StockShortfall[]) : [];

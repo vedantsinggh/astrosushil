@@ -1,6 +1,6 @@
 # Website integration: decisions needed from the owner
 
-**Last updated:** 2026-11-24 (second round of decisions recorded)
+**Last updated:** 2026-11-25 (third round of decisions recorded)
 
 Each item says what is built today, so nothing is blocked while it is open. Full detail is in the module documents under `docs/integration/modules/`.
 
@@ -25,6 +25,23 @@ Each item says what is built today, so nothing is blocked while it is open. Full
 | S4 Customer delete | As built: erased and kept as "Deleted User" when there are paid orders, removed otherwise. | Done |
 | OTP-only login | Now, backend and app together; staff keep e-mail and password. | Done |
 | A2 App consultation booking | Fixed and verified. | Done |
+
+## Decided on 2026-11-25 (third round)
+
+| Item | Decision | Status |
+|---|---|---|
+| S3 Admin/customer same email | Merge into one staff account, keeping all customer orders/bookings/reports attached to it. | In migration script |
+| M2 Match Making GST | Change Match Making to 18% GST like the other reports (₹999 + GST = ₹1,178.82). | Done |
+| M5 Invoice counter | Keep one shared sequential `INV-AS/<n>` counter for all sale types. | Done |
+| M7 Paid order cancellation | Restrict cancellation of paid orders to staff only (consistent with staff-only refunds). | Done |
+| M10 Foreign-currency invoice PDF | Show both: the paid currency amount and the INR equivalent (with conversion rate for GST compliance). | Done |
+| R2 Report ready link | Link to the reports page behind login. | Done |
+| R3 App report confirmation wording | Keep the same "within 48 hours" confirmation wording across both app and website. | Done |
+| R4 Real Hindi LLM measurement | Leave offline/unmeasured for now to save Gemini credit until needed. | Done |
+| B3 Booking meeting link | Stop generating the fake `meet.astrosushil.com` placeholder (leave `meetingLink` blank until staff adds a real link). | Done |
+| C2 Upload size caps | Keep 10 MB for images, 50 MB for videos and digital product files. | Done |
+| C3 Blog URL slugs | Keep the blog URL slug fixed once set. | Done |
+| C4 Extra website settings | Keep stored for display/migration compatibility only. | Done |
 
 The items below are still open unless listed above.
 

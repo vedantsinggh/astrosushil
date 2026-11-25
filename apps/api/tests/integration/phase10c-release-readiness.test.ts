@@ -418,7 +418,7 @@ describe('Phase 10C: End-to-End Release Readiness Audit', () => {
       { sku: 'report-finance', price: 49900, reportType: ReportType.FINANCE, isCareer: false },
       { sku: 'report-love', price: 49900, reportType: ReportType.LOVE, isCareer: false },
       { sku: 'report-fortune', price: 49900, reportType: ReportType.FORTUNE, isCareer: false },
-      { sku: 'report-marriage', price: 99900, reportType: ReportType.MARRIAGE_COMPATIBILITY, isCareer: false, needsPartner: true },
+      { sku: 'report-marriage', price: 117882, reportType: ReportType.MARRIAGE_COMPATIBILITY, isCareer: false, needsPartner: true },
       { sku: 'report-saturn', price: 49900, reportType: ReportType.SATURN, isCareer: false },
     ];
 

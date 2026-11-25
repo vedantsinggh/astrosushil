@@ -558,7 +558,7 @@ describe('Phase 11: Staging Deployment and Acceptance Verification Suite', () =>
         'report-finance': 49900,
         'report-love': 49900,
         'report-fortune': 49900,
-        'report-marriage': 99900, // website price since 2026-11-24 (₹999, GST rate 0)
+        'report-marriage': 117882, // ₹999 + 18% GST (owner decision 2026-11-25)
         'report-saturn': 49900,
       };
 

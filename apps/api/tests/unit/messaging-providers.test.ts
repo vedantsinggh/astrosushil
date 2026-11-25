@@ -214,6 +214,7 @@ describe('WhatChimp provider and templates', () => {
   });
 
   it('fails visibly when the template id or the credentials are missing', async () => {
+    delete process.env.WHATCHIMP_REPORT_TEMPLATE_ID;
     const http = new RecordingHttp(() => ({ status: 200, body: {} }));
     const noTemplate = await new WhatChimpProvider(http).send({ to: '+919876543210', template: 'REPORT_READY', variables: {} });
     expect(noTemplate).toMatchObject({ ok: false, code: 'TEMPLATE_NOT_CONFIGURED', retryable: false });
