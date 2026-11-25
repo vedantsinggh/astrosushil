@@ -38,6 +38,11 @@ function groupByName(categories) {
 let latestResolveRequestId = 0;
 let latestSubcategoriesRequestId = 0;
 
+const extractCategories = (res) => {
+  const raw = res.data?.data;
+  return Array.isArray(raw) ? raw : (raw?.categories || raw?.items || []);
+};
+
 export const useCategoryStore = create((set) => ({
   topLevelCategories: [], // grouped-by-name, for the landing page cards
   subcategories: [], // grouped-by-name, for chips under a category page
@@ -63,7 +68,7 @@ export const useCategoryStore = create((set) => ({
       });
       if (requestId !== latestResolveRequestId) return [];
 
-      const matches = (res.data?.data || []).filter(
+      const matches = extractCategories(res).filter(
         (c) => c.name.trim().toLowerCase() === name.trim().toLowerCase(),
       );
       const ids = matches.map((c) => c._id);
@@ -90,7 +95,7 @@ export const useCategoryStore = create((set) => ({
         params: { topLevel: true, productType, isActive: true, limit: 100 },
       });
 
-      set({ topLevelCategories: groupByName(res.data?.data || []) });
+      set({ topLevelCategories: groupByName(extractCategories(res)) });
     } catch (err) {
       showError(err);
       set({ topLevelCategories: [] });
@@ -119,7 +124,7 @@ export const useCategoryStore = create((set) => ({
       });
 
       if (requestId === latestSubcategoriesRequestId) {
-        set({ subcategories: groupByName(res.data?.data || []) });
+        set({ subcategories: groupByName(extractCategories(res)) });
       }
     } catch (err) {
       if (requestId === latestSubcategoriesRequestId) showError(err);

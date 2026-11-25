@@ -47,20 +47,22 @@ export const useProductStore = create((set) => ({
       });
 
       const meta = res.data?.meta || {};
+      const raw = res.data?.data;
+      const list = Array.isArray(raw) ? raw : (raw?.products || raw?.items || []);
 
       if (requestId === latestProductsRequestId) {
         set({
-          products: res.data?.data || [],
-          total: meta.total ?? 0,
-          page: meta.page ?? 1,
-          limit: meta.limit ?? params.limit ?? 10,
+          products: list,
+          total: raw?.total ?? meta.total ?? list.length,
+          page: raw?.page ?? meta.page ?? 1,
+          limit: raw?.limit ?? meta.limit ?? params.limit ?? 10,
           facets: meta.facets ?? null,
         });
       }
 
       return {
         success: true,
-        data: res.data?.data || [],
+        data: list,
         meta,
       };
     } catch (err) {

@@ -17,14 +17,16 @@ export const useCourseStore = create((set) => ({
       set({ loading: true, error: null });
 
       const res = await axios.get(COURSE_URL, { params });
+      const raw = res.data?.data;
+      const list = Array.isArray(raw) ? raw : (raw?.items || []);
 
       set({
-        courses: res.data?.data || [],
+        courses: list,
       });
 
       return {
         success: true,
-        data: res.data?.data || [],
+        data: list,
       };
     } catch (err) {
       showError(err);

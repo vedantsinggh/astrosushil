@@ -77,13 +77,18 @@ export const useAuthStore = create((set, get) => ({
         ? await axios.post(`${AUTH_URL}/email/verify-otp`, { email: identifier, otp: payload.otp })
         : await axios.post(`${AUTH_URL}/phone/verify-otp`, { phoneNumber: identifier, otp: payload.otp });
 
-      const token = res.data?.data?.accessToken || res.data?.data?.tokens?.accessToken;
+      const token =
+        res.data?.tokens?.accessToken ||
+        res.data?.accessToken ||
+        res.data?.data?.tokens?.accessToken ||
+        res.data?.data?.accessToken;
+      const user = res.data?.user || res.data?.data?.user || null;
 
-      localStorage.setItem("token", token);
+      if (token) localStorage.setItem("token", token);
 
       set({
         token,
-        user: res.data?.data?.user,
+        user,
       });
 
       showSuccess(res);
@@ -108,11 +113,12 @@ export const useAuthStore = create((set, get) => ({
       get().authHeader()
     );
 
-    set({ user: res.data?.data });
+    const user = res.data?.user || res.data?.data || res.data;
+    set({ user });
 
     return {
       success: true,
-      data: res.data?.data,
+      data: user,
     };
   } catch (err) {
     if (err.response?.status === 401) {
@@ -135,12 +141,12 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: true, error: null });
 
       const res = await axios.patch(
-        `${AUTH_URL}/profile`,
+        `${AUTH_URL}/me`,
         payload,
         get().authHeader(),
       );
 
-      set({ user: res.data?.data });
+      set({ user: res.data?.user || res.data?.data || res.data });
 
       return { success: true };
     } catch (err) {
