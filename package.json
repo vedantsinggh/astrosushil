@@ -4,7 +4,8 @@
   "private": true,
   "description": "Scalable Astrology Platform Monorepo",
   "workspaces": [
-    "apps/*",
+    "apps/api",
+    "apps/admin",
     "packages/*"
   ],
   "scripts": {
