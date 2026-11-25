@@ -1,0 +1,94 @@
+/* react-phone-input-2 base — loaded lazily with the phoneInput module */
+.react-tel-input .form-control {
+  font-family: inherit !important;
+}
+
+.react-tel-input .form-control:focus {
+  outline: none !important;
+  border-color: rgba(66, 72, 116, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(66, 72, 116, 0.12) !important;
+}
+
+/* ── dark theme (login / signup only) ──────────────────────────────────── */
+.phone-input-dark .react-tel-input .form-control {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+}
+
+.phone-input-dark .react-tel-input .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.phone-input-dark .react-tel-input .form-control:focus {
+  border-color: rgba(212, 175, 55, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15) !important;
+}
+
+.phone-input-dark .react-tel-input .flag-dropdown {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 0.5rem 0 0 0.5rem !important;
+}
+
+.phone-input-dark .react-tel-input .selected-flag:hover,
+.phone-input-dark .react-tel-input .selected-flag:focus,
+.phone-input-dark .react-tel-input .flag-dropdown.open .selected-flag {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.phone-input-dark .react-tel-input .selected-flag .arrow {
+  border-top-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.phone-input-dark .react-tel-input .selected-flag .arrow.up {
+  border-bottom-color: rgba(255, 255, 255, 0.5) !important;
+  border-top: none !important;
+}
+
+.phone-input-dark .react-tel-input .country-list {
+  background: #1a1040 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .search {
+  background: #1a1040 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .search-box {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 0.375rem !important;
+  color: white !important;
+  width: 100% !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .search-box::placeholder {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .country {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .country:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .country.highlight {
+  background: rgba(212, 175, 55, 0.2) !important;
+  color: #d4af37 !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .country .dial-code {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.phone-input-dark .react-tel-input .country-list .divider {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}

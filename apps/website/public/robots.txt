@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Private / transactional pages
+Disallow: /dashboard/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-success
+Disallow: /thank-you
+Disallow: /online-consultations/thank-you
+Disallow: /kundli/report/
+Disallow: /kundli-match/report/
+Disallow: /reports/daily
+Disallow: /reports/match
+
+Sitemap: https://astrosushil.com/sitemap.xml

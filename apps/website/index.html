@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#424874" />
+
+    <style>
+      body {
+        font-family: "Outfit", sans-serif;
+        background-color: #fff;
+        color: #111;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-family: "Philosopher", serif;
+        font-weight: 700;
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+      * {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+    </style>
+
+    <!-- Preload LCP image (hero background used on both mobile and desktop) -->
+    <link
+      rel="preload"
+      as="image"
+      href="/Image/hero.webp"
+      fetchpriority="high"
+    />
+
+    <!-- Font preloads -->
+    <link
+      rel="preload"
+      href="/fonts/Philosopher-Bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/Outfit-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <!-- Preconnect to asset CDN -->
+    <link
+      rel="dns-prefetch"
+      href="https://astro-sushil.s3.ap-southeast-2.amazonaws.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://astro-sushil.s3.ap-southeast-2.amazonaws.com"
+      crossorigin
+    />
+
+    <!-- Preconnect to third-party origins (connection established early, scripts load after idle) -->
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <link rel="preconnect" href="https://www.google-analytics.com" />
+    <!-- <link rel="preconnect" href="https://connect.facebook.net" />
+    <link rel="preconnect" href="https://www.clarity.ms" /> -->
+
+    <script>
+      (function () {
+        var base = "%VITE_API_URL%";
+        if (!base || base.charAt(0) === "%")
+          base = "http://localhost:3000/api/v1";
+        window.__heroBanners = fetch(base + "/banners/frontend?page=home")
+          .then(function (r) {
+            return r.ok ? r.json() : null;
+          })
+          .then(function (data) {
+            var img =
+              data &&
+              data.data &&
+              data.data.sliders &&
+              data.data.sliders[0] &&
+              data.data.sliders[0].image;
+            if (img) {
+              var l = document.createElement("link");
+              l.rel = "preload";
+              l.as = "image";
+              l.fetchPriority = "high";
+              l.href = img;
+              document.head.appendChild(l);
+            }
+            return data;
+          })
+          .catch(function () {
+            return null;
+          });
+      })();
+    </script>
+
+    <script>
+      (function () {
+        function loadTrackers() {
+          // Google Ads (gtag)
+          var gads = document.createElement("script");
+          gads.async = true;
+          gads.src =
+            "https://www.googletagmanager.com/gtag/js?id=AW-18171128274";
+          document.head.appendChild(gads);
+          window.dataLayer = window.dataLayer || [];
+          function gtag() {
+            dataLayer.push(arguments);
+          }
+          window.gtag = gtag;
+          gtag("js", new Date());
+          gtag("config", "AW-18171128274");
+
+          // Microsoft Clarity
+          (function (c, l, a, r, i, t, y) {
+            c[a] =
+              c[a] ||
+              function () {
+                (c[a].q = c[a].q || []).push(arguments);
+              };
+            t = l.createElement(r);
+            t.async = 1;
+            t.src = "https://www.clarity.ms/tag/" + i;
+            y = l.getElementsByTagName(r)[0];
+            y.parentNode.insertBefore(t, y);
+          })(window, document, "clarity", "script", "wqfd46aqh6");
+
+          // Google Tag Manager
+          (function (w, d, s, l, i) {
+            w[l] = w[l] || [];
+            w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+            var f = d.getElementsByTagName(s)[0],
+              j = d.createElement(s),
+              dl = l !== "dataLayer" ? "&l=" + l : "";
+            j.async = true;
+            j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+            f.parentNode.insertBefore(j, f);
+          })(window, document, "script", "dataLayer", "GTM-N37WNFG4");
+
+          // Meta Pixel
+          !(function (f, b, e, v, n, t, s) {
+            if (f.fbq) return;
+            n = f.fbq = function () {
+              n.callMethod
+                ? n.callMethod.apply(n, arguments)
+                : n.queue.push(arguments);
+            };
+            if (!f._fbq) f._fbq = n;
+            n.push = n;
+            n.loaded = !0;
+            n.version = "2.0";
+            n.queue = [];
+            t = b.createElement(e);
+            t.async = !0;
+            t.src = v;
+            s = b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t, s);
+          })(
+            window,
+            document,
+            "script",
+            "https://connect.facebook.net/en_US/fbevents.js",
+          );
+          fbq("init", "667113622493855");
+          fbq("track", "PageView");
+          fbq("track", "ViewContent");
+        }
+        window.addEventListener("load", function () {
+          const delay = window.innerWidth < 1024 ? 10000 : 3000;
+
+          setTimeout(loadTrackers, delay);
+        });
+      })();
+    </script>
+  </head>
+
+  <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript
+      ><iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-N37WNFG4"
+        height="0"
+        width="0"
+        style="display: none; visibility: hidden"
+      ></iframe
+    ></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <!-- Facebook Pixel (noscript fallback) -->
+    <noscript>
+      <img
+        height="1"
+        width="1"
+        style="display: none"
+        src="https://www.facebook.com/tr?id=667113622493855&ev=PageView&noscript=1"
+      />
+    </noscript>
+
+    <!-- Static LCP paint: shows immediately, before the JS bundle loads/executes/
+         hydrates. React replaces this on mount; same cached URL as the preload
+         above, so it costs nothing extra. -->
+    <main id="root">
+      <img
+        src="/Image/hero.webp"
+        alt=""
+        aria-hidden="true"
+        fetchpriority="high"
+        decoding="sync"
+        style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover"
+      />
+    </main>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

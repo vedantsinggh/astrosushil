@@ -1,0 +1,264 @@
+name: Astro Sushil Frontend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: astrosushil-frontend-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and validate frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build frontend Docker image
+        run: |
+          set -euo pipefail
+          docker build --tag "astrosushil-frontend:${GITHUB_SHA}" .
+
+      - name: Verify image starts and serves HTTP
+        run: |
+          set -euo pipefail
+          docker run -d \
+            --name frontend-ci-test \
+            -p 127.0.0.1:8088:80 \
+            "astrosushil-frontend:${GITHUB_SHA}"
+
+          for ((i=1; i<=20; i++)); do
+            if curl --fail --silent http://127.0.0.1:8088/ >/dev/null; then
+              echo "Frontend HTTP check passed."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Frontend HTTP check failed."
+          docker logs frontend-ci-test
+          exit 1
+
+      - name: Cleanup CI container
+        if: always()
+        run: docker rm -f frontend-ci-test || true
+
+  deploy:
+    name: Manual production deployment
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # GitHub-hosted jobs run on separate runners; build the image again here.
+      - name: Build Docker image for deployment
+        run: |
+          set -euo pipefail
+          IMAGE="astrosushil-frontend:${GITHUB_SHA}"
+          docker build --tag "$IMAGE" .
+          docker image inspect "$IMAGE" >/dev/null
+          echo "Deployment image built: $IMAGE"
+
+      - name: Install SSH tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-client
+
+      - name: Setup SSH
+        env:
+          VPS_PRIVATE_KEY_B64: ${{ secrets.VPS_PRIVATE_KEY_B64 }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s' "$VPS_PRIVATE_KEY_B64" | base64 -d > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "SSH private key format verified."
+
+      - name: Verify VPS configuration
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" <<'EOF'
+          set -euo pipefail
+          echo "Connected to VPS:"
+          hostname
+          docker inspect astrosushil-staging-frontend >/dev/null
+          docker network inspect astrosushil-staging-net >/dev/null
+          echo "VPS frontend and network checks passed."
+          EOF
+
+      - name: Save Docker image as plain tar
+        run: |
+          set -euo pipefail
+          IMAGE="astrosushil-frontend:${GITHUB_SHA}"
+          docker image inspect "$IMAGE" >/dev/null
+          docker save --output frontend-image.tar "$IMAGE"
+          test -s frontend-image.tar
+          echo "Created Docker archive:"
+          ls -lh frontend-image.tar
+          echo "Checking archive structure on runner..."
+          tar -tf frontend-image.tar > frontend-image-files.txt
+          grep -qx 'manifest.json' frontend-image-files.txt
+          sed -n '1,20p' frontend-image-files.txt
+
+      - name: Transfer Docker image
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="/tmp/frontend-image-${GITHUB_SHA}.tar"
+          scp -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes \
+            frontend-image.tar "$VPS_USER@$VPS_HOST:$ARCHIVE"
+          echo "Transfer completed: $ARCHIVE"
+
+      - name: Deploy frontend with rollback
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes \
+            "$VPS_USER@$VPS_HOST" "GITHUB_SHA=$GITHUB_SHA bash -s" <<'EOF'
+          set -Eeuo pipefail
+
+          CONTAINER="astrosushil-staging-frontend"
+          NETWORK="astrosushil-staging-net"
+          IMAGE="astrosushil-frontend:${GITHUB_SHA}"
+          ARCHIVE="/tmp/frontend-image-${GITHUB_SHA}.tar"
+          CANDIDATE="astrosushil-frontend-candidate-${GITHUB_SHA:0:7}"
+
+          echo "Inspecting transferred archive..."
+          test -s "$ARCHIVE"
+          ls -lh "$ARCHIVE"
+          file "$ARCHIVE" || true
+          tar -tf "$ARCHIVE" > "/tmp/frontend-image-${GITHUB_SHA}-files.txt"
+          grep -qx 'manifest.json' "/tmp/frontend-image-${GITHUB_SHA}-files.txt"
+          sed -n '1,20p' "/tmp/frontend-image-${GITHUB_SHA}-files.txt"
+
+          echo "Loading Docker image..."
+          docker load --input "$ARCHIVE"
+          docker image inspect "$IMAGE" >/dev/null
+          echo "Docker image loaded and verified: $IMAGE"
+
+          echo "Checking current frontend container..."
+          docker inspect "$CONTAINER" >/dev/null
+          OLD_IMAGE_ID="$(docker inspect --format '{{.Image}}' "$CONTAINER")"
+          echo "Previous image ID: $OLD_IMAGE_ID"
+
+          echo "Starting candidate container for validation..."
+          docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+          docker run -d --name "$CANDIDATE" --network "$NETWORK" "$IMAGE"
+
+          echo "Waiting for candidate HTTP service (up to 60 seconds)..."
+          HTTP_OK=false
+          for i in $(seq 1 30); do
+            if docker exec "$CANDIDATE" wget -q -O /dev/null http://127.0.0.1/; then
+              echo "Candidate HTTP check passed."
+              HTTP_OK=true
+              break
+            fi
+
+            echo "Candidate HTTP attempt ${i}/30 failed; waiting 2 seconds..."
+            sleep 2
+          done
+
+          if [ "$HTTP_OK" != "true" ]; then
+            echo "Candidate HTTP check failed."
+            echo "Candidate status:"
+            docker inspect "$CANDIDATE" \
+              --format 'Status={{.State.Status}} ExitCode={{.State.ExitCode}}' || true
+            echo "Candidate logs:"
+            docker logs "$CANDIDATE" || true
+            docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+            echo "Existing frontend left unchanged."
+            exit 1
+          fi
+
+          if ! docker exec "$CANDIDATE" nginx -t; then
+            docker logs "$CANDIDATE" || true
+            docker rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+            echo "Candidate NGINX test failed; existing frontend left unchanged."
+            exit 1
+          fi
+
+          docker rm -f "$CANDIDATE" >/dev/null
+
+          rollback() {
+            echo "Deployment failed; restoring previous image..."
+            docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+            docker run -d --restart unless-stopped --name "$CONTAINER" \
+              --network "$NETWORK" "$OLD_IMAGE_ID"
+            echo "Previous image restored."
+          }
+
+          echo "Replacing frontend container..."
+          docker rm -f "$CONTAINER"
+
+          if ! docker run -d --restart unless-stopped --name "$CONTAINER" \
+            --network "$NETWORK" "$IMAGE"; then
+            rollback
+            exit 1
+          fi
+
+          echo "Waiting for deployed frontend HTTP service (up to 60 seconds)..."
+          DEPLOY_HTTP_OK=false
+          for i in $(seq 1 30); do
+            if docker exec "$CONTAINER" wget -q -O /dev/null http://127.0.0.1/; then
+              DEPLOY_HTTP_OK=true
+              break
+            fi
+            echo "Live container HTTP attempt ${i}/30 failed; waiting 2 seconds..."
+            sleep 2
+          done
+
+          if [ "$DEPLOY_HTTP_OK" != "true" ]; then
+            docker logs "$CONTAINER" || true
+            rollback
+            exit 1
+          fi
+
+          if ! docker exec "$CONTAINER" nginx -t; then
+            rollback
+            exit 1
+          fi
+
+          if ! curl --fail --silent --show-error --max-time 20 \
+            https://astrosushil.com/ >/dev/null; then
+            echo "Public website check failed."
+            rollback
+            exit 1
+          fi
+
+          echo "Frontend deployment completed."
+          docker ps --filter "name=$CONTAINER"
+          echo "Archive retained for debugging: $ARCHIVE"
+          EOF
+
+      # Keep the transferred archive while troubleshooting; do not delete it.
+      - name: Preserve transferred image for debugging
+        if: always()
+        run: |
+          echo "The transferred VPS archive is intentionally retained for debugging."
