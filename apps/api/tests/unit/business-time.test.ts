@@ -25,6 +25,7 @@ import { parseAnalyticsDateRange } from '../../src/modules/admin/analytics.servi
 import { consultationsService } from '../../src/modules/consultations/consultations.service';
 import { reportPlatform } from '@astro/report-engine';
 import { DEFAULT_CONSULTATION_TIERS } from '../../src/modules/consultations/consultation-types.defaults';
+import { consultationTypesService } from '../../src/modules/consultations/consultation-types.service';
 import { DEFAULT_AVAILABILITY } from '../../src/modules/availability/availability.service';
 
 /** The default tiers as rows of an already seeded database (one type per tier, as `seedDefaults` creates them). */
@@ -160,6 +161,36 @@ describe('consultation notice window counts IST days', () => {
     // (only the working hours are read; the substitute has no other table to touch).
     const res = await consultationsService.getAvailableSlots({ consultationId: 'consult-urgent-audio', date: '2026-11-29' });
     expect(res.message).toMatch(/Sunday/);
+  });
+
+  it('lists slots for a multi-mode consultation type without requiring a mode selection', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-19T19:00:00.000Z'));
+    const urgent = {
+      ...seededTypeRows[0],
+      id: 'urgent-consultation-type',
+      title: 'Urgent Consultations',
+      responseDays: 4,
+      modes: [
+        seededTypeRows[0].modes[0],
+        { ...seededTypeRows[0].modes[0], id: 'urgent-video-mode', mode: 'VIDEO', catalogId: 'consult-urgent-video' },
+      ],
+    };
+    mockPrisma.consultationType.count.mockResolvedValue(1);
+    mockPrisma.consultationType.findMany.mockResolvedValue([urgent]);
+    await consultationTypesService.refresh({ force: true });
+
+    const res = await consultationsService.getAvailableSlots({
+      consultationId: urgent.id,
+      date: '2026-11-23',
+    });
+
+    expect(res.available).toBe(false);
+    expect(res.message).toMatch(/Minimum booking notice/);
+
+    mockPrisma.consultationType.count.mockResolvedValue(seededTypeRows.length);
+    mockPrisma.consultationType.findMany.mockResolvedValue(seededTypeRows);
+    await consultationTypesService.refresh({ force: true });
   });
 
   it('rejects malformed dates', async () => {

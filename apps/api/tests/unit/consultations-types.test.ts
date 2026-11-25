@@ -125,6 +125,8 @@ describe('snapshot and resolution', () => {
     await service.refresh({ force: true });
     expect(service.resolveOffering('consult-premium-consultation-video').mode.mode).toBe('VIDEO');
     expect(service.resolveOffering('type-1', 'AUDIO').mode.catalogId).toBe('consult-premium-consultation-audio');
+    expect(service.resolveType('type-1').modes).toHaveLength(2);
+    expect(service.resolveType('consult-premium-consultation-audio').id).toBe('type-1');
     // A catalog id of one mode with another mode requested prices the requested mode.
     expect(service.resolveOffering('consult-premium-consultation-audio', 'VIDEO').mode.pricePaise).toBe(2000000);
   });

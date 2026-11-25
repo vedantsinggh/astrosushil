@@ -158,7 +158,7 @@ export class ConsultationsService {
   }> {
     const dateStr = normaliseCalendarDate(options.date);
     await consultationTypesService.refresh();
-    const { type } = consultationTypesService.resolveOffering(options.consultationId);
+    const type = consultationTypesService.resolveType(options.consultationId);
 
     // Working hours, blocked days and slots, bookings and live payment holds of every
     // consultation type, and the notice period: see AvailabilityService.listCustomerSlots.

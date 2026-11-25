@@ -7,6 +7,7 @@ The previously completed integration and security fixes are summarized in [HANDO
 ## Additional continuation fixes
 
 - Consultation booking input now accepts an optional three-letter currency code, uppercases it, and forwards it to `commerceService.createOrder`.
+- Consultation slot lookup now resolves the type separately from its pricing mode, so types with multiple modes (including Urgent Consultations) can show availability without requiring mode selection in the slot query.
 - Admin report summaries include order currency alongside `language` and order payment/status fields.
 - The Website sitemap now extracts the live API's course `data.items` and product `data.products` collections; the verified rebuild generated 3 course and 20 product URLs.
 - The Mongo migration now writes order-line rows for historical product/report/consultation sales; saved cart and wishlist rows; coupon assignments and each historical redemption; invoices and invoice numbers; and payment method, paid timestamp, transaction metadata, and digital entitlement fields.

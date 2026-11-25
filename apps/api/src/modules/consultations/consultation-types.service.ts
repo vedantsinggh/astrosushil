@@ -310,23 +310,8 @@ export class ConsultationTypesService {
     mode?: ConsultationMode | null,
     options: { includeInactive?: boolean } = {}
   ): ResolvedOffering {
-    let type: ConsultationTypeView | undefined;
-    let chosen: ConsultationModeView | undefined;
-
-    for (const candidate of this.snapshot) {
-      const byCatalogId = candidate.modes.find((m) => m.catalogId === idOrCatalogId);
-      if (byCatalogId) {
-        type = candidate;
-        chosen = byCatalogId;
-        break;
-      }
-    }
-    if (!type) {
-      type = this.snapshot.find((t) => t.id === idOrCatalogId);
-    }
-    if (!type || (!type.isActive && !options.includeInactive)) {
-      throw new NotFoundError(`Consultation offering '${idOrCatalogId}' not found`);
-    }
+    const type = this.resolveType(idOrCatalogId, options);
+    let chosen = type.modes.find((m) => m.catalogId === idOrCatalogId);
 
     if (mode && chosen?.mode !== mode) {
       chosen = type.modes.find((m) => m.mode === mode);
@@ -342,6 +327,21 @@ export class ConsultationTypesService {
     }
 
     return { type, mode: chosen, pricing: computeGst(chosen.pricePaise, chosen.gst) };
+  }
+
+  /** Resolve a consultation type when callers need type-level data, such as available slots. */
+  public resolveType(
+    idOrCatalogId: string,
+    options: { includeInactive?: boolean } = {}
+  ): ConsultationTypeView {
+    const byCatalogId = this.snapshot.find((candidate) =>
+      candidate.modes.some((mode) => mode.catalogId === idOrCatalogId)
+    );
+    const type = byCatalogId ?? this.snapshot.find((candidate) => candidate.id === idOrCatalogId);
+    if (!type || (!type.isActive && !options.includeInactive)) {
+      throw new NotFoundError(`Consultation offering '${idOrCatalogId}' not found`);
+    }
+    return type;
   }
 
   /** Website `GET /consultation`: active types, cheapest first, optionally one kind. */
