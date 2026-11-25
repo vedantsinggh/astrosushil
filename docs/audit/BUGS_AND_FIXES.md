@@ -16,6 +16,7 @@ The previously completed integration and security fixes are summarized in [HANDO
 
 - SEC-006 was approved and fixed: Website/Admin browser sessions use API-hosted HttpOnly cookies with CSRF validation. See [SECURITY_DEPLOYMENT_REVIEW.md](SECURITY_DEPLOYMENT_REVIEW.md) for the required VM origin/HTTPS review.
 - Store checkout now passes the API-returned `order.id` (with `_id` fallback) to payment verification. Previously it sent `order._id`, which was absent from the Website order response and caused successful Razorpay callbacks to fail API verification. Checkout now also surfaces order/configuration/verification errors to the customer.
+- Consultation payment booking now sends selected dates as `YYYY-MM-DD` from both Website booking flows. The old `DD-MM-YYYY` string was rejected by the API booking schema as `Invalid request data`, before a payment order could be created.
 
 ## Open items
 

@@ -79,10 +79,10 @@ function loadRazorpay() {
 
 
 const toBackendDate = (date) => {
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
   const yyyy = date.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 };
 const toBackendSlot = (slot) => `${slot.startTime}-${slot.endTime}`;
 
