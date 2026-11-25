@@ -172,18 +172,14 @@ export const useConsultationStore = create((set) => ({
     }
   },
 
-  createUserBooking: async (payload, token) => {
+  createUserBooking: async (payload) => {
     try {
       set({
         bookingLoading: true,
         error: null,
       });
 
-      const res = await axios.post(`${BOOKING_URL}/book`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await axios.post(`${BOOKING_URL}/book`, payload);
 
       return {
         success: true,
@@ -213,18 +209,14 @@ export const useConsultationStore = create((set) => ({
     }
   },
 
-  verifyConsultationPayment: async (payload, token) => {
+  verifyConsultationPayment: async (payload) => {
     try {
       set({
         paymentVerificationLoading: true,
         error: null,
       });
 
-      const res = await axios.post(`${BOOKING_URL}/verify-payment`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await axios.post(`${BOOKING_URL}/verify-payment`, payload);
 
       return {
         success: true,
@@ -261,26 +253,7 @@ export const useConsultationStore = create((set) => ({
         error: null,
       });
 
-      const token = localStorage.getItem("token"); // ✅ SAME as payment store
-
-      if (!token) {
-        set({
-          error: "Not authenticated",
-          myBookingsLoading: false,
-        });
-
-        return {
-          success: false,
-          error: "Not authenticated",
-        };
-      }
-
-      const res = await axios.get(`${BOOKING_URL}/my-bookings`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        params,
-      });
+      const res = await axios.get(`${BOOKING_URL}/my-bookings`, { params });
 
       set({
         myBookings: res.data?.data || [],
@@ -311,15 +284,12 @@ export const useConsultationStore = create((set) => ({
   },
   downloadBookingInvoice: async (bookingId, orderId) => {
     try {
-      const token = localStorage.getItem("token");
       let resolvedOrderId = orderId;
 
       if (!resolvedOrderId) {
         const infoRes = await axios.get(
           `${BOOKING_URL}/my-bookings/${bookingId}/invoice`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          { withCredentials: true },
         );
         resolvedOrderId = infoRes.data?.data?.orderId ?? infoRes.data?.orderId;
       }
@@ -331,10 +301,7 @@ export const useConsultationStore = create((set) => ({
 
       const res = await axios.get(
         `${BASE_URL}/invoices/orders/${resolvedOrderId}/pdf`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "blob",
-        },
+        { withCredentials: true, responseType: "blob" },
       );
 
       const url = window.URL.createObjectURL(
@@ -357,13 +324,9 @@ export const useConsultationStore = create((set) => ({
 
   cancelBooking: async (bookingId, reason = "") => {
     try {
-      const token = localStorage.getItem("token");
       const res = await axios.post(
         `${BOOKING_URL}/bookings/${bookingId}/cancel`,
         reason ? { reason } : {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
       );
       const updated = res.data?.data;
       set((state) => ({

@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { astrologyService } from './astrology.service';
 import {
   calculateChartSchema,

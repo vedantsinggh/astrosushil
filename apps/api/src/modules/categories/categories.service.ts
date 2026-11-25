@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { Prisma, ProductCategory, ShopCategoryProductType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError, ValidationError } from '../../errors/app-error';

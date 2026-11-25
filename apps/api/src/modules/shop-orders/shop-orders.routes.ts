@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { adminListOrdersQuerySchema, adminUpdateStatusSchema, checkoutSchema, shopOrdersService } from './shop-orders.service';
 import { productsService } from '../products/products.service';
 import { adminActor, protectAdminScope, requireActiveCustomer, requirePermission, sendOk } from '../products/shop-http';

@@ -352,7 +352,7 @@ function PaymentMethodSelector({ selected, onChange, stepNumber, methods }) {
 export default function CheckoutPage2() {
   const { convert, currency, rates } = useCurrency();
   const [open, setOpen] = useState(false);
-  const { user, addresses = [], getAddresses, addAddress } = useAuthStore();
+  const { user, isAuthenticated, addresses = [], getAddresses, addAddress } = useAuthStore();
 
   // ── Fetch settings to check codEnabled ──────────────────────────────────────
   const { settings, fetchSettings } = useSettingStore();
@@ -383,15 +383,14 @@ export default function CheckoutPage2() {
   );
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!isAuthenticated) {
       navigate("/dashboard/");
       return;
     }
     getCartItems();
     fetchSettings(); // ← fetch settings on mount
     if (hasPhysicalProduct) getAddresses();
-  }, []);
+  }, [isAuthenticated]);
 
   // ── If COD gets disabled after being selected, reset to razorpay ─────────────
   useEffect(() => {

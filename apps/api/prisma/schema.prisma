@@ -61,6 +61,19 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+/// Persistent failed authentication counters for staff login and password reset.
+/// Identifiers are stored as keyed hashes, never as e-mail addresses.
+model StaffAuthAttempt {
+  id              String   @id
+  attempts        Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  lockedUntil     DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([lockedUntil])
+  @@map("staff_auth_attempts")
+}
+
 model OtpVerification {
   id        String              @id @default(uuid())
   userId    String

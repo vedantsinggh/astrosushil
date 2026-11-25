@@ -448,9 +448,8 @@ export function deleteCustomer(id: string): Promise<CustomerDeleteResult> {
 
 /** Downloads the filtered customers as a CSV file built by the server (the export is audited there). */
 export async function downloadCustomersCsv(query: Omit<CustomerListQuery, 'page' | 'limit'>): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
   const response = await fetch(`${API_BASE}${ADMIN}/customers/export${queryString({ ...query })}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));

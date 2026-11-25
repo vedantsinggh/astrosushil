@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { Prisma, ProductType, ShopDiscountType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { sanitizeRichText } from '../content/content.sanitizer';

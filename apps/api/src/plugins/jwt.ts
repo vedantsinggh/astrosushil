@@ -4,6 +4,7 @@ import fp from 'fastify-plugin';
 import { config } from '../config';
 import { AuthenticationError, AuthorizationError } from '../errors/app-error';
 import { assertAccountActive } from '../modules/auth/account-status';
+import { ACCESS_COOKIE, assertCsrfRequest, isAllowedAuthOrigin, isCookieAuthenticatedRequest } from '../modules/auth/auth-cookies';
 
 async function jwtPlugin(app: FastifyInstance) {
   await app.register(fastifyJwt, {
@@ -15,7 +16,18 @@ async function jwtPlugin(app: FastifyInstance) {
 
   // Authentication Decorator
   app.decorate('authenticate', async (request: FastifyRequest, _reply: FastifyReply) => {
+    if (isAllowedAuthOrigin(request.headers.origin)) {
+      if (!request.cookies?.[ACCESS_COOKIE]) {
+        throw new AuthenticationError('Browser session cookie is required');
+      }
+      request.headers.authorization = undefined;
+    }
+    const cookieAuthenticated = isCookieAuthenticatedRequest(request);
     try {
+      if (cookieAuthenticated) {
+        assertCsrfRequest(request);
+        request.headers.authorization = `Bearer ${request.cookies[ACCESS_COOKIE]}`;
+      }
       await request.jwtVerify();
       // Map 'sub' claim to 'id' property on request.user
       const decoded = request.user as unknown as { sub: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' };
@@ -29,7 +41,7 @@ async function jwtPlugin(app: FastifyInstance) {
     } catch (err: any) {
       // Debug-level only and never includes token material (AGENTS.md §5.1).
       request.log.debug({ tokenPresent: Boolean(request.headers.authorization) }, 'JWT verification failed');
-      if (err instanceof AuthenticationError) {
+      if (err instanceof AuthenticationError || err instanceof AuthorizationError) {
         throw err;
       }
       throw new AuthenticationError(err.message || 'Invalid or expired access token');
@@ -42,10 +54,16 @@ async function jwtPlugin(app: FastifyInstance) {
 
   // Optional Authentication Decorator
   app.decorate('authenticateOptional', async (request: FastifyRequest, _reply: FastifyReply) => {
-    if (!request.headers.authorization) {
+    if (isAllowedAuthOrigin(request.headers.origin)) request.headers.authorization = undefined;
+    if (!request.headers.authorization && !request.cookies?.[ACCESS_COOKIE]) {
       return;
     }
+    const cookieAuthenticated = isCookieAuthenticatedRequest(request);
+    if (cookieAuthenticated) assertCsrfRequest(request);
     try {
+      if (cookieAuthenticated) {
+        request.headers.authorization = `Bearer ${request.cookies[ACCESS_COOKIE]}`;
+      }
       await request.jwtVerify();
       const decoded = request.user as unknown as { sub: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' };
       if (decoded && decoded.sub) {

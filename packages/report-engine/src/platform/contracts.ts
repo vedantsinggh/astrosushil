@@ -5,7 +5,7 @@
  * report definitions) is validated at runtime with zod. TypeScript types are
  * inferred from the schemas so the two can never drift.
  */
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const PLATFORM_VERSION = '1.0.0';
 

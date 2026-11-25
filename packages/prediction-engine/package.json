@@ -9,10 +9,10 @@
     "dev": "tsc -w"
   },
   "dependencies": {
-    "@astro/shared": "*",
     "@astro/astrology-engine": "*",
     "@astro/gupta-nadi-engine": "*",
-    "zod": "^3.23.8"
+    "@astro/shared": "*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

@@ -375,7 +375,7 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
     paymentVerificationLoading,
   } = useConsultationStore();
 
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ?? user?._id;
 
@@ -481,7 +481,11 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
       notes: form.notes,
     };
 
-    const bookingRes = await createUserBooking(bookingPayload, token);
+    if (!isAuthenticated) {
+      toast.error("Please login to book a consultation");
+      return;
+    }
+    const bookingRes = await createUserBooking(bookingPayload);
     console.log("bookingRes", bookingRes);
     if (!bookingRes?.success) return;
 
@@ -527,7 +531,6 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
             razorpayPaymentId: response.razorpay_payment_id,
             razorpaySignature: response.razorpay_signature,
           },
-          token,
         );
 
         if (verifyRes?.success) {

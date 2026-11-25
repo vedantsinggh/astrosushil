@@ -68,16 +68,9 @@ export const useProductStore = create((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const token = localStorage.getItem("token");
-
       const res = await axios.get(PRODUCT_URL, {
         params,
-
-        headers: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : {},
+        withCredentials: true,
       });
 
       const meta = res.data?.meta || {};
@@ -127,17 +120,9 @@ export const useProductStore = create((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const token = localStorage.getItem("token");
-
       const res = await axios.get(
         `${PRODUCT_URL}/${id}`,
-        {
-          headers: token
-            ? {
-                Authorization: `Bearer ${token}`,
-              }
-            : {},
-        },
+        { withCredentials: true },
       );
 
       const item = normalizeProduct(res.data?.data?.product || res.data?.data || null);
@@ -171,17 +156,9 @@ export const useProductStore = create((set) => ({
     try {
       set({ loading: true, error: null });
 
-      const token = localStorage.getItem("token");
-
       const res = await axios.get(
         `${PRODUCT_URL}/slug/${slug}`,
-        {
-          headers: token
-            ? {
-                Authorization: `Bearer ${token}`,
-              }
-            : {},
-        },
+        { withCredentials: true },
       );
 
       const item = normalizeProduct(res.data?.data?.product || res.data?.data || null);

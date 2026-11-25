@@ -14,6 +14,11 @@ const db = vi.hoisted(() => {
   };
   const prisma = {
     $transaction: async (callback: (tx: any) => Promise<any>) => callback(prisma),
+    $executeRaw: async () => 1,
+    staffAuthAttempt: {
+      findUnique: async () => null,
+      deleteMany: async () => ({ count: 0 }),
+    },
     user: {
       findFirst: async ({ where }: { where: { phoneNumber?: string; email?: string } }) =>
         state.users.find((u) => (where.email ? u.email === where.email : u.phoneNumber === where.phoneNumber)) ?? null,

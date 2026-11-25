@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { ianaTimezoneSchema, parseWebsiteDate, MIN_BIRTH_YEAR } from './web-astrology.schemas';
 
 /**

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 const timeOfDay = z.string().regex(/^\d{1,2}:\d{2}$/, 'time must be HH:mm');
 /** YYYY-MM-DD, or the website's DD-MM-YYYY. */

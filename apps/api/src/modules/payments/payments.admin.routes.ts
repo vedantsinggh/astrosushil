@@ -8,7 +8,7 @@
  * call, order and fulfilment state). This route adds the permission check and the audit entry.
  */
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { adminService } from '../admin/admin.service';
 import { checkPermission } from '../admin/rbac/check-permission';
 import { paymentsService } from './payments.service';

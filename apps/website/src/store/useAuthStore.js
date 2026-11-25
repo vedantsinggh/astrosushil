@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import axios from "axios";
 import { showError, showSuccess } from "../utils/toast";
+import { loadAuthCsrfToken, setAuthCsrfToken } from "../utils/auth-cookie-client";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const AUTH_URL = `${BASE_URL}/auth`;
@@ -9,18 +10,22 @@ const ADDRESS_URL = `${BASE_URL}/account/addresses`;
 
 export const useAuthStore = create((set, get) => ({
   user: null,
-  token: localStorage.getItem("token") || null,
-  refreshToken: localStorage.getItem("refreshToken") || null,
+  isAuthenticated: false,
+  authInitialized: false,
   loading: false,
   error: null,
   identifier: null,
   pendingFullName: null,
 
-  authHeader: () => ({
-    headers: {
-      Authorization: `Bearer ${get().token}`,
-    },
-  }),
+  authHeader: () => ({ withCredentials: true }),
+
+  bootstrapSession: async () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    await loadAuthCsrfToken();
+    await get().getProfile();
+    set({ authInitialized: true });
+  },
 
   register: async (payload) => {
     try {
@@ -88,25 +93,12 @@ export const useAuthStore = create((set, get) => ({
             ...(fullName ? { fullName } : {}),
           });
 
-      const token =
-        res.data?.tokens?.accessToken ||
-        res.data?.accessToken ||
-        res.data?.data?.tokens?.accessToken ||
-        res.data?.data?.accessToken;
-      const refreshToken =
-        res.data?.tokens?.refreshToken ||
-        res.data?.refreshToken ||
-        res.data?.data?.tokens?.refreshToken ||
-        res.data?.data?.refreshToken;
       const user = res.data?.user || res.data?.data?.user || null;
-
-      if (token) localStorage.setItem("token", token);
-      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+      setAuthCsrfToken(res.data?.csrfToken);
 
       set({
-        token,
-        refreshToken: refreshToken || get().refreshToken,
         user,
+        isAuthenticated: Boolean(user),
         pendingFullName: null,
       });
 
@@ -128,31 +120,10 @@ export const useAuthStore = create((set, get) => ({
 
   refreshAccessToken: async () => {
     try {
-      const refreshToken =
-        get().refreshToken || localStorage.getItem("refreshToken");
-      if (!refreshToken) return false;
-
-      const res = await axios.post(`${AUTH_URL}/refresh`, { refreshToken });
-      const token =
-        res.data?.tokens?.accessToken ||
-        res.data?.accessToken ||
-        res.data?.data?.tokens?.accessToken ||
-        res.data?.data?.accessToken;
-      const nextRefresh =
-        res.data?.tokens?.refreshToken ||
-        res.data?.refreshToken ||
-        res.data?.data?.tokens?.refreshToken ||
-        res.data?.data?.refreshToken;
-
-      if (token) localStorage.setItem("token", token);
-      if (nextRefresh) localStorage.setItem("refreshToken", nextRefresh);
-
-      set({
-        token: token || get().token,
-        refreshToken: nextRefresh || get().refreshToken,
-      });
-
-      return Boolean(token);
+      await loadAuthCsrfToken();
+      const res = await axios.post(`${AUTH_URL}/refresh`, {}, { withCredentials: true });
+      setAuthCsrfToken(res.data?.csrfToken);
+      return Boolean(res.data?.csrfToken);
     } catch {
       return false;
     }
@@ -162,36 +133,18 @@ export const useAuthStore = create((set, get) => ({
     try {
       set({ loading: true });
 
+      await loadAuthCsrfToken();
       const res = await axios.get(`${AUTH_URL}/me`, get().authHeader());
 
       const user = res.data?.user || res.data?.data || res.data;
-      set({ user });
+      set({ user, isAuthenticated: Boolean(user) });
 
       return {
         success: true,
         data: user,
       };
     } catch (err) {
-      if (err.response?.status === 401) {
-        const refreshed = await get().refreshAccessToken();
-        if (refreshed) {
-          try {
-            const retryRes = await axios.get(
-              `${AUTH_URL}/me`,
-              get().authHeader(),
-            );
-            const user =
-              retryRes.data?.user || retryRes.data?.data || retryRes.data;
-            set({ user });
-            return { success: true, data: user };
-          } catch {
-            // fall through to logout
-          }
-        }
-        await get().logout();
-      } else {
-        set({ user: null });
-      }
+      set({ user: null, isAuthenticated: false });
 
       return {
         success: false,
@@ -217,7 +170,8 @@ export const useAuthStore = create((set, get) => ({
         get().authHeader(),
       );
 
-      set({ user: res.data?.user || res.data?.data || res.data });
+      const user = res.data?.user || res.data?.data || res.data;
+      set({ user, isAuthenticated: Boolean(user) });
 
       return { success: true };
     } catch (err) {
@@ -400,26 +354,15 @@ export const useAuthStore = create((set, get) => ({
     }
   },
   logout: async () => {
-    const token = get().token || localStorage.getItem("token");
-    const refreshToken =
-      get().refreshToken || localStorage.getItem("refreshToken");
     try {
-      if (token || refreshToken) {
-        await axios.post(
-          `${AUTH_URL}/logout`,
-          refreshToken ? { refreshToken } : {},
-          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
-        );
-      }
+      await axios.post(`${AUTH_URL}/logout`, {}, { withCredentials: true });
     } catch {
       // ignore logout network errors
     } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
+      setAuthCsrfToken(null);
       set({
         user: null,
-        token: null,
-        refreshToken: null,
+        isAuthenticated: false,
         identifier: null,
         pendingFullName: null,
       });

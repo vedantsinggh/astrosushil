@@ -134,7 +134,7 @@ export function SafeMarkdownRenderer({ content, className, style }: SafeMarkdown
       parts.push(cur.substring(lastIndex));
     }
 
-    return parts.length === 1 ? parts[0] : <span key={Math.random()}>{parts}</span>;
+    return parts.length === 1 ? parts[0] : <span>{parts}</span>;
   };
 
   for (let i = 0; i < lines.length; i++) {

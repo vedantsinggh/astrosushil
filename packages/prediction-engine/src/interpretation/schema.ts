@@ -5,7 +5,7 @@
  * rejects any drift between the two. Schemas are strict: unknown keys fail, because results
  * are registered as evidence and cached, and a silent extra field would escape review.
  */
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import {
   CONDITION_CODES,
   PRECEDENCE_OUTCOMES,

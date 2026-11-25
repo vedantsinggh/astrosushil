@@ -26,6 +26,8 @@ import {
 } from './admin.schemas';
 import { checkPermission } from './rbac/check-permission';
 import { rbacRoutes } from './rbac/rbac.routes';
+import { assertCsrfRequest, clearBrowserSessionCookies, getRefreshCookie, setBrowserSessionCookies } from '../auth/auth-cookies';
+import { TokenService } from '../../services/token.service';
 
 export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   // `checkPermission('module:action')` resolves the acting user's role from the database
@@ -58,6 +60,11 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
       });
+      const csrfToken = setBrowserSessionCookies(reply, request, result.tokens);
+      if (csrfToken) {
+        const { tokens: _tokens, ...browserResult } = result;
+        return reply.status(200).send({ ...browserResult, csrfToken });
+      }
       return reply.status(200).send(result);
     },
   });
@@ -72,7 +79,10 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
       schema: { tags: ['Admin Auth'], summary: 'Admin Panel Logout' },
       handler: async (request, reply) => {
         const body = request.body as { refreshToken?: string } | undefined;
-        if (body?.refreshToken) {
+        const refreshToken = body?.refreshToken || getRefreshCookie(request);
+        if (refreshToken && !body?.refreshToken) assertCsrfRequest(request);
+        if (refreshToken) await TokenService.revokeRefreshToken(refreshToken);
+        if (refreshToken) {
           await adminService.logAction({
             adminId: request.user.id,
             adminEmail: (request.user as any).email || request.user.id,
@@ -81,6 +91,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
             userAgent: request.headers['user-agent'],
           });
         }
+        clearBrowserSessionCookies(reply);
         return reply.status(200).send({ message: 'Logged out successfully' });
       },
     });

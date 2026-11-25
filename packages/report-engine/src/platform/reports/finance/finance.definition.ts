@@ -7,7 +7,7 @@
  * topics Astro Sushil adds beyond the reference. Method decisions: docs/report-system/decisions/finance-couple.md.
  */
 import { ReportDefinitionInput, ReportSectionSchema } from '../../contracts';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { FINANCE_YEARS } from './finance.calc';
 
 type SectionInput = z.input<typeof ReportSectionSchema>;

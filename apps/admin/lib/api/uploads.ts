@@ -1,3 +1,5 @@
+import { cookieAuthHeaders } from '../api-client';
+
 /**
  * Admin file uploads: the first step of the two-step contract in
  * docs/integration/modules/uploads.md.
@@ -186,15 +188,14 @@ export async function uploadFile(file: File, options: UploadOptions): Promise<Up
   const form = new FormData();
   form.append('file', file);
 
-  const headers: Record<string, string> = {};
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const headers = await cookieAuthHeaders('POST');
 
   let response: Response;
   try {
     // No Content-Type header: the browser sets the multipart boundary itself.
     response = await fetch(`${API_BASE}/api/v1/admin/uploads?${query.toString()}`, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: form,
       signal: options.signal,

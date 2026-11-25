@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { BookingStatus, EntitlementStatus, PaymentStatus, Prisma, Role, SlotStatus } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { adminService } from '../admin/admin.service';

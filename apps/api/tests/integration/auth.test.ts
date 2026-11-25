@@ -4,6 +4,7 @@ import { buildApp } from '../../src/app';
 import { prisma } from '../../src/services/prisma.service';
 import { hashPassword } from '../../src/utils/hash';
 import { invalidateAccountStatusCache } from '../../src/modules/auth/account-status';
+import { staffAuthAttemptService } from '../../src/modules/auth/staff-auth-attempt.service';
 import {
   clearOtpSendLimits,
   createSessionFor,
@@ -389,6 +390,12 @@ describe('Auth API: customer sign-in by one-time code (Integration)', () => {
       createdUserIds.push(staffId, customerId);
     });
 
+    afterAll(async () => {
+      await staffAuthAttemptService.clear('ADMIN_LOGIN', staffEmail);
+      await staffAuthAttemptService.clear('PASSWORD_RESET', staffEmail);
+      await prisma.auditLog.deleteMany({ where: { adminId: staffId } });
+    });
+
     it('forgot-password answers identically for a staff, a customer and an unknown address, and e-mails only the staff address', async () => {
       const staff = await post('/forgot-password', { email: staffEmail });
       const customer = await post('/forgot-password', { email: customerEmail });
@@ -450,6 +457,93 @@ describe('Auth API: customer sign-in by one-time code (Integration)', () => {
         payload: { email: customerEmail, password: 'Old-Customer-Passw0rd!' },
       });
       expect(login.statusCode).toBe(403);
+    });
+
+    it('issues HttpOnly browser cookies and requires a CSRF token for cookie-authenticated mutations', async () => {
+      const login = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/auth/login',
+        headers: { origin: 'http://localhost:5173' },
+        payload: { email: staffEmail, password: newPassword },
+      });
+
+      expect(login.statusCode).toBe(200);
+      const loginBody = login.json();
+      expect(loginBody.tokens).toBeUndefined();
+      expect(loginBody.csrfToken).toEqual(expect.any(String));
+      const setCookies = login.headers['set-cookie'];
+      expect(setCookies).toEqual(expect.arrayContaining([
+        expect.stringContaining('astro_access='),
+        expect.stringContaining('astro_refresh='),
+      ]));
+      expect(setCookies?.every((cookie) => /httponly/i.test(cookie))).toBe(true);
+      const cookieHeader = setCookies!.map((cookie) => cookie.split(';', 1)[0]).join('; ');
+
+      const profile = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/auth/me',
+        headers: { origin: 'http://localhost:5173', cookie: cookieHeader },
+      });
+      expect(profile.statusCode).toBe(200);
+
+      const blockedLogout = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/auth/logout',
+        headers: { origin: 'http://localhost:5173', cookie: cookieHeader },
+        payload: {},
+      });
+      expect(blockedLogout.statusCode).toBe(403);
+
+      const logout = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/auth/logout',
+        headers: { origin: 'http://localhost:5173', cookie: cookieHeader, 'x-csrf-token': loginBody.csrfToken },
+        payload: {},
+      });
+      expect(logout.statusCode).toBe(200);
+      expect(logout.headers['set-cookie']).toEqual(expect.arrayContaining([
+        expect.stringContaining('astro_access=;'),
+        expect.stringContaining('astro_refresh=;'),
+      ]));
+    });
+
+    it('locks staff admin login for 15 minutes after five failed passwords', async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/v1/admin/auth/login',
+          payload: { email: staffEmail, password: `Wrong-Password-${attempt}!` },
+        });
+        expect(response.statusCode).toBe(401);
+      }
+
+      const correctPassword = await app.inject({
+        method: 'POST',
+        url: '/api/v1/admin/auth/login',
+        payload: { email: staffEmail, password: newPassword },
+      });
+      expect(correctPassword.statusCode).toBe(401);
+      expect(correctPassword.json().error.message).toBe('Invalid administrative credentials');
+    });
+
+    it('locks staff password reset after five failed code submissions', async () => {
+      await expireOtpCooldown(staffId);
+      const request = await post('/forgot-password', { email: staffEmail });
+      expect(request.statusCode).toBe(200);
+      const validCode = inbox.lastEmailCode(staffEmail);
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const response = await post('/reset-password', {
+          email: staffEmail,
+          otp: wrongCode(validCode),
+          newPassword,
+        });
+        expect(response.statusCode).toBe(401);
+      }
+
+      const correctCode = await post('/reset-password', { email: staffEmail, otp: validCode, newPassword });
+      expect(correctCode.statusCode).toBe(401);
+      expect(correctCode.json().error.message).toBe('This code has expired or is invalid. Request a new one.');
     });
 
     it('a staff account cannot sign in with a one-time code', async () => {

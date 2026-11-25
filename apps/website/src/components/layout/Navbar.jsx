@@ -219,13 +219,13 @@ function useCartCount() {
 const CartButton = ({ isMobile = false }) => {
   const count = useCartCount();
   const { getCartItems } = useCartStore();
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
 
   useEffect(() => {
-    if (token) getCartItems();
-  }, [token]);
+    if (isAuthenticated) getCartItems();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!open) return;
@@ -273,7 +273,7 @@ const CartButton = ({ isMobile = false }) => {
 const Navbar = () => {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const getProfile = useAuthStore((s) => s.getProfile);
   const currency = useCurrencyStore((s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
@@ -290,8 +290,8 @@ const Navbar = () => {
   const profileBtnMobileRef = useRef(null);
 
   useEffect(() => {
-    if (token && !user) getProfile();
-  }, [token, user, getProfile]);
+    if (isAuthenticated && !user) getProfile();
+  }, [isAuthenticated, user, getProfile]);
 
   useEffect(() => {
     fetchSettings();
@@ -417,7 +417,7 @@ const Navbar = () => {
               ))}
             </select>
 
-            {token && user ? (
+            {isAuthenticated && user ? (
               <div className="relative">
                 <button
                   ref={profileBtnDesktopRef}
@@ -562,7 +562,7 @@ const Navbar = () => {
               </option>
             ))}
           </select>
-          {token ? (
+          {isAuthenticated ? (
             <div className="relative shrink-0">
               <button
                 ref={profileBtnMobileRef}

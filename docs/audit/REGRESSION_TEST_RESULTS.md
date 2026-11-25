@@ -2,23 +2,20 @@
 
 **Date:** 2026-11-26 · **Branch:** `staging`
 
-## Current continuation
+## Security/dependency continuation (2026-11-26)
 
-- `cd apps/api && npx tsc --noEmit`: **Passed** after migration and consultation currency edits.
-- Default full API run: **2,375 tests, 15 failures**. Twelve failures are legacy immediate report-readiness assertions that conflict with owner decision R1's 24-hour delay. The other failures were a Prisma transaction mock that did not implement `updateMany` transaction predicates (2 failures) and an outdated invalid-download expectation (401 instead of signed-URL rejection 403). The test mock and assertion were corrected.
-- Final full API rerun against local PostgreSQL with `REPORT_SEND_DELAY_HOURS=0`: **2,375/2,375 passed** (JUnit `test-results/api.xml`, 293.54 seconds). This override restores immediate report release for the legacy regression assertions only; normal owner-decision configuration remains 24 hours.
-- Mongo migration mapper unit tests: **3/3 passed**; API `npx tsc --noEmit` passed after extracting the tested mapper helpers.
-- Report-engine tests: **502/502 passed** (253.233 seconds).
-- Prediction-engine tests: **147/147 passed** (21.737 seconds).
-- Astrology-engine tests: **831/831 passed** (16.497 seconds).
-- `messaging-otp-auth.test.ts`: **21/21 passed** after updating the in-memory Prisma mock to model the atomic OTP transaction predicates.
-- `npm run build:packages`: passed.
-- `cd apps/api && npm run build`: passed.
-- `cd apps/website && npm run lint && npm run build`: passed; lint had 5 warnings and 0 errors. Sitemap output contained 4 report, 10 blog, 3 course, and 20 product routes.
-- `cd apps/admin && npx tsc --noEmit && npm run build`: passed; Next.js emitted React Hook dependency warnings.
-- `cd apps/mobile && flutter analyze --no-fatal-infos && flutter test --exclude-tags ui_audit`: passed; **964/964 tests**. Analysis reported deprecation info and widget logs reported three missing planet assets with fallback rendering.
+- `REPORT_SEND_DELAY_HOURS=0 npm test --workspace=apps/api`: **2,381/2,381 passed**, 0 failures/errors (JUnit `test-results/api.xml`, 146.22 seconds), against local PostgreSQL. The override is for legacy immediate-download fixtures; R1 remains 24 hours in normal runtime configuration.
+- The default-delay API run had 15 failures: 12 legacy report download/readiness assertions affected by the R1 hold and 3 password-reset tests whose in-memory Prisma mock lacked the new staff lockout model. The mock was updated; the zero-delay full rerun passed.
+- `npm run test:report --workspace=apps/api`: **502/502 passed** (201.56 seconds).
+- `npm run test:prediction --workspace=apps/api`: **147/147 passed** (3.46 seconds).
+- `npm test --workspace=packages/astrology-engine`: **831/831 passed** (21.17 seconds).
+- API typecheck/build and `npm run build` (all TS packages, API, Admin): **passed** after dependency upgrades and security changes.
+- Website Vite production build: **passed**. Website ESLint: **0 errors, 6 warnings**.
+- Admin Next production build: **passed** (55/55 pages). Admin ESLint flat config: **0 errors, 12 warnings**; disabled the React Hooks `set-state-in-effect` diagnostic because this app does not use React Compiler and existing effects intentionally load/reset state. Fixed the two React render-purity violations in coupon expiry and Markdown key generation.
+- Online root and Website `npm audit`: **0 vulnerabilities** each on 2026-11-26.
+- Cookie and account-lockout integration tests are included in the full API result. Targeted `auth.test.ts` previously passed **31/31**.
 - `git diff --check`: passed.
-- Prior targeted package, Website, Admin and Flutter results are recorded in [HANDOFF_SUMMARY.md](HANDOFF_SUMMARY.md), but were not rerun during this continuation.
+- Flutter was not changed in this continuation; the preceding verified result remains **964/964 tests**.
 
 ## R1 report delay
 

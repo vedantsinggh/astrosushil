@@ -277,16 +277,6 @@
 //   const { cart, getCartItems, getCartTotal } = useCartStore();
 //   const { processPayment, processingPayment } = usePaymentStore();
 
-//   useEffect(() => {
-//     const token = localStorage.getItem("token");
-//     if (!token) {
-//       navigate("/dashboard/");
-//       return;
-//     }
-//     getCartItems();
-//     getAddresses();
-//   }, []);
-
 // useEffect(() => {
 //     if (addresses.length > 0 && !selectedAddressId) {
 //       const primary = addresses?.find((addr) => addr.isDefault);

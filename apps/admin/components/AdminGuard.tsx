@@ -7,7 +7,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, token, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -15,10 +15,10 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   const isLoginPage = pathname === '/login' || pathname === '/admin/login';
 
   useEffect(() => {
-    if (!isLoading && !token && !isLoginPage) {
+    if (!isLoading && !user && !isLoginPage) {
       router.push('/login');
     }
-  }, [token, isLoading, isLoginPage, router]);
+  }, [user, isLoading, isLoginPage, router]);
 
   if (isLoading) {
     return (

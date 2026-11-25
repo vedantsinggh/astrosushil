@@ -26,6 +26,7 @@ import { careerReportWorker } from '../../services/report-worker.service';
 import { isPlatformReportType } from '../../services/platform-report.runner';
 import { featureAccessService } from '../../services/feature-access.service';
 import { parseDateBound } from '../../utils/business-time';
+import { staffAuthAttemptService } from '../auth/staff-auth-attempt.service';
 import {
   SubscriptionsQueryInput,
   PaymentsQueryInput,
@@ -90,14 +91,26 @@ export class AdminService {
       throw new AuthenticationError('Invalid administrative credentials');
     }
 
+    const isStaffIdentity = ADMIN_ROLES.includes(user.role) || !!(await prisma.staffProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    }));
+    if (isStaffIdentity && (await staffAuthAttemptService.isLocked('ADMIN_LOGIN', email))) {
+      throw new AuthenticationError('Invalid administrative credentials');
+    }
+
     if (!user.passwordHash) {
+      if (isStaffIdentity) await staffAuthAttemptService.recordFailure('ADMIN_LOGIN', email);
       throw new AuthenticationError('Invalid administrative credentials');
     }
 
     const isValidPassword = await verifyPassword(input.password, user.passwordHash);
     if (!isValidPassword) {
+      if (isStaffIdentity) await staffAuthAttemptService.recordFailure('ADMIN_LOGIN', email);
       throw new AuthenticationError('Invalid administrative credentials');
     }
+
+    if (isStaffIdentity) await staffAuthAttemptService.clear('ADMIN_LOGIN', email);
 
     // Role and permissions come from the database (staff profile -> role), never from the token.
     const access = await resolveStaffAccess(user.id, { fresh: true });

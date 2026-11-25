@@ -6,17 +6,18 @@
 
 ---
 
-## Summary
+## Current status (2026-11-26)
 
-| Severity | Count | Status |
-|---|---:|---|
-| Critical | 0 | — |
-| High | 2 | Remediation reported in handoff; not independently re-tested here |
-| Medium | 5 | SEC-006 requires owner decision; SEC-007 account lockout remains open; other remediation reported in handoff |
-| Low | 2 | Remediation reported in handoff; not independently re-tested here |
-| Informational | 1 | Swagger UI remediation reported; online dependency advisory audit remains outstanding |
+This document retains the original findings below as the baseline evidence. The owner approved HttpOnly browser sessions and major dependency upgrades for VM demo readiness, with a separate origin review before public deployment.
 
-**Status note:** This inventory was initially written as a baseline report. The handoff records fixes for SEC-001–005 and SEC-008–010. This continuation did not independently re-test those security controls. SEC-006 remains an owner decision; SEC-007's per-account lockout remains open; SEC-010's online dependency advisory review remains outstanding.
+| Finding | Current status |
+|---|---|
+| SEC-001–005, SEC-008–009 | Remediations were already present at handoff; retain regression verification from handoff and full API suite result below. |
+| SEC-006 | Implemented for Website and Admin with API-hosted HttpOnly access/refresh cookies and CSRF validation. Browser localStorage JWT usage removed. See [deployment review](SECURITY_DEPLOYMENT_REVIEW.md); final host/origin review remains a deployment prerequisite. |
+| SEC-007 | Added persistent per-account staff login/password-reset lockout (five failures in 15 minutes; 15-minute lock), plus existing route rate limits. |
+| SEC-010 | Swagger remains disabled in production per handoff. Online npm audits reported zero vulnerabilities for the root workspace and Website lockfile on 2026-11-26. |
+
+The full API regression suite is running against local PostgreSQL; its observed final result is recorded in the handoff once complete. No production data or live messaging/payment providers were accessed.
 
 ---
 
@@ -70,7 +71,7 @@
 - **Evidence:** Access tokens are stored in `localStorage` and sent via `Authorization: Bearer`.
 - **Impact:** Any XSS in the browser context can exfiltrate customer or admin JWTs.
 - **Recommended fix:** Migrate web and admin auth to `HttpOnly`, `Secure`, `SameSite=Lax` cookies with CSRF protection (requires coordinated auth/cookie architecture).
-- **Fix status:** Owner decision required; do not migrate without coordinated cookie and CSRF design
+- **Fix status:** Implemented after owner approval. Website and Admin use API-hosted HttpOnly cookies and send CSRF tokens on unsafe requests. The VM's actual Website/Admin/API origins must be configured and tested; cross-site cookie limitations are documented in `SECURITY_DEPLOYMENT_REVIEW.md`.
 
 ### SEC-007: Missing Per-Route Rate Limiting & Account Lockout on Staff Login and Password Reset
 - **Affected component:** `apps/api/src/modules/admin/admin.routes.ts:35-57`, `apps/api/src/modules/auth/auth.routes.ts:229-270`
@@ -78,7 +79,7 @@
 - **Evidence:** Staff login and password reset rely only on the global `100 req/min` IP rate limit (`apps/api/src/plugins/rate-limit.ts:7`) and have no per-account failed-attempt lockout.
 - **Impact:** Susceptible to high-rate password brute-force attacks.
 - **Recommended fix:** Add per-route `config.rateLimit` (e.g., `10/min`) and per-account failed-login throttling.
-- **Fix status:** Partially fixed per handoff (per-route rate limits added); per-account failed-attempt lockout remains open
+- **Fix status:** Fixed. Per-route rate limits plus persistent HMAC-keyed per-account failed-attempt lockout are implemented for staff login and password reset.
 
 ### SEC-008: `xelatex` Report Compilation Omits `-no-shell-escape` Flag
 - **Affected component:** `packages/report-engine/src/platform/render/document.ts:120`
@@ -99,4 +100,4 @@
 - **Severity:** Informational
 - **Evidence:** `@fastify/swagger-ui` (`/documentation`) is registered regardless of `NODE_ENV`. `npm audit --offline` could not query online advisories.
 - **Recommended fix:** Disable Swagger UI in production (`NODE_ENV === 'production'`) and run online `npm audit` in CI.
-- **Fix status:** Swagger UI disabled in production per handoff; online dependency advisory audit remains outstanding
+- **Fix status:** Swagger UI disabled in production per handoff; online npm audits reported zero known vulnerabilities for the root and Website dependency graphs on 2026-11-26.

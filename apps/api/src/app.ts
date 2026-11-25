@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import multipart from '@fastify/multipart';
+import cookie from '@fastify/cookie';
 import crypto from 'crypto';
 import { registerCors } from './plugins/cors';
 import { registerHelmet } from './plugins/helmet';
@@ -55,6 +56,7 @@ export function buildApp(): FastifyInstance {
 
   // Register CORS Plugin first so preflight and headers apply to all hooks & errors
   app.register(registerCors);
+  app.register(cookie);
 
   // Attach request ID to response header
   app.addHook('onSend', async (request, reply, payload) => {

@@ -63,9 +63,9 @@ const ReportsDetails = lazy(() => import("../pages/Reports/ReportsDetails"));
 const ThankYouPage = lazy(() => import("@/components/ThankYouPage"));
 
 function DashboardRoute() {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  return token ? <UserDashboard /> : <LoginPage />;
+  return isAuthenticated ? <UserDashboard /> : <LoginPage />;
 }
 
 export default function AppRouter() {

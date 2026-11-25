@@ -41,8 +41,6 @@ export const usePaymentStore = create((set, get) => {
     });
   };
 
-  const getToken = () => localStorage.getItem("token");
-
   return {
     loading: false,
     processingPayment: false,
@@ -56,14 +54,7 @@ export const usePaymentStore = create((set, get) => {
       try {
         set({ ordersLoading: true, ordersError: null });
 
-        const token = getToken();
-        if (!token) {
-          set({ ordersError: "Not authenticated", ordersLoading: false });
-          return { success: false, error: "Not authenticated" };
-        }
-
         const res = await axios.get(`${ORDER_URL}/my-orders`, {
-          headers: { Authorization: `Bearer ${token}` },
           params, // page, limit, etc. future use
         });
 
@@ -90,7 +81,7 @@ export const usePaymentStore = create((set, get) => {
         const res = await axios.post(
           `${ORDER_URL}/create`,
           { paymentMethod, addressId, currency , currencyRate },
-          { headers: { Authorization: `Bearer ${getToken()}` } },
+          { withCredentials: true },
         );
 
         set({ order: res.data?.data?.order });
@@ -109,9 +100,7 @@ export const usePaymentStore = create((set, get) => {
       try {
         set({ loading: true, error: null });
 
-        const res = await axios.post(`${ORDER_URL}/verify-payment`, payload, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
+        const res = await axios.post(`${ORDER_URL}/verify-payment`, payload, { withCredentials: true });
 
         return { success: true, data: res.data?.data };
       } catch (err) {
@@ -208,14 +197,8 @@ export const usePaymentStore = create((set, get) => {
       try {
         set({ loading: true, error: null });
 
-        const token = getToken();
-        if (!token) {
-          set({ error: "Not authenticated", loading: false });
-          return { success: false, error: "Not authenticated" };
-        }
-
         const res = await axios.get(`${ORDER_URL}/${orderId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         });
 
         set({ order: res.data?.data });
@@ -233,13 +216,11 @@ export const usePaymentStore = create((set, get) => {
       try {
         const url = `${BASE_URL}/invoices/orders/${orderId}/pdf`;
 
-        const token = getToken();
-
         set({ loading: true, error: null });
 
         const response = await axios.get(url, {
           responseType: "blob",
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         });
 
         if (!response.headers["content-type"]?.includes("application/pdf")) {

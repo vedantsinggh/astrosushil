@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { UPLOAD_PURPOSES } from '../../services/storage/upload-policy';
 
 export const uploadQuerySchema = z.object({

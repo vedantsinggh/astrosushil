@@ -85,7 +85,7 @@ export default function UserDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { logout, user, token, getProfile } = useAuthStore();
+  const { logout, user, isAuthenticated, getProfile } = useAuthStore();
 
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [activePath, setActivePath] = useState(() => {
@@ -122,8 +122,8 @@ export default function UserDashboard() {
     }
   }, [activePath, location.pathname, navigate, searchParams]);
   useEffect(() => {
-    if (token && !user) getProfile();
-  }, [token]);
+    if (isAuthenticated && !user) getProfile();
+  }, [isAuthenticated, user, getProfile]);
 
   const activeItem =
     NAV_ITEMS.find((n) => n.path === activePath) || NAV_ITEMS[0];

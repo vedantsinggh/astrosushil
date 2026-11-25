@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { FastifyInstance, FastifyPluginOptions, FastifyReply, FastifyRequest } from 'fastify';
 import { authService } from './auth.service';
 import {
   phoneSendOtpSchema,
@@ -9,11 +9,10 @@ import {
   linkEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  refreshSchema,
-  logoutSchema,
   updateProfileSchema,
 } from './auth.schemas';
 import { AppError } from '../../errors/app-error';
+import { ACCESS_COOKIE, assertCsrfRequest, clearBrowserSessionCookies, createCsrfToken, getRefreshCookie, isAllowedAuthOrigin, setBrowserSessionCookies } from './auth-cookies';
 
 /**
  * Customer sign-in is by one-time code only (phone or e-mail). The password and Google endpoints
@@ -50,10 +49,33 @@ const birthProfileBodySchema = {
 
 export async function authRoutes(fastify: FastifyInstance, _options: FastifyPluginOptions) {
   const signJwt = (payload: object) => (fastify as any).jwt.sign(payload);
+  const sendSession = <T extends { tokens: { accessToken: string; refreshToken: string; expiresIn: string } }>(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    result: T
+  ) => {
+    const csrfToken = setBrowserSessionCookies(reply, request, result.tokens);
+    if (csrfToken) {
+      const { tokens: _tokens, ...browserResult } = result;
+      return reply.status(200).send({ ...browserResult, csrfToken });
+    }
+    return reply.status(200).send(result);
+  };
 
   // =========================================================================
   // PHONE NUMBER + OTP ROUTES
   // =========================================================================
+
+  fastify.get('/csrf', {
+    schema: { tags: ['Auth'], summary: 'Get the CSRF request token for the current browser session' },
+    handler: async (request, reply) => {
+      const accessToken = request.cookies?.[ACCESS_COOKIE];
+      if (!isAllowedAuthOrigin(request.headers.origin) || !accessToken) {
+        return reply.status(401).send({ error: { code: 'AUTHENTICATION_ERROR', message: 'Browser session is unavailable', requestId: request.id } });
+      }
+      return reply.status(200).send({ csrfToken: createCsrfToken(accessToken) });
+    },
+  });
 
   // POST /api/v1/auth/phone/send-otp
   fastify.post('/phone/send-otp', {
@@ -97,7 +119,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     handler: async (request, reply) => {
       const input = phoneVerifyOtpSchema.parse(request.body);
       const result = await authService.verifyPhoneOtp(input, signJwt);
-      return reply.status(200).send(result);
+      return sendSession(request, reply, result);
     },
   });
 
@@ -146,7 +168,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
     handler: async (request, reply) => {
       const input = emailVerifyOtpSchema.parse(request.body);
       const result = await authService.verifyEmailOtp(input, signJwt);
-      return reply.status(200).send(result);
+      return sendSession(request, reply, result);
     },
   });
 
@@ -289,16 +311,19 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
       description: 'Rotates refresh token and returns a new access token',
       body: {
         type: 'object',
-        required: ['refreshToken'],
         properties: {
           refreshToken: { type: 'string' },
         },
       },
     },
     handler: async (request, reply) => {
-      const input = refreshSchema.parse(request.body);
-      const result = await authService.refresh(input.refreshToken, signJwt);
-      return reply.status(200).send(result);
+      const body = request.body as { refreshToken?: string } | undefined;
+      const browserRequest = isAllowedAuthOrigin(request.headers.origin);
+      const refreshToken = browserRequest ? getRefreshCookie(request) : body?.refreshToken || getRefreshCookie(request);
+      if (!refreshToken) return reply.status(401).send({ error: { code: 'AUTHENTICATION_ERROR', message: 'Refresh token is required', requestId: request.id } });
+      if (browserRequest || (!body?.refreshToken && getRefreshCookie(request))) assertCsrfRequest(request);
+      const result = await authService.refresh(refreshToken, signJwt);
+      return sendSession(request, reply, result);
     },
   });
 
@@ -310,15 +335,18 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
       description: 'Revokes the active refresh token session',
       body: {
         type: 'object',
-        required: ['refreshToken'],
         properties: {
           refreshToken: { type: 'string' },
         },
       },
     },
     handler: async (request, reply) => {
-      const input = logoutSchema.parse(request.body);
-      await authService.logout(input.refreshToken);
+      const body = request.body as { refreshToken?: string } | undefined;
+      const browserRequest = isAllowedAuthOrigin(request.headers.origin);
+      const refreshToken = browserRequest ? getRefreshCookie(request) : body?.refreshToken || getRefreshCookie(request);
+      if (refreshToken && (browserRequest || !body?.refreshToken)) assertCsrfRequest(request);
+      if (refreshToken) await authService.logout(refreshToken);
+      clearBrowserSessionCookies(reply);
       return reply.status(200).send({ message: 'Logged out successfully' });
     },
   });

@@ -2,6 +2,8 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 
 export default function ProtectedRoute() {
-  const token = useAuthStore((s) => s.token);
-  return token ? <Outlet /> : <Navigate to="/register/" replace />;
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const authInitialized = useAuthStore((s) => s.authInitialized);
+  if (!authInitialized) return null;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/register/" replace />;
 }

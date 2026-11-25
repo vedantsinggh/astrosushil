@@ -10,7 +10,7 @@
  * native's facts or `match.*` pair summaries (whose labels are safe for the
  * claim validator); raw `partner.planet.*` facts follow (see COU-010).
  */
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { ReportDefinitionInput, ReportTopicSchema } from '../../contracts';
 
 type TopicInput = z.input<typeof ReportTopicSchema>;

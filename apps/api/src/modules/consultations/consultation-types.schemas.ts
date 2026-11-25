@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /** AUDIO | VIDEO | IN_PERSON, also accepted in the website's lower case. */
 export const consultationModeSchema = z

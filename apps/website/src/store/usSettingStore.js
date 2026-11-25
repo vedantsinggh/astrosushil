@@ -12,11 +12,7 @@ const SEO_URL = `${BASE_URL}/seo`;
 const SETTINGS_URL = `${BASE_URL}/settings`;
 const FAQ_URL = `${BASE_URL}/faqs`;
 const MEDIA_URL = `${BASE_URL}/media`;
-const authHeader = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
+const authHeader = () => ({ withCredentials: true });
 
 export const useSettingStore = create((set) => ({
   loading: false,
@@ -148,9 +144,7 @@ export const useSettingStore = create((set) => ({
   createInquiry: async (payload) => {
     try {
       set({ loading: true, error: null });
-      const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.post(INQUIRY_URL, payload, { headers });
+      const res = await axios.post(INQUIRY_URL, payload, { withCredentials: true });
       return { success: true, data: res.data };
     } catch (err) {
       const message = err.response?.data || "Failed to submit inquiry";

@@ -24,8 +24,9 @@ import {
   UpdateProfileInput,
   birthProfileInputSchema,
 } from './auth.schemas';
-import type { z } from 'zod';
+import type { z } from 'zod/v3';
 import { config } from '../../config';
+import { staffAuthAttemptService } from './staff-auth-attempt.service';
 
 /**
  * Customer authentication is by one-time code only (owner decision, 2026-11-24): a code sent to a
@@ -429,6 +430,9 @@ export class AuthService {
     const user = await prisma.user.findFirst({ where: { email } });
 
     if (user && (await this.isStaffAccount(user))) {
+      if (await staffAuthAttemptService.isLocked('PASSWORD_RESET', email)) {
+        return { message: PASSWORD_RESET_REQUESTED_MESSAGE };
+      }
       const isInCooldown = await otpService.isWithinResendCooldown(user.id, VerificationPurpose.PASSWORD_RESET);
       if (!isInCooldown) {
         const otp = otpService.generateOtp();
@@ -452,10 +456,17 @@ export class AuthService {
       throw new AuthenticationError(INVALID_CODE_MESSAGE);
     }
 
-    const isValid = await otpService.verifyOtp(user.id, input.otp, VerificationPurpose.PASSWORD_RESET);
-    if (!isValid) {
+    if (await staffAuthAttemptService.isLocked('PASSWORD_RESET', email)) {
       throw new AuthenticationError(INVALID_CODE_MESSAGE);
     }
+
+    const isValid = await otpService.verifyOtp(user.id, input.otp, VerificationPurpose.PASSWORD_RESET);
+    if (!isValid) {
+      await staffAuthAttemptService.recordFailure('PASSWORD_RESET', email);
+      throw new AuthenticationError(INVALID_CODE_MESSAGE);
+    }
+
+    await staffAuthAttemptService.clear('PASSWORD_RESET', email);
 
     const passwordHash = await hashPassword(input.newPassword);
 

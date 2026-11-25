@@ -6,11 +6,17 @@ import AppRouter from './router/AppRouter'
 import { useCurrencyStore } from './store/useCurrencyStore';
 import { Link } from 'react-router-dom';
 import OrganizationSchema from './components/schema/OrganizationSchema';
+import { useAuthStore } from './store/useAuthStore';
 
 function App() {
  const fetchRates = useCurrencyStore(
     (s) => s.fetchRates
   );
+  const bootstrapSession = useAuthStore((s) => s.bootstrapSession);
+
+  useEffect(() => {
+    void bootstrapSession();
+  }, [bootstrapSession]);
 
   useEffect(() => {
     // Delay well past LCP before fetching exchange rates (non-critical data).

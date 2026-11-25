@@ -18,12 +18,8 @@ export const useDownloadStore = create((set) => ({
         error: null,
       });
 
-      const token = localStorage.getItem("token");
-
       const res = await axios.get(`${BASE_URL}/account/downloads`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        withCredentials: true,
       });
 
       set({
@@ -53,11 +49,8 @@ export const useDownloadStore = create((set) => ({
 
   getSignedDownloadUrl: async (downloadId) => {
     try {
-      const token = localStorage.getItem("token");
       const res = await axios.get(`${BASE_URL}/account/downloads/${downloadId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        withCredentials: true,
       });
       const url = res.data?.data?.url || res.data?.data?.file || res.data?.url;
       if (url) {

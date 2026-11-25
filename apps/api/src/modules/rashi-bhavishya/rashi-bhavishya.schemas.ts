@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { RASHI_LANGUAGES } from './rashi-bhavishya.hindi';
 
 /** Language of the narrative and of the reader-facing names; omitted means English (RB-014). */

@@ -6,15 +6,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const CART_URL = `${BASE_URL}/cart`;
 
 export const useCartStore = create((set, get) => {
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-  };
+  const getAuthHeaders = () => ({ withCredentials: true });
 
   return {
     cart: [],
@@ -154,9 +146,7 @@ export const useCartStore = create((set, get) => {
             productId,
             variantId,
           },
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          withCredentials: true,
         });
 
         await get().getCartItems();

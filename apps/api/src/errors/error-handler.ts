@@ -1,5 +1,5 @@
 import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
-import { ZodError } from 'zod';
+import { ZodError } from 'zod/v3';
 import { AppError, ErrorDetail, DatabaseUnavailableError } from './app-error';
 
 export function globalErrorHandler(error: FastifyError | AppError | Error, request: FastifyRequest, reply: FastifyReply) {

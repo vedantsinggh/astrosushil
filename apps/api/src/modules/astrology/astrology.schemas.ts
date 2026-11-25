@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { PRASHNA_QUESTION_DOMAINS, PrashnaQuestionDomain } from '@astro/astrology-engine';
 
 export const directBirthDetailsSchema = z.object({

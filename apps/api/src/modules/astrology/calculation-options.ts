@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /**
  * Optional per-request calculation options for the astrology endpoints (engine 0.2.0,

@@ -305,6 +305,7 @@ function CouponsScreen() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -314,6 +315,13 @@ function CouponsScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTime(Date.now());
+    updateCurrentTime();
+    const interval = window.setInterval(updateCurrentTime, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -432,7 +440,7 @@ function CouponsScreen() {
                 <SkeletonRows columns={columns} />
               ) : coupons.length > 0 ? (
                 coupons.map((coupon) => {
-                  const expired = new Date(coupon.validTill).getTime() < Date.now();
+                  const expired = currentTime !== null && new Date(coupon.validTill).getTime() < currentTime;
                   return (
                     <tr key={coupon.id}>
                       <td>

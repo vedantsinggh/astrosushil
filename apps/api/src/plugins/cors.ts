@@ -54,7 +54,7 @@ export const registerCors = fp(async function registerCors(app: FastifyInstance)
       cb(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-admin-token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-admin-token', 'x-csrf-token'],
     credentials: true,
   });
 });

@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // Load environment variables from .env file if available
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -13,6 +13,9 @@ const configSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long for security'),
   JWT_ACCESS_EXPIRES_IN: z.string().default(process.env.ACCESS_TOKEN_EXPIRES_IN || process.env.JWT_ACCESS_EXPIRES_IN || '30m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default(process.env.REFRESH_TOKEN_EXPIRES_IN || process.env.JWT_REFRESH_EXPIRES_IN || '60d'),
+  AUTH_COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
+  AUTH_COOKIE_SECURE: z.string().optional().transform((value) => value === undefined ? undefined : value === 'true' || value === '1'),
+  AUTH_COOKIE_DOMAIN: z.string().optional(),
 
   // Development Master OTP Configuration
   DEV_MASTER_OTP: z.string().optional().default('4444'),
@@ -69,7 +72,15 @@ function loadConfig(): Config {
     throw new Error('Environment variable validation failed. Application cannot start.');
   }
 
-  return result.data;
+  const authCookieSecure = result.data.AUTH_COOKIE_SECURE ?? result.data.NODE_ENV === 'production';
+  if (result.data.NODE_ENV === 'production' && !authCookieSecure) {
+    throw new Error('AUTH_COOKIE_SECURE must be true in production');
+  }
+  if (result.data.AUTH_COOKIE_SAME_SITE === 'none' && !authCookieSecure) {
+    throw new Error('AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE=none');
+  }
+
+  return { ...result.data, AUTH_COOKIE_SECURE: authCookieSecure };
 }
 
 export const config = loadConfig();

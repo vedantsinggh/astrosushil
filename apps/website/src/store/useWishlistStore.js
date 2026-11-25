@@ -8,8 +8,7 @@ export const useWishlistStore = create((set, get) => ({
   loading: false,
 
   _headers: () => {
-    const token = localStorage.getItem("token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return {};
   },
 
   getWishlist: async () => {

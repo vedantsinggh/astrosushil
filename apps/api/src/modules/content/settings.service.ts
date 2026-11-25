@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { prisma } from '../../services/prisma.service';
 import { ConflictError } from '../../errors/app-error';
 import { AdminActor, auditContentAction } from './content.audit';

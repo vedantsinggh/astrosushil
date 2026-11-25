@@ -684,7 +684,7 @@ export default function Bookappointment() {
     bookingLoading,
     paymentVerificationLoading,
   } = useConsultationStore();
-  const { token } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
 
@@ -754,7 +754,7 @@ export default function Bookappointment() {
   };
 
   const handleConfirmAndPay = async () => {
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error("Please login to book a consultation");
       navigate("/register");
       return;
@@ -774,7 +774,7 @@ export default function Bookappointment() {
       notes: form.notes,
     };
 
-    const bookingRes = await createUserBooking(bookingPayload, token);
+    const bookingRes = await createUserBooking(bookingPayload);
     if (!bookingRes?.success) return;
 
     const data = bookingRes.data || {};
@@ -813,7 +813,6 @@ export default function Bookappointment() {
             razorpayPaymentId: response.razorpay_payment_id,
             razorpaySignature: response.razorpay_signature,
           },
-          token,
         );
         if (verifyRes?.success) {
           trackPurchase({

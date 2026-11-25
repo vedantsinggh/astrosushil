@@ -110,13 +110,12 @@ export function saveTextFile(fileName: string, text: string, mime: string = 'tex
   URL.revokeObjectURL(url);
 }
 
-/** Downloads a CSV produced by a backend export endpoint (the request carries the staff token). */
+/** Downloads a CSV produced by a backend export endpoint (the request carries the staff session cookie). */
 export async function downloadCsv(path: string, fallbackName: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_access_token') : null;
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${V1}${path}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     });
   } catch {
     throw new ApiError('Could not reach the server');

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const generateNatalPredictionSchema = z.object({
   birthProfileId: z.string().uuid({ message: 'birthProfileId must be a valid UUID' }),

@@ -22,17 +22,7 @@ const withReportCover = (r) => {
 
 const useReportStore = create((set) => {
   const getAuthHeaders = () => {
-    const token = localStorage.getItem("token");
-
-    console.log("Auth Token:", token);
-
-    if (!token) return {};
-
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
+    return { withCredentials: true };
   };
 
   return {
@@ -176,13 +166,7 @@ const useReportStore = create((set) => {
       try {
         set({ buying: true, error: null });
 
-        const headers = getAuthHeaders();
-        if (!headers.headers?.Authorization) {
-          alert("Please login to buy the report");
-          return { success: false, error: "Not authenticated" };
-        }
-
-        const res = await axios.post(`${REPORT_URL}/buy`, payload, headers);
+        const res = await axios.post(`${REPORT_URL}/buy`, payload, getAuthHeaders());
 
         return {
           success: true,

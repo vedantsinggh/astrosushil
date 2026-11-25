@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { Coupon, Prisma, ShopCouponAudience, ShopCouponDiscountType, ShopCouponRedemptionStatus } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { AppError, ConflictError, NotFoundError, ValidationError } from '../../errors/app-error';

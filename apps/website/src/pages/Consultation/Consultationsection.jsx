@@ -201,7 +201,7 @@ export default function ConsultationSection() {
 
   const { consultations, consultationsLoading, getConsultations } =
     useConsultationStore();
-  const { token } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -211,7 +211,7 @@ export default function ConsultationSection() {
   const plans = consultations.filter((c) => c.type === activeTab && c.isActive);
 
   const handleBook = (plan) => {
-    if (!token) {
+    if (!isAuthenticated) {
       toast.error("Please login to book a consultation");
       navigate("/dashboard/");
       return;

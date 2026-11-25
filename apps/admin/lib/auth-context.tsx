@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiFetch } from './api-client';
+import { apiFetch, setBrowserCsrfToken } from './api-client';
 
 export interface StaffRoleSummary {
   id: string | null;
@@ -23,7 +23,6 @@ export interface AdminUser {
 
 interface AuthContextType {
   user: AdminUser | null;
-  token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -34,23 +33,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AdminUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('admin_access_token');
-    const savedUser = localStorage.getItem('admin_user_data');
-
-    if (savedToken && savedUser) {
+    let active = true;
+    localStorage.removeItem('admin_access_token');
+    localStorage.removeItem('admin_user_data');
+    void (async () => {
       try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      } catch (err) {
-        localStorage.removeItem('admin_access_token');
-        localStorage.removeItem('admin_user_data');
+        const csrf = await apiFetch<{ csrfToken: string }>('/api/v1/auth/csrf');
+        setBrowserCsrfToken(csrf.csrfToken);
+        const profile = await apiFetch<AdminUser>('/api/v1/admin/auth/me');
+        if (active) setUser(profile);
+      } catch {
+        if (active) setUser(null);
+      } finally {
+        if (active) setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    })();
+    return () => { active = false; };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           staffRole?: StaffRoleSummary | null;
         };
         permissions: string[];
-        tokens: { accessToken: string; refreshToken: string };
+        csrfToken: string;
       }>('/api/v1/admin/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
@@ -79,27 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         permissions: res.permissions || [],
       };
 
-      setToken(res.tokens.accessToken);
+      setBrowserCsrfToken(res.csrfToken);
       setUser(adminUser);
-
-      localStorage.setItem('admin_access_token', res.tokens.accessToken);
-      localStorage.setItem('admin_user_data', JSON.stringify(adminUser));
     } finally {
       setIsLoading(false);
     }
   };
 
   const logout = () => {
-    if (token) {
-      apiFetch('/api/v1/admin/auth/logout', {
-        method: 'POST',
-        token,
-      }).catch(() => {});
-    }
-    setToken(null);
+    apiFetch('/api/v1/admin/auth/logout', { method: 'POST', body: JSON.stringify({}) }).catch(() => {});
+    setBrowserCsrfToken(null);
     setUser(null);
-    localStorage.removeItem('admin_access_token');
-    localStorage.removeItem('admin_user_data');
   };
 
   const hasPermissionCheck = (permission: string) => {
@@ -112,7 +103,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        token,
         isLoading,
         login,
         logout,

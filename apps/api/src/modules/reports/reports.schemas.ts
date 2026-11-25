@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /**
  * Language of the report PDF. Omitted means English. Whether the requested report has

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const registerDeviceTokenSchema = z.object({
   fcmToken: z.string().min(1, 'FCM token is required'),

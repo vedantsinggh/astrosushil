@@ -90,7 +90,7 @@ All 8 audit workstreams completed and consolidated:
 
 1. **Isolated live E2E:** Customer and staff workflows still need browser verification using disposable accounts. Current browser checks only loaded Website root and Admin `/login`; no isolated credentials were available. Do not treat HTTP shell loads as workflow E2E.
 2. **Cross-platform database verification:** Read-only local counts were captured. Migration apply, post-migration reconciliation, and customer/staff writes across clients remain unverified.
-3. **SEC-006:** Website/Admin `localStorage` JWTs remain an owner decision unless migrating to coordinated `HttpOnly` cookies with CSRF protection.
+3. **Cookie deployment review:** SEC-006 is remediated for the VM demo. Confirm actual Website/Admin/API origins, HTTPS, CORS, SameSite behavior, and browser cookie support before public deployment; see `SECURITY_DEPLOYMENT_REVIEW.md`.
 4. **Production migration rehearsal:** Use a disposable database snapshot, inspect orphan skips, invoice anomalies, and repeat-run behavior before any production migration.
 5. **Commit on `staging`:** Review the complete diff and commit with Conventional Commits. Do not push or touch `main`.
 
@@ -109,7 +109,21 @@ This section is the persistent handoff/memory for the continuation of the audit.
 - A full API rerun with `REPORT_SEND_DELAY_HOURS=0` passed **2,375/2,375**. The report-, prediction-, and astrology-engine suites passed **502/502**, **147/147**, and **831/831** respectively. This override is for legacy immediate-download expectations only; R1 remains 24 hours in normal configuration.
 - Final API rerun JUnit report records **2,375 tests, 0 failures, 0 errors** (293.54 seconds), with `REPORT_SEND_DELAY_HOURS=0`; migration mapper tests passed **3/3** and API typecheck passed after extracting the helpers. R1 remains 24 hours in normal configuration.
 - Final local checks: API `/health`, Website `/`, and Admin `/login` returned HTTP 200. Chrome headless loaded the Website shell and Admin login route. Customer/staff authenticated workflows were not exercised with isolated accounts.
-- SEC-006 remains an owner decision. No production database or live payment/SMS/WhatsApp/email providers were accessed. No push has been performed.
+- SEC-006 was approved and remediated with API-hosted HttpOnly Website/Admin cookies plus CSRF checks. Future origin/HTTPS/browser behavior must be reviewed before deployment. No production database or live payment/SMS/WhatsApp/email providers were accessed. No push has been performed.
 - Website/Admin builds and type checks passed; Website lint had 5 warnings. Flutter analysis exited successfully and **964/964** tests passed, with existing deprecation/missing-asset notices.
 - Audit deliverables added: `MASTER_AUDIT_REPORT.md`, Website/Mobile/Admin functional QA, `CROSS_PLATFORM_DATA_CONSISTENCY.md`, `BUGS_AND_FIXES.md`, `REGRESSION_TEST_RESULTS.md`, and `PRODUCTION_READINESS_CHECKLIST.md`.
 - No push has been performed. The user requested a local commit only.
+
+
+### 2026-11-26 Security hardening continuation
+
+- Added Website/Admin HttpOnly access and refresh cookies; browser mutation requests require an API-issued CSRF token and exact allowlisted origin. Mobile bearer-token flow remains intact. Old browser localStorage token keys are cleared on boot and no longer used for auth.
+- Added persistent per-staff-account throttling for admin login and password reset: five failed attempts in a 15-minute window start a 15-minute lock. Added the `StaffAuthAttempt` Prisma model/migration and integration coverage.
+- Added production configuration validation that refuses insecure auth cookies. Cookie topology and deployment review guidance is in `SECURITY_DEPLOYMENT_REVIEW.md`.
+- Upgraded API to Fastify 5, compatible Fastify plugins, Zod 4 (using its v3 compatibility entry for existing schemas), Nodemailer 10, Vitest 5 and Vite 8; upgraded Admin to Next 16/React 19. Removed unrelated dependencies that the forced audit fix had placed into workspaces.
+- Root and Website online `npm audit` results: **0 vulnerabilities** each (2026-11-26).
+- Full API Vitest suite: **2,381/2,381 passed**, zero failures/errors, against local PostgreSQL with `REPORT_SEND_DELAY_HOURS=0` for legacy immediate-download fixtures. Owner decision R1 remains the 24-hour release delay in normal runtime configuration. Report-engine: **502/502**, prediction-engine: **147/147**, and astrology-engine: **831/831** passed.
+- The original default-delay API run had 15 failures: 12 legacy report download/readiness assertions due to R1's 24-hour hold, and three password-reset tests whose in-memory Prisma mock lacked the new lockout model. Added the mock behavior; the zero-delay rerun passed every test.
+- Prediction-engine tests: **147/147 passed**. Astrology-engine tests: **831/831 passed**. Report-engine tests: **502/502 passed** (201.56 seconds).
+- Website production build passed; lint passed with 0 errors and 6 warnings. Admin Next production build passed. Final `npm run build` passed, including all packages, API, and Admin. Admin ESLint passed with 0 errors and 12 warnings under the upgraded flat config.
+- No production database or live payment/SMS/WhatsApp/email providers were accessed. No push has been performed. The user requested a local commit only.

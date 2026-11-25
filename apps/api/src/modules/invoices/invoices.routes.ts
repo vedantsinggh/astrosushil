@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyReply, FastifyRequest } from 'fastify';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { adminService } from '../admin/admin.service';
 import { checkPermission, getRequestStaffAccess } from '../admin/rbac/check-permission';
 import { AuthorizationError } from '../../errors/app-error';

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { CourseLevel } from '@prisma/client';
 
 export const ListCoursesQuerySchema = z.object({
