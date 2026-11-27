@@ -55,10 +55,10 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 const OBSERVATION_TAG_COLORS: Record<ObservationTag, { bg: string; text: string; icon: string }> = {
-  IMPORTANT: { bg: '#FEF2F2', text: '#B91C1C', icon: '⚠️' },
-  FOLLOW_UP: { bg: '#FFFBEB', text: '#B45309', icon: '🔄' },
-  DISCUSSED: { bg: '#ECFDF5', text: '#047857', icon: '✅' },
-  REPORT_NEEDED: { bg: '#EEF2FF', text: '#4338CA', icon: '📄' },
+  IMPORTANT: { bg: '#FEF2F2', text: '#B91C1C', icon: '' },
+  FOLLOW_UP: { bg: '#FFFBEB', text: '#B45309', icon: '' },
+  DISCUSSED: { bg: '#ECFDF5', text: '#047857', icon: '' },
+  REPORT_NEEDED: { bg: '#EEF2FF', text: '#4338CA', icon: '' },
 };
 
 const DIGNITY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -137,7 +137,7 @@ function SessionHeader({
         <>
           <div style={{ width: '1px', height: '1.25rem', background: '#334155', flexShrink: 0 }} />
           <div style={{ display: 'flex', gap: '0.4rem', fontSize: '0.72rem', color: '#94A3B8', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ color: '#A5B4FC', fontWeight: 600 }}>🔮 {birthProfile.name}</span>
+            <span style={{ color: '#A5B4FC', fontWeight: 600 }}>{birthProfile.name}</span>
             <span>·</span>
             <span>{birthProfile.dateOfBirth}</span>
             <span>·</span>
@@ -146,7 +146,7 @@ function SessionHeader({
               <>
                 <span>·</span>
                 <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  📍 {birthProfile.location}
+                  {birthProfile.location}
                 </span>
               </>
             )}
@@ -171,7 +171,6 @@ function SessionHeader({
         }}
         title="Search (Ctrl+K or ⌘K)"
       >
-        <span>🔍</span>
         <span style={{ display: 'inline-block' }}>Search...</span>
         <kbd style={{ background: '#0F172A', padding: '0.1rem 0.3rem', borderRadius: '3px', fontSize: '0.65rem', color: '#94A3B8' }}>⌘K</kbd>
       </button>
@@ -254,27 +253,27 @@ function QuickNav({ onNavigate }: { onNavigate: (section: string) => void }) {
     {
       label: 'Astrology Views',
       items: [
-        { key: 'birth-chart', icon: '🔯', label: 'Birth Chart (Kundli)' },
-        { key: 'planets', icon: '🪐', label: 'Planets Placements' },
-        { key: 'houses', icon: '🏠', label: 'Houses & Bhavas' },
-        { key: 'vargas', icon: '📐', label: 'Vargas (Divisional)' },
-        { key: 'dashas', icon: '🌙', label: 'Vimshottari Dashas' },
-        { key: 'yogas', icon: '✨', label: 'Yogas & Predictions' },
-        { key: 'panchanga', icon: '📅', label: 'Panchanga' },
-        { key: 'ashtakavarga', icon: '🔢', label: 'Ashtakavarga' },
-        { key: 'shadbala', icon: '💪', label: 'Shadbala' },
-        { key: 'jaimini', icon: '🔭', label: 'Jaimini' },
-        { key: 'kp', icon: '⭐', label: 'KP System' },
+        { key: 'birth-chart', icon: '', label: 'Birth Chart (Kundli)' },
+        { key: 'planets', icon: '', label: 'Planets Placements' },
+        { key: 'houses', icon: '', label: 'Houses & Bhavas' },
+        { key: 'vargas', icon: '', label: 'Vargas (Divisional)' },
+        { key: 'dashas', icon: '', label: 'Vimshottari Dashas' },
+        { key: 'yogas', icon: '', label: 'Yogas & Predictions' },
+        { key: 'panchanga', icon: '', label: 'Panchanga' },
+        { key: 'ashtakavarga', icon: '', label: 'Ashtakavarga' },
+        { key: 'shadbala', icon: '', label: 'Shadbala' },
+        { key: 'jaimini', icon: '', label: 'Jaimini' },
+        { key: 'kp', icon: '', label: 'KP System' },
       ],
     },
     {
       label: 'Consultation Tools',
       items: [
-        { key: 'jyoti', icon: '💬', label: 'Jyoti AI Assistant' },
-        { key: 'notes', icon: '📝', label: `Notes (${notes.length})` },
-        { key: 'reports', icon: '📄', label: 'Reports' },
-        { key: 'timeline', icon: '📋', label: 'Timeline' },
-        { key: 'history', icon: '🕐', label: 'Past Sessions' },
+        { key: 'jyoti', icon: '', label: 'Jyoti AI Assistant' },
+        { key: 'notes', icon: '', label: `Notes (${notes.length})` },
+        { key: 'reports', icon: '', label: 'Reports' },
+        { key: 'timeline', icon: '', label: 'Timeline' },
+        { key: 'history', icon: '', label: 'Past Sessions' },
       ],
     },
   ];
@@ -378,11 +377,11 @@ function ClientContextPanel({ onNavigate }: { onNavigate: (section: string) => v
             <div style={{ color: '#64748B', fontSize: '0.72rem' }}>{client.email}</div>
             {birthProfile && (
               <div style={{ marginTop: '0.4rem', background: '#1E293B', borderRadius: '6px', padding: '0.45rem', border: '1px solid #334155' }}>
-                <div style={{ fontWeight: 600, color: '#A5B4FC', fontSize: '0.75rem' }}>🔮 {birthProfile.name}</div>
+                <div style={{ fontWeight: 600, color: '#A5B4FC', fontSize: '0.75rem' }}>{birthProfile.name}</div>
                 <div style={{ color: '#94A3B8', fontSize: '0.7rem', marginTop: '0.15rem' }}>
                   {birthProfile.dateOfBirth} · {birthProfile.timeOfBirth?.slice(0, 5)}
                 </div>
-                <div style={{ color: '#64748B', fontSize: '0.68rem' }}>📍 {birthProfile.location}</div>
+                <div style={{ color: '#64748B', fontSize: '0.68rem' }}>{birthProfile.location}</div>
               </div>
             )}
             {otherProfiles.length > 0 && (
@@ -455,7 +454,7 @@ function ClientContextPanel({ onNavigate }: { onNavigate: (section: string) => v
           <div style={{ marginTop: '0.35rem' }}>
             {pendingReports.length > 0 && (
               <div style={{ marginBottom: '0.25rem', color: '#F59E0B', fontSize: '0.7rem' }}>
-                ⏳ {pendingReports.length} report(s) generating...
+                {pendingReports.length} report(s) generating...
               </div>
             )}
             {completedReports.length === 0 && pendingReports.length === 0 ? (
@@ -640,11 +639,11 @@ function AstrologyPanel({ sectionKey, birthProfile }: { sectionKey: string; birt
     return (
       <div style={{ padding: '1.5rem' }}>
         <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '1.25rem', marginBottom: '1rem' }}>
-          <strong style={{ color: '#B91C1C', fontSize: '0.95rem' }}>⚠️ Unable to load {SECTION_LABELS[sectionKey]}</strong>
+          <strong style={{ color: '#B91C1C', fontSize: '0.95rem' }}>Unable to load {SECTION_LABELS[sectionKey]}</strong>
           <p style={{ color: '#991B1B', fontSize: '0.85rem', marginTop: '0.35rem' }}>{error}</p>
         </div>
         <button onClick={loadData} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-          🔄 Retry Calculation
+          Retry Calculation
         </button>
       </div>
     );
@@ -821,7 +820,7 @@ function AstrologyDataRenderer({
                             </span>
                           )}
                           {p.combust && (
-                            <span title="Combust with Sun" style={{ fontSize: '0.7rem' }}>🔥</span>
+                            <span title="Combust with Sun" style={{ fontSize: '0.7rem' }}></span>
                           )}
                         </td>
                         <td>{p.rashiName || p.sign || '—'}</td>
@@ -975,7 +974,6 @@ function AstrologyDataRenderer({
               fontWeight: 700, fontSize: '0.9rem', display: 'flex', gap: '0.75rem', alignItems: 'center',
               borderBottom: '1px solid var(--border-color)',
             }}>
-              <span style={{ fontSize: '1.1rem' }}>🌙</span>
               <span>{md.planet || md.lord} Mahadasha</span>
               {md.isCurrent && <span className="badge badge-success" style={{ fontSize: '0.68rem' }}>ACTIVE PERIOD</span>}
               <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
@@ -1045,7 +1043,7 @@ function AstrologyDataRenderer({
             )}
             {y.remedy && (
               <div style={{ background: 'var(--bg-subtle)', padding: '0.4rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', color: '#B45309' }}>
-                💡 Remedy: {y.remedy}
+                Remedy: {y.remedy}
               </div>
             )}
           </div>
@@ -1058,10 +1056,10 @@ function AstrologyDataRenderer({
   if (sectionKey === 'panchanga') {
     const panchang = data?.data?.panchang || data?.panchang || {};
     const items = [
-      { label: 'Tithi (Lunar Day)', value: panchang?.tithi?.name || panchang?.tithi, detail: panchang?.tithi?.paksha ? `${panchang.tithi.paksha} Paksha` : undefined, icon: '🌕' },
+      { label: 'Tithi (Lunar Day)', value: panchang?.tithi?.name || panchang?.tithi, detail: panchang?.tithi?.paksha ? `${panchang.tithi.paksha} Paksha` : undefined, icon: '' },
       { label: 'Vara (Solar Day)', value: panchang?.vara?.name || panchang?.vara, detail: panchang?.vara?.lord ? `Ruled by ${panchang.vara.lord}` : undefined, icon: '☀️' },
-      { label: 'Nakshatra (Constellation)', value: panchang?.nakshatra?.name || panchang?.nakshatra, detail: panchang?.nakshatra?.lord ? `Lord: ${panchang.nakshatra.lord}` : undefined, icon: '✨' },
-      { label: 'Yoga (Solar-Lunar Angular)', value: panchang?.yoga?.name || panchang?.yoga, detail: panchang?.yoga?.auspiciousness, icon: '🧘' },
+      { label: 'Nakshatra (Constellation)', value: panchang?.nakshatra?.name || panchang?.nakshatra, detail: panchang?.nakshatra?.lord ? `Lord: ${panchang.nakshatra.lord}` : undefined, icon: '' },
+      { label: 'Yoga (Solar-Lunar Angular)', value: panchang?.yoga?.name || panchang?.yoga, detail: panchang?.yoga?.auspiciousness, icon: '' },
       { label: 'Karana (Half Tithi)', value: panchang?.karana?.name || panchang?.karana, detail: panchang?.karana?.type, icon: '⏱' },
     ];
 
@@ -1089,10 +1087,10 @@ function AstrologyDataRenderer({
               Solar & Lunar Ephemeris
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', fontSize: '0.8rem' }}>
-              <div>🌅 Sunrise: <strong style={{ color: 'var(--text-primary)' }}>{panchang.sunrise || '—'}</strong></div>
-              <div>🌇 Sunset: <strong style={{ color: 'var(--text-primary)' }}>{panchang.sunset || '—'}</strong></div>
-              {panchang.moonrise && <div>🌙 Moonrise: <strong style={{ color: 'var(--text-primary)' }}>{panchang.moonrise}</strong></div>}
-              {panchang.moonset && <div>🌑 Moonset: <strong style={{ color: 'var(--text-primary)' }}>{panchang.moonset}</strong></div>}
+              <div>Sunrise: <strong style={{ color: 'var(--text-primary)' }}>{panchang.sunrise || '—'}</strong></div>
+              <div>Sunset: <strong style={{ color: 'var(--text-primary)' }}>{panchang.sunset || '—'}</strong></div>
+              {panchang.moonrise && <div>Moonrise: <strong style={{ color: 'var(--text-primary)' }}>{panchang.moonrise}</strong></div>}
+              {panchang.moonset && <div>Moonset: <strong style={{ color: 'var(--text-primary)' }}>{panchang.moonset}</strong></div>}
             </div>
           </div>
         )}
@@ -1108,7 +1106,7 @@ function AstrologyDataRenderer({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div className="card" style={{ padding: '1rem' }}>
           <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            🔮 {SECTION_LABELS[sectionKey] || sectionKey} Data & Facts
+            {SECTION_LABELS[sectionKey] || sectionKey} Data & Facts
           </h3>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             Deterministic astronomical extraction computed from the verified birth profile.
@@ -1214,26 +1212,26 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-          📝 Consultation Notes
+          Consultation Notes
           {notes.length > 0 && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.85rem', marginLeft: '0.5rem' }}>({notes.length})</span>}
         </h2>
         {saveState !== 'idle' && (
           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: saveState === 'saved' ? '#047857' : saveState === 'error' ? '#B91C1C' : '#D97706' }}>
-            {saveState === 'saving' ? '⏳ Saving...' : saveState === 'saved' ? '✓ Saved' : '⚠ Save error'}
+            {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? '✓ Saved' : 'Save error'}
           </span>
         )}
       </div>
 
       {error && (
         <div style={{ background: '#FEF2F2', color: '#B91C1C', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
       {/* Draft recovery notice */}
       {draftNote && draftNote.content && !isReadOnly && (
         <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '6px', padding: '0.5rem 0.75rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#1E40AF', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>📄 Restored unsaved draft note from earlier session.</span>
+          <span>Restored unsaved draft note from earlier session.</span>
           <button onClick={clearDraftNote} style={{ background: 'none', border: 'none', color: '#1E40AF', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.75rem' }}>
             Discard Draft
           </button>
@@ -1293,7 +1291,7 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
 
       {isReadOnly && (
         <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '6px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.8rem', color: '#B45309' }}>
-          📖 This consultation session has ended. Notes are preserved in read-only mode.
+          This consultation session has ended. Notes are preserved in read-only mode.
         </div>
       )}
 
@@ -1344,7 +1342,7 @@ function NotesPanel({ currentSection }: { currentSection: string }) {
                   {!isReadOnly && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexShrink: 0 }}>
                       <button onClick={() => startEdit(note)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem' }} title="Edit">✏️</button>
-                      <button onClick={() => setDeleteTargetId(note.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--badge-danger-text)', fontSize: '0.8rem' }} title="Delete">🗑</button>
+                      <button onClick={() => setDeleteTargetId(note.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--badge-danger-text)', fontSize: '0.8rem' }} title="Delete"></button>
                     </div>
                   )}
                 </div>
@@ -1383,11 +1381,11 @@ function JyotiPanel({ birthProfileId }: { birthProfileId: string }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const PROMPT_SUGGESTIONS = [
-    '✨ Summarize Key Placements',
-    '🌙 Analyze Current Mahadasha',
-    '💼 Career & Financial Indications',
-    '💍 Relationship & Marriage Prospects',
-    '🌿 Health & Remedial Guidance',
+    'Summarize Key Placements',
+    'Analyze Current Mahadasha',
+    'Career & Financial Indications',
+    'Relationship & Marriage Prospects',
+    'Health & Remedial Guidance',
   ];
 
   const handleSend = async (msgText?: string) => {
@@ -1412,7 +1410,7 @@ function JyotiPanel({ birthProfileId }: { birthProfileId: string }) {
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
     } catch (err: any) {
       setError(err?.message || 'Jyoti AI is currently unavailable. Please try again.');
-      setMessages((prev) => [...prev, { role: 'assistant', content: '⚠️ Jyoti could not complete this request. Please try again.' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Jyoti could not complete this request. Please try again.' }]);
     } finally {
       setLoading(false);
     }
@@ -1430,7 +1428,7 @@ function JyotiPanel({ birthProfileId }: { birthProfileId: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '520px' }}>
       <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-surface)' }}>
-        <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>💬 Jyoti AI — Consultation Co-Pilot</h2>
+        <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Jyoti AI — Consultation Co-Pilot</h2>
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0.15rem 0 0' }}>
           Real-time astrological guidance trained on classical Parashara and Gupta Nadi methodologies.
         </p>
@@ -1463,7 +1461,7 @@ function JyotiPanel({ birthProfileId }: { birthProfileId: string }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2.5rem', fontSize: '0.85rem' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔮</div>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}></div>
             Ask Jyoti any astrological query regarding this chart, Dasha timeline, planetary strengths, or remedial suggestions.
           </div>
         )}
@@ -1490,13 +1488,13 @@ function JyotiPanel({ birthProfileId }: { birthProfileId: string }) {
                   onClick={() => copyToNotes(m.content)}
                   style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
                 >
-                  📝 Insert to Notes
+                  Insert to Notes
                 </button>
                 <button
                   onClick={() => navigator.clipboard?.writeText(m.content)}
                   style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                 >
-                  📋 Copy
+                  Copy
                 </button>
               </div>
             )}
@@ -1506,13 +1504,13 @@ function JyotiPanel({ birthProfileId }: { birthProfileId: string }) {
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div style={{ padding: '0.5rem 0.9rem', background: 'var(--bg-subtle)', borderRadius: '12px 12px 12px 2px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-              ⏳ Jyoti is synthesizing astrological charts...
+              Jyoti is synthesizing astrological charts...
             </div>
           </div>
         )}
 
         {error && (
-          <div style={{ textAlign: 'center', color: 'var(--badge-danger-text)', fontSize: '0.8rem' }}>⚠️ {error}</div>
+          <div style={{ textAlign: 'center', color: 'var(--badge-danger-text)', fontSize: '0.8rem' }}>{error}</div>
         )}
 
         <div ref={bottomRef} />
@@ -1581,15 +1579,15 @@ function ReportsPanel({ birthProfileId }: { birthProfileId: string }) {
   return (
     <div style={{ padding: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>📄 Comprehensive Reports</h2>
+        <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Comprehensive Reports</h2>
         <button onClick={refresh} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 
       {error && (
         <div style={{ background: '#FEF2F2', color: '#B91C1C', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -1689,10 +1687,10 @@ function ObservationsToolbar({ currentSection }: { currentSection: string }) {
   if (session?.status !== 'ACTIVE') return null;
 
   const TAG_OPTIONS: { tag: ObservationTag; label: string; icon: string }[] = [
-    { tag: 'IMPORTANT', label: 'Important', icon: '⚠️' },
-    { tag: 'FOLLOW_UP', label: 'Follow-up', icon: '🔄' },
-    { tag: 'DISCUSSED', label: 'Discussed', icon: '✅' },
-    { tag: 'REPORT_NEEDED', label: 'Report Needed', icon: '📄' },
+    { tag: 'IMPORTANT', label: 'Important', icon: '' },
+    { tag: 'FOLLOW_UP', label: 'Follow-up', icon: '' },
+    { tag: 'DISCUSSED', label: 'Discussed', icon: '' },
+    { tag: 'REPORT_NEEDED', label: 'Report Needed', icon: '' },
   ];
 
   const handleAdd = async (tag: ObservationTag) => {
@@ -1750,7 +1748,7 @@ function ObservationsToolbar({ currentSection }: { currentSection: string }) {
         style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', flex: 1, minWidth: '120px', maxWidth: '220px' }}
         onKeyDown={(e) => { if (e.key === 'Enter' && note) handleAdd('IMPORTANT'); }}
       />
-      {error && <span style={{ color: 'var(--badge-danger-text)', fontSize: '0.72rem' }}>⚠️ {error}</span>}
+      {error && <span style={{ color: 'var(--badge-danger-text)', fontSize: '0.72rem' }}>{error}</span>}
     </div>
   );
 }
@@ -1772,13 +1770,13 @@ function TimelinePanel() {
   const events: TimelineEvent[] = [];
 
   if (session?.startedAt) {
-    events.push({ time: session.startedAt, icon: '🚀', text: 'Consultation session initiated', color: '#059669' });
+    events.push({ time: session.startedAt, icon: '', text: 'Consultation session initiated', color: '#059669' });
   }
 
   notes.forEach((n) => {
     events.push({
       time: n.createdAt,
-      icon: '📝',
+      icon: '',
       text: `Note added${n.section ? ` (${SECTION_LABELS[n.section] || n.section})` : ''}${n.subject ? ` — ${n.subject}` : ''}`,
       color: '#4338CA',
     });
@@ -1796,19 +1794,19 @@ function TimelinePanel() {
 
   reports.forEach((r) => {
     if (r.completedAt) {
-      events.push({ time: r.completedAt, icon: '✅', text: `Report ${r.reportType.replace(/_/g, ' ')} finalized`, color: '#047857' });
+      events.push({ time: r.completedAt, icon: '', text: `Report ${r.reportType.replace(/_/g, ' ')} finalized`, color: '#047857' });
     }
   });
 
   if (session?.endedAt) {
-    events.push({ time: session.endedAt, icon: '🔒', text: 'Consultation session completed', color: '#64748B' });
+    events.push({ time: session.endedAt, icon: '', text: 'Consultation session completed', color: '#64748B' });
   }
 
   events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
   return (
     <div style={{ padding: '1.25rem' }}>
-      <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '1.25rem' }}>📋 Session Timeline</h2>
+      <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '1.25rem' }}>Session Timeline</h2>
       {events.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events recorded yet.</div>
       ) : (
@@ -1847,7 +1845,7 @@ function HistoryPanel() {
 
   return (
     <div style={{ padding: '1.25rem' }}>
-      <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '1rem' }}>🕐 Previous Consultations</h2>
+      <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '1rem' }}>Previous Consultations</h2>
       {previousSessions.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2.5rem' }}>
           No previous consultations found for this client.
@@ -1939,7 +1937,7 @@ function EndSessionModal({
             disabled={busy}
             style={{ background: '#7F1D1D', border: '1px solid #991B1B', color: '#FCA5A5', borderRadius: '4px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}
           >
-            {busy ? 'Ending...' : '🔒 Conclude Consultation'}
+            {busy ? 'Ending...' : 'Conclude Consultation'}
           </button>
         </div>
       </div>
@@ -2117,7 +2115,7 @@ export function ConsultationWorkspace() {
           padding: '0.5rem 1rem', fontSize: '0.8rem', color: '#991B1B', textAlign: 'center',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
         }}>
-          <span>⚠️ Your authentication session has expired. Draft notes are safely stored in local browser cache.</span>
+          <span>Your authentication session has expired. Draft notes are safely stored in local browser cache.</span>
           <Link href="/login" style={{ color: 'var(--accent-primary)', fontWeight: 700, textDecoration: 'underline' }}>
             Re-login now →
           </Link>
@@ -2130,7 +2128,7 @@ export function ConsultationWorkspace() {
           background: '#FFFBEB', borderBottom: '1px solid #FDE68A',
           padding: '0.45rem 1rem', fontSize: '0.8rem', color: '#92400E', textAlign: 'center',
         }}>
-          📖 This consultation is closed. Notes and astrology charts are archived in read-only mode.
+          This consultation is closed. Notes and astrology charts are archived in read-only mode.
           <Link href="/live-sessions" style={{ marginLeft: '1rem', color: 'var(--accent-primary)', fontSize: '0.8rem', fontWeight: 600 }}>
             Start new consultation →
           </Link>

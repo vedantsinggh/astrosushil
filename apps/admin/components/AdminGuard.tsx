@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
-import { Sidebar } from './Sidebar';
+import { Sidebar, pageTitleFor } from './Sidebar';
 import { Header } from './Header';
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
@@ -13,6 +13,10 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isLoginPage = pathname === '/login' || pathname === '/admin/login';
+
+  useEffect(() => {
+    document.title = isLoginPage ? 'Sign in · Astro Sushil Admin' : pageTitleFor(pathname);
+  }, [pathname, isLoginPage]);
 
   useEffect(() => {
     if (!isLoading && !user && !isLoginPage) {
@@ -25,7 +29,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)' }}>
         <div style={{ textAlign: 'center' }}>
           <div className="skeleton" style={{ width: '120px', height: '24px', margin: '0 auto 1rem auto' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>Initializing Astro Sushil Admin...</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>
         </div>
       </div>
     );

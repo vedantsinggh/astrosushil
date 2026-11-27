@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
           padding: '0.15rem 0.4rem',
           borderRadius: '4px',
           backgroundColor: isPositive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-          color: isPositive ? '#4ADE80' : '#F87171',
+          color: isPositive ? 'var(--badge-success-text)' : 'var(--badge-danger-text)',
         }}
       >
         {text}
@@ -234,12 +234,12 @@ export default function AnalyticsPage() {
       {/* NAVIGATION TABS */}
       <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem', overflowX: 'auto' }}>
         {[
-          { key: 'overview', label: '📊 Overview' },
-          { key: 'users', label: '👥 Users & Retention' },
-          { key: 'reports', label: '📜 Report Pipeline' },
-          { key: 'jyoti', label: '💬 Jyoti AI' },
-          { key: 'revenue', label: '💰 Revenue & Payments' },
-          { key: 'system', label: '⚡ System Health' },
+          { key: 'overview', label: 'Overview' },
+          { key: 'users', label: 'Users & Retention' },
+          { key: 'reports', label: 'Report Pipeline' },
+          { key: 'jyoti', label: 'Jyoti AI' },
+          { key: 'revenue', label: 'Revenue & Payments' },
+          { key: 'system', label: 'System Health' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -248,8 +248,8 @@ export default function AnalyticsPage() {
               padding: '0.75rem 1.25rem',
               fontWeight: 600,
               fontSize: '0.85rem',
-              color: activeTab === tab.key ? '#FFF' : 'var(--text-secondary)',
-              borderBottom: activeTab === tab.key ? '2px solid var(--accent-gold)' : '2px solid transparent',
+              color: activeTab === tab.key ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === tab.key ? '2px solid var(--accent-primary)' : '2px solid transparent',
               background: 'transparent',
               borderLeft: 'none',
               borderRight: 'none',
@@ -265,7 +265,7 @@ export default function AnalyticsPage() {
 
       {error && (
         <div className="badge badge-danger" style={{ padding: '1rem', width: '100%', marginBottom: '1.5rem', display: 'block' }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -341,11 +341,11 @@ export default function AnalyticsPage() {
             </div>
             <div className="card">
               <div className="card-title">Verified Email Users</div>
-              <div className="card-value" style={{ color: '#4ADE80' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : userData?.metrics.verifiedUsers.toLocaleString() || 0}</div>
+              <div className="card-value" style={{ color: 'var(--badge-success-text)' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : userData?.metrics.verifiedUsers.toLocaleString() || 0}</div>
             </div>
             <div className="card">
               <div className="card-title">Unverified Email Users</div>
-              <div className="card-value" style={{ color: '#F87171' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : userData?.metrics.unverifiedUsers.toLocaleString() || 0}</div>
+              <div className="card-value" style={{ color: 'var(--badge-danger-text)' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : userData?.metrics.unverifiedUsers.toLocaleString() || 0}</div>
             </div>
             <div className="card">
               <div className="card-title">Users with Birth Profiles</div>
@@ -368,7 +368,7 @@ export default function AnalyticsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Registration Trend Over Time</h2>
               <button onClick={() => handleExportCsv('users')} className="btn btn-secondary" style={{ fontSize: '0.75rem' }}>
-                📥 Export Users CSV
+                Export Users CSV
               </button>
             </div>
 
@@ -391,7 +391,7 @@ export default function AnalyticsPage() {
                       <tr key={t.date}>
                         <td>{t.date}</td>
                         <td style={{ fontWeight: 600 }}>{t.newUsers}</td>
-                        <td style={{ color: '#4ADE80' }}>{t.verifiedUsers}</td>
+                        <td style={{ color: 'var(--badge-success-text)' }}>{t.verifiedUsers}</td>
                       </tr>
                     ))
                   ) : (
@@ -414,11 +414,11 @@ export default function AnalyticsPage() {
             </div>
             <div className="card">
               <div className="card-title">Completed Successfully</div>
-              <div className="card-value" style={{ color: '#4ADE80' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : reportData?.metrics.reportsCompleted || 0}</div>
+              <div className="card-value" style={{ color: 'var(--badge-success-text)' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : reportData?.metrics.reportsCompleted || 0}</div>
             </div>
             <div className="card">
               <div className="card-title">Pipeline Failures</div>
-              <div className="card-value" style={{ color: '#F87171' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : reportData?.metrics.reportsFailed || 0}</div>
+              <div className="card-value" style={{ color: 'var(--badge-danger-text)' }}>{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : reportData?.metrics.reportsFailed || 0}</div>
             </div>
             <div className="card">
               <div className="card-title">Success Rate</div>
@@ -435,7 +435,7 @@ export default function AnalyticsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Breakdown by Report Type</h2>
               <button onClick={() => handleExportCsv('reports')} className="btn btn-secondary" style={{ fontSize: '0.75rem' }}>
-                📥 Export Reports CSV
+                Export Reports CSV
               </button>
             </div>
             <div className="table-container">
@@ -453,8 +453,8 @@ export default function AnalyticsPage() {
                     <tr key={b.reportType}>
                       <td style={{ fontWeight: 600 }}>{b.reportType}</td>
                       <td>{b.total}</td>
-                      <td style={{ color: '#4ADE80' }}>{b.completed}</td>
-                      <td style={{ color: b.failed > 0 ? '#F87171' : 'var(--text-muted)' }}>{b.failed}</td>
+                      <td style={{ color: 'var(--badge-success-text)' }}>{b.completed}</td>
+                      <td style={{ color: b.failed > 0 ? 'var(--badge-danger-text)' : 'var(--text-muted)' }}>{b.failed}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -464,7 +464,7 @@ export default function AnalyticsPage() {
 
           {/* RECENT PIPELINE FAILURES */}
           <div className="card">
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: '#F87171' }}>Recent Pipeline Failures (Diagnostics Link)</h2>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--badge-danger-text)' }}>Recent Pipeline Failures (Diagnostics Link)</h2>
             <div className="table-container">
               <table className="admin-table">
                 <thead>
@@ -487,7 +487,7 @@ export default function AnalyticsPage() {
                       <td><span className="badge badge-danger">{f.errorCode}</span></td>
                       <td>
                         <a href={`/reports/${f.id}`} className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}>
-                          Inspect Pipeline ➔
+                          Inspect Pipeline 
                         </a>
                       </td>
                     </tr>
@@ -506,7 +506,7 @@ export default function AnalyticsPage() {
       {activeTab === 'jyoti' && (
         <div>
           <div className="card" style={{ marginBottom: '1.5rem', background: 'rgba(255,255,255,0.02)' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--accent-gold)' }}>💬 Jyoti AI Storage Architecture Notice</h2>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--accent-gold)' }}>Jyoti AI Storage Architecture Notice</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
               {jyotiData?.note || 'Jyoti usage analytics are limited because chat history is currently stored locally on client devices.'}
             </p>
@@ -545,13 +545,13 @@ export default function AnalyticsPage() {
             </div>
             <div className="card">
               <div className="card-title">Successful Payments</div>
-              <div className="card-value" style={{ color: '#4ADE80' }}>
+              <div className="card-value" style={{ color: 'var(--badge-success-text)' }}>
                 {isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : revenueData?.metrics.successfulPayments || 0}
               </div>
             </div>
             <div className="card">
               <div className="card-title">Failed Payments</div>
-              <div className="card-value" style={{ color: '#F87171' }}>
+              <div className="card-value" style={{ color: 'var(--badge-danger-text)' }}>
                 {isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : revenueData?.metrics.failedPayments || 0}
               </div>
             </div>
@@ -568,7 +568,7 @@ export default function AnalyticsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Revenue by Product / Report Type</h2>
               <button onClick={() => handleExportCsv('revenue')} className="btn btn-secondary" style={{ fontSize: '0.75rem' }}>
-                📥 Export Revenue CSV
+                Export Revenue CSV
               </button>
             </div>
             <div className="table-container">
@@ -604,11 +604,11 @@ export default function AnalyticsPage() {
           <div className="card-grid" style={{ marginBottom: '1.5rem' }}>
             <div className="card">
               <div className="card-title">Report Pipeline Failures</div>
-              <div className="card-value" style={{ color: '#F87171' }}>{systemData?.metrics.reportFailures || 0}</div>
+              <div className="card-value" style={{ color: 'var(--badge-danger-text)' }}>{systemData?.metrics.reportFailures || 0}</div>
             </div>
             <div className="card">
               <div className="card-title">Payment Verification Failures</div>
-              <div className="card-value" style={{ color: '#F87171' }}>{systemData?.metrics.paymentFailures || 0}</div>
+              <div className="card-value" style={{ color: 'var(--badge-danger-text)' }}>{systemData?.metrics.paymentFailures || 0}</div>
             </div>
           </div>
 

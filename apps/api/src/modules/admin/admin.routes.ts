@@ -1,3 +1,5 @@
+import { z } from 'zod/v3';
+import { campaignsService, channelAvailability, createCampaignSchema, previewCampaign } from '../notifications/campaigns.service';
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import { adminService } from './admin.service';
 import { liveSessionService } from './live-session.service';
@@ -35,9 +37,10 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
 
   // 1. PUBLIC ADMIN LOGIN
   fastify.post('/auth/login', {
+    // The one admin endpoint that keeps a limit (owner decision 2026-11-26): password guessing.
     config: {
       rateLimit: {
-        max: 10,
+        max: 30,
         timeWindow: '1 minute',
       },
     },
@@ -60,7 +63,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
       });
-      const csrfToken = setBrowserSessionCookies(reply, request, result.tokens);
+      const csrfToken = setBrowserSessionCookies(reply, request, result.tokens, 'admin');
       if (csrfToken) {
         const { tokens: _tokens, ...browserResult } = result;
         return reply.status(200).send({ ...browserResult, csrfToken });
@@ -91,7 +94,7 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
             userAgent: request.headers['user-agent'],
           });
         }
-        clearBrowserSessionCookies(reply);
+        clearBrowserSessionCookies(reply, 'admin');
         return reply.status(200).send({ message: 'Logged out successfully' });
       },
     });
@@ -149,16 +152,6 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
         });
-        return reply.status(200).send(result);
-      },
-    });
-
-    // Product Plans Catalog
-    protectedRoutes.get('/plans', {
-      preHandler: [checkPermission('plans:read')],
-      schema: { tags: ['Admin Plans'], summary: 'List available product plans and entitlements' },
-      handler: async (_request, reply) => {
-        const result = await adminService.getPlans();
         return reply.status(200).send(result);
       },
     });
@@ -609,6 +602,54 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
         });
 
         return reply.status(200).send({ message: 'Test notification sent successfully', result });
+      },
+    });
+
+    // Customer campaigns (2026-11-27): push + app inbox, e-mail, SMS / WhatsApp templates.
+    protectedRoutes.get('/notifications/campaigns', {
+      preHandler: [checkPermission('notifications:read')],
+      schema: { tags: ['Admin Notifications'], summary: 'Campaigns sent to customers, newest first, with their counts' },
+      handler: async (request, reply) => {
+        const q = z.object({ page: z.coerce.number().int().min(1).default(1), limit: z.coerce.number().int().min(1).max(100).default(20) }).parse(request.query);
+        return reply.status(200).send({ ...(await campaignsService.list(q.page, q.limit)), channels: channelAvailability() });
+      },
+    });
+
+    protectedRoutes.get('/notifications/campaigns/:id', {
+      preHandler: [checkPermission('notifications:read')],
+      schema: { tags: ['Admin Notifications'], summary: 'One campaign and its counts' },
+      handler: async (request, reply) => {
+        const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+        return reply.status(200).send(await campaignsService.get(id));
+      },
+    });
+
+    protectedRoutes.post('/notifications/campaigns/preview', {
+      preHandler: [checkPermission('notifications:send')],
+      schema: { tags: ['Admin Notifications'], summary: 'How many customers a message would reach, before sending' },
+      handler: async (request, reply) => {
+        const body = createCampaignSchema.pick({ kind: true, audience: true }).parse(request.body);
+        return reply.status(200).send(await previewCampaign(body));
+      },
+    });
+
+    protectedRoutes.post('/notifications/campaigns', {
+      preHandler: [checkPermission('notifications:send')],
+      schema: { tags: ['Admin Notifications'], summary: 'Send a message to customers (runs in the background)' },
+      handler: async (request, reply) => {
+        const body = createCampaignSchema.parse(request.body);
+        const profile = await adminService.getProfile(request.user.id);
+        const campaign = await campaignsService.create(body, { id: request.user.id, name: profile.fullName || profile.email || request.user.id });
+        await adminService.logAction({
+          adminId: request.user.id,
+          adminEmail: profile.email || request.user.id,
+          action: 'NOTIFICATION_CAMPAIGN_SENT',
+          resource: `NotificationCampaign:${campaign.id}`,
+          details: `${body.kind} "${body.title}" to ${campaign.recipients} customer(s) by ${body.channels.join(', ')}`,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
+        return reply.status(201).send(campaign);
       },
     });
 

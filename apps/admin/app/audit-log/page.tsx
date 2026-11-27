@@ -93,7 +93,7 @@ export default function AuditLogPage() {
           <p className="page-subtitle">Immutable log of operator actions, status mutations, user entitlement updates, and security events</p>
         </div>
         <button onClick={() => fetchLogs(pagination.page)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 

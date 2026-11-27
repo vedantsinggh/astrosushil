@@ -344,36 +344,36 @@ export default function UserDetailsPage() {
               className="btn btn-primary"
               style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
             >
-              <span>🕒</span> Start Live Session
+              Start Live Session
             </Link>
 
             {hasPermission('users:suspend') && !user.isSuspended && user.id !== currentAdmin?.id && user.role !== 'SUPER_ADMIN' && (
               <button onClick={() => setActiveModal('suspend')} className="btn btn-secondary" style={{ color: 'var(--badge-danger-text)', fontSize: '0.8rem' }}>
-                🚫 Suspend User
+                Suspend User
               </button>
             )}
 
             {hasPermission('users:activate') && user.isSuspended && (
               <button onClick={() => setActiveModal('activate')} className="btn btn-secondary" style={{ color: '#059669', fontSize: '0.8rem' }}>
-                ✅ Activate User
+                Activate User
               </button>
             )}
 
             {hasPermission('entitlements:grant') && (
               <button onClick={() => setActiveModal('grant')} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
-                🎁 Grant Entitlement
+                Grant Entitlement
               </button>
             )}
 
             {hasPermission('sessions:revoke') && (
               <button onClick={() => setActiveModal('revoke_sessions')} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
-                🔐 Revoke Sessions ({sessions.length})
+                Revoke Sessions ({sessions.length})
               </button>
             )}
 
             {hasPermission('users:password_reset') && (
               <button onClick={() => setActiveModal('reset_password')} className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>
-                🔑 Send Password Reset
+                Send Password Reset
               </button>
             )}
           </div>
@@ -826,7 +826,7 @@ export default function UserDetailsPage() {
                       <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{new Date(p.createdAt).toLocaleDateString()}</td>
                       <td style={{ display: 'flex', gap: '0.4rem' }}>
                         <Link href={`/live-sessions?userId=${user.id}&profileId=${p.id}`} className="btn btn-primary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <span>🕒</span> Live Session
+                          Live Session
                         </Link>
                         <Link href={`/birth-profiles/${p.id}`} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
                           Inspect Chart →

@@ -99,7 +99,7 @@ export default function UsersPage() {
           <p className="page-subtitle">Inspect registered accounts, birth profiles, and operational activity</p>
         </div>
         <button onClick={() => fetchUsers(pagination.page, pageSizeSelect)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 

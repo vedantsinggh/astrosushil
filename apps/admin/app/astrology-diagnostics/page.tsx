@@ -87,8 +87,8 @@ function AstrologyDiagnosticsScreen() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFF' }}>
-          🔮 Astrology Intelligence & Diagnostics
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+          Astrology Intelligence & Diagnostics
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
           Inspect deterministic chart evidence, extracted facts, triggered rules, and explanation traces for any birth profile.
@@ -246,7 +246,7 @@ function AstrologyDiagnosticsScreen() {
 
       {error && (
         <div style={{ padding: '1rem', background: '#450A0A', color: '#FCA5A5', borderRadius: '6px', marginBottom: '1.5rem' }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -255,7 +255,7 @@ function AstrologyDiagnosticsScreen() {
           {/* Evidence Facts */}
           <div className="card" style={{ padding: '1.25rem', background: '#1E293B', borderRadius: '8px' }}>
             <h3 style={{ color: '#FFF', fontSize: '1.1rem', marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
-              🎯 Deterministic Evidence Facts ({evidenceData.evidence?.supportingFacts?.length || 0})
+              Deterministic Evidence Facts ({evidenceData.evidence?.supportingFacts?.length || 0})
             </h3>
             <p style={{ fontSize: '0.8rem', color: '#94A3B8', marginBottom: '0.75rem' }}>
               Overall Strength: <strong>{evidenceData.evidence?.overallStrength}</strong> | Confidence: <strong>{evidenceData.evidence?.confidence}</strong>
@@ -272,7 +272,7 @@ function AstrologyDiagnosticsScreen() {
           {/* Predictions & Triggered Rules */}
           <div className="card" style={{ padding: '1.25rem', background: '#1E293B', borderRadius: '8px' }}>
             <h3 style={{ color: '#FFF', fontSize: '1.1rem', marginBottom: '1rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
-              ⚡ Deterministic Predictions & Rules
+              Deterministic Predictions & Rules
             </h3>
             {predictionsData?.trace?.triggeredRules && (
               <div style={{ marginBottom: '1rem' }}>

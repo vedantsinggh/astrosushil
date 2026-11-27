@@ -98,7 +98,7 @@ export default function SubscriptionsPage() {
           <p className="page-subtitle">Inspect active plans, lifetime report access, and entitlement statuses</p>
         </div>
         <button onClick={() => fetchSubscriptions(pagination.page, pageSizeSelect)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 

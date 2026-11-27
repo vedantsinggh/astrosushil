@@ -135,7 +135,7 @@ function LegalScreen() {
         actions={
           <>
             <button type="button" className="btn btn-secondary" style={{ fontSize: '0.85rem' }} onClick={load} disabled={isSaving}>
-              🔄 Reload
+              Reload
             </button>
             <Link href="/settings" className="btn btn-secondary">
               ← Site settings

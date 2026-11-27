@@ -56,7 +56,7 @@ export default function SystemHealthPage() {
           <p className="page-subtitle">Real-time health verification for database, calculation engines, AI, and storage</p>
         </div>
         <button onClick={fetchHealth} className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span>⚡</span> Run Health Checks
+          Run Health Checks
         </button>
       </div>
 

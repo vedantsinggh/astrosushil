@@ -22,21 +22,21 @@ interface LiveSessionSearchModalProps {
 }
 
 const ALL_MODULES = [
-  { key: 'birth-chart', title: 'Birth Chart (Kundli)', icon: '🔯', keywords: 'kundli lagna d1 chart ascendant diamond' },
-  { key: 'planets', title: 'Planets Placements', icon: '🪐', keywords: 'grahas sun moon mars mercury jupiter venus saturn rahu ketu degrees retrograde' },
-  { key: 'houses', title: 'Houses & Bhavas', icon: '🏠', keywords: 'bhavas 1st 2nd 3rd 4th 5th 6th 7th 8th 9th 10th 11th 12th lords occupants cusps' },
-  { key: 'vargas', title: 'Vargas (Divisional Charts)', icon: '📐', keywords: 'navamsha d9 hora d2 drekkana d3 saptamsa d7 dasamsa d10 dvadasamsa d12 trimsamsa d30' },
-  { key: 'dashas', title: 'Vimshottari Dashas', icon: '🌙', keywords: 'mahadasha antardasha pratyantardasha timeline timing periods dasha' },
-  { key: 'yogas', title: 'Yogas & Predictions', icon: '✨', keywords: 'raja yoga dhana yoga gajakesari budhaditya panch mahapurusha evidence rules' },
-  { key: 'panchanga', title: 'Panchanga (5 Pillars)', icon: '📅', keywords: 'tithi vara nakshatra yoga karana sunrise sunset moonrise' },
-  { key: 'ashtakavarga', title: 'Ashtakavarga Matrix', icon: '🔢', keywords: 'bav sav bindus points sarvashtakavarga bhinnashtakavarga shodhana transit' },
-  { key: 'shadbala', title: 'Shadbala Planetary Strengths', icon: '💪', keywords: 'sthana bala dig bala kala bala cheshta bala naisargika drik rupas virupas' },
-  { key: 'kp', title: 'KP System & Cusps', icon: '⭐', keywords: 'krishnamurti paddhati sub lord star lord sub-sub cusps significators' },
-  { key: 'jyoti', title: 'Jyoti AI Assistant', icon: '💬', keywords: 'ai chatbot ask question interpretation guidance' },
-  { key: 'notes', title: 'Consultation Notes', icon: '📝', keywords: 'notes draft observations remarks writing' },
-  { key: 'reports', title: 'Client Reports', icon: '📄', keywords: 'pdf reports generate download status' },
-  { key: 'timeline', title: 'Session Timeline', icon: '📋', keywords: 'timeline events activity history log' },
-  { key: 'history', title: 'Past Consultations', icon: '🕐', keywords: 'history past previous sessions archive' },
+  { key: 'birth-chart', title: 'Birth Chart (Kundli)', icon: '', keywords: 'kundli lagna d1 chart ascendant diamond' },
+  { key: 'planets', title: 'Planets Placements', icon: '', keywords: 'grahas sun moon mars mercury jupiter venus saturn rahu ketu degrees retrograde' },
+  { key: 'houses', title: 'Houses & Bhavas', icon: '', keywords: 'bhavas 1st 2nd 3rd 4th 5th 6th 7th 8th 9th 10th 11th 12th lords occupants cusps' },
+  { key: 'vargas', title: 'Vargas (Divisional Charts)', icon: '', keywords: 'navamsha d9 hora d2 drekkana d3 saptamsa d7 dasamsa d10 dvadasamsa d12 trimsamsa d30' },
+  { key: 'dashas', title: 'Vimshottari Dashas', icon: '', keywords: 'mahadasha antardasha pratyantardasha timeline timing periods dasha' },
+  { key: 'yogas', title: 'Yogas & Predictions', icon: '', keywords: 'raja yoga dhana yoga gajakesari budhaditya panch mahapurusha evidence rules' },
+  { key: 'panchanga', title: 'Panchanga (5 Pillars)', icon: '', keywords: 'tithi vara nakshatra yoga karana sunrise sunset moonrise' },
+  { key: 'ashtakavarga', title: 'Ashtakavarga Matrix', icon: '', keywords: 'bav sav bindus points sarvashtakavarga bhinnashtakavarga shodhana transit' },
+  { key: 'shadbala', title: 'Shadbala Planetary Strengths', icon: '', keywords: 'sthana bala dig bala kala bala cheshta bala naisargika drik rupas virupas' },
+  { key: 'kp', title: 'KP System & Cusps', icon: '', keywords: 'krishnamurti paddhati sub lord star lord sub-sub cusps significators' },
+  { key: 'jyoti', title: 'Jyoti AI Assistant', icon: '', keywords: 'ai chatbot ask question interpretation guidance' },
+  { key: 'notes', title: 'Consultation Notes', icon: '', keywords: 'notes draft observations remarks writing' },
+  { key: 'reports', title: 'Client Reports', icon: '', keywords: 'pdf reports generate download status' },
+  { key: 'timeline', title: 'Session Timeline', icon: '', keywords: 'timeline events activity history log' },
+  { key: 'history', title: 'Past Consultations', icon: '', keywords: 'history past previous sessions archive' },
 ];
 
 export function LiveSessionSearchModal({
@@ -94,7 +94,7 @@ export function LiveSessionSearchModal({
             category: 'Planet',
             title: `${pName} ${p.isRetrograde ? '(R)' : ''}`,
             subtitle: `${pSign} ${pDeg} · ${pHouse} · Nakshatra: ${p.nakshatraName || p.nakshatra || '—'}`,
-            icon: '🪐',
+            icon: '',
             action: () => {
               onNavigate('planets');
               onClose();
@@ -120,7 +120,7 @@ export function LiveSessionSearchModal({
             category: 'Note',
             title: subject ? `Note: ${subject}` : `Note: ${text.slice(0, 40)}...`,
             subtitle: note.section ? `@ ${note.section}` : text.slice(0, 60),
-            icon: '📝',
+            icon: '',
             action: () => {
               onNavigate('notes');
               onClose();
@@ -140,7 +140,7 @@ export function LiveSessionSearchModal({
             category: 'Report',
             title: `${rType} Report`,
             subtitle: `Status: ${r.status} · Created ${new Date(r.createdAt).toLocaleDateString()}`,
-            icon: '📄',
+            icon: '',
             action: () => {
               onNavigate('reports');
               onClose();
@@ -204,7 +204,6 @@ export function LiveSessionSearchModal({
       >
         {/* Search Input */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '0.85rem 1rem', borderBottom: '1px solid #1E293B', gap: '0.75rem' }}>
-          <span style={{ fontSize: '1.1rem', color: '#64748B' }}>🔍</span>
           <input
             ref={inputRef}
             type="text"

@@ -96,7 +96,7 @@ export default function PaymentsPage() {
           <p className="page-subtitle">Inspect Razorpay payment records, amounts, status, and transaction history</p>
         </div>
         <button onClick={() => fetchPayments(pagination.page, pageSizeSelect)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 

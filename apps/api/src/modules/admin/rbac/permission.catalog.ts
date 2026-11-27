@@ -173,7 +173,7 @@ const MODULES = [
     module: 'notifications',
     moduleLabel: 'Notifications',
     group: 'Settings',
-    actions: { read: 'View Notifications', test: 'Send Test Notification' },
+    actions: { read: 'View Notifications', test: 'Send Test Notification', send: 'Send Notifications to Customers' },
   },
 
   // Administration

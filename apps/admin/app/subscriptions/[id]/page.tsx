@@ -126,10 +126,10 @@ export default function SubscriptionDetailsPage() {
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Link href={`/users/${subscription.user.id}`} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            👤 View User
+            View User
           </Link>
           <Link href={`/payments?search=${encodeURIComponent(subscription.razorpayOrderId)}`} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            💳 View Transaction
+            View Transaction
           </Link>
         </div>
       </div>

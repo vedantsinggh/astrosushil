@@ -127,10 +127,10 @@ export default function BirthProfileDetailsPage() {
             {chartMetadata.calculationStatus === 'CALCULATED' ? (
               <span className="badge badge-success">✓ Chart Calculated</span>
             ) : (
-              <span className="badge badge-danger">⚠️ {chartMetadata.calculationStatus}</span>
+              <span className="badge badge-danger">{chartMetadata.calculationStatus}</span>
             )}
             {chartMetadata.isChartStale && (
-              <span className="badge badge-warning">⚠️ Chart May Be Outdated</span>
+              <span className="badge badge-warning">Chart May Be Outdated</span>
             )}
           </div>
           <p className="page-subtitle" style={{ marginTop: '0.25rem' }}>
@@ -144,10 +144,10 @@ export default function BirthProfileDetailsPage() {
             className="btn btn-primary"
             style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            <span>🕒</span> Start Live Consultation
+            Start Live Consultation
           </Link>
           <Link href={`/users/${profile.user?.id}`} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            👤 View User Details
+            View User Details
           </Link>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function BirthProfileDetailsPage() {
       {/* STALE CHART ALERT */}
       {chartMetadata.isChartStale && (
         <div className="card" style={{ background: '#FFFBEB', borderColor: '#F59E0B', marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
-          <strong style={{ color: '#92400E', fontSize: '0.9rem' }}>⚠️ Chart Data Warning</strong>
+          <strong style={{ color: '#92400E', fontSize: '0.9rem' }}>Chart Data Warning</strong>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#B45309' }}>
             This profile was updated by the user after existing reports were generated. Future report regenerations will use updated coordinates.
           </p>

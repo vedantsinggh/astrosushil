@@ -6,6 +6,8 @@ import { apiFetch } from '../../lib/api-client';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../lib/auth-context';
 import { ConfirmDialog } from '../../components/sales/ui';
+import { buildCsv, formatDateTime } from '../../components/sales/format';
+import { saveTextFile } from '../../lib/api/sales';
 
 interface ReportListItem {
   id: string;
@@ -95,6 +97,51 @@ export default function ReportsPage() {
     }
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  /** Website "Report Orders" export: every report matching the current filters, as CSV. */
+  const exportCsv = async () => {
+    setIsExporting(true);
+    setError(null);
+    try {
+      const all: ReportListItem[] = [];
+      for (let page = 1; page <= 200; page++) {
+        const queryParams = new URLSearchParams({ page: String(page), pageSize: '100', sortBy });
+        if (search.trim()) queryParams.set('search', search.trim());
+        if (statusFilter) queryParams.set('status', statusFilter);
+        if (reportTypeFilter) queryParams.set('reportType', reportTypeFilter);
+        if (startDate) queryParams.set('startDate', startDate);
+        if (endDate) queryParams.set('endDate', endDate);
+        const res = await apiFetch<ReportsResponse>(`/api/v1/admin/reports?${queryParams.toString()}`);
+        all.push(...res.items);
+        if (page >= res.pagination.totalPages || res.items.length === 0) break;
+      }
+      const csv = buildCsv(
+        ['Report ID', 'Report Type', 'Language', 'Status', 'Customer', 'Email', 'Birth Profile', 'Order ID', 'Payment Status', 'Created', 'Completed', 'Pages'],
+        all.map((r) => [
+          r.id,
+          r.reportType,
+          r.language || '',
+          r.status,
+          r.user?.fullName || '',
+          r.user?.email || '',
+          r.birthProfile?.name || '',
+          r.order?.id || '',
+          r.order?.paymentStatus || '',
+          formatDateTime(r.createdAt),
+          r.completedAt ? formatDateTime(r.completedAt) : '',
+          r.pageCount ?? '',
+        ])
+      );
+      saveTextFile(`report-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      setActionMessage(`Exported ${all.length} report(s).`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
   const [clearingCache, setClearingCache] = useState(false);
   const [clearCacheError, setClearCacheError] = useState<string | null>(null);
@@ -120,8 +167,8 @@ export default function ReportsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="page-title">Career & Astrology Reports</h1>
-          <p className="page-subtitle">Inspect report compilation pipelines, debug failures, and monitor operations</p>
+          <h1 className="page-title">Report Orders</h1>
+          <p className="page-subtitle">Every report bought on the website or in the app, with its generation status</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {hasPermission('pdf_reports:read') && (
@@ -138,11 +185,14 @@ export default function ReportsPage() {
               className="btn btn-secondary"
               style={{ fontSize: '0.85rem' }}
             >
-              🗑️ Clear Server Report Cache
+              Clear Server Report Cache
             </button>
           )}
+          <button onClick={exportCsv} disabled={isExporting} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
+            {isExporting ? 'Exporting…' : 'Export CSV'}
+          </button>
           <button onClick={() => fetchReports(pagination.page)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>
-            🔄 Refresh List
+            Refresh
           </button>
         </div>
       </div>
@@ -181,8 +231,8 @@ export default function ReportsPage() {
             </label>
             <select className="input-control" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
-              <option value="FAILED">🚨 FAILED (Errors Only)</option>
-              <option value="STUCK">⏳ STUCK (&gt;5m Pending)</option>
+              <option value="FAILED">FAILED (Errors Only)</option>
+              <option value="STUCK">STUCK (&gt;5m Pending)</option>
               <option value="COMPLETED">COMPLETED</option>
               <option value="QUEUED">QUEUED</option>
               <option value="CALCULATING">CALCULATING</option>
@@ -295,7 +345,7 @@ export default function ReportsPage() {
                     )}
                     <td>
                       {r.isStuck ? (
-                        <span className="badge badge-warning">⏳ STUCK</span>
+                        <span className="badge badge-warning">STUCK</span>
                       ) : (
                         <StatusBadge status={r.status} />
                       )}

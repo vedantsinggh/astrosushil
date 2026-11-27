@@ -399,7 +399,7 @@ function TestimonialsScreen() {
         actions={
           <>
             <button type="button" className="btn btn-secondary" style={{ fontSize: '0.85rem' }} onClick={load}>
-              🔄 Refresh
+              Refresh
             </button>
             {canCreate && (
               <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>

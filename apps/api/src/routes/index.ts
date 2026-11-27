@@ -22,6 +22,7 @@ import { coursesRoutes } from '../modules/courses/courses.routes';
 import { productsRoutes } from '../modules/products/products.routes';
 import { accountRoutes } from '../modules/products/account.routes';
 import { categoriesRoutes, adminCategoriesRoutes } from '../modules/categories/categories.routes';
+import { adminReportCatalogRoutes } from '../modules/commerce/report-catalog.admin';
 import { adminProductsRoutes } from '../modules/products/products.admin.routes';
 import { cartRoutes } from '../modules/cart/cart.routes';
 import { wishlistRoutes } from '../modules/wishlist/wishlist.routes';
@@ -33,6 +34,7 @@ import { uploadsRoutes } from '../modules/uploads/uploads.routes';
 import { contentRoutes } from '../modules/content/content.routes';
 import { transactionsRoutes } from '../modules/transactions/transactions.routes';
 import { invoicesRoutes } from '../modules/invoices/invoices.routes';
+import { businessDashboardRoutes } from '../modules/admin/business-dashboard';
 import { webAstrologyRoutes } from '../modules/web-astrology/web-astrology.routes';
 import { webReportsRoutes } from '../modules/web-astrology/web-reports.routes';
 import { exchangeRateService } from '../modules/commerce/money/rates';
@@ -78,12 +80,14 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(adminCouponsRoutes, { prefix: '/admin' }); // /admin/coupons
       await v1.register(adminShopOrdersRoutes, { prefix: '/admin' }); // /admin/shop-orders
       await v1.register(adminCourseLinksRoutes, { prefix: '/admin' }); // /admin/course-links
+      await v1.register(adminReportCatalogRoutes, { prefix: '/admin' }); // /admin/report-catalogue
       await v1.register(adminCustomersRoutes, { prefix: '/admin' }); // /admin/customers
       await v1.register(adminRoutes, { prefix: '/admin' });
       await v1.register(uploadsRoutes); // POST /admin/uploads, GET /uploads/local/* (dev only)
       await v1.register(contentRoutes); // website CMS: public /banners /blogs /faqs /testimonial /media /inquiry /seo /settings, admin /admin/<same>
       await v1.register(transactionsRoutes); // GET /admin/transactions, /admin/gst-report (+ /export)
       await v1.register(invoicesRoutes); // GET /invoices/orders/:orderId, /admin/invoices/*
+      await v1.register(businessDashboardRoutes); // GET /admin/dashboard/business
       // web-astrology (website integration): docs/integration/modules/web-astrology.md
       await v1.register(webAstrologyRoutes, { prefix: '/web/astrology' });
       await v1.register(webAstrologyRoutes, { prefix: '/astrology' }); // website paths: geo-details, generate-kundli, match-making, daily-horoscope

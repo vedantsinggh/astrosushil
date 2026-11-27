@@ -27,6 +27,7 @@ export type Permission =
   | 'analytics:export'
   | 'notifications:read'
   | 'notifications:test'
+  | 'notifications:send'
   | 'live_sessions:read'
   | 'live_sessions:write'
   | 'live_sessions:delete'
@@ -156,6 +157,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'analytics:export',
     'notifications:read',
     'notifications:test',
+    'notifications:send',
     'live_sessions:read',
     'live_sessions:write',
     'live_sessions:delete',
@@ -268,6 +270,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'analytics:export',
     'notifications:read',
     'notifications:test',
+    'notifications:send',
     'live_sessions:read',
     'live_sessions:write',
     'live_sessions:delete',

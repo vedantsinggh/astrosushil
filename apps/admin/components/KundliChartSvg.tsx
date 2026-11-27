@@ -162,7 +162,6 @@ export function KundliChartSvg({
           alignItems: 'center',
           gap: '0.4rem',
         }}>
-          <span>🔯</span>
           <span>{title}</span>
         </div>
       )}

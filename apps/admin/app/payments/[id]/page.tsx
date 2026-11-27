@@ -171,7 +171,7 @@ export default function PaymentDetailsPage() {
             </button>
           )}
           <Link href={`/users/${payment.user.id}`} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            👤 View User
+            View User
           </Link>
         </div>
       </div>

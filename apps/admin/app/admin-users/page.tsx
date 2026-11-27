@@ -142,11 +142,11 @@ export default function AdminUsersPage() {
               className="btn btn-primary"
               style={{ fontSize: '0.85rem' }}
             >
-              ➕ Create Admin Account
+              Create Admin Account
             </button>
           )}
           <button onClick={() => fetchAdminUsers(pagination.page)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
       </div>
@@ -220,7 +220,7 @@ export default function AdminUsersPage() {
                             className="btn btn-secondary"
                             style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                           >
-                            🛡️ Change Role
+                            Change Role
                           </button>
                         ) : (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>

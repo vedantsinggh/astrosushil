@@ -167,7 +167,7 @@ export default function ReportDetailsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <h1 className="page-title" style={{ margin: 0 }}>Career Report</h1>
             {report.isStuck ? (
-              <span className="badge badge-warning" style={{ fontSize: '0.9rem' }}>⏳ STUCK (&gt;5m)</span>
+              <span className="badge badge-warning" style={{ fontSize: '0.9rem' }}>STUCK (&gt;5m)</span>
             ) : (
               <StatusBadge status={report.status} />
             )}
@@ -187,7 +187,7 @@ export default function ReportDetailsPage() {
               className="btn btn-secondary"
               style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              📄 View / Download PDF
+              View / Download PDF
             </a>
           )}
 
@@ -198,7 +198,7 @@ export default function ReportDetailsPage() {
               className="btn btn-primary"
               style={{ fontSize: '0.85rem' }}
             >
-              {isRegenerating ? '🔄 Creating Job...' : '⚡ Regenerate Report'}
+              {isRegenerating ? 'Creating Job...' : 'Regenerate Report'}
             </button>
           )}
         </div>
@@ -228,7 +228,6 @@ export default function ReportDetailsPage() {
       {report.isStuck && (
         <div className="card" style={{ background: '#FFFBEB', borderColor: '#F59E0B', marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>⏳</span>
             <div>
               <strong style={{ color: '#92400E', fontSize: '0.95rem' }}>Report Job Execution is STUCK</strong>
               <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#B45309' }}>
@@ -243,7 +242,6 @@ export default function ReportDetailsPage() {
       {duplicateActiveJobs.activeJobCount > 1 && (
         <div className="card" style={{ background: '#EFF6FF', borderColor: '#3B82F6', marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>⚠️</span>
             <div>
               <strong style={{ color: '#1E40AF', fontSize: '0.95rem' }}>Duplicate Overlapping Active Generation Jobs Detected ({duplicateActiveJobs.activeJobCount})</strong>
               <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#1D4ED8' }}>
@@ -342,9 +340,9 @@ export default function ReportDetailsPage() {
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: textColor, margin: '0.2rem 0' }}>{stg.name}</div>
                 <div style={{ fontSize: '0.7rem' }}>
                   {stg.status === 'COMPLETED' && <span style={{ color: '#059669', fontWeight: 700 }}>✓ COMPLETED</span>}
-                  {stg.status === 'RUNNING' && <span style={{ color: '#2563EB', fontWeight: 700 }}>⚡ RUNNING</span>}
+                  {stg.status === 'RUNNING' && <span style={{ color: '#2563EB', fontWeight: 700 }}>RUNNING</span>}
                   {stg.status === 'FAILED' && <span style={{ color: '#DC2626', fontWeight: 700 }}>✗ FAILED</span>}
-                  {stg.status === 'PENDING' && <span style={{ color: '#9CA3AF' }}>⏳ PENDING</span>}
+                  {stg.status === 'PENDING' && <span style={{ color: '#9CA3AF' }}>PENDING</span>}
                 </div>
               </button>
             );
@@ -479,7 +477,7 @@ export default function ReportDetailsPage() {
               </div>
               {birthProfileSnapshot.isProfileModifiedSinceReport && (
                 <div className="badge badge-warning" style={{ fontSize: '0.7rem', marginTop: '0.4rem' }}>
-                  ⚠️ User updated birth profile after report generation
+                  User updated birth profile after report generation
                 </div>
               )}
             </div>

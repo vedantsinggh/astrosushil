@@ -51,7 +51,7 @@ export default function JyotiPage() {
           <p className="page-subtitle">Track conversational AI requests, rate limits, and Gemini provider status</p>
         </div>
         <button onClick={fetchJyotiData} className="btn btn-secondary">
-          <span>🔄</span> Refresh Status
+          Refresh Status
         </button>
       </div>
 

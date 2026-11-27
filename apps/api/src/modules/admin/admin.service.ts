@@ -850,60 +850,6 @@ export class AdminService {
   /**
    * Get Plans Catalog
    */
-  public async getPlans() {
-    return {
-      plans: [
-        {
-          id: 'PLAN_CAREER',
-          name: 'Career Report Pass',
-          code: 'CAREER',
-          description: '50-75 Page Comprehensive Astrological Career & Vocation Blueprint',
-          price: 499,
-          currency: 'INR',
-          duration: 'LIFETIME_REPORT',
-          status: 'ACTIVE',
-          entitlements: ['CAREER_REPORT', 'BIRTH_CHART', 'PLANET_POSITIONS', 'JYOTI_AI'],
-        },
-        {
-          id: 'PLAN_KUNDLI',
-          name: 'Full Kundli Analysis',
-          code: 'KUNDLI',
-          description: 'Detailed Vedic Birth Chart, Planetary Strengths & Dasha Analysis',
-          price: 199,
-          currency: 'INR',
-          duration: 'LIFETIME_REPORT',
-          status: 'ACTIVE',
-          entitlements: ['KUNDLI_REPORT', 'BIRTH_CHART', 'PLANET_POSITIONS'],
-        },
-        {
-          id: 'PLAN_PLANETARY',
-          name: 'Planetary Summary',
-          code: 'PLANETARY_SUMMARY',
-          description: 'Essential Graha positions and Nakshatra placements breakdown',
-          price: 99,
-          currency: 'INR',
-          duration: 'LIFETIME_REPORT',
-          status: 'ACTIVE',
-          entitlements: ['PLANETARY_SUMMARY_REPORT', 'BIRTH_CHART'],
-        },
-        {
-          id: 'PLAN_GUPTA_NADI',
-          name: 'Gupta Nadi BNN Dossier',
-          code: 'GUPTA_NADI_DOSSIER',
-          description: 'Rule-based BNN combinations & predictive planetary alignments',
-          price: 999,
-          currency: 'INR',
-          duration: 'LIFETIME_REPORT',
-          status: 'ACTIVE',
-          entitlements: ['GUPTA_NADI_DOSSIER', 'CAREER_REPORT', 'BIRTH_CHART'],
-        },
-      ],
-    };
-  }
-
-  /**
-   * Get Safe Payments List with Search & Filters
-   */
   public async getPayments(query: PaymentsQueryInput, adminUserRole: string) {
     const page = Math.max(1, Number(query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 25));

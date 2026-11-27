@@ -173,7 +173,7 @@ export function UploadField({
               />
             ) : (
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', padding: '0.5rem 0.75rem', wordBreak: 'break-all' }}>
-                📄 {fileNameOf(value)}
+                {fileNameOf(value)}
               </span>
             )}
           </div>

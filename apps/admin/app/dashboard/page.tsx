@@ -1,296 +1,395 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '../../lib/api-client';
-import { StatusBadge } from '../../components/StatusBadge';
-import { ShopSalesPanel } from '../../components/catalogue/ShopSalesPanel';
+import { useAuth } from '../../lib/auth-context';
+import { formatDateTime, formatPaise } from '../../components/sales/format';
+import { Icon } from '../../components/icons';
 
-interface DashboardData {
-  stats: {
-    totalUsers: number;
-    activeUsers: number;
-    totalProfiles: number;
-    totalReports: number;
-    failedReports: number;
-    jyotiConversations: number;
-  };
-  recentActivity: Array<{
-    id: string;
-    timestamp: string;
-    event: string;
-    user: string;
-    status: 'SUCCESS' | 'FAILED' | 'PENDING' | 'INFO';
-  }>;
+interface KindBlock {
+  thisMonth: number;
+  lastMonth: number;
+  total: number;
+  growth: number;
 }
 
-interface ServiceHealthItem {
-  status: string;
-  latencyMs?: number;
-  provider?: string;
-  type?: string;
+interface BusinessDashboard {
+  generatedAt: string;
+  revenue: { totalPaise: number; thisMonthPaise: number; lastMonthPaise: number; growth: number };
+  orders: KindBlock;
+  bookings: KindBlock;
+  reportOrders: KindBlock;
+  customers: { total: number; newThisMonth: number; newLastMonth: number; growth: number };
+  monthly: Array<{ month: string; revenuePaise: number; order: number; consultation: number; report: number }>;
+  yearly: Array<{ financialYear: string; revenuePaise: number }>;
+  topProducts: Array<{ catalogId: string; title: string; quantity: number; revenuePaise: number }>;
+  recentSales: Array<{ id: string; orderId: string | null; type: 'order' | 'consultation' | 'report'; customerName: string | null; amountPaise: number; currency: string; amountMinor: number; createdAt: string }>;
+  attention: { bookingsToday: number; bookingsNext7Days: number; paymentConflicts: number; invoicesPending: number; inquiriesLast7Days: number };
 }
 
-interface HealthData {
-  timestamp: string;
-  services: {
-    api?: ServiceHealthItem;
-    database?: ServiceHealthItem;
-    astrologyEngine?: ServiceHealthItem;
-    gemini?: ServiceHealthItem;
-    openrouter?: ServiceHealthItem;
-    storage?: ServiceHealthItem;
-  };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const TYPE_LABEL = { order: 'Product', consultation: 'Booking', report: 'Report' } as const;
+
+function monthLabel(key: string, withYear = false): string {
+  const [y, m] = key.split('-');
+  return `${MONTHS[Number(m) - 1]}${withYear ? ` ${y}` : ''}`;
+}
+
+/** Compact rupees for chart labels: ₹1.2L, ₹3.4Cr, ₹950. */
+function shortRupees(paise: number): string {
+  const r = paise / 100;
+  if (r >= 1e7) return `₹${(r / 1e7).toFixed(1)}Cr`;
+  if (r >= 1e5) return `₹${(r / 1e5).toFixed(1)}L`;
+  if (r >= 1e3) return `₹${(r / 1e3).toFixed(1)}K`;
+  return `₹${Math.round(r)}`;
+}
+
+function Delta({ value, suffix = 'vs last month' }: { value: number; suffix?: string }) {
+  const up = value >= 0;
+  return (
+    <span style={{ fontSize: '0.76rem' }}>
+      <span className={up ? 'stat-delta-up' : 'stat-delta-down'} style={{ fontWeight: 600 }}>
+        {up ? '▲' : '▼'} {Math.abs(value)}%
+      </span>{' '}
+      <span style={{ color: 'var(--text-muted)' }}>{suffix}</span>
+    </span>
+  );
+}
+
+function Kpi({ title, value, children, href }: { title: string; value: React.ReactNode; children?: React.ReactNode; href?: string }) {
+  const body = (
+    <div className="card" style={{ height: '100%' }}>
+      <div className="card-title">{title}</div>
+      <div className="card-value">{value}</div>
+      <div style={{ marginTop: '0.3rem' }}>{children}</div>
+    </div>
+  );
+  return href ? (
+    <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
+      {body}
+    </Link>
+  ) : (
+    body
+  );
+}
+
+/** Revenue per month: one series, one hue; hover a bar for the exact figure. */
+function RevenueChart({ points }: { points: BusinessDashboard['monthly'] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const width = 720;
+  const height = 220;
+  const pad = { top: 16, right: 8, bottom: 26, left: 52 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const max = Math.max(1, ...points.map((p) => p.revenuePaise));
+  const step = plotW / points.length;
+  const barW = Math.min(36, step - 8);
+  const ticks = [0, 0.5, 1].map((f) => f * max);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="Revenue per month for the last twelve months">
+        {ticks.map((t) => {
+          const y = pad.top + plotH - (t / max) * plotH;
+          return (
+            <g key={t}>
+              <line x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="var(--border-color)" strokeWidth={1} />
+              <text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="var(--text-muted)">
+                {shortRupees(t)}
+              </text>
+            </g>
+          );
+        })}
+        {points.map((p, i) => {
+          const h = Math.max(p.revenuePaise > 0 ? 2 : 0, (p.revenuePaise / max) * plotH);
+          const x = pad.left + i * step + (step - barW) / 2;
+          const y = pad.top + plotH - h;
+          const r = Math.min(4, h / 2, barW / 2);
+          const d = h <= 0 ? '' : `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + barW - r} Q${x + barW},${y} ${x + barW},${y + r} V${y + h} Z`;
+          return (
+            <g key={p.month} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              <rect x={pad.left + i * step} y={pad.top} width={step} height={plotH} fill="transparent" />
+              {d && <path d={d} fill="var(--accent-primary)" opacity={hover === null || hover === i ? 1 : 0.45} />}
+              <text x={pad.left + i * step + step / 2} y={height - 8} textAnchor="middle" fontSize="11" fill="var(--text-muted)">
+                {monthLabel(p.month)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {hover !== null && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: `${((pad.left + hover * step + step / 2) / width) * 100}%`,
+            transform: 'translateX(-50%)',
+            background: 'var(--text-primary)',
+            color: '#FFF',
+            padding: '0.4rem 0.6rem',
+            borderRadius: 6,
+            fontSize: '0.75rem',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <strong>{monthLabel(points[hover].month, true)}</strong>: {formatPaise(points[hover].revenuePaise)}
+          <div style={{ opacity: 0.8 }}>
+            {points[hover].order} product · {points[hover].consultation} booking · {points[hover].report} report
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttentionItem({ label, count, href, tone }: { label: string; count: number; href: string; tone: 'warning' | 'info' }) {
+  return (
+    <Link
+      href={href}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '0.6rem 0.75rem',
+        borderBottom: '1px solid var(--border-color)',
+        color: 'var(--text-primary)',
+        textDecoration: 'none',
+      }}
+    >
+      <span style={{ fontSize: '0.85rem' }}>{label}</span>
+      <span className={`badge ${count > 0 ? (tone === 'warning' ? 'badge-warning' : 'badge-info') : 'badge-success'}`}>{count}</span>
+    </Link>
+  );
 }
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [health, setHealth] = useState<HealthData | null>(null);
+  const { hasPermission } = useAuth();
+  const [data, setData] = useState<BusinessDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'chart' | 'table'>('chart');
 
-  const fetchDashboardData = async () => {
+  const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [dashRes, healthRes] = await Promise.all([
-        apiFetch<DashboardData>('/api/v1/admin/dashboard'),
-        apiFetch<HealthData>('/api/v1/admin/system/health'),
-      ]);
-      setData(dashRes);
-      setHealth(healthRes);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load dashboard data');
+      setData(await apiFetch<BusinessDashboard>('/api/v1/admin/dashboard/business'));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load the dashboard');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    load();
+  }, [load]);
+
+  if (!hasPermission('dashboard:read')) {
+    return (
+      <div>
+        <h1 className="page-title">Welcome</h1>
+        <p className="page-subtitle">Choose a screen from the menu on the left.</p>
+      </div>
+    );
+  }
+
+  const skeleton = <div className="skeleton" style={{ height: 28, width: 110 }} />;
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
         <div>
-          <h1 className="page-title">Operations Dashboard</h1>
-          <p className="page-subtitle">Real-time metrics, system health, and operational activities</p>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle" style={{ marginBottom: 0 }}>
+            Sales of the website and the app. Revenue is the INR value of successful payments, by Indian calendar month.
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <a href="/analytics" className="btn btn-primary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', textDecoration: 'none' }}>
-            <span>📈</span> View Product Analytics
-          </a>
-          <button onClick={fetchDashboardData} className="btn btn-secondary" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span>🔄</span> Refresh Stats
+          {hasPermission('bookings:create') && (
+            <Link href="/bookings/new" className="btn btn-primary">
+              <Icon name="plus" size={14} /> New booking
+            </Link>
+          )}
+          <button className="btn btn-secondary" onClick={load} disabled={isLoading}>
+            <Icon name="refresh" size={14} /> Refresh
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="badge badge-danger" style={{ padding: '1rem', borderRadius: 'var(--radius-md)', width: '100%', marginBottom: '1.5rem', display: 'block' }}>
+        <div className="card" style={{ borderColor: 'var(--badge-danger-text)', color: 'var(--badge-danger-text)', marginBottom: '1rem' }}>
           {error}
         </div>
       )}
 
-      {/* LIVE SESSION HERO CALLOUT */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(147, 51, 234, 0.15) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          padding: '1.25rem 1.5rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.5rem',
-            }}
-          >
-            🕒
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary, #F8FAFC)' }}>
-              Live Consultation Workspace
-            </h2>
-            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.875rem', color: 'var(--text-muted, #94A3B8)' }}>
-              Start or resume a real-time client astrology consultation with interactive Kundli charts, notes, history, and Jyoti AI.
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/live-sessions"
-          className="btn btn-primary"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.65rem 1.25rem',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            textDecoration: 'none',
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.35)',
-          }}
-        >
-          <span>✨</span> Open Live Session Console →
-        </Link>
-      </div>
-
-      {/* METRIC CARDS */}
       <div className="card-grid">
-        <div className="card">
-          <div className="card-title">Total Users</div>
-          <div className="card-value">{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : data?.stats?.totalUsers || 0}</div>
-          <div className="card-subtext">Registered customer accounts</div>
-        </div>
+        <Kpi title="Revenue this month" value={data ? formatPaise(data.revenue.thisMonthPaise) : skeleton} href="/transactions">
+          {data && <Delta value={data.revenue.growth} />}
+        </Kpi>
+        <Kpi title="Product orders" value={data ? data.orders.thisMonth : skeleton} href="/shop-orders">
+          {data && <Delta value={data.orders.growth} />}
+        </Kpi>
+        <Kpi title="Bookings" value={data ? data.bookings.thisMonth : skeleton} href="/bookings">
+          {data && <Delta value={data.bookings.growth} />}
+        </Kpi>
+        <Kpi title="Report orders" value={data ? data.reportOrders.thisMonth : skeleton} href="/reports">
+          {data && <Delta value={data.reportOrders.growth} />}
+        </Kpi>
+        <Kpi title="New customers" value={data ? data.customers.newThisMonth : skeleton} href="/customers">
+          {data && <Delta value={data.customers.growth} />}
+        </Kpi>
+      </div>
 
-        <div className="card">
-          <div className="card-title">Active Users</div>
-          <div className="card-value" style={{ color: 'var(--badge-success-text)' }}>
-            {isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : data?.stats?.activeUsers || 0}
+      <div className="dash-split">
+        <div className="card" style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              Revenue, last 12 months
+            </div>
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <button className={`btn ${view === 'chart' ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }} onClick={() => setView('chart')}>
+                Chart
+              </button>
+              <button className={`btn ${view === 'table' ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }} onClick={() => setView('table')}>
+                Table
+              </button>
+            </div>
           </div>
-          <div className="card-subtext">Verified email accounts</div>
+          {!data ? (
+            <div className="skeleton" style={{ height: 220 }} />
+          ) : view === 'chart' ? (
+            <RevenueChart points={data.monthly} />
+          ) : (
+            <div className="table-container" style={{ maxHeight: 260, overflowY: 'auto' }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th style={{ textAlign: 'right' }}>Revenue</th>
+                    <th style={{ textAlign: 'right' }}>Products</th>
+                    <th style={{ textAlign: 'right' }}>Bookings</th>
+                    <th style={{ textAlign: 'right' }}>Reports</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.monthly].reverse().map((m) => (
+                    <tr key={m.month}>
+                      <td>{monthLabel(m.month, true)}</td>
+                      <td style={{ textAlign: 'right' }}>{formatPaise(m.revenuePaise)}</td>
+                      <td style={{ textAlign: 'right' }}>{m.order}</td>
+                      <td style={{ textAlign: 'right' }}>{m.consultation}</td>
+                      <td style={{ textAlign: 'right' }}>{m.report}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {data && (
+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <span>
+                All-time revenue: <strong style={{ color: 'var(--text-primary)' }}>{formatPaise(data.revenue.totalPaise)}</strong>
+              </span>
+              {data.yearly.slice(-3).map((y) => (
+                <span key={y.financialYear}>
+                  FY {y.financialYear}: <strong style={{ color: 'var(--text-primary)' }}>{formatPaise(y.revenuePaise)}</strong>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="card">
-          <div className="card-title">Birth Profiles</div>
-          <div className="card-value">{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : data?.stats?.totalProfiles || 0}</div>
-          <div className="card-subtext">Calculated birth charts</div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Career Reports</div>
-          <div className="card-value">{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : data?.stats?.totalReports || 0}</div>
-          <div className="card-subtext">Total report jobs</div>
-        </div>
-
-        <div className="card" style={{ borderColor: (data?.stats?.failedReports || 0) > 0 ? '#FCA5A5' : 'var(--border-color)' }}>
-          <div className="card-title">Failed Reports</div>
-          <div className="card-value" style={{ color: (data?.stats?.failedReports || 0) > 0 ? 'var(--badge-danger-text)' : 'var(--text-primary)' }}>
-            {isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : data?.stats?.failedReports || 0}
+        <div className="card" style={{ padding: 0 }}>
+          <div className="card-title" style={{ padding: '1rem 1rem 0.5rem' }}>
+            Needs attention
           </div>
-          <div className="card-subtext">Compilation/pipeline errors</div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Jyoti AI Queries</div>
-          <div className="card-value">{isLoading ? <div className="skeleton" style={{ height: '32px', width: '80px' }} /> : data?.stats?.jyotiConversations || 0}</div>
-          <div className="card-subtext">Conversational queries</div>
+          {data ? (
+            <>
+              <AttentionItem label="Consultations today" count={data.attention.bookingsToday} href="/bookings" tone="info" />
+              <AttentionItem label="Consultations in the next 7 days" count={data.attention.bookingsNext7Days} href="/bookings" tone="info" />
+              <AttentionItem label="Paid bookings without a slot" count={data.attention.paymentConflicts} href="/transactions/payment-conflicts" tone="warning" />
+              <AttentionItem label="Invoices waiting for a number" count={data.attention.invoicesPending} href="/invoices" tone="warning" />
+              <AttentionItem label="Contact inquiries (7 days)" count={data.attention.inquiriesLast7Days} href="/inquiries" tone="info" />
+            </>
+          ) : (
+            <div className="skeleton" style={{ height: 200, margin: '0 1rem 1rem' }} />
+          )}
         </div>
       </div>
 
-      {/* SHOP PRODUCT SALES (GET /admin/shop-orders/reports; needs orders:export) */}
-      <ShopSalesPanel />
-
-      {/* SYSTEM HEALTH STATUS */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>⚡</span> System Health Indicators
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-          <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>API Server</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services?.api?.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.api?.latencyMs || 1}ms</span>
-            </div>
-          </div>
-
-          <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Database (PostgreSQL)</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services?.database?.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.database?.latencyMs || 0}ms</span>
-            </div>
-          </div>
-
-          <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Astrology Engine</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services?.astrologyEngine?.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{health?.services?.astrologyEngine?.latencyMs || 0}ms</span>
-            </div>
-          </div>
-
-          <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              {health?.services?.openrouter ? 'OpenRouter AI' : 'Gemini AI'}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={(health?.services?.openrouter || health?.services?.gemini)?.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{(health?.services?.openrouter || health?.services?.gemini)?.latencyMs || 0}ms</span>
-            </div>
-          </div>
-
-          <div style={{ padding: '0.85rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Report Storage</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem' }}>
-              <StatusBadge status={health?.services?.storage?.status || 'UNKNOWN'} />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Active</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* RECENT ACTIVITY TABLE */}
-      <div className="card">
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-primary)' }}>Recent System Activity</h2>
-        <div className="table-container">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Event</th>
-                <th>User / Subject</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                [1, 2, 3, 4, 5].map((i) => (
-                  <tr key={i}>
-                    <td colSpan={4}>
-                      <div className="skeleton" style={{ height: '20px', width: '100%' }} />
-                    </td>
-                  </tr>
-                ))
-              ) : data?.recentActivity && data.recentActivity.length > 0 ? (
-                data.recentActivity.map((act) => (
-                  <tr key={act.id}>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                      {new Date(act.timestamp).toLocaleString()}
-                    </td>
-                    <td style={{ fontWeight: 600 }}>{act.event}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{act.user}</td>
-                    <td>
-                      <StatusBadge status={act.status} />
-                    </td>
-                  </tr>
-                ))
-              ) : (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+        <div className="card" style={{ minWidth: 0 }}>
+          <div className="card-title">Recent sales</div>
+          <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                    No recent activity records found.
-                  </td>
+                  <th>When</th>
+                  <th>Type</th>
+                  <th>Customer</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(data?.recentSales ?? []).map((sale) => (
+                  <tr key={sale.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>{formatDateTime(sale.createdAt)}</td>
+                    <td>{TYPE_LABEL[sale.type]}</td>
+                    <td>{sale.customerName || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                      {sale.orderId ? <Link href={`/invoices/orders/${sale.orderId}`}>{formatPaise(sale.amountPaise)}</Link> : formatPaise(sale.amountPaise)}
+                    </td>
+                  </tr>
+                ))}
+                {data && data.recentSales.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
+                      No sales yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card" style={{ minWidth: 0 }}>
+          <div className="card-title">Top products</div>
+          <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th style={{ textAlign: 'right' }}>Sold</th>
+                  <th style={{ textAlign: 'right' }}>Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.topProducts ?? []).map((p) => (
+                  <tr key={p.catalogId}>
+                    <td>{p.title}</td>
+                    <td style={{ textAlign: 'right' }}>{p.quantity}</td>
+                    <td style={{ textAlign: 'right' }}>{formatPaise(p.revenuePaise)}</td>
+                  </tr>
+                ))}
+                {data && data.topProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={3} style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
+                      No product sales yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {data && (
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              {data.orders.total} product orders · {data.bookings.total} bookings · {data.reportOrders.total} report orders · {data.customers.total} customers in total
+            </p>
+          )}
         </div>
       </div>
     </div>

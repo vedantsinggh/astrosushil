@@ -4,7 +4,7 @@ import { AuthProvider } from '../lib/auth-context';
 import { AdminGuard } from '../components/AdminGuard';
 
 export const metadata = {
-  title: 'Astro Sushil Admin Panel',
+  title: 'Astro Sushil Admin',
   description: 'Operations & Management Dashboard for Astro Sushil Platform',
 };
 

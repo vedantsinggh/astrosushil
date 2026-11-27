@@ -55,7 +55,7 @@ export function PageHeader({
         </Link>
         {crumbs.map((crumb, index) => (
           <React.Fragment key={`${crumb.label}-${index}`}>
-            {' → '}
+            {' / '}
             {crumb.href ? (
               <Link href={crumb.href} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
                 {crumb.label}

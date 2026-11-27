@@ -213,7 +213,7 @@ function LiveSessionsContent() {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="page-title">🕒 Live Consultation Sessions</h1>
+          <h1 className="page-title">Live Consultation Sessions</h1>
           <p className="page-subtitle">
             Conduct one-on-one astrology consultations with access to the full birth chart workspace.
           </p>
@@ -224,7 +224,7 @@ function LiveSessionsContent() {
             className="btn btn-secondary"
             style={{ fontSize: '0.8rem' }}
           >
-            🔄 Refresh
+            Refresh
           </button>
           <button
             onClick={() => { setView('new'); setStep(1); setSelectedUser(null); setSelectedProfile(null); setCreateError(null); searchUsers(''); }}
@@ -285,7 +285,7 @@ function LiveSessionsContent() {
 
           {sessionsError && (
             <div className="badge badge-danger" style={{ display: 'block', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.85rem' }}>
-              ⚠️ {sessionsError}
+              {sessionsError}
             </div>
           )}
 
@@ -391,7 +391,7 @@ function LiveSessionsContent() {
 
           {createError && (
             <div className="badge badge-danger" style={{ display: 'block', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.85rem' }}>
-              ⚠️ {createError}
+              {createError}
             </div>
           )}
 
@@ -489,7 +489,7 @@ function LiveSessionsContent() {
                 </div>
               ) : profiles.length === 0 ? (
                 <div style={{ color: 'var(--badge-danger-text)', padding: '1rem', background: 'var(--badge-danger-bg)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
-                  ⚠️ This client has no birth profiles yet. Ask them to add one in the mobile app.
+                  This client has no birth profiles yet. Ask them to add one in the mobile app.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '260px', overflowY: 'auto' }}>
@@ -505,7 +505,6 @@ function LiveSessionsContent() {
                         cursor: 'pointer', textAlign: 'left',
                       }}
                     >
-                      <span style={{ fontSize: '1.25rem' }}>🔮</span>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{p.name}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -529,7 +528,7 @@ function LiveSessionsContent() {
                   className="btn btn-primary"
                   disabled={!selectedProfile || creating}
                 >
-                  {creating ? 'Starting...' : '🚀 Start Consultation'}
+                  {creating ? 'Starting...' : 'Start Consultation'}
                 </button>
               </div>
             </div>

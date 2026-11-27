@@ -124,7 +124,7 @@ function BlogsScreen() {
         actions={
           <>
             <button type="button" className="btn btn-secondary" style={{ fontSize: '0.85rem' }} onClick={load}>
-              🔄 Refresh
+              Refresh
             </button>
             {canCreate && (
               <Link href="/blogs/new" className="btn btn-primary">

@@ -90,7 +90,7 @@ export default function BirthProfilesPage() {
           <p className="page-subtitle">Inspect client birth metadata, calculation parameters, and generated charts</p>
         </div>
         <button onClick={() => fetchProfiles(pagination.page, pageSizeSelect)} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 
