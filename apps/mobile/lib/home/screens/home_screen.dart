@@ -19,6 +19,7 @@ import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
 import '../../features/courses/screens/course_detail_screen.dart';
 import '../../features/courses/screens/courses_hub_screen.dart';
+import '../../features/home_content/widgets/home_content_sections.dart';
 import '../../features/jyoti/screens/jyoti_chat_screen.dart';
 import '../../features/shop/screens/shop_catalog_screen.dart';
 import '../../features/sushil_explainer/models/explanation_context.dart';
@@ -75,7 +76,9 @@ class HomeScreen extends ConsumerWidget {
 /// 3. One highlight card: today's horoscope for the Moon sign
 /// 4. Slim Today's Panchang card
 /// 5. "Astrology" grid of large labelled tiles + "All tools" link
-/// 6. "Services" grid (Ask Jyoti, Sushil Sir explainer, Consult, Reports,
+/// 6. Featured content (owner decision 2026-11-27): consultations, reports,
+///    shop, celebrity videos, YouTube, testimonials, blog
+/// 7. "Services" grid (Ask Jyoti, Sushil Sir explainer, Consult, Reports,
 ///    Courses, Gupta Nadi, Shop)
 class _HomeTabContentView extends ConsumerWidget {
   const _HomeTabContentView();
@@ -449,7 +452,11 @@ class _HomeTabContentView extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
 
-              // 6. Guidance, learning and shop.
+              // 6. Featured consultations, reports and shop, then videos,
+              //    testimonials and blog (each hidden when empty).
+              const HomeContentSections(),
+
+              // 7. Guidance, learning and shop.
               HomeSectionTitle(l10n.homeSectionServices),
               const SizedBox(height: 12),
               HomeServiceGrid(items: serviceItems, sizingLabels: gridLabels),

@@ -96,6 +96,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Mobile App',
     items: [
+      { label: 'App Home', href: '/app-home', perm: 'settings:read', icon: 'layers' },
       { label: 'App Users', href: '/users', perm: 'users:read', icon: 'users' },
       { label: 'Birth Profiles', href: '/birth-profiles', perm: 'birth_profiles:read', icon: 'globe' },
       { label: 'Live Sessions', href: '/live-sessions', perm: 'live_sessions:read', icon: 'video' },

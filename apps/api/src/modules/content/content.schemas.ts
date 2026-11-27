@@ -442,6 +442,12 @@ const announcementBarShape = {
   linkUrl: linkOrEmpty,
 };
 
+/** Up to 20 ids, trimmed, duplicates dropped (first one kept). */
+const idList = z
+  .array(z.string().trim().min(1).max(100))
+  .max(20)
+  .transform((ids) => [...new Set(ids)]);
+
 export const SETTINGS_SHAPE = {
   branding: {
     siteName: plain(150).min(1),
@@ -525,6 +531,18 @@ export const SETTINGS_SHAPE = {
     hsnSacProduct: hsnSac,
     hsnSacCourse: hsnSac,
   },
+  // Mobile app home page (owner decision 2026-11-27): which consultations (mode catalog ids),
+  // reports (catalog ids) and products (ids) are featured, in order, and which content sections
+  // show. An empty list lets the app show the first few automatically.
+  appHome: {
+    featuredConsultationSkus: idList,
+    featuredReportIds: idList,
+    featuredProductIds: idList,
+    showStarVideos: z.boolean(),
+    showYoutube: z.boolean(),
+    showTestimonials: z.boolean(),
+    showBlogs: z.boolean(),
+  },
   legal: {
     privacyPolicy: richText,
     termsConditions: richText,
@@ -564,6 +582,15 @@ export const SETTINGS_DEFAULTS = {
   topBar: { enabled: false, text: '', bgColor: '#ffffff', textColor: '#ef4444', linkEnabled: false, linkUrl: '' },
   highlightsBar: { enabled: false, text: '', bgColor: '#121045', textColor: '#ffffff', linkEnabled: false, linkUrl: '' },
   invoice: { hsnSacReport: '', hsnSacConsultation: '', hsnSacProduct: '', hsnSacCourse: '' },
+  appHome: {
+    featuredConsultationSkus: [] as string[],
+    featuredReportIds: [] as string[],
+    featuredProductIds: [] as string[],
+    showStarVideos: true,
+    showYoutube: true,
+    showTestimonials: true,
+    showBlogs: true,
+  },
   legal: {
     privacyPolicy: '',
     termsConditions: '',
@@ -597,6 +624,7 @@ export const updateSettingsSchema = z
     topBar: strictPartial(SETTINGS_SHAPE.topBar),
     highlightsBar: strictPartial(SETTINGS_SHAPE.highlightsBar),
     invoice: strictPartial(SETTINGS_SHAPE.invoice),
+    appHome: strictPartial(SETTINGS_SHAPE.appHome),
     legal: strictPartial(SETTINGS_SHAPE.legal),
   })
   .strict();

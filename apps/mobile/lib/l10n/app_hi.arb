@@ -637,5 +637,13 @@
   "consultBkRescheduleUnavailable": "यह बुकिंग ऐप में पुनर्निर्धारित नहीं की जा सकती। कृपया ऑफ़िस से संपर्क करें।",
   "consultBkCancelNoAutoRefund": "रद्द करने पर आपका समय दूसरों के लिए खुल जाएगा। इससे भुगतान अपने-आप वापस नहीं होता; भुगतान संबंधी प्रश्नों के लिए कृपया ऑफ़िस से संपर्क करें।",
   "consultBkCancelFailed": "रद्द नहीं हो सका। फिर से कोशिश करें।",
-  "consultBkErrAlreadyClosed": "यह बुकिंग पहले ही रद्द या पूरी हो चुकी है।"
+  "consultBkErrAlreadyClosed": "यह बुकिंग पहले ही रद्द या पूरी हो चुकी है।",
+  "homeSectionConsult": "एस्ट्रो सुशील से परामर्श",
+  "homeSectionReports": "लोकप्रिय रिपोर्ट",
+  "homeSectionShop": "शॉप से",
+  "homeSectionStars": "एस्ट्रो सुशील पर भरोसा करने वाले सितारे",
+  "homeSectionYoutube": "YouTube पर देखें",
+  "homeSectionTestimonials": "ग्राहकों की राय",
+  "homeSectionBlog": "ब्लॉग से",
+  "homeSeeAll": "सभी देखें"
 }

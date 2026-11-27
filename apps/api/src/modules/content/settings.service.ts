@@ -182,6 +182,12 @@ function resolveBrandingFile(
   }
 }
 
+/** Called after every successful settings save (e.g. to drop caches built from the settings). */
+const settingsChangedListeners: Array<() => void> = [];
+export function onSettingsChanged(listener: () => void): void {
+  settingsChangedListeners.push(listener);
+}
+
 export class SettingsService {
   /** The complete settings document (defaults when nothing has been saved yet). */
   public async getSettings(): Promise<AdminSettingsView> {
@@ -249,6 +255,8 @@ export class SettingsService {
       `SiteSetting:${SITE_SETTINGS_ID}`,
       sections.length > 0 ? `Sections updated: ${sections.join(', ')}` : 'No sections changed'
     );
+
+    for (const listener of settingsChangedListeners) listener();
 
     return { ...next, updatedById: actor.id, updatedAt };
   }

@@ -726,5 +726,13 @@
   "consultBkRescheduleUnavailable": "This booking cannot be rescheduled in the app. Please contact the office.",
   "consultBkCancelNoAutoRefund": "Cancelling frees your time for others. It does not refund a payment automatically; for payment questions, please contact the office.",
   "consultBkCancelFailed": "Could not cancel. Please try again.",
-  "consultBkErrAlreadyClosed": "This booking is already cancelled or completed."
+  "consultBkErrAlreadyClosed": "This booking is already cancelled or completed.",
+  "homeSectionConsult": "Consult Astro Sushil",
+  "homeSectionReports": "Popular reports",
+  "homeSectionShop": "From the shop",
+  "homeSectionStars": "Stars who rely on Astro Sushil",
+  "homeSectionYoutube": "Watch on YouTube",
+  "homeSectionTestimonials": "What clients say",
+  "homeSectionBlog": "From the blog",
+  "homeSeeAll": "See all"
 }

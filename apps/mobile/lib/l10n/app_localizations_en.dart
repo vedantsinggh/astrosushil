@@ -1955,4 +1955,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get consultBkErrAlreadyClosed =>
       'This booking is already cancelled or completed.';
+
+  @override
+  String get homeSectionConsult => 'Consult Astro Sushil';
+
+  @override
+  String get homeSectionReports => 'Popular reports';
+
+  @override
+  String get homeSectionShop => 'From the shop';
+
+  @override
+  String get homeSectionStars => 'Stars who rely on Astro Sushil';
+
+  @override
+  String get homeSectionYoutube => 'Watch on YouTube';
+
+  @override
+  String get homeSectionTestimonials => 'What clients say';
+
+  @override
+  String get homeSectionBlog => 'From the blog';
+
+  @override
+  String get homeSeeAll => 'See all';
 }

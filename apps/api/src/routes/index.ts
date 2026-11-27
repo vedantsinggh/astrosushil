@@ -35,6 +35,7 @@ import { contentRoutes } from '../modules/content/content.routes';
 import { transactionsRoutes } from '../modules/transactions/transactions.routes';
 import { invoicesRoutes } from '../modules/invoices/invoices.routes';
 import { businessDashboardRoutes } from '../modules/admin/business-dashboard';
+import { appHomeRoutes } from '../modules/app-home/app-home.routes';
 import { webAstrologyRoutes } from '../modules/web-astrology/web-astrology.routes';
 import { webReportsRoutes } from '../modules/web-astrology/web-reports.routes';
 import { exchangeRateService } from '../modules/commerce/money/rates';
@@ -84,6 +85,7 @@ export async function registerRoutes(app: FastifyInstance) {
       await v1.register(adminCustomersRoutes, { prefix: '/admin' }); // /admin/customers
       await v1.register(adminRoutes, { prefix: '/admin' });
       await v1.register(uploadsRoutes); // POST /admin/uploads, GET /uploads/local/* (dev only)
+      await v1.register(appHomeRoutes, { prefix: '/app' }); // GET /app/home (mobile home page)
       await v1.register(contentRoutes); // website CMS: public /banners /blogs /faqs /testimonial /media /inquiry /seo /settings, admin /admin/<same>
       await v1.register(transactionsRoutes); // GET /admin/transactions, /admin/gst-report (+ /export)
       await v1.register(invoicesRoutes); // GET /invoices/orders/:orderId, /admin/invoices/*

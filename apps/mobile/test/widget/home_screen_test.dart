@@ -21,6 +21,7 @@ import 'package:astro_mobile/shared/theme/app_theme.dart';
 import 'package:astro_mobile/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import '../helpers/consultation_fakes.dart';
+import 'package:astro_mobile/features/home_content/providers/home_content_providers.dart';
 
 void main() {
   final testUser = UserModel(
@@ -47,6 +48,7 @@ void main() {
   Widget buildTestWidget({
     required AuthState authState,
     List<BirthProfileModel> profiles = const [],
+    List<Override> extraOverrides = const [],
   }) {
     return ProviderScope(
       overrides: [
@@ -57,6 +59,7 @@ void main() {
         ),
         userReportsProvider.overrideWith((ref) => Future.value([])),
         consultationServiceProvider.overrideWithValue(_MockHomeScreenConsultationService()),
+        ...extraOverrides,
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -73,6 +76,34 @@ void main() {
   }
 
   group('HomeScreen Widget Tests', () {
+    testWidgets('Order: horoscope, panchang, free tools, then featured content; content failure keeps the top', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1170, 12000);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(buildTestWidget(
+        authState: AuthState.authenticated(testUser),
+        profiles: [testBirthProfile],
+        extraOverrides: [
+          appHomeContentProvider.overrideWith((ref) => Future.error(Exception('offline'))),
+          homeShopProductsProvider.overrideWith((ref) => Future.value(const [])),
+          homeFeaturedConsultationsProvider.overrideWithValue([
+            ConsultationOfferingModel.fromJson(const {'sku': 'c1', 'title': 'Career Call', 'mode': 'CALL', 'durationMinutes': 30, 'pricePaise': 210000}),
+          ]),
+        ],
+      ));
+      await tester.pumpAndSettle();
+
+      double top(Finder f) => tester.getTopLeft(f.first).dy;
+      final horoscope = top(find.byType(HomeHoroscopeCard));
+      final panchang = top(find.byType(HomePanchangCard));
+      final tools = top(find.byKey(const ValueKey('home-service-all-tools')));
+      final consult = top(find.byKey(const ValueKey('home-section-consult')));
+      final services = top(find.text('Services'));
+      expect([horoscope, panchang, tools, consult, services], [horoscope, panchang, tools, consult, services]..sort());
+      expect(horoscope < panchang && panchang < tools && tools < consult && consult < services, isTrue);
+      expect(find.byKey(const ValueKey('home-section-blog')), findsNothing);
+    });
+
     testWidgets('Renders brand bar and a short greeting for authenticated user', (WidgetTester tester) async {
       await tester.pumpWidget(buildTestWidget(authState: AuthState.authenticated(testUser)));
       await tester.pumpAndSettle();

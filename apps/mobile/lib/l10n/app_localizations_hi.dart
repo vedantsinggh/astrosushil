@@ -1949,4 +1949,28 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get consultBkErrAlreadyClosed =>
       'यह बुकिंग पहले ही रद्द या पूरी हो चुकी है।';
+
+  @override
+  String get homeSectionConsult => 'एस्ट्रो सुशील से परामर्श';
+
+  @override
+  String get homeSectionReports => 'लोकप्रिय रिपोर्ट';
+
+  @override
+  String get homeSectionShop => 'शॉप से';
+
+  @override
+  String get homeSectionStars => 'एस्ट्रो सुशील पर भरोसा करने वाले सितारे';
+
+  @override
+  String get homeSectionYoutube => 'YouTube पर देखें';
+
+  @override
+  String get homeSectionTestimonials => 'ग्राहकों की राय';
+
+  @override
+  String get homeSectionBlog => 'ब्लॉग से';
+
+  @override
+  String get homeSeeAll => 'सभी देखें';
 }

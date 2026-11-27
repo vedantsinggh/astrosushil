@@ -3601,6 +3601,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This booking is already cancelled or completed.'**
   String get consultBkErrAlreadyClosed;
+
+  /// No description provided for @homeSectionConsult.
+  ///
+  /// In en, this message translates to:
+  /// **'Consult Astro Sushil'**
+  String get homeSectionConsult;
+
+  /// No description provided for @homeSectionReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular reports'**
+  String get homeSectionReports;
+
+  /// No description provided for @homeSectionShop.
+  ///
+  /// In en, this message translates to:
+  /// **'From the shop'**
+  String get homeSectionShop;
+
+  /// No description provided for @homeSectionStars.
+  ///
+  /// In en, this message translates to:
+  /// **'Stars who rely on Astro Sushil'**
+  String get homeSectionStars;
+
+  /// No description provided for @homeSectionYoutube.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch on YouTube'**
+  String get homeSectionYoutube;
+
+  /// No description provided for @homeSectionTestimonials.
+  ///
+  /// In en, this message translates to:
+  /// **'What clients say'**
+  String get homeSectionTestimonials;
+
+  /// No description provided for @homeSectionBlog.
+  ///
+  /// In en, this message translates to:
+  /// **'From the blog'**
+  String get homeSectionBlog;
+
+  /// No description provided for @homeSeeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get homeSeeAll;
 }
 
 class _AppLocalizationsDelegate

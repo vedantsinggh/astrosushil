@@ -422,6 +422,15 @@ export interface SiteSettings {
   otp: { expiryMinutes: number; resendTimeoutSec: number };
   system: { maintenanceMode: boolean };
   invoice: { hsnSacReport: string; hsnSacConsultation: string; hsnSacProduct: string; hsnSacCourse: string };
+  appHome: {
+    featuredConsultationSkus: string[];
+    featuredReportIds: string[];
+    featuredProductIds: string[];
+    showStarVideos: boolean;
+    showYoutube: boolean;
+    showTestimonials: boolean;
+    showBlogs: boolean;
+  };
   topBar: AnnouncementBar;
   highlightsBar: AnnouncementBar;
   legal: {

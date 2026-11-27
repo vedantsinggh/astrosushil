@@ -71,6 +71,8 @@ import 'package:astro_mobile/features/jyoti/data/jyoti_local_chat_repository.dar
 import '../helpers/jyoti_test_responses.dart';
 import 'package:astro_mobile/features/jyoti/providers/jyoti_controller.dart';
 import '../helpers/consultation_fakes.dart';
+import 'package:astro_mobile/features/home_content/models/home_content_models.dart';
+import 'package:astro_mobile/features/home_content/providers/home_content_providers.dart';
 
 void main() {
   final outDir = createTestArtifactDirectory('mobile-phase-12-capture');
@@ -177,6 +179,9 @@ void main() {
     return ProviderScope(
       overrides: [
             reportCatalogTestOverride,
+            // Home featured content (2026-11-27): no network in the capture suite.
+            appHomeContentProvider.overrideWith((ref) => Future.value(const AppHomeContent())),
+            homeShopProductsProvider.overrideWith((ref) => Future.value(const [])),
         secureStorageProvider.overrideWithValue(InMemorySecureStorageService()),
         selectedBirthProfileProvider.overrideWith((ref) => testBirthProfile),
         selectedBirthProfileIdProvider.overrideWith((ref) => testBirthProfile.id),
@@ -299,6 +304,9 @@ void main() {
         boundaryKey: key,
         overrides: [
             reportCatalogTestOverride,
+            // Home featured content (2026-11-27): no network in the capture suite.
+            appHomeContentProvider.overrideWith((ref) => Future.value(const AppHomeContent())),
+            homeShopProductsProvider.overrideWith((ref) => Future.value(const [])),
           reportGenerationNotifierProvider.overrideWith(
             (ref) => _P12MockReportGenerationNotifier(
               ReportGenerationState(
@@ -376,6 +384,9 @@ void main() {
         boundaryKey: key,
         overrides: [
             reportCatalogTestOverride,
+            // Home featured content (2026-11-27): no network in the capture suite.
+            appHomeContentProvider.overrideWith((ref) => Future.value(const AppHomeContent())),
+            homeShopProductsProvider.overrideWith((ref) => Future.value(const [])),
           authStateProvider.overrideWith(
             (ref) => _P12TestAuthNotifier(AuthState.unauthenticated()),
           ),
