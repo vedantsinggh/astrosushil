@@ -27,6 +27,10 @@ import {
 import { storageService } from '../services/storage.service';
 import { sanitizeGatewayPayload } from '../modules/transactions/ledger';
 import { mapInvoiceStatus, mapLegacyPaymentState, toInrPaise } from './migration-mappers';
+import { normalizePhoneNumber } from '../utils/phone';
+import { WEBSITE_REPORT_PRODUCTS } from '../modules/web-astrology/web-reports.service';
+import { COMMERCE_CATALOG } from '../modules/commerce/commerce.catalog';
+import { backfillAccountNamesAndSelf } from '../modules/birth-profiles/account-identity';
 
 /**
  * Idempotent MongoDB -> PostgreSQL migration script.
@@ -103,6 +107,80 @@ function toYmd(val: unknown): string {
   return toDate(val).toISOString().slice(0, 10);
 }
 
+/** Problems found in the source data. Reported at the end; never silently "fixed" with today's date. */
+const anomalies: string[] = [];
+
+/**
+ * A calendar date (YYYY-MM-DD) from the website's DD-MM-YYYY, YYYY-MM-DD or ISO values. Unlike
+ * `toYmd` it never falls back to today: an unreadable or impossible date (31-02-2026) is recorded
+ * as an anomaly and null is returned.
+ */
+function strictYmd(val: unknown, what: string): string | null {
+  const raw = String(val ?? '').trim();
+  let y: number, m: number, d: number;
+  let match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(raw);
+  if (match) {
+    [d, m, y] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  } else if ((match = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(raw))) {
+    [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  } else {
+    anomalies.push(`${what}: unreadable date "${raw}"`);
+    return null;
+  }
+  const check = new Date(Date.UTC(y, m - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) {
+    anomalies.push(`${what}: impossible date "${raw}"`);
+    return null;
+  }
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/**
+ * The website stored phone numbers as typed (spaces, brackets, typographic dashes, with or
+ * without +91). OTP login looks accounts up by the E.164 form, so the migrated number must be
+ * that form, or the customer would get a new, empty account.
+ */
+function normalisePhone(raw: unknown, what: string): string | null {
+  const text = String(raw ?? '').replace(/[\u2010-\u2015\u2212]/g, '-').trim();
+  if (!text) return null;
+  try {
+    return normalizePhoneNumber(text);
+  } catch {
+    anomalies.push(`${what}: phone number not usable "${text}"`);
+    return null;
+  }
+}
+
+/** Our catalogue item for a website report type: the same id the website flow sells today. */
+function reportCatalogItem(websiteType: string): { catalogId: string; title: string } {
+  const product = WEBSITE_REPORT_PRODUCTS.find((p) => p.reportType === websiteType);
+  if (product) {
+    return { catalogId: product.catalogId, title: COMMERCE_CATALOG[product.catalogId]?.title ?? product.name };
+  }
+  return { catalogId: 'report-kundli', title: COMMERCE_CATALOG['report-kundli']?.title ?? 'Kundli' };
+}
+
+/**
+ * One sale line with the website's own GST (`gst: { rate, type, taxableAmount, amount }`, INR;
+ * taxableAmount + amount = baseAmount on every record). Without it the line carries no GST.
+ */
+function gstLine(doc: AnyDoc): { unitPrice: number; taxRate: number; taxAmount: number; taxInclusive: boolean; totalAmount: number } {
+  const total = toPaise(doc.baseAmount ?? doc.amount);
+  const gst = doc.gst;
+  if (!gst || !(toNum(gst.amount) > 0)) {
+    return { unitPrice: total, taxRate: 0, taxAmount: 0, taxInclusive: true, totalAmount: total };
+  }
+  const taxAmount = toPaise(gst.amount);
+  const inclusive = String(gst.type ?? '').toLowerCase() !== 'exclusive';
+  return {
+    unitPrice: inclusive ? total : total - taxAmount,
+    taxRate: Math.round(toNum(gst.rate) * 100),
+    taxAmount,
+    taxInclusive: inclusive,
+    totalAmount: total,
+  };
+}
+
 function deterministicUuid(seed: string): string {
   const hex = crypto.createHash('sha256').update(seed).digest('hex');
   return [
@@ -165,7 +243,12 @@ function mapConsultationMode(mode: string): ConsultationMode {
       return ConsultationMode.AUDIO;
     case 'in_person':
       return ConsultationMode.IN_PERSON;
+    case 'message':
+      return ConsultationMode.MESSAGE;
+    case 'video':
+      return ConsultationMode.VIDEO;
     default:
+      anomalies.push(`consultation mode "${mode}" not known; migrated as video`);
       return ConsultationMode.VIDEO;
   }
 }
@@ -212,6 +295,20 @@ async function main() {
   const invoiceCounters = readJson(backupDir, 'invoicecounters');
   const carts = readJson(backupDir, 'carts');
   const wishlists = readJson(backupDir, 'wishlists');
+
+  // Payment time of each sale: its first successful transaction. The sale records have no paid
+  // date of their own, and `updatedAt` moves on every later edit (report sent, reminder, notes),
+  // which would put an invoice in the wrong GST month.
+  const paidAtBySource = new Map<string, Date>();
+  for (const tx of transactions) {
+    if (tx.status !== 'success' && tx.status !== 'paid') continue;
+    const source = tx.order ? String(tx.order) : tx.report ? String(tx.report) : tx.booking ? String(tx.booking) : null;
+    if (!source) continue;
+    const at = toDate(tx.createdAt);
+    const known = paidAtBySource.get(source);
+    if (!known || at < known) paidAtBySource.set(source, at);
+  }
+  const paidAtOf = (legacyId: string, doc: AnyDoc): Date => paidAtBySource.get(legacyId) ?? toDate(doc.paidAt ?? doc.payment?.paidAt ?? doc.createdAt);
 
   // S3 analysis: detect overlapping admin + customer emails
   const adminByEmail = new Map<string, AnyDoc>();
@@ -261,6 +358,27 @@ async function main() {
   const mongoVariantToPgId = new Map<string, string>();
   const mongoConsultationToPgId = new Map<string, string>();
   const mongoSaleToOrderPgId = new Map<string, string>();
+
+  /**
+   * Sales of a customer the website has since deleted (the user document is gone) are kept, under
+   * one "Deleted User" account per missing customer (owner decision S4): the ledger, the GST
+   * totals and the invoice series must stay complete.
+   */
+  const deletedUserFor = async (legacyUserId: string): Promise<string | undefined> => {
+    if (!legacyUserId || legacyUserId === 'undefined' || legacyUserId === 'null') return undefined;
+    const known = mongoUserToPgId.get(legacyUserId);
+    if (known) return known;
+    const id = deterministicUuid(`deleted-user:${legacyUserId}`);
+    await prisma.user.upsert({
+      where: { id },
+      create: { id, fullName: 'Deleted User', role: Role.USER },
+      update: {},
+    });
+    anomalies.push(`customer ${legacyUserId}: no longer exists on the website; their sales are kept under a "Deleted User" account`);
+    mongoUserToPgId.set(legacyUserId, id);
+    mongoUserDisplay.set(legacyUserId, { name: 'Deleted User', email: null, phone: null });
+    return id;
+  };
 
   try {
     // 1. Permissions map
@@ -372,6 +490,17 @@ async function main() {
         const pgId = mongoUserToPgId.get(mergedAdminId)!;
         mongoUserToPgId.set(legacyId, pgId);
         mongoUserDisplay.set(legacyId, mongoUserDisplay.get(mergedAdminId)!);
+        // The customer side signs in by OTP: the merged account needs the customer's phone.
+        const mergedPhone = normalisePhone(u.phoneNumber, `user ${legacyId}`);
+        if (mergedPhone) {
+          const holder = await prisma.user.findUnique({ where: { phoneNumber: mergedPhone }, select: { id: true } });
+          const staff = await prisma.user.findUnique({ where: { id: pgId }, select: { phoneNumber: true } });
+          if (!holder && !staff?.phoneNumber) {
+            await prisma.user.update({ where: { id: pgId }, data: { phoneNumber: mergedPhone, phoneVerifiedAt: u.isVerified ? new Date() : null } });
+          } else if (holder && holder.id !== pgId) {
+            anomalies.push(`user ${legacyId}: merged into staff account, but its phone ${mergedPhone} belongs to another account`);
+          }
+        }
         await prisma.customerProfile.upsert({
           where: { userId: pgId },
           create: {
@@ -391,16 +520,19 @@ async function main() {
       }
 
       const email = u.email ? String(u.email).trim().toLowerCase() : null;
-      let phone = u.phoneNumber ? String(u.phoneNumber).trim() : null;
-      if (phone && usedPhones.has(phone)) {
-        phone = null;
-      } else if (phone) {
-        usedPhones.add(phone);
-      }
+      const phone = normalisePhone(u.phoneNumber, `user ${legacyId}`);
 
-      let existing: { id: string } | null = null;
-      if (email) existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-      if (!existing && phone) existing = await prisma.user.findUnique({ where: { phoneNumber: phone }, select: { id: true } });
+      // The same person (same e-mail, or same phone once normalised) is ONE account: an earlier
+      // website account or an app account. Their history is merged into it.
+      let existing: { id: string; phoneNumber: string | null } | null = null;
+      if (email) existing = await prisma.user.findUnique({ where: { email }, select: { id: true, phoneNumber: true } });
+      if (!existing && phone) existing = await prisma.user.findUnique({ where: { phoneNumber: phone }, select: { id: true, phoneNumber: true } });
+      if (existing && phone && existing.phoneNumber && existing.phoneNumber !== phone) {
+        anomalies.push(`user ${legacyId}: merged by e-mail into an account with another phone (${existing.phoneNumber}); kept that phone`);
+      }
+      if (phone && usedPhones.has(phone) && !existing) {
+        anomalies.push(`user ${legacyId}: phone already used by another account; migrated without phone`);
+      }
 
       const userId = existing?.id ?? deterministicUuid(`user:${legacyId}`);
       const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username || 'Customer';
@@ -410,7 +542,7 @@ async function main() {
         create: {
           id: userId,
           email,
-          phoneNumber: phone,
+          phoneNumber: phone && !usedPhones.has(phone) ? phone : null,
           fullName: String(fullName),
           role: Role.USER,
           emailVerifiedAt: u.isVerified && email ? new Date() : null,
@@ -419,6 +551,7 @@ async function main() {
         },
         update: {},
       });
+      if (phone) usedPhones.add(phone);
       mongoUserToPgId.set(legacyId, user.id);
       mongoUserDisplay.set(legacyId, { name: String(fullName), email, phone });
 
@@ -889,7 +1022,8 @@ async function main() {
           kind: con.type === 'special' ? ConsultationTypeKind.SPECIAL : ConsultationTypeKind.NORMAL,
           description: con.description ? String(con.description) : null,
           includes: Array.isArray(con.includes) ? con.includes.map(String) : [],
-          durationMinutes: Number(con.duration ?? 30),
+          // A message-only consultation has no duration on the website.
+          durationMinutes: con.duration != null ? Number(con.duration) : (Array.isArray(con.modes) && con.modes.every((m: AnyDoc) => m.mode === 'message') ? 0 : 30),
           responseDays: Number(con.responseDays ?? 0),
           priceLabel: con.priceLabel ? String(con.priceLabel) : null,
           note: con.note ? String(con.note) : null,
@@ -956,7 +1090,7 @@ async function main() {
     // 10. Shop Orders
     for (const o of orders) {
       const legacyId = String(o._id);
-      const userId = mongoUserToPgId.get(String(o.user));
+      const userId = await deletedUserFor(String(o.user));
       if (!userId) continue;
       const currency = String(o.currency ?? 'INR').toUpperCase();
       const paymentState = mapLegacyPaymentState(o.payment?.status);
@@ -975,7 +1109,7 @@ async function main() {
           status: paymentState.orderStatus,
           paymentStatus: paymentState.paymentStatus,
           paymentMethod,
-          paidAt: paid ? toDate(o.payment?.paidAt ?? o.updatedAt ?? o.createdAt) : null,
+          paidAt: paid ? paidAtOf(legacyId, o) : null,
           amount: totalPaise,
           currency: 'INR',
           paidCurrency: currency,
@@ -989,7 +1123,7 @@ async function main() {
           createdAt: toDate(o.createdAt),
         },
         update: { status: paymentState.orderStatus, paymentStatus: paymentState.paymentStatus, paymentMethod,
-          paidAt: paid ? toDate(o.payment?.paidAt ?? o.updatedAt ?? o.createdAt) : null },
+          paidAt: paid ? paidAtOf(legacyId, o) : null },
       });
       mongoSaleToOrderPgId.set(legacyId, createdOrder.id);
 
@@ -1050,7 +1184,7 @@ async function main() {
     // 11. Downloads -> DigitalProductEntitlement
     for (const d of downloads) {
       const legacyId = String(d._id);
-      const userId = mongoUserToPgId.get(String(d.user));
+      const userId = await deletedUserFor(String(d.user));
       const orderId = mongoSaleToOrderPgId.get(String(d.order));
       const productId = mongoProductToPgId.get(String(d.product));
       if (!userId || !orderId || !productId) continue;
@@ -1085,13 +1219,13 @@ async function main() {
     // 12. Report Orders (creates a BirthProfile per report order if needed)
     for (const ro of reportOrders) {
       const legacyId = String(ro._id);
-      const userId = mongoUserToPgId.get(String(ro.userId));
+      const userId = await deletedUserFor(String(ro.userId));
       if (!userId) continue;
       const paymentState = mapLegacyPaymentState(ro.paymentStatus);
       const paid = paymentState.paid;
       const orderId = deterministicUuid(`reportorder:${legacyId}`);
       const currency = String(ro.currency ?? 'INR').toUpperCase();
-      const paidAt = paid ? toDate(ro.paidAt ?? ro.updatedAt ?? ro.createdAt) : null;
+      const paidAt = paid ? paidAtOf(legacyId, ro) : null;
 
       await prisma.order.upsert({
         where: { id: orderId },
@@ -1114,23 +1248,45 @@ async function main() {
       });
       mongoSaleToOrderPgId.set(legacyId, orderId);
 
-      const bpId = deterministicUuid(`bp:${legacyId}`);
-      const cd = ro.customerDetails ?? {};
-      await prisma.birthProfile.upsert({
-        where: { id: bpId },
-        create: {
-          id: bpId,
-          userId,
-          name: String(cd.fullName ?? cd.name ?? 'Migrated Profile'),
-          dateOfBirth: toYmd(cd.dob ?? cd.dateOfBirth ?? ro.createdAt),
-          timeOfBirth: String(cd.birthTime ?? cd.timeOfBirth ?? '12:00:00'),
-          placeName: String(cd.birthPlace ?? cd.placeOfBirth ?? 'India'),
-          latitude: Number(cd.latitude ?? 28.6139),
-          longitude: Number(cd.longitude ?? 77.209),
-          timezone: String(cd.timezone ?? 'Asia/Kolkata'),
-        },
-        update: {},
-      });
+      // Birth data as the customer entered it. Match-making orders hold the couple in
+      // matchMakingDetails (groom = main profile, bride = partner, as the website flow does).
+      const mm = ro.matchMakingDetails ?? null;
+      const people: Array<{ key: string; person: AnyDoc }> = mm
+        ? [{ key: 'groom', person: mm.groom ?? {} }, { key: 'bride', person: mm.bride ?? {} }]
+        : [{ key: 'self', person: ro.customerDetails ?? {} }];
+      const profileIds: string[] = [];
+      for (const { key, person } of people) {
+        const profileId = deterministicUuid(key === 'self' ? `bp:${legacyId}` : `bp:${legacyId}:${key}`);
+        const dob = strictYmd(person.dateOfBirth ?? person.dob, `report order ${legacyId} ${key} date of birth`);
+        const lat = Number(person.latitude);
+        const lon = Number(person.longitude);
+        const resolved = dob !== null && Number.isFinite(lat) && Number.isFinite(lon) && /^\d{1,2}:\d{2}/.test(String(person.timeOfBirth ?? ''));
+        if (!resolved) anomalies.push(`report order ${legacyId} ${key}: incomplete birth details; profile kept but marked unresolved`);
+        await prisma.birthProfile.upsert({
+          where: { id: profileId },
+          create: {
+            id: profileId,
+            userId,
+            name: String(person.fullName ?? person.name ?? '').trim() || 'Unnamed',
+            dateOfBirth: dob ?? '1900-01-01',
+            timeOfBirth: String(person.timeOfBirth ?? '').trim() || '00:00',
+            placeName: person.birthPlace ? String(person.birthPlace) : null,
+            latitude: Number.isFinite(lat) ? lat : 0,
+            longitude: Number.isFinite(lon) ? lon : 0,
+            timezone: String(person.timezone ?? 'Asia/Kolkata'),
+            isResolved: resolved,
+            gender: person.gender ? String(person.gender).toLowerCase() : null,
+            createdAt: toDate(ro.createdAt),
+          },
+          update: {},
+        });
+        profileIds.push(profileId);
+      }
+      const bpId = profileIds[0];
+      const partnerProfileId = profileIds[1] ?? null;
+      const language = String(ro.customerDetails?.reportLanguage ?? mm?.reportLanguage ?? ro.reportLanguage ?? 'en') === 'hi' ? 'hi' : 'en';
+      const reportItem = reportCatalogItem(String(ro.reportType ?? ''));
+      const reportLine = gstLine(ro);
 
       const reportId = deterministicUuid(`report:${legacyId}`);
       await prisma.report.upsert({
@@ -1147,8 +1303,9 @@ async function main() {
               : ro.reportStatus === 'processing'
               ? ReportStatus.PROCESSING
               : ReportStatus.QUEUED,
-          s3Url: ro.reportUrl ? String(ro.reportUrl) : null,
-          language: cd.reportLanguage === 'hi' ? 'hi' : 'en',
+          s3Url: typeof ro.reportUrl === 'string' && ro.reportUrl ? ro.reportUrl : null,
+          language,
+          ...(partnerProfileId ? { metadata: { partnerProfileId, source: 'website' } } : {}),
           createdAt: toDate(ro.createdAt),
         },
         update: {},
@@ -1162,13 +1319,17 @@ async function main() {
           status: mapInvoiceStatus(ro.invoiceAllocationStatus, ro.invoiceNumber),
           allocatedAt: String(ro.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(ro.updatedAt ?? ro.createdAt) : null },
       });
+      const reportItemData = {
+        orderId, itemType: OrderItemType.REPORT,
+        catalogId: reportItem.catalogId, title: reportItem.title,
+        ...reportLine,
+        currency: 'INR', fulfillmentType: 'DIGITAL' as const, fulfillmentStatus: paid ? ('FULFILLED' as const) : ('UNFULFILLED' as const),
+        metadata: { source: 'website', websiteReportType: String(ro.reportType ?? ''), language, birthProfileId: bpId, ...(partnerProfileId ? { partnerProfileId } : {}) },
+      };
       await prisma.orderItem.upsert({ where: { id: deterministicUuid(`report-item:${legacyId}`) }, create: {
-        id: deterministicUuid(`report-item:${legacyId}`), orderId, itemType: OrderItemType.REPORT,
-        catalogId: String(ro.reportType ?? 'report'), title: String(ro.reportType ?? 'Report'),
-        unitPrice: toPaise(ro.baseAmount ?? ro.amount), totalAmount: toPaise(ro.baseAmount ?? ro.amount),
-        currency: 'INR', fulfillmentType: 'DIGITAL', fulfillmentStatus: paid ? 'FULFILLED' : 'UNFULFILLED',
-        createdAt: toDate(ro.createdAt),
-      }, update: {} });
+        id: deterministicUuid(`report-item:${legacyId}`), ...reportItemData, createdAt: toDate(ro.createdAt),
+      }, update: reportItemData });
+      await prisma.order.update({ where: { id: orderId }, data: { taxAmount: reportLine.taxAmount } });
     }
 
     // 13. Consultation Bookings
@@ -1178,14 +1339,14 @@ async function main() {
 
     for (const b of bookings) {
       const legacyId = String(b._id);
-      const userId = mongoUserToPgId.get(String(b.userId));
+      const userId = await deletedUserFor(String(b.userId));
       const consultationTypeId = mongoConsultationToPgId.get(String(b.consultationId));
       if (!userId) continue;
       const paymentState = mapLegacyPaymentState(b.paymentStatus);
       const paid = paymentState.paid;
       const orderId = deterministicUuid(`bookingorder:${legacyId}`);
       const currency = String(b.currency ?? 'INR').toUpperCase();
-      const paidAt = paid ? toDate(b.paidAt ?? b.updatedAt ?? b.createdAt) : null;
+      const paidAt = paid ? paidAtOf(legacyId, b) : null;
       const bookingPaymentMethod = String(b.paymentMethod ?? '').toLowerCase() === 'manual' || String(b.bookingSource ?? '').toLowerCase() === 'admin'
         ? SalePaymentMethod.MANUAL : SalePaymentMethod.RAZORPAY;
 
@@ -1211,10 +1372,25 @@ async function main() {
       });
       mongoSaleToOrderPgId.set(legacyId, orderId);
 
-      const dateYmd = toYmd(b.date);
-      const slotParts = String(b.slot ?? '11:00-11:30').split('-');
-      const startTime = slotParts[0]?.trim() || '11:00';
-      const endTime = slotParts[1]?.trim() || '11:30';
+      // A MESSAGE consultation has no date and no slot (website, 2026-11-25).
+      const isMessage = String(b.mode ?? '').toLowerCase() === 'message';
+      const strictDate = isMessage ? null : strictYmd(b.date, `booking ${legacyId}`);
+      if (!isMessage && !strictDate) continue;
+      const dateYmd = strictDate;
+      const slotParts = String(b.slot ?? '').split('-');
+      const startTime = isMessage ? null : slotParts[0]?.trim() || null;
+      const endTime = isMessage ? null : slotParts[1]?.trim() || null;
+      if (!isMessage && (!startTime || !endTime)) {
+        anomalies.push(`booking ${legacyId}: unreadable slot "${b.slot ?? ''}"`);
+        continue;
+      }
+      const response = b.consultationResponse?.text
+        ? {
+            responseText: String(b.consultationResponse.text),
+            respondedAt: toDate(b.consultationResponse.respondedAt ?? b.updatedAt),
+            respondedBy: b.consultationResponse.respondedBy ? String(b.consultationResponse.respondedBy) : null,
+          }
+        : {};
       const display = mongoUserDisplay.get(String(b.userId)) ?? { name: 'Customer', email: null, phone: null };
       const modeEnum = mapConsultationMode(String(b.mode ?? 'video'));
 
@@ -1234,19 +1410,53 @@ async function main() {
           date: dateYmd,
           startTime,
           endTime,
-          slotStartTimeUtc: istSlotToUtc(dateYmd, startTime),
-          slotEndTimeUtc: istSlotToUtc(dateYmd, endTime),
-          durationMinutes: Number(b.duration ?? 30),
+          slotStartTimeUtc: dateYmd && startTime ? istSlotToUtc(dateYmd, startTime) : null,
+          slotEndTimeUtc: dateYmd && endTime ? istSlotToUtc(dateYmd, endTime) : null,
+          durationMinutes: Number(b.duration ?? (isMessage ? 0 : 30)),
+          note: b.note ? String(b.note) : null,
+          ...response,
           customerName: display.name,
           customerEmail: display.email,
           customerPhone: display.phone,
-          status: b.isDeleted ? BookingStatus.CANCELLED : paid ? BookingStatus.CONFIRMED : BookingStatus.PENDING_PAYMENT,
+          status: b.isDeleted
+            ? BookingStatus.CANCELLED
+            : String(b.status) === 'completed'
+              ? BookingStatus.COMPLETED
+              : paid
+                ? BookingStatus.CONFIRMED
+                : BookingStatus.PENDING_PAYMENT,
           pricePaise: toPaise(b.baseAmount ?? b.price ?? b.amount),
           amountPaise: toPaise(b.baseAmount ?? b.amount),
           createdAt: toDate(b.createdAt),
         },
-        update: {},
+        // The appointment always comes from the source: an earlier run read DD-MM-YYYY dates as
+        // MM-DD-YYYY (or as "today" when the day was over 12), and a re-run must correct that.
+        update: {
+          date: dateYmd,
+          startTime,
+          endTime,
+          slotStartTimeUtc: dateYmd && startTime ? istSlotToUtc(dateYmd, startTime) : null,
+          slotEndTimeUtc: dateYmd && endTime ? istSlotToUtc(dateYmd, endTime) : null,
+          ...response,
+        },
       });
+      // Staff history of the booking (reschedules, plan changes, notes): kept as written.
+      for (const [index, n] of (Array.isArray(b.adminNotes) ? b.adminNotes : []).entries()) {
+        const action = String(n.action ?? '').toLowerCase();
+        const noteId = deterministicUuid(`booking-note:${legacyId}:${index}`);
+        await prisma.bookingAdminNote.upsert({
+          where: { id: noteId },
+          create: {
+            id: noteId,
+            bookingId: deterministicUuid(`booking:${legacyId}`),
+            action: action === 'plan_change' ? 'PLAN_CHANGE' : action === 'reschedule' ? 'RESCHEDULE' : 'NOTE',
+            note: n.note ? String(n.note) : null,
+            addedByName: n.addedBy ? String(n.addedBy) : null,
+            createdAt: toDate(n.createdAt ?? b.updatedAt),
+          },
+          update: {},
+        });
+      }
       if (b.invoiceNumber || b.invoiceAllocationStatus) {
         await prisma.consultationBooking.update({ where: { legacyId }, data: { invoiceNumber: b.invoiceNumber ? String(b.invoiceNumber) : null } });
         await prisma.invoice.upsert({ where: { legacyId }, create: { legacyId, orderId, saleType: LedgerTransactionType.CONSULTATION,
@@ -1257,20 +1467,28 @@ async function main() {
             status: mapInvoiceStatus(b.invoiceAllocationStatus, b.invoiceNumber),
             allocatedAt: String(b.invoiceAllocationStatus).toLowerCase() === 'allocated' ? toDate(b.updatedAt ?? b.createdAt) : null } });
       }
-      await prisma.orderItem.upsert({ where: { id: deterministicUuid(`booking-item:${legacyId}`) }, create: {
-        id: deterministicUuid(`booking-item:${legacyId}`), orderId, itemType: OrderItemType.CONSULTATION,
+      const bookingLine = gstLine(b);
+      const bookingItemData = {
+        orderId, itemType: OrderItemType.CONSULTATION,
         catalogId: `consult-${String(b.consultationId)}-${modeEnum.toLowerCase()}`,
         title: consultationTitleByLegacyId.get(String(b.consultationId)) ?? 'Consultation',
-        unitPrice: toPaise(b.baseAmount ?? b.amount), totalAmount: toPaise(b.baseAmount ?? b.amount),
-        currency: 'INR', fulfillmentType: 'SERVICE', fulfillmentStatus: paid ? 'FULFILLED' : 'UNFULFILLED',
-        metadata: { bookingId: deterministicUuid(`booking:${legacyId}`) }, createdAt: toDate(b.createdAt),
-      }, update: {} });
+        ...bookingLine,
+        currency: 'INR', fulfillmentType: 'SERVICE' as const, fulfillmentStatus: paid ? ('FULFILLED' as const) : ('UNFULFILLED' as const),
+        metadata: {
+          bookingId: deterministicUuid(`booking:${legacyId}`),
+          ...(toNum(b.discountAmount) > 0 ? { websiteDiscountPaise: toPaise(b.discountAmount), discountType: b.discountType ?? null } : {}),
+        },
+      };
+      await prisma.orderItem.upsert({ where: { id: deterministicUuid(`booking-item:${legacyId}`) }, create: {
+        id: deterministicUuid(`booking-item:${legacyId}`), ...bookingItemData, createdAt: toDate(b.createdAt),
+      }, update: bookingItemData });
+      await prisma.order.update({ where: { id: orderId }, data: { taxAmount: bookingLine.taxAmount } });
     }
 
     // 14. Payment Transactions
     for (const tx of transactions) {
       const legacyId = String(tx._id);
-      const userId = mongoUserToPgId.get(String(tx.user));
+      const userId = await deletedUserFor(String(tx.user));
       if (!userId) continue;
       const legacySourceId = tx.order ? String(tx.order) : tx.report ? String(tx.report) : tx.booking ? String(tx.booking) : null;
       const orderId = legacySourceId ? mongoSaleToOrderPgId.get(legacySourceId) ?? null : null;
@@ -1362,6 +1580,11 @@ async function main() {
 
     // Historical counters are reported in preflight only. Per money.md, a super admin
     // initializes the PostgreSQL counter after reviewing migrated invoice numbers.
+    const identity = await backfillAccountNamesAndSelf(prisma);
+    console.log(`\nAccounts named from a birth profile: ${identity.named}; profiles marked Self: ${identity.selfMarked}`);
+    const anomalyFile = path.join(backupDir, 'migration-anomalies.txt');
+    fs.writeFileSync(anomalyFile, anomalies.join('\n') + '\n', 'utf8');
+    console.log(`\nSource-data anomalies: ${anomalies.length} (listed in ${anomalyFile})`);
     console.log('\nMigration completed successfully.');
   } finally {
     await prisma.$disconnect();
