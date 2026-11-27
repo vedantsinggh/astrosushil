@@ -8,7 +8,7 @@ This file contains permanent directives, architectural rules, and mandatory stan
 
 1. **Monorepo & Modular Monolith**:
    - Do **NOT** alter the repository architecture or split services into microservices without explicit, written human approval and technical justification.
-   - Respect package boundaries (`apps/`, `packages/`, `workers/`). Reusable business logic belongs in internal TypeScript packages, not duplicated inside applications.
+   - Respect package boundaries (`apps/`, `packages/`). Reusable business logic belongs in internal TypeScript packages, not duplicated inside applications.
 
 2. **No Paid Third-Party Astrology APIs**:
    - Never introduce dependencies on external paid per-request astrology APIs.
@@ -26,6 +26,7 @@ This file contains permanent directives, architectural rules, and mandatory stan
 5. **Client Channel Isolation**:
    - **Flutter Mobile App**: Must communicate exclusively via backend REST / WebSocket APIs. Flutter must **NEVER** connect directly to PostgreSQL, Redis, or external third-party services (except client-side SDKs like Razorpay SDK or FCM).
    - **Next.js Admin Panel**: Must communicate exclusively via backend admin APIs.
+   - **Customer Website (`apps/website`)**: Must communicate exclusively via the backend `/api/v1` APIs. The client's original website repositories are read-only references; never push to them.
    - **WhatsApp**: Is an external messaging channel integrated via backend webhooks (Meta WhatsApp Business API), **NOT** a standalone frontend application.
    - **Business Logic Placement**: All astrological, financial, and domain business logic must remain in backend packages/services, **NEVER** in Flutter or React UI components.
 
@@ -46,7 +47,7 @@ This file contains permanent directives, architectural rules, and mandatory stan
    - Predictive rules must have deterministic test fixtures based on verified reference charts.
 
 4. **Follow `/docs` Specifications**:
-   - Always reference specification files located in `/docs` (`astrology-spec.md`, `gupta-nadi-spec.md`, `report-spec.md`, etc.).
+   - Always reference specification files located in `/docs` (`astrology-spec.md`, `gupta-nadi-spec.md`, `report-spec.md`, etc.). `docs/README.md` lists every current document; report-system decisions are in `docs/report-system/DECISIONS.md`, and website-integration decisions in `docs/integration/open-questions.md`.
    - Do **NOT** invent astrology rules or guess calculation logic.
    - **NEVER** silently change the client's astrology rules or Brihaspati Nandi Nadi (BNN) methodology.
 
@@ -60,8 +61,10 @@ This file contains permanent directives, architectural rules, and mandatory stan
 ```
 astro-platform/
 ├── apps/
-│   ├── api/                  # Node.js + Fastify API backend
-│   ├── mobile/               # Flutter mobile app
+│   ├── api/                  # Node.js + Fastify API backend (background jobs run inside it)
+│   ├── website/              # Customer website (React + Vite)
+│   ├── mobile/               # Flutter mobile app (Android & iOS)
+│   ├── desktop/              # Flutter desktop astrology workstation (offline)
 │   └── admin/                # Next.js admin portal
 ├── packages/
 │   ├── astrology-engine/     # Ephemeris & chart calculations
@@ -69,9 +72,8 @@ astro-platform/
 │   ├── prediction-engine/    # Rule-based prediction compiler
 │   ├── report-engine/        # Document & PDF generation pipelines
 │   └── shared/               # Shared TypeScript types, DTOs & utilities
-├── workers/                  # Background worker processors (BullMQ)
 ├── infrastructure/           # Docker, CI/CD scripts, deployment configs
-└── docs/                     # Technical specifications and documentation
+└── docs/                     # Specifications and documentation; index in docs/README.md
 ```
 
 ---

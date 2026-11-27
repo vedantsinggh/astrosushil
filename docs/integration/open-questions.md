@@ -1,6 +1,6 @@
 # Website integration: decisions needed from the owner
 
-**Last updated:** 2026-11-25 (third round of decisions recorded)
+**Last updated:** 2026-11-26 (admin completion decisions recorded)
 
 Each item says what is built today, so nothing is blocked while it is open. Full detail is in the module documents under `docs/integration/modules/`.
 
@@ -42,6 +42,23 @@ Each item says what is built today, so nothing is blocked while it is open. Full
 | C2 Upload size caps | Keep 10 MB for images, 50 MB for videos and digital product files. | Done |
 | C3 Blog URL slugs | Keep the blog URL slug fixed once set. | Done |
 | C4 Extra website settings | Keep stored for display/migration compatibility only. | Done |
+
+## Decided on 2026-11-26 (admin completion)
+
+| Item | Decision | Status |
+|---|---|---|
+| Admin rate limits | No rate limit for staff: every `/api/v1/admin/*` path and any request with a valid staff token is exempt. Staff login (30/min) and the reset-code endpoints (10/min) keep a limit against guessing. | Done |
+| Blocked days | Staff can book and reschedule onto blocked days and blocked slots (only another booking or a live payment hold refuses). | Done (already built, tests in `bookings-service.test.ts`) |
+| PDF Reports catalogue | Editable in the admin: name, slug, texts, cover, price before GST, GST rate, struck-through price, SAC, benefits, features, FAQs, on/off sale. The report types stay fixed; no delete, only "off sale"; "reset to original" removes the edits. | Done |
+| GST tax invoice | Invoices print "TAX INVOICE", invoice date (payment date), HSN/SAC per line, place of supply as "27-Maharashtra", and CGST + SGST (same state as seller) or IGST (other state). INV-AS/<n> numbering unchanged. | Done |
+| HSN/SAC codes | Blank by default; set per type in Website Settings → GST Invoice, per product, and per PDF report. Never guessed: the owner's CA supplies them. The register flags lines without a code. | Waiting for the CA's codes |
+| Invoice register | Admin → Invoices & GST Register: month / financial year / date range; totals by rate; CSV (one row per line), HSN summary (GSTR-1 table 12), state-wise summary (GSTR-1 B2C), and a ZIP of all invoice PDFs with the CSVs (`fflate`, MIT). | Done |
+| Website "Shipping & Delivery" screen | Not ported: it is mock data on the website (no backend, Shiprocket code commented out). | Skipped |
+| Admin look | Light business UI, no emojis, line icons, website screens first, app-only screens under "Mobile App", technical ones under "System". | Done |
+
+Open from this round:
+- **Migrated history in the local copy:** 878 migrated paid orders have no order lines, no payment date and no invoice row, so they cannot appear in the invoice register. Check the migration of the website's transactions/orders before cut-over.
+- **Foreign-currency sales:** the place of supply is the seller's state when the customer gave no state (website rule), so they print CGST + SGST. Confirm with the CA (export of services may need different treatment).
 
 The items below are still open unless listed above.
 

@@ -1,178 +1,45 @@
-# Architecture Overview - Astro Sushil Platform
+# System Architecture
 
-## 1. Architectural Principles
+Astro Sushil is a **modular monolith** TypeScript/Dart monorepo designed around deterministic Vedic astrological calculations, strict client-channel isolation, and auditable commerce & fulfillment.
 
-The **Astro Sushil** platform is designed around four core architectural principles:
+## 1. Repository Layout
 
-1. **Modular Monolith**: Initial development is structured as a single monorepo containing a unified Fastify backend monolith with cleanly decoupled internal packages. Microservices are deliberately avoided unless strict technical scalability limits necessitate service extraction.
-2. **Deterministic Computation**: Astrological chart calculations, planetary positions, divisional charts (Vargas), and Gupta Nadi rule matchers run deterministically.
-3. **LLM as Formatting Layer**: Large Language Models (LLMs) format and enrich structured outputs into fluent prose. The LLM is never part of the calculation or prediction logic pipeline.
-4. **Channel Agnostic Core**: Core business rules reside in backend modules and packages. Client channels (Mobile, Admin Web, WhatsApp) interface purely through secure API contracts.
-
----
-
-## 2. System Component Categories
-
-To ensure clear ownership and boundaries, system components are categorized into four distinct layers:
-
-### A. Applications (`apps/`)
-Deployable user-facing software and API entry points.
-- **`apps/api`**: Node.js Fastify REST & WebSocket API service. Serves as the central application server orchestrating business logic, auth, and worker queues.
-- **`apps/mobile`**: Cross-platform mobile client built with Flutter (iOS & Android). Interacts exclusively with `apps/api`.
-- **`apps/admin`**: Web management dashboard built with Next.js (React). Interacts exclusively with `apps/api` for administrative and monitoring operations.
-
-### B. Internal Packages (`packages/`)
-Reusable internal TypeScript libraries compiled into the Fastify backend. These are **NOT separate deployed server processes**, but modular libraries maintaining domain encapsulation.
-- **`packages/astrology-engine`**: Handles ephemeris calculations, planetary coordinates, Lagna calculation, house division, Vargas, Dashas, and Panchang.
-- **`packages/gupta-nadi-engine`**: Implements Brihaspati Nandi Nadi (BNN) rule evaluation, planet-combination matrix, directional aspects, and transit overlays.
-- **`packages/prediction-engine`**: Compiles raw chart calculations and Nadi rules into deterministic prediction output trees.
-- **`packages/report-engine`**: Orchestrates PDF compilation, template rendering, and async job creation for generated reports.
-- **`packages/shared`**: Data transfer objects (DTOs), interface definitions, utility helpers, and constants shared across backend services.
-
-### C. Fastify API Integration Architecture (`apps/api/src/modules/astrology`)
-To expose the domain computational packages cleanly through the Fastify backend without framework pollution, the application layer implements strict boundary mappers and application services:
-
-```
-HTTP Request
-    │
-    ▼
-Fastify Route (`astrology.routes.ts`)
-    │ (Auth Hook: Bearer JWT)
-    ▼
-Request Validation (`astrology.schemas.ts`)
-    │
-    ▼
-Astrology Application Service (`astrology.service.ts`)
-    │ (Server-Side Ownership Check: userId == profile.userId)
-    ▼
-Birth Profile Repository / Prisma DB (`birth_profiles`)
-    │
-    ▼
-BirthDetails Mapper (`birth-details.mapper.ts`)
-    │ (Converts Prisma model to domain BirthDetails)
-    ▼
-Astrology Engine (`@astro/astrology-engine`)
-    │ (Executes local AstronomyEngineAdapter / Ephemeris calculation)
-    ▼
-AstroChart Domain Output
-    │
-    ▼
-Response DTO Mapper (`astrology-response.mapper.ts`)
-    │
-    ▼
-HTTP Response (Sanitized JSON DTO)
+```text
+astrosushil/
+├── apps/
+│   ├── api/            # Fastify REST API + Background Worker (Prisma + PostgreSQL)
+│   ├── website/        # React + Vite + Tailwind CSS v4 customer web app
+│   ├── admin/          # Next.js (App Router) internal staff & operations portal
+│   ├── mobile/         # Flutter (iOS & Android) mobile application
+│   └── desktop/        # Desktop application + astrology engine sidecar
+├── packages/
+│   ├── astrology-engine/   # 100% deterministic ephemeris, charts, dashas, panchang, muhurta, lal kitab, kp, jaimini
+│   ├── gupta-nadi-engine/  # Brihaspati Nandi Nadi (BNN) rule evaluation
+│   ├── prediction-engine/  # Rule-based evidence compiler & LLM explanation providers (Gemini/OpenRouter/Groq)
+│   ├── report-engine/      # Universal PDF report platform (LaTeX/PDF) & GST invoice PDF generator
+│   └── shared/             # Shared TypeScript types, DTOs, and utilities
+├── infrastructure/
+│   └── deployment/vm/      # PM2 ecosystem, setup, deploy, and env templates
+└── docs/                   # Authoritative platform documentation
 ```
 
-**Boundary Purity Verification**:
-- `packages/astrology-engine` has ZERO imports of Fastify, Prisma, HTTP libraries, auth libraries, Redis, or BullMQ.
-- All database entities are isolated inside `apps/api` and converted to domain interfaces before reaching `@astro/astrology-engine`.
+## 2. Core Architectural Principles
 
----
+1. **Modular Monolith**: All backend domain logic lives in `apps/api/src/modules/*` and internal `packages/*`. Clients (`apps/website`, `apps/mobile`, `apps/admin`) never connect directly to PostgreSQL, Redis, or external astrology APIs.
+2. **100% Deterministic Calculations**: Planetary longitudes, divisional charts (D1–D60), Vimshottari/Yogini/Chara dashas, Ashtakavarga, and matchmaking are computed locally and deterministically from `(date, time, lat, lon, ayanamsa)`.
+3. **LLM Execution Boundary**: LLMs (`prediction-engine` / `jyoti` / `report-engine`) are strictly used as **natural-language explanation and formatting engines** on top of deterministic evidence snapshots (`Calculations -> Deterministic Prediction -> LLM Formatting`).
+4. **PostgreSQL + Prisma**: Single source of truth across 50+ models including `User`, `BirthProfile`, `Order`, `OrderItem`, `PaymentTransaction`, `Invoice`, `InvoiceCounter`, `Report`, `ConsultationType`, `ConsultationBooking`, `AppointmentSlot`, `Product`, `ShopOrder`, `Course`, `OutboundMessage`, `OtpSendLog`, `AdminRole`, and `AuditLog`.
 
-## 3. Architecture Diagram
+## 3. Runtime Processes (`apps/api`)
 
-```mermaid
-graph TD
-    subgraph Client Channels
-        FlutterApp["Flutter Mobile App (iOS/Android)"]
-        AdminApp["Next.js Admin Panel"]
-        WhatsAppMsg["WhatsApp Client (Meta Platform)"]
-    end
+- **API Server (`apps/api/src/index.ts`)**: Fastify HTTP server serving `/api/v1/*` for Website, Mobile (iOS/Android), Admin Portal, and Razorpay/WhatsApp webhooks.
+- **Background Worker (`apps/api/src/worker.ts`)**:
+  - Claims and executes queued PDF report jobs via `postgresQueueService` + `careerReportWorker` (`FOR UPDATE SKIP LOCKED` + lease fencing).
+  - Runs `messagingScheduler`: outbox dispatch (`OutboundMessage`), `ReportReleaseSweep` (delayed report delivery after `REPORT_SEND_DELAY_HOURS`), `consultationReminderSweep` (daily IST reminders), and OTP send-log cleanup.
+  - Runs `rashiBhavishyaScheduler` (daily 12-sign horoscopes) and `invoiceRecoveryScheduler`.
 
-    subgraph API & Domain Core (Modular Monolith)
-        FastifyAPI["Fastify Backend API (apps/api)"]
-        
-        subgraph Domain Packages (packages/)
-            AstroEng["astrology-engine"]
-            NadiEng["gupta-nadi-engine"]
-            PredEng["prediction-engine"]
-            RepEng["report-engine"]
-        end
-    end
+## 4. Client Isolation & Security Boundaries
 
-    subgraph Data & Queue Infrastructure
-        Postgres[(PostgreSQL DB)]
-        Redis[(Redis Cache & Queue Store)]
-        Workers["BullMQ Background Workers"]
-        ObjectStore["Object Storage (S3 / Cloud Storage)"]
-    end
-
-    subgraph External Services
-        Razorpay["Razorpay Payments"]
-        MetaWA["Meta WhatsApp API"]
-        LLM["LLM Provider (Explanation Only)"]
-        FCM["Firebase Cloud Messaging"]
-    end
-
-    %% Client Connections
-    FlutterApp -->|REST / WebSockets| FastifyAPI
-    AdminApp -->|REST API| FastifyAPI
-    WhatsAppMsg <-->|Webhooks / Delivery| FastifyAPI
-
-    %% Backend Internal Interactions
-    FastifyAPI --> AstroEng
-    FastifyAPI --> NadiEng
-    FastifyAPI --> PredEng
-    FastifyAPI --> RepEng
-
-    %% Data Infrastructure Connections
-    FastifyAPI <--> Postgres
-    FastifyAPI <--> Redis
-    FastifyAPI -->|Enqueue Jobs| Redis
-    Redis <--> Workers
-    Workers <--> Postgres
-    Workers -->|Upload PDFs| ObjectStore
-
-    %% Worker External Interactions
-    Workers -->|Format Prose| LLM
-    Workers -->|Send Push| FCM
-    Workers -->|Send Message| MetaWA
-    FastifyAPI <--> Razorpay
-```
-
----
-
-## 4. End-to-End Data Flow
-
-### Scenario 1: Paid Report Generation Pipeline
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User as Flutter App / User
-    participant API as Fastify API
-    participant DB as PostgreSQL
-    participant RPay as Razorpay
-    participant Q as Redis / BullMQ
-    participant W as Worker Process
-    participant Astro as Astrology / Nadi Engine
-    participant LLM as LLM Provider
-    participant S3 as Object Storage
-
-    User->>API: 1. Request Report Purchase (Birth details + Report Type)
-    API->>DB: 2. Save Order (Status: PENDING)
-    API->>RPay: 3. Create Razorpay Order
-    RPay-->>User: 4. Complete Payment via Razorpay SDK
-    RPay->>API: 5. Webhook Payment Success Signal
-    API->>DB: 6. Update Order Status (PAID)
-    API->>Q: 7. Enqueue Report Generation Job (OrderId, BirthDetails)
-    API-->>User: 8. Return Processing Status
-
-    Q->>W: 9. Pick up Job
-    W->>Astro: 10. Compute Planetary Positions & Evaluate Nadi Rules
-    Astro-->>W: 11. Return Deterministic Prediction JSON
-    W->>LLM: 12. Send Prediction JSON + Prompt Template for Prose Explanation
-    LLM-->>W: 13. Return Natural Language Interpretation
-    W->>W: 14. Render HTML/CSS & Compile PDF Document
-    W->>S3: 15. Upload Generated PDF
-    W->>DB: 16. Store Report S3 URL & Mark Order COMPLETED
-    W->>API: 17. Trigger FCM / WhatsApp Notification to User
-```
-
----
-
-## 5. Architectural Boundaries & Restrictions
-
-1. **Separation of Execution**: Expensive calculations and document generation tasks MUST be delegated to BullMQ workers to prevent blocking Fastify HTTP request loop.
-2. **No Direct DB Access**: Client applications (Flutter, Next.js Admin) must never access PostgreSQL or Redis directly. All interactions go through Fastify API routes with authentication and DTO validation.
-3. **Stateless Backend**: The Fastify API nodes must remain stateless to support horizontal scaling behind a cloud load balancer.
+- **Admin vs. Customer Session Isolation**: Admin browser sessions use `astro_admin_access` / `astro_admin_refresh` cookies (scoped by `/api/v1/admin/*` or `X-Auth-Scope: admin`), while Website customer sessions use `astro_access` / `astro_refresh`. Logging into Admin never logs the user into the Website.
+- **No Client Consultation Rescheduling**: `POST /api/v1/consultations/bookings/:id/reschedule` rejects non-admin callers with `403 Forbidden`; only staff can reschedule via Admin (`PATCH /api/v1/admin/bookings/:id/reschedule`).
+- **Mandatory RBAC & Audit Logging**: Every admin route enforces `checkPermission('module:action')` and logs state changes via `adminService.logAction`.

@@ -118,7 +118,7 @@ packages/
   shared/             Shared types, DTOs and utilities
 workers/          Placeholder for future standalone workers (worker runs in apps/api today)
 infrastructure/   Dockerfiles, docker-compose, nginx and VM deployment kit
-docs/             Specifications, ADRs (docs/decisions.md) and runbooks
+docs/             Specifications and runbooks (index: docs/README.md)
 ```
 
 ---

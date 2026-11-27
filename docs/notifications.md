@@ -1,132 +1,38 @@
-# Astro Sushil - Notifications & Communication Infrastructure (Phase 8)
+# Messaging, Notifications & Report Delivery
 
-This document describes the centralized notification system for **Astro Sushil**, supporting Firebase Cloud Messaging (FCM) push notifications, transactional email delivery, persistent in-app notification records, device token lifecycle management, and admin notification diagnostics.
+All outbound customer communications are managed by `apps/api/src/services/messaging/` and `apps/api/src/modules/notifications/`.
 
----
+## 1. Providers & Environment Configuration
 
-## 1. Architecture Overview
+Configured via `messagingEnv()` (`apps/api/src/services/messaging/config.ts`) and `buildMessagingProviders()` (`provider-registry.ts`):
 
-```
-Business Event (Report Ready / Payment Verified)
-    │
-    ▼
-NotificationService.sendNotification(...)
-    │
-    ├──> IN_APP: Database Record (Prisma `Notification`)
-    │
-    ├──> PUSH: FCM Push Provider (Firebase Cloud Messaging)
-    │     └── DeviceToken query & automatic invalid-token cleanup
-    │
-    ├──> EMAIL: generic e-mail, queued in the outbox and sent by SMTP
-    │     (status QUEUED / SENT / SKIPPED / FAILED - never a silent "sent")
-    │
-    └──> Website channels (notification.bridge.ts): for REPORT_READY, BOOKING_CONFIRMED,
-          BOOKING_RESCHEDULED and PAYMENT_SUCCESS the website's SMS / WhatsApp / e-mail
-          event is raised as well; its e-mail replaces the generic one.
-```
+| Channel | Provider | Env Switch | Required Credentials |
+| --- | --- | --- | --- |
+| **SMS** | **SMSLane** (`SmsLaneProvider`) | `SMS_PROVIDER=smslane \| auto \| fake \| none` | `SMSLANE_API_KEY`, `SMSLANE_CLIENT_ID`, `SMSLANE_SENDER_ID` |
+| **WhatsApp** | **WhatChimp** (`WhatChimpProvider`) | `WHATSAPP_PROVIDER=whatchimp \| auto \| fake \| none` | `WHATCHIMP_API_TOKEN`, `WHATCHIMP_PHONE_NUMBER_ID`, plus `WHATCHIMP_*_TEMPLATE_ID` |
+| **Email** | **SMTP / Nodemailer** (`SmtpEmailProvider`) | `EMAIL_PROVIDER=smtp \| auto \| fake \| none` | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` |
+| **Push** | **Firebase (FCM)** | — | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` |
 
-SMS (SMSLane), WhatsApp (WhatChimp) and SMTP e-mail, the outbox, retries, idempotency,
-the delayed report-ready delivery, the daily consultation reminder and OTP delivery are
-described in [`docs/integration/modules/messaging.md`](integration/modules/messaging.md).
+> **Production Safety**: In `NODE_ENV=production`, `fake` providers are **refused** and treated as unconfigured (`Unconfigured*Provider`).
 
----
+## 2. OTP Delivery (`OtpDeliveryService`)
 
-## 2. Notification Channels
+- OTPs are sent **inline** (never queued in the outbox) and never logged.
+- **Phone OTP**: normalizes to E.164 (`+91...`) and dispatches **both** SMS (India-only) and WhatsApp template (`WHATCHIMP_TEMPLATE_ID`) in parallel. One channel failing never blocks the other.
+- **Email OTP**: dispatches via SMTP.
+- **Rate Limits**: `OtpSendLimiter` (`OtpSendLog` table) defaults to 3 sends per 10 min / 10 per day per identifier, and 10 per 10 min / 50 per day per IP, plus a 60s resend cooldown.
 
-1. **IN_APP**: Persistent in-app notifications stored in the PostgreSQL `notifications` table. Includes `readAt` state and JSON metadata (`entityId`, `route`).
-2. **PUSH (FCM)**: Mobile push notifications delivered via Firebase Cloud Messaging REST API.
-3. **EMAIL**: Transactional HTML & plain text emails rendered via centralized template generators, written to the `outbound_messages` outbox and delivered through the SMTP provider with bounded retries. E-mails that may carry a code (`PASSWORD_RESET`, `SECURITY_ALERT`) are sent at once and never stored. In production a missing SMTP configuration is reported as `FAILED` and logged as an error.
-4. **SMS and WHATSAPP**: Sent for the website's customer events (order, booking, report, reminder) and for OTPs, with the website's providers and approved templates. See `docs/integration/modules/messaging.md`.
+## 3. Outbox & Transactional Events (`NotificationEvents` + `OutboxService`)
 
----
+Non-OTP transactional messages are written to PostgreSQL (`OutboundMessage`) with idempotency keys and dispatched by `messagingScheduler` in `apps/api/src/worker.ts`:
+- `orderConfirmed` / `digitalOrder`
+- `bookingConfirmed`, `bookingUpgraded`, `bookingRescheduled`, `consultationReminder` (daily IST sweep)
+- `reportOrderConfirmed` ("within 48 hours")
+- `reportReady` (Email + WhatsApp link to `${FRONTEND_URL}/dashboard?tab=reports`)
+- `contactInquiryReceived`
 
-## 3. Device Token Lifecycle & Multi-Device Management
+## 4. Delayed Report Release (`REPORT_SEND_DELAY_HOURS`)
 
-- **Multi-Device Support**: A single user may register multiple mobile devices. Tokens are stored in the `device_tokens` table.
-- **Token Reassignment on Login**: If Device A logs out and User B logs in on Device A, the existing `fcmToken` record is reassigned to User B and marked `isActive = true`.
-- **Logout Cleanup**: When a user logs out, the associated device token is marked `isActive = false` to prevent cross-user notification leakage.
-- **FCM Invalid Token Cleanup**: When FCM returns `NotRegistered`, `InvalidRegistration`, `400`, `404`, or `410`, the token is immediately marked `isActive = false` without crashing the job.
-
----
-
-## 4. Allowlisted Push Payload & Navigation
-
-Push notification payloads use structured JSON data:
-
-```json
-{
-  "type": "REPORT_READY",
-  "entityId": "report-uuid",
-  "route": "OPEN_REPORT",
-  "title": "✨ Your Career Report is Ready!",
-  "body": "Your detailed Career Intelligence Report has been compiled."
-}
-```
-
-### Allowlisted Mobile Route Actions
-- `OPEN_REPORT`: Navigates to Career Report view screen.
-- `OPEN_PAYMENTS`: Navigates to Subscriptions & Payment screen.
-- `OPEN_BIRTH_PROFILE`: Navigates to Birth Profile chart view.
-- `OPEN_SETTINGS`: Navigates to Account & Security settings.
-- `OPEN_HOME`: Fallback safe home screen navigation.
-
-*Arbitrary URLs or non-allowlisted routes are rejected by the Flutter app.*
-
----
-
-## 5. Notification Preferences
-
-User preferences are persisted in `notification_preferences`:
-- `pushEnabled` (Boolean)
-- `emailEnabled` (Boolean)
-- `astrologyReminders` (Boolean)
-- `reportAlerts` (Boolean)
-- `promotions` (Boolean, default: `false`)
-
-**Transactional vs. Promotional Rule**: Transactional notifications (`REPORT_READY`, `PAYMENT_SUCCESS`, `SECURITY_ALERT`, `PASSWORD_RESET`) bypass optional promotional toggles to ensure critical user alerts are delivered.
-
-**E-mail, SMS and WhatsApp rule**: OTPs and payment / order / booking confirmations (`PAYMENT_SUCCESS`, `BOOKING_CONFIRMED`, `BOOKING_RESCHEDULED`, `BOOKING_CANCELLED`, `SECURITY_ALERT`, `PASSWORD_RESET`, and the website events order confirmed, booking confirmed / upgraded / rescheduled, report order confirmed) are always sent. Other e-mails respect `emailEnabled`. The report-ready e-mail and WhatsApp message respect `reportAlerts` (and the e-mail also `emailEnabled`); the consultation reminder e-mail respects `emailEnabled`.
-
----
-
-## 6. Security & Redaction Directives
-
-- Password reset OTPs and email verification tokens are never logged or stored in plain text.
-- FCM server keys, JWT tokens, and SMTP passwords are strictly excluded from structured logs (`logger` redaction).
-
----
-
-## 7. REST API Endpoints
-
-### Mobile User Endpoints (`/api/v1/notifications`)
-- `GET /notifications`: Get user in-app notifications.
-- `GET /notifications/unread-count`: Get unread count.
-- `PATCH /notifications/:id/read`: Mark single notification as read.
-- `POST /notifications/read-all`: Mark all notifications as read.
-- `POST /notifications/device-token`: Register FCM device token on login.
-- `DELETE /notifications/device-token`: Deactivate FCM device token on logout.
-- `GET /notifications/preferences`: Get user notification preferences.
-- `PUT /notifications/preferences`: Update user notification preferences.
-
-### Admin Operations Endpoints (`/api/v1/admin/notifications`)
-- `GET /admin/notifications`: Get notification stats, active FCM token counts, type volume breakdown, and recent activity logs.
-- `POST /admin/notifications/test-send`: Send a safe test push notification to the authenticated admin account (with audit logging).
-
----
-
-## 8. Required Environment Variables
-
-```env
-# Email Configuration (SMTP_* names from the website are preferred; these are still read)
-EMAIL_HOST=smtp.mailgun.org
-EMAIL_PORT=587
-EMAIL_USER=postmaster@astrosushil.com
-EMAIL_PASSWORD=your_smtp_password
-EMAIL_FROM="Astro Sushil <noreply@astrosushil.com>"
-
-# Firebase Cloud Messaging (FCM)
-FCM_SERVER_KEY=your_firebase_server_key
-FIREBASE_PROJECT_ID=astro-sushil-prod
-```
-
-SMS, WhatsApp, SMTP and messaging behaviour variables: see `infrastructure/deployment/vm/.env.vm.example` and `docs/integration/modules/messaging.md`.
+- Default `REPORT_SEND_DELAY_HOURS=24` (`report-release.ts` & `report-release.sweep.ts`).
+- While held, customers see `PROCESSING` / `UPLOADING` (99%) with the promised IST delivery timestamp; staff see the true state in Admin.
+- Once `completedAt + REPORT_SEND_DELAY_HOURS` passes, `ReportReleaseSweep.tick()` (run inside `worker.ts`) triggers `REPORT_READY` across Push, In-App, Email, and WhatsApp together. Setting `REPORT_SEND_DELAY_HOURS=0` releases reports immediately upon completion.
