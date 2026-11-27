@@ -108,6 +108,11 @@ model BirthProfile {
   utcDateTime            DateTime?
   timezoneOffsetSeconds  Int?
   disambiguationRequired Boolean               @default(false)
+  /// The account holder's own chart (2026-11-26). At most one per user: partial unique index
+  /// "birth_profiles_one_self_per_user" in the migration (not expressible in this schema).
+  isSelf                 Boolean               @default(false)
+  /// "male" | "female" | "other"; the website's report and match-making forms ask for it.
+  gender                 String?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
   user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -495,6 +500,9 @@ enum ConsultationMode {
   AUDIO
   VIDEO
   IN_PERSON
+  /// Website "WhatsApp Message" consultation (2026-11-25): one written question, answered in
+  /// writing within the type's response days. No date, no slot, no calendar.
+  MESSAGE
 }
 
 enum BookingStatus {
@@ -536,11 +544,12 @@ model ConsultationBooking {
   title                String
   mode                 ConsultationMode
   durationMinutes      Int
-  date                 String // YYYY-MM-DD
-  startTime            String // HH:mm
-  endTime              String // HH:mm
-  slotStartTimeUtc     DateTime
-  slotEndTimeUtc       DateTime
+  /// The appointment; null only for a MESSAGE consultation, which has none.
+  date                 String? // YYYY-MM-DD
+  startTime            String? // HH:mm
+  endTime              String? // HH:mm
+  slotStartTimeUtc     DateTime?
+  slotEndTimeUtc       DateTime?
   timezone             String           @default("Asia/Kolkata")
   practitionerId       String           @default("astro-sushil")
   practitionerName     String           @default("Astro Sushil")
@@ -588,6 +597,10 @@ model ConsultationBooking {
   exchangeRate       Decimal?              @db.Decimal(20, 10) // units of paidCurrency per 1 INR
   priceLabel         String?
   note               String? // note the admin wrote for the customer (website `note`); shown to the customer
+  // MESSAGE consultations: the written answer the customer sees (website consultationResponse).
+  responseText       String?
+  respondedAt        DateTime?
+  respondedBy        String?
   invoiceNumber      String? // INV-AS/<n>, set by the invoice module
   reminderSentAt     DateTime?
   createdByAdminId   String?
@@ -886,6 +899,7 @@ model Product {
   weightGrams      Int?
   dimensions       Json?
   managedByAdmin   Boolean          @default(false) // true once created or edited in the admin: the code seed then leaves the row alone
+  hsnSac           String? // GST invoice (2026-11-26): HSN/SAC code; blank = the settings default for products
   categoryRef      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   variantRows      ProductVariant[]
   cartItems        CartItem[]
@@ -2052,3 +2066,74 @@ model CouponScope {
   @@map("coupon_scopes")
 }
 // ===== end commerce-decisions =====
+
+// ===== report catalogue (admin-editable, 2026-11-26) =====
+/// Admin edits of a report catalogue item (`commerce.catalog.ts`). The report types themselves stay
+/// in code (the engine generates them); a row here overrides what is sold and shown: name, text,
+/// images, prices, GST, availability and the website product page content. A null field keeps the
+/// code value. Rows are never deleted by the admin; `isActive = false` takes a report off sale.
+model ReportCatalogEntry {
+  catalogId          String   @id
+  name               String?
+  slug               String?  @unique
+  shortDescription   String?
+  description        String?
+  coverImageUrl      String?
+  coverImageKey      String?
+  /// The price staff entered, paise: before GST, or the final price when priceIncludesGst.
+  salePricePaise     Int?
+  /// true: salePricePaise is what the customer pays (GST inside); false: GST is added on top.
+  priceIncludesGst   Boolean  @default(false)
+  originalPricePaise Int?
+  gstRateBp          Int?
+  isActive           Boolean?
+  isPremium          Boolean  @default(true)
+  benefits           Json     @default("[]")
+  features           Json     @default("[]")
+  faqs               Json     @default("[]")
+  hsnSac             String?
+  updatedById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("report_catalog_entries")
+}
+// ===== end report catalogue =====
+
+// ===== admin notification campaigns (2026-11-27) =====
+/// A message staff sent from the admin Notifications screen to one customer, a list or a group,
+/// by app push + in-app inbox, e-mail, SMS and/or WhatsApp. One row per send, with its counts.
+model NotificationCampaign {
+  id            String    @id @default(uuid())
+  /// IMPORTANT: service / booking / policy news, sent to everyone chosen.
+  /// PROMOTION: offers, sent only to customers who switched promotions on.
+  kind          String
+  title         String
+  body          String
+  link          String?
+  /// e.g. ["PUSH","IN_APP","EMAIL","SMS","WHATSAPP"]
+  channels      Json
+  /// { type: "users" | "segment" | "list", ... } as chosen in the admin.
+  audience      Json
+  /// QUEUED | SENDING | SENT | FAILED
+  status        String    @default("QUEUED")
+  recipients    Int       @default(0)
+  skippedNoConsent Int    @default(0)
+  inApp         Int       @default(0)
+  pushSent      Int       @default(0)
+  pushFailed    Int       @default(0)
+  noDevice      Int       @default(0)
+  emailQueued   Int       @default(0)
+  smsQueued     Int       @default(0)
+  whatsappQueued Int      @default(0)
+  error         String?
+  createdById   String
+  createdByName String?
+  createdAt     DateTime  @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+
+  @@index([createdAt])
+  @@map("notification_campaigns")
+}
+// ===== end admin notification campaigns =====
