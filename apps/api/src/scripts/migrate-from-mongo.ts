@@ -12,6 +12,7 @@ import {
   OrderStatus,
   OrderItemType,
   PaymentStatus,
+  Prisma,
   PrismaClient,
   ProductType,
   ReportStatus,
@@ -31,6 +32,7 @@ import { normalizePhoneNumber } from '../utils/phone';
 import { WEBSITE_REPORT_PRODUCTS } from '../modules/web-astrology/web-reports.service';
 import { COMMERCE_CATALOG } from '../modules/commerce/commerce.catalog';
 import { backfillAccountNamesAndSelf } from '../modules/birth-profiles/account-identity';
+import { fileKey, fileUrl, personName } from './migration-values';
 
 /**
  * Idempotent MongoDB -> PostgreSQL migration script.
@@ -632,7 +634,17 @@ async function main() {
       const slug = String(blog.slug ?? legacyId);
       const existingBlog = await prisma.blogPost.findFirst({ where: { OR: [{ legacyId }, { slug }] } });
       if (existingBlog) {
-        if (!existingBlog.legacyId) await prisma.blogPost.update({ where: { id: existingBlog.id }, data: { legacyId } });
+        // Re-run repair (2026-11-27): earlier runs stored the image and author objects as the text
+        // "[object Object]". Only broken or empty values are replaced; staff edits are kept.
+        const broken = (v: string | null) => !v || v.includes('[object Object]');
+        const repair: Prisma.BlogPostUpdateInput = {};
+        if (!existingBlog.legacyId) repair.legacyId = legacyId;
+        if (broken(existingBlog.thumbnailUrl)) {
+          repair.thumbnailUrl = fileUrl(blog.thumbnail);
+          repair.thumbnailKey = fileKey(blog.thumbnail);
+        }
+        if (broken(existingBlog.authorName)) repair.authorName = personName(blog.author);
+        if (Object.keys(repair).length > 0) await prisma.blogPost.update({ where: { id: existingBlog.id }, data: repair });
         continue;
       }
       await prisma.blogPost.create({
@@ -644,8 +656,9 @@ async function main() {
           content: String(blog.content ?? ''),
           category: String(blog.category ?? 'General'),
           tags: Array.isArray(blog.tags) ? blog.tags.map(String) : [],
-          authorName: blog.author ? String(blog.author) : null,
-          thumbnailUrl: blog.thumbnail ? String(blog.thumbnail) : null,
+          authorName: personName(blog.author),
+          thumbnailUrl: fileUrl(blog.thumbnail),
+          thumbnailKey: fileKey(blog.thumbnail),
           images: blog.images ?? [],
           seoMetaTitle: blog.seo?.metaTitle ? String(blog.seo.metaTitle) : null,
           seoMetaDescription: blog.seo?.metaDescription ? String(blog.seo.metaDescription) : null,
@@ -740,7 +753,13 @@ async function main() {
       const name = String(s.name ?? legacyId).toLowerCase();
       const existing = await prisma.seoPage.findFirst({ where: { OR: [{ legacyId }, { name }] } });
       if (existing) {
-        if (!existing.legacyId) await prisma.seoPage.update({ where: { id: existing.id }, data: { legacyId } });
+        const repair: Prisma.SeoPageUpdateInput = {};
+        if (!existing.legacyId) repair.legacyId = legacyId;
+        if (!existing.imageUrl || existing.imageUrl.includes('[object Object]')) {
+          repair.imageUrl = fileUrl(s.image);
+          repair.imageKey = fileKey(s.image);
+        }
+        if (Object.keys(repair).length > 0) await prisma.seoPage.update({ where: { id: existing.id }, data: repair });
       } else {
         await prisma.seoPage.create({
           data: {
@@ -748,7 +767,8 @@ async function main() {
             name,
             metaTitle: String(s.metaTitle ?? ''),
             metaDescription: String(s.metaDescription ?? ''),
-            imageUrl: s.image ? String(s.image) : null,
+            imageUrl: fileUrl(s.image),
+            imageKey: fileKey(s.image),
           },
         });
       }
