@@ -229,7 +229,7 @@ export default function ReportsDetails() {
           <div className="lg:col-span-5 flex items-center justify-center relative py-2">
             <div className="relative flex items-end gap-4">
               <div
-                className="w-56 sm:w-64 aspect-210/297 rounded-2xl overflow-hidden shadow-2xl"
+                className="relative w-56 sm:w-64 aspect-210/297 rounded-2xl overflow-hidden shadow-2xl"
                 style={{
                   border: `2px solid ${meta.accent}75`,
                   boxShadow: `0 25px 50px -12px rgba(0,0,0,0.75), 0 0 40px -10px ${meta.accent}60`,
@@ -245,6 +245,15 @@ export default function ReportsDetails() {
                     }
                   }}
                 />
+                <span
+                  className="pointer-events-none absolute inset-x-4 top-4 text-center text-[9.5px] uppercase tracking-[0.24em] font-semibold"
+                  style={{ color: meta.accent }}
+                >
+                  Astro Sushil
+                </span>
+                <span className="pointer-events-none absolute inset-x-4 bottom-4 text-center font-heading text-sm font-semibold leading-snug text-[#fff8e7] line-clamp-2 drop-shadow">
+                  {report.name}
+                </span>
               </div>
 
               {/* Spot Art Badge */}

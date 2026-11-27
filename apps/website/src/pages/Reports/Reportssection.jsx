@@ -88,7 +88,7 @@ function ReportCard({ report, index }) {
           className="relative z-10 flex items-end justify-center gap-3 cursor-pointer"
         >
           <div
-            className="w-36 sm:w-40 aspect-210/297 rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:-translate-y-1"
+            className="relative w-36 sm:w-40 aspect-210/297 rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:-translate-y-1"
             style={{
               border: `1.5px solid ${meta.accent}66`,
               boxShadow: `0 18px 34px -10px rgba(0,0,0,0.65), 0 0 24px -8px ${meta.accent}55`,
@@ -105,6 +105,15 @@ function ReportCard({ report, index }) {
                 }
               }}
             />
+            <span
+              className="pointer-events-none absolute inset-x-2 top-2 text-center text-[7.5px] uppercase tracking-[0.22em] font-semibold"
+              style={{ color: meta.accent }}
+            >
+              Astro Sushil
+            </span>
+            <span className="pointer-events-none absolute inset-x-2 bottom-2 text-center font-heading text-[10px] font-semibold leading-tight text-[#fff8e7] line-clamp-2 drop-shadow">
+              {report.name}
+            </span>
           </div>
 
           <div

@@ -1,110 +1,186 @@
 {
   "brand": "Astro Sushil",
-  "version": "2.0",
-  "covers": [
+  "version": "3.0",
+  "color_space": "sRGB",
+  "cover_dimensions": {
+    "print_a4": [
+      2480,
+      3508
+    ],
+    "web_preview": [
+      840,
+      1188
+    ]
+  },
+  "reports": [
     {
       "key": "report-kundli",
       "title": "Premium Personalised Kundli Report",
-      "print_jpg": "covers/print-a4/report-kundli.jpg",
-      "web_preview": "covers/web-preview/report-kundli.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-kundli.jpg",
+        "web_preview": "covers/web-preview/report-kundli.webp",
+        "report_illustration": "illustrations/reports/report-kundli.svg"
+      },
+      "primary": "#2E1A47",
+      "accent": "#D4AF37",
+      "light_background_tint": "#F3EAF8",
+      "motif": "north-indian-kundli-diamond"
     },
     {
       "key": "report-career",
       "title": "Career Report",
-      "print_jpg": "covers/print-a4/report-career.jpg",
-      "web_preview": "covers/web-preview/report-career.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-career.jpg",
+        "web_preview": "covers/web-preview/report-career.webp",
+        "report_illustration": "illustrations/reports/report-career.svg"
+      },
+      "primary": "#133C4B",
+      "accent": "#D4AF37",
+      "light_background_tint": "#EAF4F2",
+      "motif": "celestial-staircase-dashamsha-sun-saturn"
     },
     {
       "key": "report-marriage",
       "title": "Couple Kundli Matching Report",
-      "print_jpg": "covers/print-a4/report-marriage.jpg",
-      "web_preview": "covers/web-preview/report-marriage.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-marriage.jpg",
+        "web_preview": "covers/web-preview/report-marriage.webp",
+        "report_illustration": "illustrations/reports/report-marriage.svg"
+      },
+      "primary": "#4A1525",
+      "accent": "#E2B49A",
+      "light_background_tint": "#F8ECEB",
+      "motif": "interlocking-marriage-mandalas-sacred-flame"
     },
     {
       "key": "report-finance",
       "title": "Finance Report",
-      "print_jpg": "covers/print-a4/report-finance.jpg",
-      "web_preview": "covers/web-preview/report-finance.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-finance.jpg",
+        "web_preview": "covers/web-preview/report-finance.webp",
+        "report_illustration": "illustrations/reports/report-finance.svg"
+      },
+      "primary": "#0F3D2E",
+      "accent": "#D4AF37",
+      "light_background_tint": "#EAF3E9",
+      "motif": "shri-yantra-wealth-lotus-coins"
     },
     {
       "key": "report-love",
       "title": "Love Report",
-      "print_jpg": "covers/print-a4/report-love.jpg",
-      "web_preview": "covers/web-preview/report-love.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-love.jpg",
+        "web_preview": "covers/web-preview/report-love.webp",
+        "report_illustration": "illustrations/reports/report-love.svg"
+      },
+      "primary": "#4E1635",
+      "accent": "#F2C6B4",
+      "light_background_tint": "#F8EBF0",
+      "motif": "crescent-twin-lotus-venus-star"
     },
     {
       "key": "report-fortune",
       "title": "Fortune Report",
-      "print_jpg": "covers/print-a4/report-fortune.jpg",
-      "web_preview": "covers/web-preview/report-fortune.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-fortune.jpg",
+        "web_preview": "covers/web-preview/report-fortune.webp",
+        "report_illustration": "illustrations/reports/report-fortune.svg"
+      },
+      "primary": "#162C5B",
+      "accent": "#E8C97A",
+      "light_background_tint": "#EEF1FA",
+      "motif": "twelve-spoke-wheel-rising-sun"
     },
     {
       "key": "report-fortune-plus",
       "title": "Personalised Fortune Report Plus",
-      "print_jpg": "covers/print-a4/report-fortune-plus.jpg",
-      "web_preview": "covers/web-preview/report-fortune-plus.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-fortune-plus.jpg",
+        "web_preview": "covers/web-preview/report-fortune-plus.webp",
+        "report_illustration": "illustrations/reports/report-fortune-plus.svg"
+      },
+      "primary": "#261340",
+      "accent": "#F0C75E",
+      "light_background_tint": "#F1EAF7",
+      "motif": "astrolabe-nakshatra-crown"
     },
     {
       "key": "report-horoscope",
       "title": "Personalised Horoscope Report",
-      "print_jpg": "covers/print-a4/report-horoscope.jpg",
-      "web_preview": "covers/web-preview/report-horoscope.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-horoscope.jpg",
+        "web_preview": "covers/web-preview/report-horoscope.webp",
+        "report_illustration": "illustrations/reports/report-horoscope.svg"
+      },
+      "primary": "#122B3B",
+      "accent": "#E6D39A",
+      "light_background_tint": "#EAF1F3",
+      "motif": "twelve-sign-zodiac-moon-ascendant"
     },
     {
       "key": "report-saturn",
       "title": "Saturn In Your Birth Chart Report",
-      "print_jpg": "covers/print-a4/report-saturn.jpg",
-      "web_preview": "covers/web-preview/report-saturn.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-saturn.jpg",
+        "web_preview": "covers/web-preview/report-saturn.webp",
+        "report_illustration": "illustrations/reports/report-saturn.svg"
+      },
+      "primary": "#161E35",
+      "accent": "#C8B273",
+      "light_background_tint": "#EDF0F4",
+      "motif": "ringed-saturn-sacred-discipline-rings"
     },
     {
       "key": "report-jupiter-transit",
       "title": "Jupiter Transit Report",
-      "print_jpg": "covers/print-a4/report-jupiter-transit.jpg",
-      "web_preview": "covers/web-preview/report-jupiter-transit.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-jupiter-transit.jpg",
+        "web_preview": "covers/web-preview/report-jupiter-transit.webp",
+        "report_illustration": "illustrations/reports/report-jupiter-transit.svg"
+      },
+      "primary": "#4A2B0F",
+      "accent": "#F3C969",
+      "light_background_tint": "#F8F0E2",
+      "motif": "jupiter-expansion-arcs-temple-lamp"
     },
     {
       "key": "report-rahu-ketu-transit",
       "title": "Rahu Ketu Transit Report",
-      "print_jpg": "covers/print-a4/report-rahu-ketu-transit.jpg",
-      "web_preview": "covers/web-preview/report-rahu-ketu-transit.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-rahu-ketu-transit.jpg",
+        "web_preview": "covers/web-preview/report-rahu-ketu-transit.webp",
+        "report_illustration": "illustrations/reports/report-rahu-ketu-transit.svg"
+      },
+      "primary": "#23192D",
+      "accent": "#DFB878",
+      "light_background_tint": "#F1EBF3",
+      "motif": "eclipse-node-axis-zodiac-ring"
     },
     {
       "key": "report-varshphal",
       "title": "Varshphal Report",
-      "print_jpg": "covers/print-a4/report-varshphal.jpg",
-      "web_preview": "covers/web-preview/report-varshphal.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-varshphal.jpg",
+        "web_preview": "covers/web-preview/report-varshphal.webp",
+        "report_illustration": "illustrations/reports/report-varshphal.svg"
+      },
+      "primary": "#143B3B",
+      "accent": "#EBD59E",
+      "light_background_tint": "#EEF4EF",
+      "motif": "twelve-month-solar-return-calendar-compass"
     },
     {
       "key": "report-baby-name",
       "title": "Baby Name Report",
-      "print_jpg": "covers/print-a4/report-baby-name.jpg",
-      "web_preview": "covers/web-preview/report-baby-name.webp",
-      "dimensions_px": "2480x3508",
-      "dpi": 300
+      "paths": {
+        "print_a4": "covers/print-a4/report-baby-name.jpg",
+        "web_preview": "covers/web-preview/report-baby-name.webp",
+        "report_illustration": "illustrations/reports/report-baby-name.svg"
+      },
+      "primary": "#1D3557",
+      "accent": "#F4D58D",
+      "light_background_tint": "#F1F3F7",
+      "motif": "crescent-cradle-nakshatra-lotus"
     }
   ]
 }

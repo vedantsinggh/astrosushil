@@ -102,14 +102,28 @@ export default function ReportsCarousel() {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div
-                className="absolute inset-x-0 bottom-0 p-2.5 text-left opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                className="pointer-events-none absolute inset-x-0 top-0 pt-2.5 pb-4 px-2.5 text-center"
                 style={{
                   background:
-                    "linear-gradient(180deg, rgba(16,13,66,0) 0%, rgba(16,13,66,0.92) 60%)",
+                    "linear-gradient(180deg, rgba(10,8,28,0.72) 0%, rgba(10,8,28,0) 100%)",
                 }}
               >
                 <span
-                  className="inline-block text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold mb-1"
+                  className="block text-[9px] uppercase tracking-[0.2em] font-semibold"
+                  style={{ color: item.accent }}
+                >
+                  Astro Sushil
+                </span>
+              </div>
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 p-3 text-left opacity-100"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(10,8,28,0) 0%, rgba(10,8,28,0.88) 55%)",
+                }}
+              >
+                <span
+                  className="inline-block text-[9.5px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold mb-1"
                   style={{
                     backgroundColor: `${item.accent}24`,
                     color: item.accent,
@@ -118,7 +132,7 @@ export default function ReportsCarousel() {
                 >
                   {item.badgeLabel}
                 </span>
-                <p className="text-xs font-semibold text-white line-clamp-1">
+                <p className="text-xs font-semibold text-white line-clamp-2 leading-snug">
                   {item.title}
                 </p>
               </div>
