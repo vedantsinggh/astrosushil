@@ -5,7 +5,32 @@ import { AuthorizationError } from '../../errors/app-error';
 
 export const ACCESS_COOKIE = 'astro_access';
 export const REFRESH_COOKIE = 'astro_refresh';
+export const ADMIN_ACCESS_COOKIE = 'astro_admin_access';
+export const ADMIN_REFRESH_COOKIE = 'astro_admin_refresh';
 export const CSRF_HEADER = 'x-csrf-token';
+export const AUTH_SCOPE_HEADER = 'x-auth-scope';
+
+export type AuthScope = 'admin' | 'user';
+
+export function authScopeOf(request: FastifyRequest): AuthScope {
+  const header = request.headers[AUTH_SCOPE_HEADER];
+  if (typeof header === 'string' && header.toLowerCase() === 'admin') return 'admin';
+  const rawUrl = request.url || '';
+  const path = rawUrl.split('?')[0];
+  if (path === '/api/v1/admin' || path.startsWith('/api/v1/admin/')) return 'admin';
+  return 'user';
+}
+
+function cookieNamesFor(scope: AuthScope) {
+  return scope === 'admin'
+    ? { access: ADMIN_ACCESS_COOKIE, refresh: ADMIN_REFRESH_COOKIE }
+    : { access: ACCESS_COOKIE, refresh: REFRESH_COOKIE };
+}
+
+export function getAccessCookie(request: FastifyRequest): string | undefined {
+  const { access } = cookieNamesFor(authScopeOf(request));
+  return request.cookies?.[access];
+}
 
 type SessionTokens = { accessToken: string; refreshToken: string; expiresIn: string };
 
@@ -61,27 +86,34 @@ export function createCsrfToken(accessToken: string): string {
 }
 
 /** Establishes an HttpOnly browser session only for a configured frontend origin. */
-export function setBrowserSessionCookies(reply: FastifyReply, request: FastifyRequest, tokens: SessionTokens): string | null {
+export function setBrowserSessionCookies(
+  reply: FastifyReply,
+  request: FastifyRequest,
+  tokens: SessionTokens,
+  scope: AuthScope = authScopeOf(request)
+): string | null {
   if (!isAllowedAuthOrigin(request.headers.origin)) return null;
+  const { access, refresh } = cookieNamesFor(scope);
   reply
-    .setCookie(ACCESS_COOKIE, tokens.accessToken, cookieOptions(parseDurationSeconds(tokens.expiresIn)))
-    .setCookie(REFRESH_COOKIE, tokens.refreshToken, cookieOptions(parseDurationSeconds(config.JWT_REFRESH_EXPIRES_IN)));
+    .setCookie(access, tokens.accessToken, cookieOptions(parseDurationSeconds(tokens.expiresIn)))
+    .setCookie(refresh, tokens.refreshToken, cookieOptions(parseDurationSeconds(config.JWT_REFRESH_EXPIRES_IN)));
   return createCsrfToken(tokens.accessToken);
 }
 
-export function clearBrowserSessionCookies(reply: FastifyReply): void {
+export function clearBrowserSessionCookies(reply: FastifyReply, scope: AuthScope = 'user'): void {
+  const { access, refresh } = cookieNamesFor(scope);
   const options = { ...cookieOptions(0), expires: new Date(0) };
-  reply.clearCookie(ACCESS_COOKIE, options);
-  reply.clearCookie(REFRESH_COOKIE, options);
+  reply.clearCookie(access, options);
+  reply.clearCookie(refresh, options);
 }
 
 export function isCookieAuthenticatedRequest(request: FastifyRequest): boolean {
-  return !request.headers.authorization && !!request.cookies?.[ACCESS_COOKIE];
+  return !request.headers.authorization && !!getAccessCookie(request);
 }
 
 export function assertCsrfRequest(request: FastifyRequest): void {
   const origin = request.headers.origin;
-  const accessToken = request.cookies?.[ACCESS_COOKIE];
+  const accessToken = getAccessCookie(request);
   const headerValue = request.headers[CSRF_HEADER];
   if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
   if (!isAllowedAuthOrigin(origin) || typeof accessToken !== 'string' || typeof headerValue !== 'string') {
@@ -95,5 +127,6 @@ export function assertCsrfRequest(request: FastifyRequest): void {
 }
 
 export function getRefreshCookie(request: FastifyRequest): string | undefined {
-  return request.cookies?.[REFRESH_COOKIE];
+  const { refresh } = cookieNamesFor(authScopeOf(request));
+  return request.cookies?.[refresh];
 }

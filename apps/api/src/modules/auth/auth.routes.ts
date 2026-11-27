@@ -12,7 +12,7 @@ import {
   updateProfileSchema,
 } from './auth.schemas';
 import { AppError } from '../../errors/app-error';
-import { ACCESS_COOKIE, assertCsrfRequest, clearBrowserSessionCookies, createCsrfToken, getRefreshCookie, isAllowedAuthOrigin, setBrowserSessionCookies } from './auth-cookies';
+import { assertCsrfRequest, authScopeOf, clearBrowserSessionCookies, createCsrfToken, getAccessCookie, getRefreshCookie, isAllowedAuthOrigin, setBrowserSessionCookies } from './auth-cookies';
 
 /**
  * Customer sign-in is by one-time code only (phone or e-mail). The password and Google endpoints
@@ -69,7 +69,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
   fastify.get('/csrf', {
     schema: { tags: ['Auth'], summary: 'Get the CSRF request token for the current browser session' },
     handler: async (request, reply) => {
-      const accessToken = request.cookies?.[ACCESS_COOKIE];
+      const accessToken = getAccessCookie(request);
       if (!isAllowedAuthOrigin(request.headers.origin) || !accessToken) {
         return reply.status(401).send({ error: { code: 'AUTHENTICATION_ERROR', message: 'Browser session is unavailable', requestId: request.id } });
       }
@@ -346,7 +346,7 @@ export async function authRoutes(fastify: FastifyInstance, _options: FastifyPlug
       const refreshToken = browserRequest ? getRefreshCookie(request) : body?.refreshToken || getRefreshCookie(request);
       if (refreshToken && (browserRequest || !body?.refreshToken)) assertCsrfRequest(request);
       if (refreshToken) await authService.logout(refreshToken);
-      clearBrowserSessionCookies(reply);
+      clearBrowserSessionCookies(reply, authScopeOf(request));
       return reply.status(200).send({ message: 'Logged out successfully' });
     },
   });

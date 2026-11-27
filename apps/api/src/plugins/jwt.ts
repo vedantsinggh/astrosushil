@@ -4,7 +4,7 @@ import fp from 'fastify-plugin';
 import { config } from '../config';
 import { AuthenticationError, AuthorizationError } from '../errors/app-error';
 import { assertAccountActive } from '../modules/auth/account-status';
-import { ACCESS_COOKIE, assertCsrfRequest, isAllowedAuthOrigin, isCookieAuthenticatedRequest } from '../modules/auth/auth-cookies';
+import { assertCsrfRequest, getAccessCookie, isAllowedAuthOrigin, isCookieAuthenticatedRequest } from '../modules/auth/auth-cookies';
 
 async function jwtPlugin(app: FastifyInstance) {
   await app.register(fastifyJwt, {
@@ -16,17 +16,18 @@ async function jwtPlugin(app: FastifyInstance) {
 
   // Authentication Decorator
   app.decorate('authenticate', async (request: FastifyRequest, _reply: FastifyReply) => {
+    const accessCookie = getAccessCookie(request);
     if (isAllowedAuthOrigin(request.headers.origin)) {
-      if (!request.cookies?.[ACCESS_COOKIE]) {
+      if (!accessCookie) {
         throw new AuthenticationError('Browser session cookie is required');
       }
       request.headers.authorization = undefined;
     }
     const cookieAuthenticated = isCookieAuthenticatedRequest(request);
     try {
-      if (cookieAuthenticated) {
+      if (cookieAuthenticated && accessCookie) {
         assertCsrfRequest(request);
-        request.headers.authorization = `Bearer ${request.cookies[ACCESS_COOKIE]}`;
+        request.headers.authorization = `Bearer ${accessCookie}`;
       }
       await request.jwtVerify();
       // Map 'sub' claim to 'id' property on request.user
@@ -54,15 +55,16 @@ async function jwtPlugin(app: FastifyInstance) {
 
   // Optional Authentication Decorator
   app.decorate('authenticateOptional', async (request: FastifyRequest, _reply: FastifyReply) => {
+    const accessCookie = getAccessCookie(request);
     if (isAllowedAuthOrigin(request.headers.origin)) request.headers.authorization = undefined;
-    if (!request.headers.authorization && !request.cookies?.[ACCESS_COOKIE]) {
+    if (!request.headers.authorization && !accessCookie) {
       return;
     }
     const cookieAuthenticated = isCookieAuthenticatedRequest(request);
     if (cookieAuthenticated) assertCsrfRequest(request);
     try {
-      if (cookieAuthenticated) {
-        request.headers.authorization = `Bearer ${request.cookies[ACCESS_COOKIE]}`;
+      if (cookieAuthenticated && accessCookie) {
+        request.headers.authorization = `Bearer ${accessCookie}`;
       }
       await request.jwtVerify();
       const decoded = request.user as unknown as { sub: string; role: 'USER' | 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' };

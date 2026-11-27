@@ -12,7 +12,10 @@ export function setBrowserCsrfToken(token: string | null): void {
 async function refreshBrowserCsrfToken(): Promise<string | null> {
   if (browserCsrfToken) return browserCsrfToken;
   try {
-    const response = await fetch(`${API_BASE}/api/v1/auth/csrf`, { credentials: 'include' });
+    const response = await fetch(`${API_BASE}/api/v1/auth/csrf`, {
+      credentials: 'include',
+      headers: { 'X-Auth-Scope': 'admin' },
+    });
     if (!response.ok) return null;
     const data = await response.json() as { csrfToken?: string };
     browserCsrfToken = data.csrfToken || null;
@@ -23,7 +26,7 @@ async function refreshBrowserCsrfToken(): Promise<string | null> {
 }
 
 export async function cookieAuthHeaders(method = 'GET', headers: Record<string, string> = {}): Promise<Record<string, string>> {
-  const result = { ...headers };
+  const result = { 'X-Auth-Scope': 'admin', ...headers };
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
     const csrfToken = await refreshBrowserCsrfToken();
     if (csrfToken) result['X-CSRF-Token'] = csrfToken;
@@ -56,7 +59,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
       const refreshResponse = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'X-CSRF-Token': oldCsrf },
+        headers: { 'X-CSRF-Token': oldCsrf, 'X-Auth-Scope': 'admin' },
       });
       if (refreshResponse.ok) {
         const refreshData = await refreshResponse.json() as { csrfToken?: string };

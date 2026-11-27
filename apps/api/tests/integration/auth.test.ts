@@ -473,8 +473,8 @@ describe('Auth API: customer sign-in by one-time code (Integration)', () => {
       expect(loginBody.csrfToken).toEqual(expect.any(String));
       const setCookies = login.headers['set-cookie'];
       expect(setCookies).toEqual(expect.arrayContaining([
-        expect.stringContaining('astro_access='),
-        expect.stringContaining('astro_refresh='),
+        expect.stringContaining('astro_admin_access='),
+        expect.stringContaining('astro_admin_refresh='),
       ]));
       expect(setCookies?.every((cookie) => /httponly/i.test(cookie))).toBe(true);
       const cookieHeader = setCookies!.map((cookie) => cookie.split(';', 1)[0]).join('; ');
@@ -502,8 +502,8 @@ describe('Auth API: customer sign-in by one-time code (Integration)', () => {
       });
       expect(logout.statusCode).toBe(200);
       expect(logout.headers['set-cookie']).toEqual(expect.arrayContaining([
-        expect.stringContaining('astro_access=;'),
-        expect.stringContaining('astro_refresh=;'),
+        expect.stringContaining('astro_admin_access=;'),
+        expect.stringContaining('astro_admin_refresh=;'),
       ]));
     });
 
