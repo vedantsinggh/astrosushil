@@ -8,6 +8,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Push (Firebase): needs the project's google-services.json in this folder. Without it the app
+// still builds and runs, with push switched off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Release signing: credentials live in android/key.properties (gitignored, never committed).
 // See apps/mobile/docs/android-release.md for how to create the upload keystore.
 val keystorePropertiesFile = rootProject.file("key.properties")

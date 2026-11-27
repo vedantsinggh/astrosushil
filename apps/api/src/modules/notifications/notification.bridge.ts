@@ -168,6 +168,8 @@ export class NotificationBridge {
     const loaded = await this.loadBooking(bookingId);
     if (!loaded) return NOT_HANDLED;
     const { booking, amountMinor, currency } = loaded;
+    // MESSAGE consultations send no booking messages (as on the website): there is no appointment.
+    if (!booking.date || !booking.startTime || !booking.endTime) return { handled: true, emailQueued: false };
     const result = await this.events.bookingConfirmed({
       bookingId: booking.id,
       customer: this.customerOf(user, { name: booking.customerName, email: booking.customerEmail, phone: booking.customerPhone }),
@@ -186,6 +188,7 @@ export class NotificationBridge {
     const loaded = await this.loadBooking(bookingId);
     if (!loaded) return NOT_HANDLED;
     const { booking, amountMinor, currency } = loaded;
+    if (!booking.date || !booking.startTime || !booking.endTime) return { handled: true, emailQueued: false };
 
     // The caller knows the previous schedule; the booking row already holds the new one.
     const oldDate = strOrNull(data?.oldDate);

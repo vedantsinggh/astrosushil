@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- POST_NOTIFICATIONS is intentionally absent: the mobile app has no push (FCM) yet. -->
+    <!-- Push notifications (Firebase Cloud Messaging); asked for at sign-in on Android 13+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Cleartext HTTP is blocked in release (targetSdk >= 28 default). Debug builds allow
          local dev servers via src/debug/res/xml/network_security_config.xml. -->

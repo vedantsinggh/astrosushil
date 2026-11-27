@@ -58,3 +58,7 @@ platform-output/
 apps/mobile/android/key.properties
 *.jks
 *.keystore
+
+# Firebase server keys (service accounts) are secrets: never commit them.
+*firebase-adminsdk*.json
+firebase-service-account*.json

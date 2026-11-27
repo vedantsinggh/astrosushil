@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/push/push_service.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/secure_storage_service.dart';
@@ -89,14 +90,22 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   final storage = ref.watch(secureStorageProvider);
-  return AuthNotifier(repository, storage);
+  return AuthNotifier(
+    repository,
+    storage,
+    // Stop push to this phone while the session can still prove who it is.
+    beforeLogout: () => ref.read(pushServiceProvider).unregister(ref.read(apiClientProvider)),
+  );
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   final SecureStorageService _storage;
+  final Future<void> Function()? _beforeLogout;
 
-  AuthNotifier(this._repository, this._storage) : super(AuthState.initial()) {
+  AuthNotifier(this._repository, this._storage, {Future<void> Function()? beforeLogout})
+      : _beforeLogout = beforeLogout,
+        super(AuthState.initial()) {
     _repository.setOnUnauthenticatedCallback(handleSessionExpired);
     checkSession();
   }
@@ -321,6 +330,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Logout user
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
+    try {
+      await _beforeLogout?.call();
+    } catch (_) {}
     await _repository.logout();
     await _storage.delete(key: StorageKeys.isGuestMode);
     // Any guest details were already offered at sign-in; never carry them over

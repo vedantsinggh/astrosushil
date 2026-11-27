@@ -66,6 +66,12 @@ const bookingVariables = (d: BookingWhatsAppData): Record<string, string> => ({
 const dashboard = (tab: string): string => `${messagingEnv().frontendUrl}/dashboard?tab=${tab}`;
 
 export const whatsappTemplates = {
+  /** Variables of the approved WhatChimp "announcement" template: the customer's name and the message. */
+  ANNOUNCEMENT: ({ name, message }: { name: string; message: string }): WhatsAppTemplatePayload => ({
+    template: 'ANNOUNCEMENT',
+    variables: { 'templateVariable-Name-1': name, 'templateVariable-Message-2': message },
+  }),
+
   OTP: ({ otp }: { otp: string }): WhatsAppTemplatePayload => ({
     template: 'OTP',
     variables: { 'templateVariable-otp-2': otp },

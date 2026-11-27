@@ -256,6 +256,17 @@ const emailTemplates = {
     `),
   }),
 
+  /** Admin announcement / offer (Notifications screen). Text is escaped; line breaks kept. */
+  ANNOUNCEMENT: ({ name, title, message, link }: { name: string; title: string; message: string; link?: string | null }): RenderedEmail => ({
+    subject: title,
+    html: layout(`
+      <h2 style="margin:0 0 10px;font-family:Georgia,serif;font-size:24px;color:${BRAND.primary};">${e(title)}</h2>
+      <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:14px;color:${BRAND.textMuted};">Dear ${e(name)},</p>
+      <p style="margin:0 0 20px;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:${BRAND.primary};white-space:pre-line;">${e(message)}</p>
+      ${link ? `<div style="text-align:center;">${ctaButton(link, 'Open')}</div>` : ''}
+    `),
+  }),
+
   WELCOME: ({ name }: WelcomeEmailData): RenderedEmail => ({
     subject: `Welcome to Astro Sushil, ${name}! 🎉`,
     html: layout(`

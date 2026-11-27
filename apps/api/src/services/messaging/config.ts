@@ -66,7 +66,9 @@ export type WhatsAppTemplateKey =
   | 'BOOKING_CONFIRMED'
   | 'BOOKING_UPDATED'
   | 'CONSULTATION_REMINDER'
-  | 'CONSULTATION_RESCHEDULE';
+  | 'CONSULTATION_RESCHEDULE'
+  /** Admin announcement (Notifications screen): must be approved on WhatChimp first. */
+  | 'ANNOUNCEMENT';
 
 /** Environment variable that holds the WhatChimp template id of each template (website names). */
 export const WHATSAPP_TEMPLATE_ENV: Record<WhatsAppTemplateKey, string> = {
@@ -79,6 +81,7 @@ export const WHATSAPP_TEMPLATE_ENV: Record<WhatsAppTemplateKey, string> = {
   BOOKING_UPDATED: 'WHATCHIMP_BOOKING_UPDATED_TEMPLATE_ID',
   CONSULTATION_REMINDER: 'WHATCHIMP_CONSULTATION_REMINDER_TEMPLATE_ID',
   CONSULTATION_RESCHEDULE: 'WHATCHIMP_CONSULTATION_RESCHEDULE_TEMPLATE_ID',
+  ANNOUNCEMENT: 'WHATCHIMP_ANNOUNCEMENT_TEMPLATE_ID',
 };
 
 const str = (env: NodeJS.ProcessEnv, name: string): string | null => {
