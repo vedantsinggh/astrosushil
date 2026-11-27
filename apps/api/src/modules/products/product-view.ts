@@ -183,6 +183,7 @@ export function toPublicProduct(product: ProductRow) {
     currency: product.currency,
     stock: product.stock,
     sku: product.sku,
+    hsnSac: product.hsnSac ?? null,
     isAvailable: product.isAvailable,
     requiresShipping: product.requiresShipping,
     imageUrl: product.imageUrl,

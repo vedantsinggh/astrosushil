@@ -11,6 +11,41 @@ import {
   invoiceLabel,
 } from './invoice-number';
 import { getSellerDetails, placeOfSupplyFor, SellerDetails } from './seller';
+import { addSplits, isIntraState, placeOfSupplyLabel, splitTax } from './gst-split';
+import { settingsService } from '../content/settings.service';
+import { reportCatalogOverrides } from '../commerce/report-catalog.overrides';
+
+/** Default HSN/SAC codes per line type, from the site settings (`invoice` section). */
+export interface HsnSacDefaults {
+  hsnSacReport: string;
+  hsnSacConsultation: string;
+  hsnSacProduct: string;
+  hsnSacCourse: string;
+}
+
+/**
+ * The HSN/SAC code printed on one invoice line: the product's or report's own code, else the
+ * default of its line type, else null (nothing is guessed; the register flags the line).
+ */
+export function hsnSacFor(
+  line: { itemType: string; catalogId: string },
+  codes: { products: ReadonlyMap<string, string | null>; reports: (catalogId: string) => string | null | undefined },
+  defaults: HsnSacDefaults
+): string | null {
+  const own = line.itemType === 'PRODUCT' ? codes.products.get(line.catalogId) : line.itemType === 'REPORT' ? codes.reports(line.catalogId) : null;
+  if (own && own.trim()) return own.trim();
+  const fallback =
+    line.itemType === 'REPORT'
+      ? defaults.hsnSacReport
+      : line.itemType === 'CONSULTATION'
+        ? defaults.hsnSacConsultation
+        : line.itemType === 'PRODUCT'
+          ? defaults.hsnSacProduct
+          : line.itemType === 'COURSE'
+            ? defaults.hsnSacCourse
+            : '';
+  return fallback && fallback.trim() ? fallback.trim() : null;
+}
 
 export interface AllocationResult {
   number: string | null;
@@ -29,6 +64,12 @@ export interface InvoiceDocumentData {
   orderStatus: string;
   seller: SellerDetails;
   placeOfSupply: string;
+  /** GST-return form of the place of supply, e.g. "27-Maharashtra" (the text as given when unknown). */
+  placeOfSupplyLabel: string;
+  /** Same state as the seller: CGST + SGST; otherwise IGST. */
+  taxType: 'intra' | 'inter';
+  /** Date of the invoice: the payment date (the number is issued then), else the number's allocation, else the order date. */
+  invoiceDate: string;
   reverseCharge: false;
   customer: { name: string; email: string | null; phone: string | null };
   shippingAddress: {
@@ -66,6 +107,11 @@ export interface InvoiceDocumentData {
      * discount, GST included) minus its GST. Null if the stored figures do not allow it.
      */
     taxablePaise: number | null;
+    catalogId: string;
+    hsnSac: string | null;
+    cgstPaise: number;
+    sgstPaise: number;
+    igstPaise: number;
   }>;
   totals: {
     subTotalPaise: number;
@@ -74,6 +120,9 @@ export interface InvoiceDocumentData {
     /** One row per GST rate actually charged (website: "GST 18%"). */
     taxByRate: Array<{ rateBp: number; taxPaise: number; inclusive: boolean }>;
     taxPaise: number;
+    cgstPaise: number;
+    sgstPaise: number;
+    igstPaise: number;
     /** INR. */
     grandTotalPaise: number;
   };
@@ -302,6 +351,23 @@ export class InvoiceService {
     const saleType = invoice?.saleType ?? deriveSaleType(order.items);
     const paid = order.paidAt !== null;
 
+    // GST tax invoice (owner decision 2026-11-26): HSN/SAC per line and the CGST/SGST or IGST split.
+    const productCatalogIds = order.items.filter((item) => item.itemType === 'PRODUCT').map((item) => item.catalogId);
+    const [settings, products] = await Promise.all([
+      settingsService.getSettings(),
+      productCatalogIds.length
+        ? prisma.product.findMany({ where: { catalogId: { in: productCatalogIds } }, select: { catalogId: true, hsnSac: true } })
+        : Promise.resolve([] as Array<{ catalogId: string; hsnSac: string | null }>),
+      reportCatalogOverrides.refresh(),
+    ]);
+    const productCodes = new Map(products.map((p) => [p.catalogId, p.hsnSac]));
+    const codeOf = (item: { itemType: string; catalogId: string }) =>
+      hsnSacFor(item, { products: productCodes, reports: (id) => reportCatalogOverrides.get(id)?.hsnSac }, settings.invoice);
+    const placeOfSupply = placeOfSupplyFor(transaction?.placeOfSupply ?? order.shippingAddress?.state, seller);
+    const intraState = isIntraState(placeOfSupply, seller.state);
+    const lineSplits = order.items.map((item) => splitTax(item.taxAmount, intraState));
+    const totalSplit = addSplits(lineSplits);
+
     const taxByRate = new Map<string, { rateBp: number; taxPaise: number; inclusive: boolean }>();
     for (const item of order.items) {
       if (item.taxRate > 0 && item.taxAmount > 0) {
@@ -334,7 +400,10 @@ export class InvoiceService {
       orderDate: order.createdAt.toISOString(),
       orderStatus: order.status,
       seller,
-      placeOfSupply: placeOfSupplyFor(transaction?.placeOfSupply ?? order.shippingAddress?.state, seller),
+      placeOfSupply,
+      placeOfSupplyLabel: placeOfSupplyLabel(placeOfSupply),
+      taxType: intraState ? 'intra' : 'inter',
+      invoiceDate: (order.paidAt ?? invoice?.allocatedAt ?? order.createdAt).toISOString(),
       reverseCharge: false,
       customer: {
         name: transaction?.customerName || order.user.fullName || 'Customer',
@@ -362,7 +431,7 @@ export class InvoiceService {
         amountMinor: order.paidAmountMinor ?? order.amount,
         exchangeRate: (order.exchangeRate ?? new Prisma.Decimal(1)).toString(),
       },
-      lines: order.items.map((item) => ({
+      lines: order.items.map((item, index) => ({
         title: item.title,
         description: item.description,
         itemType: item.itemType,
@@ -373,6 +442,9 @@ export class InvoiceService {
         taxInclusive: item.taxInclusive,
         taxPaise: item.taxAmount,
         taxablePaise: item.totalAmount >= item.taxAmount ? item.totalAmount - item.taxAmount : null,
+        catalogId: item.catalogId,
+        hsnSac: codeOf(item),
+        ...lineSplits[index],
       })),
       totals: {
         subTotalPaise: order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
@@ -380,6 +452,7 @@ export class InvoiceService {
         shippingPaise: order.shippingAmount ?? 0,
         taxByRate: [...taxByRate.values()].sort((a, b) => a.rateBp - b.rateBp),
         taxPaise: order.items.reduce((sum, item) => sum + item.taxAmount, 0),
+        ...totalSplit,
         grandTotalPaise: order.amount,
       },
     };

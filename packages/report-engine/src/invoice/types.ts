@@ -39,6 +39,12 @@ export interface InvoicePdfLine {
   taxPaise: number;
   /** Value the GST was charged on (after this line's share of the discount). Omitted: the column prints a dash. */
   taxablePaise?: number | null;
+  /** HSN or SAC code; omitted or null prints a dash. */
+  hsnSac?: string | null;
+  /** The line's GST split (sums to `taxPaise`). Omitted: the invoice prints GST unsplit. */
+  cgstPaise?: number;
+  sgstPaise?: number;
+  igstPaise?: number;
 }
 
 export interface InvoicePdfData {
@@ -53,6 +59,12 @@ export interface InvoicePdfData {
   orderStatus: string;
   seller: InvoicePdfSeller;
   placeOfSupply: string;
+  /** "27-Maharashtra"; printed instead of `placeOfSupply` when given. */
+  placeOfSupplyLabel?: string;
+  /** intra: CGST + SGST; inter: IGST. Omitted: GST is printed unsplit (as the website did). */
+  taxType?: 'intra' | 'inter';
+  /** ISO instant of the invoice (payment date). Omitted: the order date is the invoice date. */
+  invoiceDate?: string;
   reverseCharge: boolean;
   customer: { name: string; email: string | null; phone: string | null };
   shippingAddress: InvoicePdfAddress | null;

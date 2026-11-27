@@ -512,6 +512,9 @@ export interface InvoiceDocumentData {
     website: string | null;
   };
   placeOfSupply: string;
+  placeOfSupplyLabel?: string;
+  taxType?: 'intra' | 'inter';
+  invoiceDate?: string;
   reverseCharge: boolean;
   customer: { name: string; email: string | null; phone: string | null };
   shippingAddress: {
@@ -543,6 +546,11 @@ export interface InvoiceDocumentData {
     taxRateBp: number;
     taxInclusive: boolean;
     taxPaise: number;
+    taxablePaise?: number | null;
+    hsnSac?: string | null;
+    cgstPaise?: number;
+    sgstPaise?: number;
+    igstPaise?: number;
   }>;
   totals: {
     subTotalPaise: number;
@@ -550,6 +558,9 @@ export interface InvoiceDocumentData {
     shippingPaise: number;
     taxByRate: Array<{ rateBp: number; taxPaise: number; inclusive: boolean }>;
     taxPaise: number;
+    cgstPaise?: number;
+    sgstPaise?: number;
+    igstPaise?: number;
     grandTotalPaise: number;
   };
 }
@@ -666,4 +677,107 @@ export function toggleCoupon(id: string): Promise<{ isActive: boolean }> {
 /** A coupon that has been used is switched off instead of removed; the result says which happened. */
 export function deleteCoupon(id: string): Promise<{ deleted: boolean; deactivated: boolean }> {
   return callData<{ deleted: boolean; deactivated: boolean }>(`/admin/coupons/${encodeURIComponent(id)}`, jsonBody('DELETE'));
+}
+
+// -------------------------------------------------------------- invoice register (2026-11-26)
+
+/** Downloads any file an export endpoint produces (ZIP, PDF, CSV), keeping its bytes. */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${V1}${path}`, { credentials: 'include' });
+  } catch {
+    throw new ApiError('Could not reach the server');
+  }
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as ErrorBody;
+    const { message, code } = messageFromBody(body, response.status);
+    throw new ApiError(message, response.status, code);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const match = /filename="?([^";]+)"?/i.exec(disposition);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = match?.[1] || fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export interface RegisterPeriodFilter {
+  fy?: string;
+  month?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface InvoiceRegisterRow {
+  invoiceNumber: string;
+  sequence: number | null;
+  invoiceDate: string;
+  financialYear: string;
+  saleType: 'order' | 'consultation' | 'report';
+  orderId: string;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  placeOfSupply: string;
+  taxType: 'intra' | 'inter';
+  hsnSac: string[];
+  missingHsnSac: boolean;
+  taxablePaise: number;
+  cgstPaise: number;
+  sgstPaise: number;
+  igstPaise: number;
+  taxPaise: number;
+  shippingPaise: number;
+  discountPaise: number;
+  grandTotalPaise: number;
+  currency: string;
+  amountMinor: number;
+  exchangeRate: string;
+  paymentMethod: string;
+  gatewayPaymentId: string | null;
+}
+
+export interface RegisterRateSummary {
+  rateBp: number;
+  taxablePaise: number;
+  cgstPaise: number;
+  sgstPaise: number;
+  igstPaise: number;
+}
+
+export interface InvoiceRegister {
+  period: { from: string; to: string; label: string };
+  rows: InvoiceRegisterRow[];
+  totals: { invoices: number; taxablePaise: number; cgstPaise: number; sgstPaise: number; igstPaise: number; taxPaise: number; shippingPaise: number; grandTotalPaise: number };
+  byRate: RegisterRateSummary[];
+  byHsn: Array<RegisterRateSummary & { hsnSac: string; description: string; quantity: number; totalPaise: number }>;
+  byState: Array<RegisterRateSummary & { placeOfSupply: string }>;
+  missingNumbers: string[];
+  linesWithoutHsnSac: number;
+}
+
+function registerQuery(filter: RegisterPeriodFilter, extra: Record<string, QueryValue> = {}): string {
+  return qs({ fy: filter.fy, month: filter.month, from: filter.from, to: filter.to, ...extra });
+}
+
+export function getInvoiceRegister(filter: RegisterPeriodFilter): Promise<InvoiceRegister> {
+  return call<InvoiceRegister>(`/admin/invoices/register${registerQuery(filter)}`);
+}
+
+export function exportInvoiceRegister(filter: RegisterPeriodFilter, kind: 'lines' | 'hsn' | 'states'): Promise<void> {
+  return downloadFile(`/admin/invoices/register/export${registerQuery(filter, { kind })}`, `invoice-register-${kind}.csv`);
+}
+
+export function downloadInvoiceZip(filter: RegisterPeriodFilter): Promise<void> {
+  return downloadFile(`/admin/invoices/register/zip${registerQuery(filter)}`, 'invoices.zip');
+}
+
+export function downloadInvoicePdf(orderId: string): Promise<void> {
+  return downloadFile(`/admin/invoices/orders/${encodeURIComponent(orderId)}/pdf`, 'invoice.pdf');
 }

@@ -421,6 +421,7 @@ export interface SiteSettings {
   communication: { enableOrderEmails: boolean; enableOrderSMS: boolean; enablePushNotifications: boolean };
   otp: { expiryMinutes: number; resendTimeoutSec: number };
   system: { maintenanceMode: boolean };
+  invoice: { hsnSacReport: string; hsnSacConsultation: string; hsnSacProduct: string; hsnSacCourse: string };
   topBar: AnnouncementBar;
   highlightsBar: AnnouncementBar;
   legal: {

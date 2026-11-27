@@ -25,6 +25,7 @@ import {
   StatCard,
   SuccessBanner,
 } from '../../components/sales/ui';
+import { InvoiceRegisterPanel } from '../../components/sales/InvoiceRegisterPanel';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -47,7 +48,7 @@ function InvoiceLookup() {
     <div className="card" style={{ marginBottom: '1.5rem' }}>
       <SectionTitle>View invoice data</SectionTitle>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-        Invoice data of any sale, by order ID. You can also open it from a shop order, a transaction or a booking. The printable PDF is not available yet.
+        Invoice of any sale, by order ID. You can also open it from a product order, a transaction or a booking.
       </p>
       <form onSubmit={open} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 320px' }}>
@@ -390,7 +391,8 @@ export default function InvoicesPage() {
 
   return (
     <div>
-      <PageHeader crumbs={[{ label: 'Invoices' }]} title="Invoices" subtitle="Invoice data of a sale, and the INV-AS invoice number series" />
+      <PageHeader crumbs={[{ label: 'Invoices & GST Register' }]} title="Invoices & GST Register" subtitle="All GST invoices by month or financial year, exports for your CA, and the INV-AS number series" />
+      {canSeeCounter && <InvoiceRegisterPanel />}
       {canSeeInvoices && <InvoiceLookup />}
       {canSeeCounter ? (
         <CounterPanel />

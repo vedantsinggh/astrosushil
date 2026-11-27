@@ -64,7 +64,7 @@ function titleCase(value: string): string {
 }
 
 const METHOD_LABELS: Record<string, string> = { razorpay: 'Razorpay', manual: 'Manual', cod: 'Cash on Delivery' };
-const MODE_LABELS: Record<string, string> = { audio: 'Audio Call', video: 'Video Call', in_person: 'In Person' };
+const MODE_LABELS: Record<string, string> = { audio: 'Audio Call', video: 'Video Call', in_person: 'In Person', message: 'WhatsApp Message' };
 
 function methodLabel(method: string): string {
   return METHOD_LABELS[clean(method).toLowerCase()] ?? titleCase(method);
@@ -87,6 +87,7 @@ function headerTex(data: InvoicePdfData): string {
 
   const dates: string[] = [];
   const orderDate = formatIndianDate(data.orderDate);
+  if (data.invoiceDate) dates.push(`Invoice Date: ${formatIndianDate(data.invoiceDate)}`);
   if (data.saleType === 'consultation') {
     dates.push(`Booked On: ${orderDate}`);
     if (data.consultation) dates.push(`Scheduled: ${t(formatCalendarDate(clean(data.consultation.date)))}`);
@@ -94,7 +95,7 @@ function headerTex(data: InvoicePdfData): string {
     dates.push(`Order Date: ${orderDate}`);
     if (data.lines[0]) dates.push(`Report: ${t(data.lines[0].title, 120)}`);
   } else {
-    dates.push(`Date: ${orderDate}`);
+    dates.push(`${data.invoiceDate ? 'Order Date' : 'Date'}: ${orderDate}`);
   }
 
   return `\\InvHeader{${t(clean(seller.legalName).toUpperCase())}}{${t(seller.tagline)}}{${sellerLines.join('\\par ')}}{${t(data.invoiceNumber)}}{${dates.join('\\par ')}}`;
@@ -106,7 +107,7 @@ function factsTex(data: InvoicePdfData): string {
   if (data.saleType === 'consultation' && data.consultation) {
     facts.push(['Slot', tOrDash(data.consultation.slot)], ['Mode', tOrDash(modeLabel(data.consultation.mode))]);
   }
-  facts.push(['Place of Supply', tOrDash(data.placeOfSupply)], ['Reverse Charge', data.reverseCharge ? 'Yes' : 'No'], ['Payment', paymentBadge(data.payment.status)]);
+  facts.push(['Place of Supply', tOrDash(data.placeOfSupplyLabel || data.placeOfSupply)], ['Reverse Charge', data.reverseCharge ? 'Yes' : 'No'], ['Payment', paymentBadge(data.payment.status)]);
 
   const n = facts.length;
   const width = `\\dimexpr(\\linewidth-${2 * (n - 1)}\\tabcolsep)/${n}\\relax`;
@@ -175,7 +176,13 @@ function lineNote(line: InvoicePdfLine, data: InvoicePdfData): string {
   return notes.map((note) => `\\InvItemNote{${note}}`).join('');
 }
 
+/** True when the invoice carries the GST split (a full tax invoice); older data prints as before. */
+function hasSplit(data: InvoicePdfData): boolean {
+  return data.taxType === 'intra' || data.taxType === 'inter';
+}
+
 function itemsTex(data: InvoicePdfData): string {
+  if (hasSplit(data)) return taxItemsTex(data);
   const head = ['\\#', 'Item', 'Qty', 'Unit Price', 'Taxable Value', 'GST', 'GST Amount', 'Total'].map((label) => `\\InvTh{${label}}`).join(' & ');
   const rows = data.lines.map((line, index) => {
     const taxed = line.taxRateBp > 0 && line.taxPaise > 0;
@@ -203,6 +210,69 @@ function itemsTex(data: InvoicePdfData): string {
   ].join('\n');
 }
 
+/** Item table of a GST tax invoice: HSN/SAC column and the tax as CGST + SGST or IGST. */
+function taxItemsTex(data: InvoicePdfData): string {
+  const intra = data.taxType === 'intra';
+  const taxHeads = intra ? ['CGST', 'SGST'] : ['IGST'];
+  const head = ['\\#', 'Item', 'HSN/SAC', 'Qty', 'Taxable Value', 'Rate', ...taxHeads, 'Total'].map((label) => `\\InvTh{${label}}`).join(' & ');
+  const rows = data.lines.map((line, index) => {
+    const taxed = line.taxRateBp > 0 && line.taxPaise > 0;
+    const amount = (value: number | undefined) => (taxed && typeof value === 'number' ? inr(value) : DASH);
+    const taxCells = intra ? [amount(line.cgstPaise), amount(line.sgstPaise)] : [amount(line.igstPaise)];
+    const cells = [
+      `\\InvTd{${index + 1}}`,
+      `\\InvItemTitle{${tOrDash(line.title)}}${lineNote(line, data)}`,
+      `\\InvTd{${line.hsnSac ? t(line.hsnSac, 12) : DASH}}`,
+      `\\InvTd{${t(line.quantity)}}`,
+      `\\InvTd{${typeof line.taxablePaise === 'number' ? inr(line.taxablePaise) : DASH}}`,
+      `\\InvTd{${taxed ? tex(formatRateBp(line.taxRateBp)) : DASH}}`,
+      ...taxCells.map((cell) => `\\InvTd{${cell}}`),
+      `\\InvTd{\\bfseries\\color{InvInk}${inr(line.lineTotalPaise)}}`,
+    ];
+    return `${cells.join(' & ')}\\\\\\hline`;
+  });
+  const columns = intra
+    ? 'C{6mm}L{36mm}C{14mm}C{8mm}R{20mm}C{10mm}R{17mm}R{17mm}R{20mm}'
+    : 'C{6mm}L{50mm}C{14mm}C{8mm}R{21mm}C{10mm}R{20mm}R{22mm}';
+  return [
+    '{\\setlength{\\tabcolsep}{1.5mm}\\setlength{\\LTleft}{0pt}\\setlength{\\LTright}{0pt}\\setlength{\\LTpre}{0pt}\\setlength{\\LTpost}{3mm}\\arrayrulecolor{InvRule}',
+    `\\begin{longtable}{${columns}}`,
+    `\\rowcolor{InvInk}${head}\\\\`,
+    '\\endhead',
+    ...rows,
+    '\\end{longtable}}',
+  ].join('\n');
+}
+
+/** Half of a GST rate (the CGST and the SGST rate), e.g. 9% of 18%. */
+function halfRate(rateBp: number): string {
+  if (rateBp % 2 === 0) return formatRateBp(rateBp / 2);
+  return `${rateBp / 200}%`;
+}
+
+/** GST rows of the totals box for a tax invoice: CGST and SGST (half rate each) or IGST, per rate. */
+function splitTaxRows(data: InvoicePdfData): string[] {
+  const byRate = new Map<number, { cgst: number; sgst: number; igst: number }>();
+  for (const line of data.lines) {
+    if (!(line.taxRateBp > 0 && line.taxPaise > 0)) continue;
+    const row = byRate.get(line.taxRateBp) ?? { cgst: 0, sgst: 0, igst: 0 };
+    row.cgst += line.cgstPaise ?? 0;
+    row.sgst += line.sgstPaise ?? 0;
+    row.igst += line.igstPaise ?? 0;
+    byRate.set(line.taxRateBp, row);
+  }
+  const rows: string[] = [];
+  for (const [rateBp, row] of [...byRate.entries()].sort((a, b) => a[0] - b[0])) {
+    if (data.taxType === 'intra') {
+      rows.push(`\\InvTotalRow{CGST @ ${tex(halfRate(rateBp))}}{${inr(row.cgst)}}`);
+      rows.push(`\\InvTotalRow{SGST @ ${tex(halfRate(rateBp))}}{${inr(row.sgst)}}`);
+    } else {
+      rows.push(`\\InvTotalRow{IGST @ ${tex(formatRateBp(rateBp))}}{${inr(row.igst)}}`);
+    }
+  }
+  return rows;
+}
+
 function totalsTex(data: InvoicePdfData): string {
   const { totals, payment } = data;
   const rows: string[] = [`\\InvTotalRow{Subtotal}{${inr(totals.subTotalPaise)}}`];
@@ -213,7 +283,10 @@ function totalsTex(data: InvoicePdfData): string {
     const taxable = data.lines.reduce((sum, line) => sum + (line.taxablePaise as number), 0);
     rows.push(`\\InvTotalRow{Taxable Value (Excl. GST)}{${inr(taxable)}}`);
   }
-  if (totals.taxByRate.length) {
+  if (hasSplit(data)) {
+    rows.push(...splitTaxRows(data));
+    if (totals.taxPaise > 0) rows.push(`\\InvTotalRow{Total GST}{${inr(totals.taxPaise)}}`);
+  } else if (totals.taxByRate.length) {
     for (const row of totals.taxByRate) {
       rows.push(`\\InvTotalRow{GST ${tex(formatRateBp(row.rateBp))} ${DASH} ${row.inclusive ? 'Included' : 'Added'}}{${inr(row.taxPaise)}}`);
     }

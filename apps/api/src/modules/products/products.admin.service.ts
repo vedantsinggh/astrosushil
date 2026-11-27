@@ -81,6 +81,8 @@ const productFields = {
   discountValue: z.number().min(0).optional(),
   stock: z.number().int().min(-1).optional(),
   sku: z.string().trim().max(100).nullable().optional(),
+  // GST invoice (2026-11-26): blank = the settings default for products.
+  hsnSac: z.union([z.literal(''), z.string().trim().regex(/^(\d{4}|\d{6}|\d{8})$/, 'HSN code must be 4, 6 or 8 digits')]).nullable().optional(),
   variants: z.array(variantSchema).max(50).optional(),
   /** Download of a digital product that has no variants. */
   downloadableFile: privateFileSchema.nullable().optional(),
@@ -286,6 +288,7 @@ export class ProductsAdminService {
         discountValue,
         stock: input.stock ?? (type === 'physical' ? 0 : -1),
         sku: input.sku ?? null,
+        hsnSac: input.hsnSac || null,
         hasVariants,
         imageUrl: thumbnail?.url ?? images[0]?.url ?? null,
         thumbnailUrl: thumbnail?.url ?? null,
@@ -425,6 +428,7 @@ export class ProductsAdminService {
     }
     if (input.stock !== undefined) data.stock = input.stock;
     if (input.sku !== undefined) data.sku = input.sku;
+    if (input.hsnSac !== undefined) data.hsnSac = input.hsnSac || null;
     if (input.gst?.enabled !== undefined) data.gstEnabled = input.gst.enabled;
     if (input.gst?.rate !== undefined) data.gstRateBp = Math.round(input.gst.rate * 100);
     if (input.gst?.type !== undefined) data.gstInclusive = input.gst.type === 'inclusive';

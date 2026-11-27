@@ -61,7 +61,8 @@ export class InvoicePdfService {
    * then already checked the admin permission). Someone else's order is "not found".
    */
   public async getInvoicePdf(orderId: string, requester: { id: string }, asStaff: boolean = false): Promise<InvoicePdfResult> {
-    this.countRequest(requester.id, asStaff);
+    // Staff downloads are not limited (owner decision 2026-11-26: no rate limit in the admin).
+    if (!asStaff) this.countRequest(requester.id, asStaff);
 
     const data = await invoiceService.getInvoiceData(orderId, requester, asStaff);
 
@@ -114,7 +115,7 @@ export class InvoicePdfService {
         orderBy: { createdAt: 'asc' },
         select: { date: true, startTime: true, endTime: true, mode: true, durationMinutes: true },
       });
-      if (booking) {
+      if (booking && booking.date && booking.startTime && booking.endTime) {
         document.consultation = {
           date: booking.date,
           slot: `${booking.startTime}-${booking.endTime}`,

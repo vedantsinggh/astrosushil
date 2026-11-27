@@ -1,16 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { errorMessage, getOrderInvoice, InvoiceDocumentData } from '../../lib/api/sales';
+import { downloadInvoicePdf, errorMessage, getOrderInvoice, InvoiceDocumentData } from '../../lib/api/sales';
 import { basisPointsToPercent, formatDateTime, formatMinor, formatPaise, titleCase } from './format';
 import { StatusPill } from './badges';
 import { ErrorBanner, InfoBox, KeyValue, SectionTitle } from './ui';
 
-/** Invoice data of one order (`GET /admin/invoices/orders/:orderId`, permission `transactions:read`). The PDF is not built in the backend yet. */
+/** Invoice of one order (`GET /admin/invoices/orders/:orderId`, permission `transactions:read`), with its PDF. */
 export function InvoiceView({ orderId }: { orderId: string }) {
   const [invoice, setInvoice] = useState<InvoiceDocumentData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,9 +38,28 @@ export function InvoiceView({ orderId }: { orderId: string }) {
   if (error || !invoice) return <ErrorBanner message={error || 'Invoice data could not be loaded'} />;
 
   const { seller, customer, shippingAddress, payment, totals } = invoice;
+  const split = invoice.taxType === 'intra' || invoice.taxType === 'inter';
+
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    setPdfError(null);
+    try {
+      await downloadInvoicePdf(orderId);
+    } catch (err) {
+      setPdfError(errorMessage(err));
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+        <button className="btn btn-primary" onClick={downloadPdf} disabled={pdfBusy}>
+          {pdfBusy ? 'Preparing PDF…' : 'Download invoice PDF'}
+        </button>
+      </div>
+      <ErrorBanner message={pdfError} />
       {!invoice.numberAllocated && (
         <InfoBox tone="warning" title="No invoice number yet">
           This sale shows the label &ldquo;{invoice.invoiceNumber}&rdquo; instead of a number
@@ -53,9 +74,11 @@ export function InvoiceView({ orderId }: { orderId: string }) {
           <KeyValue label="Invoice number">{invoice.invoiceNumber}</KeyValue>
           <KeyValue label="Sale type">{titleCase(invoice.saleType)}</KeyValue>
           <KeyValue label="Order reference">{invoice.orderReference}</KeyValue>
+          {invoice.invoiceDate && <KeyValue label="Invoice date">{formatDateTime(invoice.invoiceDate)}</KeyValue>}
           <KeyValue label="Order date">{formatDateTime(invoice.orderDate)}</KeyValue>
           <KeyValue label="Order status">{titleCase(invoice.orderStatus)}</KeyValue>
-          <KeyValue label="Place of supply">{invoice.placeOfSupply}</KeyValue>
+          <KeyValue label="Place of supply">{invoice.placeOfSupplyLabel || invoice.placeOfSupply}</KeyValue>
+          {split && <KeyValue label="Supply type">{invoice.taxType === 'intra' ? 'Within the state (CGST + SGST)' : 'Other state (IGST)'}</KeyValue>}
           <KeyValue label="Reverse charge">{invoice.reverseCharge ? 'Yes' : 'No'}</KeyValue>
         </div>
 
@@ -106,6 +129,7 @@ export function InvoiceView({ orderId }: { orderId: string }) {
               <tr>
                 <th>Item</th>
                 <th>Type</th>
+                <th>HSN/SAC</th>
                 <th>Qty</th>
                 <th>Unit price</th>
                 <th>GST</th>
@@ -121,6 +145,7 @@ export function InvoiceView({ orderId }: { orderId: string }) {
                     {line.description && <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{line.description}</div>}
                   </td>
                   <td style={{ fontSize: '0.8rem' }}>{titleCase(line.itemType)}</td>
+                  <td>{line.hsnSac || <span className="badge badge-warning">Not set</span>}</td>
                   <td>{line.quantity}</td>
                   <td>{formatPaise(line.unitPricePaise)}</td>
                   <td style={{ fontSize: '0.8rem' }}>
@@ -138,7 +163,10 @@ export function InvoiceView({ orderId }: { orderId: string }) {
           <KeyValue label="Subtotal">{formatPaise(totals.subTotalPaise)}</KeyValue>
           <KeyValue label="Discount">− {formatPaise(totals.discountPaise)}</KeyValue>
           <KeyValue label="Shipping">{formatPaise(totals.shippingPaise)}</KeyValue>
-          {totals.taxByRate.map((row) => (
+          {split && (totals.cgstPaise ?? 0) > 0 && <KeyValue label="CGST">{formatPaise(totals.cgstPaise)}</KeyValue>}
+          {split && (totals.sgstPaise ?? 0) > 0 && <KeyValue label="SGST">{formatPaise(totals.sgstPaise)}</KeyValue>}
+          {split && (totals.igstPaise ?? 0) > 0 && <KeyValue label="IGST">{formatPaise(totals.igstPaise)}</KeyValue>}
+          {!split && totals.taxByRate.map((row) => (
             <KeyValue key={`${row.rateBp}-${row.inclusive}`} label={`GST ${basisPointsToPercent(row.rateBp)} (${row.inclusive ? 'included in price' : 'added on top'})`}>
               {formatPaise(row.taxPaise)}
             </KeyValue>

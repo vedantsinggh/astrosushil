@@ -6,6 +6,7 @@ import { AuthorizationError } from '../../errors/app-error';
 import { invoiceService } from './invoice.service';
 import { INVOICE_PDF_LIMITS, InvoicePdfResult, invoicePdfService } from './invoice-pdf.service';
 import { settlePaidOrderForRecovery } from './invoice-recovery.sweep';
+import { invoiceRegisterService } from './invoice-register';
 
 const orderParams = z.object({ orderId: z.string().uuid() });
 const initializeBody = z.object({
@@ -22,7 +23,17 @@ const initializeBody = z.object({
  *   GET  /admin/invoices/counter                   permission gst_report:read
  *   POST /admin/invoices/counter/initialize        super admin only
  *   POST /admin/invoices/allocate-pending          super admin only
+ *   GET  /admin/invoices/register                  permission gst_report:read   (fy | month | from+to)
+ *   GET  /admin/invoices/register/export           permission gst_report:export (kind=lines|hsn|states, CSV)
+ *   GET  /admin/invoices/register/zip              permission gst_report:export (every PDF + the CSVs)
  */
+const registerQuery = z.object({
+  fy: z.string().max(10).optional(),
+  month: z.string().max(10).optional(),
+  from: z.string().max(10).optional(),
+  to: z.string().max(10).optional(),
+});
+const exportQuery = registerQuery.extend({ kind: z.enum(['lines', 'hsn', 'states']).default('lines') });
 function sendPdf(reply: FastifyReply, result: InvoicePdfResult) {
   return reply
     .status(200)
@@ -92,7 +103,7 @@ export async function invoicesRoutes(fastify: FastifyInstance, _options: Fastify
 
     adminScope.get('/admin/invoices/orders/:orderId/pdf', {
       schema: { tags: ['Admin Invoices'], summary: 'Invoice PDF for any order', security: [{ bearerAuth: [] }] },
-      config: pdfRateLimit(INVOICE_PDF_LIMITS.staffPerWindow),
+      // No limit for staff (owner decision 2026-11-26).
       preHandler: [checkPermission('transactions:read')],
       handler: async (request, reply) => {
         const { orderId } = orderParams.parse(request.params);
@@ -104,6 +115,64 @@ export async function invoicesRoutes(fastify: FastifyInstance, _options: Fastify
       schema: { tags: ['Admin Invoices'], summary: 'Invoice counter state and a report on stored invoice numbers', security: [{ bearerAuth: [] }] },
       preHandler: [checkPermission('gst_report:read')],
       handler: async (_request, reply) => reply.status(200).send(await invoiceService.describeCounter()),
+    });
+
+    adminScope.get('/admin/invoices/register', {
+      schema: { tags: ['Admin Invoices'], summary: 'GST invoice register of a period, with totals by rate, HSN/SAC and state', security: [{ bearerAuth: [] }] },
+      preHandler: [checkPermission('gst_report:read')],
+      handler: async (request, reply) => {
+        const query = registerQuery.parse(request.query);
+        return reply.status(200).send(await invoiceRegisterService.register(query, request.user));
+      },
+    });
+
+    adminScope.get('/admin/invoices/register/export', {
+      schema: { tags: ['Admin Invoices'], summary: 'Invoice register as CSV: lines, HSN summary or state summary', security: [{ bearerAuth: [] }] },
+      preHandler: [checkPermission('gst_report:export')],
+      handler: async (request, reply) => {
+        const { kind, ...period } = exportQuery.parse(request.query);
+        const result = await invoiceRegisterService.csv(period, kind, request.user);
+        await adminService.logAction({
+          adminId: request.user.id,
+          adminEmail: request.user.id,
+          action: 'INVOICE_REGISTER_EXPORTED',
+          resource: 'InvoiceRegister',
+          details: `${kind} ${result.filename}`,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
+        return reply
+          .status(200)
+          .header('Content-Type', 'text/csv; charset=utf-8')
+          .header('Content-Disposition', `attachment; filename="${result.filename}"`)
+          .header('Cache-Control', 'private, no-store')
+          .send('\uFEFF' + result.csv);
+      },
+    });
+
+    adminScope.get('/admin/invoices/register/zip', {
+      schema: { tags: ['Admin Invoices'], summary: 'Every invoice PDF of a period with the register CSVs, as one ZIP', security: [{ bearerAuth: [] }] },
+      preHandler: [checkPermission('gst_report:export')],
+      // Compiling hundreds of PDFs takes minutes: a reverse proxy in front must allow that long a response.
+      handler: async (request, reply) => {
+        const query = registerQuery.parse(request.query);
+        const result = await invoiceRegisterService.zip(query, request.user, async (orderId) => (await invoicePdfService.getInvoicePdf(orderId, request.user, true)).pdf);
+        await adminService.logAction({
+          adminId: request.user.id,
+          adminEmail: request.user.id,
+          action: 'INVOICE_REGISTER_ZIP',
+          resource: 'InvoiceRegister',
+          details: `${result.filename}${result.failed.length ? `; failed ${result.failed.join(', ')}` : ''}`,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
+        return reply
+          .status(200)
+          .header('Content-Type', 'application/zip')
+          .header('Content-Disposition', `attachment; filename="${result.filename}"`)
+          .header('Cache-Control', 'private, no-store')
+          .send(result.zip);
+      },
     });
 
     adminScope.post('/admin/invoices/counter/initialize', {

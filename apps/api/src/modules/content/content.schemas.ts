@@ -427,6 +427,8 @@ const hexColorOrEmpty = z.union([z.literal(''), z.string().regex(/^#([0-9A-Fa-f]
 const paise = z.number().int().min(0).max(100_000_000_000);
 const smallCount = z.number().int().min(0).max(1_000_000);
 const percent = z.number().min(0).max(100);
+/** HSN or SAC code: 4, 6 or 8 digits, or blank. */
+export const hsnSac = z.union([z.literal(''), z.string().trim().regex(/^(\d{4}|\d{6}|\d{8})$/, 'HSN/SAC code must be 4, 6 or 8 digits')]);
 const linkOrEmpty = z.union([z.literal(''), safeLink]);
 const richText = z.string().max(MAX_RICH_TEXT_LENGTH);
 
@@ -515,6 +517,14 @@ export const SETTINGS_SHAPE = {
   topBar: announcementBarShape,
   highlightsBar: announcementBarShape,
   // Rich text (sanitised HTML). returnPolicyText is stored but not rendered by the website.
+  // GST invoice (owner decision 2026-11-26). Blank until the owner's CA confirms the codes: an
+  // invoice line then prints no code and the invoice register flags it. A product's own code wins.
+  invoice: {
+    hsnSacReport: hsnSac,
+    hsnSacConsultation: hsnSac,
+    hsnSacProduct: hsnSac,
+    hsnSacCourse: hsnSac,
+  },
   legal: {
     privacyPolicy: richText,
     termsConditions: richText,
@@ -553,6 +563,7 @@ export const SETTINGS_DEFAULTS = {
   system: { maintenanceMode: false },
   topBar: { enabled: false, text: '', bgColor: '#ffffff', textColor: '#ef4444', linkEnabled: false, linkUrl: '' },
   highlightsBar: { enabled: false, text: '', bgColor: '#121045', textColor: '#ffffff', linkEnabled: false, linkUrl: '' },
+  invoice: { hsnSacReport: '', hsnSacConsultation: '', hsnSacProduct: '', hsnSacCourse: '' },
   legal: {
     privacyPolicy: '',
     termsConditions: '',
@@ -585,6 +596,7 @@ export const updateSettingsSchema = z
     system: strictPartial(SETTINGS_SHAPE.system),
     topBar: strictPartial(SETTINGS_SHAPE.topBar),
     highlightsBar: strictPartial(SETTINGS_SHAPE.highlightsBar),
+    invoice: strictPartial(SETTINGS_SHAPE.invoice),
     legal: strictPartial(SETTINGS_SHAPE.legal),
   })
   .strict();

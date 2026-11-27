@@ -119,6 +119,18 @@ const TABS: TabDef[] = [
     ],
   },
   {
+    section: 'invoice',
+    label: 'GST Invoice',
+    description: 'HSN/SAC codes printed on GST invoices and in the invoice register.',
+    note: 'Ask your CA for the right codes (4, 6 or 8 digits). A product or PDF report with its own code uses that one; every other line uses the default of its type. Leave blank until confirmed: the invoice register lists invoices without a code.',
+    fields: [
+      { key: 'hsnSacReport', label: 'SAC for PDF reports', kind: 'text', max: 8, placeholder: 'e.g. 6 digits' },
+      { key: 'hsnSacConsultation', label: 'SAC for consultations', kind: 'text', max: 8, placeholder: 'e.g. 6 digits' },
+      { key: 'hsnSacProduct', label: 'HSN for products (default)', kind: 'text', max: 8, placeholder: 'e.g. 4 to 8 digits' },
+      { key: 'hsnSacCourse', label: 'SAC for courses', kind: 'text', max: 8, placeholder: 'e.g. 6 digits' },
+    ],
+  },
+  {
     section: 'payment',
     label: 'Payment',
     description: 'Currency, tax and cash on delivery.',
@@ -568,7 +580,7 @@ function SettingsScreen() {
         actions={
           <>
             <button type="button" className="btn btn-secondary" style={{ fontSize: '0.85rem' }} onClick={load} disabled={isSaving}>
-              🔄 Reload
+              Reload
             </button>
             <Link href="/settings/legal" className="btn btn-secondary">
               Legal pages →

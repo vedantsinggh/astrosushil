@@ -335,6 +335,46 @@ describe.skipIf(!toolsPresent)('invoice PDF (XeLaTeX)', () => {
     expect((failure as Error).message).not.toContain('Asha');
   }, 30000);
 
+  it('prints a GST tax invoice: HSN/SAC column and CGST + SGST for a sale in the seller state', async () => {
+    const split = (tax: number) => ({ cgstPaise: Math.floor(tax / 2), sgstPaise: tax - Math.floor(tax / 2), igstPaise: 0 });
+    const base = inrOrder();
+    const data: InvoicePdfData = {
+      ...base,
+      placeOfSupply: 'Uttar Pradesh',
+      placeOfSupplyLabel: '09-Uttar Pradesh',
+      taxType: 'intra',
+      invoiceDate: '2026-11-25T06:00:00.000Z',
+      lines: base.lines.map((line, i) => ({ ...line, hsnSac: i === 0 ? '71171900' : null, ...split(line.taxPaise) })),
+    };
+    const { pages, text } = inspect('invoice-tax-intra', await invoicePdf.renderInvoicePdf(data));
+    expect(pages).toBe(1);
+    expect(text).toContain('TAX INVOICE');
+    expect(text).toContain('HSN/SAC');
+    expect(text).toContain('71171900');
+    expect(text).toContain('09-Uttar Pradesh');
+    expect(text).toMatch(/Invoice Date: 25 Nov 2026/);
+    expect(text).toMatch(/CGST @ 9%\s+₹171\.61/);
+    expect(text).toMatch(/SGST @ 9%\s+₹171\.61/);
+    expect(text).toMatch(/CGST @ 2\.5%\s+₹9\.50/);
+    expect(text).toMatch(/Total GST\s+₹362\.22/);
+    expect(text).not.toContain('IGST');
+  }, 60000);
+
+  it('prints IGST for a sale to another state', async () => {
+    const base = inrOrder();
+    const data: InvoicePdfData = {
+      ...base,
+      placeOfSupplyLabel: '27-Maharashtra',
+      taxType: 'inter',
+      lines: base.lines.map((line) => ({ ...line, hsnSac: '9997', cgstPaise: 0, sgstPaise: 0, igstPaise: line.taxPaise })),
+    };
+    const { text } = inspect('invoice-tax-inter', await invoicePdf.renderInvoicePdf(data));
+    expect(text).toMatch(/IGST @ 18%\s+₹343\.22/);
+    expect(text).toMatch(/IGST @ 5%\s+₹19\.00/);
+    expect(text).toContain('27-Maharashtra');
+    expect(text).not.toMatch(/CGST|SGST/);
+  }, 60000);
+
   it('reports a compile failure with only the TeX error line', async () => {
     const failure = await invoicePdf
       .compileInvoiceLatex('\\documentclass{article}\\begin{document}Secret Name \\undefinedcommand\\end{document}')
