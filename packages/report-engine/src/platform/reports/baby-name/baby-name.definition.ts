@@ -21,7 +21,7 @@ export const BABY_NAME_DEFINITION: ReportDefinitionInput = {
   referenceFiles: ['docs/referencerepots/Baby Name Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1'], transitYears: 1 },
   language: 'en',
-  theme: { primary: '462170', accent: 'CC9924', tint: 'F5F1FB' },
+  theme: { primary: '1D3557', accent: 'B38632', tint: 'F1F3F7' },
   writingGuidance: [
     'This report is about naming a newborn child. Keep every sentence warm, gentle and suitable for a family reading about their baby. Never mention romance, sexuality or adult relationships.',
     'The syllables and numbers are already calculated; never change or compute them. Candidate names are referred to only as "candidate 1", "candidate 2" and so on; their spellings are not provided.',

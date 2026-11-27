@@ -82,6 +82,16 @@
 }
 
 % ---------------------------------------------------------------- chrome --
+\newif\ifAsInteriorPage
+\AsInteriorPagefalse
+\AddToHook{shipout/background}{%
+  \ifAsInteriorPage
+    \begin{tikzpicture}[remember picture,overlay]
+      \fill[Tint!75!white] (current page.south west) rectangle (current page.north east);
+      \node[anchor=center,inner sep=0pt,opacity=0.055] at (current page.center) {\includegraphics[width=118mm,keepaspectratio]{assets/astrosushil_logo.png}};
+    \end{tikzpicture}%
+  \fi
+}
 \newcommand{\ReportRunningTitle}{}
 \newcommand{\PreparedForLine}{Prepared for \ClientName}
 \fancypagestyle{asreport}{%
@@ -119,7 +129,7 @@
     \end{minipage}\hfill
     \begin{minipage}[c]{0.23\linewidth}\raggedleft
       \ifx\ReportSpotIllustration\as@empty\else
-        \includegraphics[width=31mm,height=22mm,keepaspectratio]{\ReportSpotIllustration}%
+        \setlength{\fboxsep}{1.5mm}\fcolorbox{Accent!75}{PrimaryDeep}{\includegraphics[width=28mm,height=20mm,keepaspectratio]{\ReportSpotIllustration}}%
       \fi
     \end{minipage}%
   \end{tcolorbox}%
@@ -141,19 +151,20 @@
     \end{minipage}\hfill
     \begin{minipage}[c]{0.23\linewidth}\raggedleft
       \ifx\ReportSpotIllustration\as@empty\else
-        \setlength{\fboxsep}{1mm}\fcolorbox{Accent!75}{white}{\includegraphics[width=28mm,height=20mm,keepaspectratio]{\ReportSpotIllustration}}%
+        \setlength{\fboxsep}{1.5mm}\fcolorbox{Accent!75}{PrimaryDeep}{\includegraphics[width=28mm,height=20mm,keepaspectratio]{\ReportSpotIllustration}}%
       \fi
     \end{minipage}%
   \end{tcolorbox}%
   \SectionDivider
 }
 
-% Picture cropped to a rounded box: width, height, \includegraphics key that makes it cover the box, file
+% Picture cropped to a rounded box with report-theme harmony: width, height, \includegraphics key, file
 \newcommand{\AsImage}[4]{%
   \begin{tikzpicture}
-    \clip[rounded corners=1.8mm] (0,0) rectangle (#1,#2);
+    \clip[rounded corners=2mm] (0,0) rectangle (#1,#2);
+    \fill[Primary!14!white] (0,0) rectangle (#1,#2);
     \node[inner sep=0pt] at ($(0,0)!0.5!(#1,#2)$) {\includegraphics[#3]{#4}};
-    \draw[Accent!65,line width=0.6pt,rounded corners=1.8mm] (0,0) rectangle (#1,#2);
+    \draw[Accent!80,line width=0.65pt,rounded corners=2mm] (0,0) rectangle (#1,#2);
   \end{tikzpicture}%
 }
 

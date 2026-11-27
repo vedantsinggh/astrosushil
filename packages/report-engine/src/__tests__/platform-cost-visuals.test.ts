@@ -216,7 +216,7 @@ describe('report illustrations', () => {
     expect(coverImageTex(img('tall', ['x'], 500, 2000), 170, 96)).toContain('{width=170mm}');
   });
 
-  it('renders a small uncaptioned picture and a credits page only when a plan is given', () => {
+  it('renders a small uncaptioned theme-harmonized picture without an Image Credits page', () => {
     const def = ReportRegistry.entry('career').definition;
     const plan = planIllustrations(def, {}, library);
     const topicId = [...plan.topics.keys()][0];
@@ -234,9 +234,8 @@ describe('report illustrations', () => {
     const illustrated = assembleDocument({ ...input, illustrations: plan });
     expect(illustrated).toContain('\\AsImage{48mm}{44mm}');
     expect(illustrated).toContain('assets/library/career-1.jpg');
-    expect(illustrated).toContain('Image Credits');
-    // The caption appears once, in the credits, and not under the picture.
-    expect(illustrated.split('Caption career-1').length - 1).toBe(1);
+    expect(illustrated).not.toContain('Image Credits');
+    expect(illustrated).toContain('About Astro Sushil');
   });
 
   it('matches working-life themes and keeps the Ascendant sign out of career-chart passages', () => {

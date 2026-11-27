@@ -10,9 +10,9 @@ import { promisify } from 'util';
 import { GeneratedTopicPayload, ReportDefinition, ReportSection, ReportTopic } from '../contracts';
 import { BlockOutput, tabularxSpecToLongtable } from './blocks';
 import {
-  authorNotePage, closingPage, contentsPage, coverPage, CoverInfo, howToReadPage, philosophyPage, reportAssetKey,
+  aboutAstroSushilPage, authorNotePage, closingPage, contentsPage, coverPage, CoverInfo, howToReadPage, philosophyPage, reportAssetKey,
 } from './editorial';
-import { coverImageTex, imageCreditsPage, IllustrationPlan, LibraryImage } from './illustrations';
+import { coverImageTex, IllustrationPlan, LibraryImage } from './illustrations';
 import { tex } from './latex';
 
 const execFileAsync = promisify(execFile);
@@ -252,13 +252,14 @@ export function assembleDocument(input: AssembleInput): string {
 \hypersetup{pdftitle={${tex(def.title)}},pdfauthor={Astro Sushil},pdfcreator={Astro Sushil Report Platform}}
 \begin{document}
 ${coverPage(def, cover)}
+\AsInteriorPagetrue
 \pagenumbering{arabic}\setcounter{page}{2}
 ${authorNotePage(def)}
+${aboutAstroSushilPage(def)}
 ${philosophyPage(input.llmProviderLabel, def.language)}
 ${howToReadPage(def)}
 ${contentsPage(def.language)}
 ${body}
-${plan ? imageCreditsPage(plan, def.language) : ''}
 ${closingPage(def)}
 \end{document}
 `;

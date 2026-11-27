@@ -46,7 +46,7 @@ export const PLANETARY_SUMMARY_DEFINITION: ReportDefinitionInput = {
   description: 'Your Vedic birth chart (D1) and planet table, with a short personal reading of each of the nine planets by sign, house, nakshatra, dignity and retrograde or combust state.',
   referenceFiles: [],
   requires: { birthTime: true, partner: false, vargas: ['D1'] },
-  theme: { primary: '1B3A6B', accent: 'C59A3D', tint: 'F0F4FA' },
+  theme: { primary: '2E1A47', accent: 'B5852E', tint: 'F3EAF8' },
   writingGuidance: [
     'This is a short planetary summary: keep each planet profile focused and concrete; do not repeat the general meaning of a house in every topic.',
     'Dignity words (exalted, own sign, debilitated and so on) are described as how comfortably a planet expresses itself, never as good or bad luck.',

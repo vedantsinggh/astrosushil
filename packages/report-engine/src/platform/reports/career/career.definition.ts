@@ -93,7 +93,7 @@ export const CAREER_DEFINITION: ReportDefinitionInput = {
   description: 'A deep reading of your professional life: the Lagna and the career houses (1st, 2nd, 6th, 7th, 10th, 11th) with their lords, occupants and aspects; the Dashamsha (D10) career chart; Atmakaraka and Amatyakaraka; career yogas detected in your chart; Saturn as the karma karaka in the Bhrigu Nandi Nadi tradition; the Ashtakavarga comparison of employment and enterprise; your dasha timeline; the current and coming transits of Saturn, Jupiter, Rahu and Ketu; and practical, ethical remedies with nothing to buy.',
   referenceFiles: ['docs/referencerepots/Career Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1', 'D9', 'D10'], transitYears: 10 },
-  theme: { primary: '0D525E', accent: 'C9962B', tint: 'EFF7F8' },
+  theme: { primary: '133C4B', accent: 'B5852E', tint: 'EAF4F2' },
   writingGuidance: [
     'This is a career report: anchor every topic to work, vocation, skills, workplace behaviour, money earned through work, and professional timing.',
     'Do not assume the reader\'s current job, industry, seniority, education or employment status; speak to students, employees, business owners and career changers alike.',

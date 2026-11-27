@@ -47,7 +47,7 @@ export const HOROSCOPE_ANNUAL_DEFINITION: ReportDefinitionInput = {
   description: 'A twelve-month horoscope built from your full birth chart. The year\'s major transits are counted from both your Moon sign and your Ascendant, and every life area is read in three four-month windows, with personality insights, traditional associations, practices, numerology and affirmations.',
   referenceFiles: ['docs/referencerepots/Personalised Horoscope Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1', 'D9'], transitYears: 2 },
-  theme: { primary: '332163', accent: 'B5853E', tint: 'F3F1FA' },
+  theme: { primary: '122B3B', accent: 'A6832D', tint: 'EAF1F3' },
   writingGuidance: [
     'This is a twelve-month personal horoscope. Read every forecast from BOTH the Moon sign and the Ascendant, saying which one a transit is counted from.',
     'For transits always use the verb "transits" (for example "Jupiter transits Cancer, the 5th from your Moon"). Never write "<planet> in the Nth house" or "<planet> in <sign>" for a transit; natal placements may be stated only from natal evidence.',

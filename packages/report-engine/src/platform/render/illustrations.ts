@@ -95,11 +95,16 @@ const SUBJECT_RULES: ReadonlyArray<readonly [RegExp, string]> = [
   [/friend|network|maitri/, 'friendship'],
   [/spiritual|\bsoul|atmakaraka|seva|remed|mantra|meditation|devotion|practices?\b|karm|faith|sacred|affirmation|12th house/, 'spirituality'],
   [/dasha|period|timeline|transit|window|chapter|\byear|month|clock|season|return\b/, 'time'],
+  [/success|achieve|triumph|victory|accomplish|promotion|advancement/, 'success'],
+  [/positive|positivity|optimis|uplift|blessing|joy|hope|encourag/, 'positivity'],
+  [/abundance|prosperity|plenty|fortune|flourish/, 'abundance'],
+  [/clarity|insight|vision|awakening|purpose/, 'clarity'],
+  [/confidence|courage|resilience|empower/, 'confidence'],
+  [/harmony|peaceful|grace|bloom|togetherness/, 'harmony'],
   [/strength|resilience|stability|endurance|challenge|triumph|pressure|discipline|anchor/, 'strength'],
   [/emotion|psyche|temperament|inner peace|mind\b/, 'emotion'],
   [/\bpath|road|voyage|course|ahead|forward|journey|compass/, 'journey'],
   [/beginning|conclusion|closing|bloom|preparing/, 'sunrise'],
-  [/harmony|grace|bloom/, 'lotus'],
   [/wisdom|\blight\b|guidance|guiding|\bguide\b/, 'lamp'],
   [/chart|kundali|kundli|ashtakavarga|panchang|birth details|at a glance|yoga/, 'observatory'],
   [/cosmic|celestial|\bstars?\b|\bsky\b|planet/, 'night-sky'],
@@ -111,6 +116,7 @@ const SUBJECT_RULES: ReadonlyArray<readonly [RegExp, string]> = [
  * photograph of the sky says nothing about what the passage means for the reader.
  */
 const THEME_TAGS = new Set([
+  'success', 'positivity', 'abundance', 'harmony', 'clarity', 'confidence',
   'career', 'craft', 'teamwork', 'service', 'leadership', 'growth', 'change', 'balance', 'wealth',
   'education', 'health', 'home', 'travel', 'communication', 'friendship', 'marriage', 'love',
   'children', 'family', 'strength', 'journey', 'spirituality', 'emotion',

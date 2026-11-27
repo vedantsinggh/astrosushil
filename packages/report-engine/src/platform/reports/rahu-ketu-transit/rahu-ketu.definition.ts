@@ -87,7 +87,7 @@ export const RAHU_KETU_DEFINITION: ReportDefinitionInput = {
   description: 'This report reads natal Rahu and Ketu by house, sign, nakshatra, aspects and companions, your karmic axis, and the current and next node transits computed from real ingress dates (mean node), from your Ascendant and from your Moon, with practical, purchase-free practices.',
   referenceFiles: ['docs/referencerepots/Rahu Ketu Transit Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1'], transitYears: 3 },
-  theme: { primary: '0E4954', accent: 'C2913E', tint: 'EEF6F7' },
+  theme: { primary: '23192D', accent: 'A67D3D', tint: 'F1EBF3' },
   writingGuidance: [
     'This is a Rahu and Ketu report: Rahu is ambition, curiosity, desire, the new and unconventional; Ketu is detachment, intuition, past mastery and spiritual release. Always treat them as a pair on one axis.',
     'Astro Sushil does not believe in doshas. Never present Rahu or Ketu, Kaal Sarp or eclipses as curses, bad luck or danger. Frame them as karmic learning and growth.',

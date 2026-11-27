@@ -54,7 +54,7 @@ export const FINANCE_DEFINITION: ReportDefinitionInput = {
   description: 'Wealth houses (2nd, 5th, 9th, 11th) with lords, occupants and Ashtakavarga, engine-detected Dhana yogas, the Hora (D2), Navamsa and Dasamsa, functional nature of planets, Vimshottari periods and a five-year Jupiter/Saturn finance outlook with a monthly view.',
   referenceFiles: ['docs/referencerepots/Finance Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1', 'D2', 'D9', 'D10'], transitYears: FINANCE_YEARS + 2 },
-  theme: { primary: '0F5438', accent: 'C4952E', tint: 'EFF7F3' },
+  theme: { primary: '0F3D2E', accent: 'B5852E', tint: 'EAF3E9' },
   writingGuidance: [
     'This is a personal finance report: keep every topic anchored to earning, saving, spending, debts, investments of effort and long-term security.',
     'Never give investment, tax, legal or financial-product advice; never name assets, shares, schemes or amounts. Speak of habits, timing and attitudes only.',

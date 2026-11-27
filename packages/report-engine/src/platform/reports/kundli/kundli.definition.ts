@@ -98,7 +98,7 @@ export const KUNDLI_DEFINITION: ReportDefinitionInput = {
   description: 'The full Kundli: birth particulars and panchang, North and South Indian charts, sixteen divisional charts, Vimshottari periods for the whole of life, Ashtakavarga, twelve houses, nine planets, karakas, Rahu-Ketu, Mars and Sade Sati presented without fear, yogas, numerology and practical guidance.',
   referenceFiles: ['docs/referencerepots/Premium Personalised Kundli Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: KUNDLI_VARGAS as NonNullable<ReportDefinitionInput['requires']['vargas']>, transitYears: 12 },
-  theme: { primary: '4A1D75', accent: 'C99A2E', tint: 'F6F1FC' },
+  theme: { primary: '2E1A47', accent: 'B5852E', tint: 'F3EAF8' },
   writingGuidance: [
     'This is a complete life Kundli. Cover personality, relationships, work, wealth, health habits, learning and spiritual life as each topic requires, always grounded in the cited chart facts.',
     'Write for a reader with no astrology background: explain each term (house, lord, aspect, dasha, nakshatra) briefly the first time it appears in a topic.',

@@ -20,7 +20,7 @@ export const LOVE_DEFINITION: ReportDefinitionInput = {
   description: 'Lagna, Moon, Venus, the 5th and 7th houses, the Darakaraka and the Navamsa, with Jupiter-based timing windows and practical relationship guidance.',
   referenceFiles: ['docs/referencerepots/Love Report.pdf'],
   requires: { birthTime: true, partner: false },
-  theme: { primary: '78183D', accent: 'C6924E', tint: 'FCF0F4' },
+  theme: { primary: '4E1635', accent: 'B2597E', tint: 'F8EBF0' },
   writingGuidance: [
     'This is a love and relationship report: keep every topic anchored to romance, partnership, emotional needs and marriage.',
     'Speak to all relationship stages (single, dating, married) without assuming the reader\'s current status, gender of partner or orientation.',

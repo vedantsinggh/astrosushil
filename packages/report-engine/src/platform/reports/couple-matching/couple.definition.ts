@@ -85,7 +85,7 @@ export const COUPLE_DEFINITION: ReportDefinitionInput = {
   description: 'Classical 36-guna Ashtakoota with koota-by-koota explanations, neutral Manglik comparison, both natives\' D1, D9 and divisional charts, planet tables, Ashtakavarga, Vimshottari periods with their overlap, Saturn and Jupiter cycles, and planet-by-planet and house-by-house comparison.',
   referenceFiles: ['docs/referencerepots/Couple Kundli Matching Report.pdf'],
   requires: { birthTime: true, partner: true, vargas: ['D1', 'D2', 'D3', 'D4', 'D7', 'D9', 'D10', 'D12', 'D16', 'D30', 'D60'], transitYears: 12 },
-  theme: { primary: '75184B', accent: 'C78E3A', tint: 'FCF1F6' },
+  theme: { primary: '4A1525', accent: 'A85C68', tint: 'F8ECEB' },
   writingGuidance: [
     'This report is about two people. Address the reader as "you" and the other person as "your partner". Never use names.',
     'Describe the partner\'s placements with the possessive and "their", for example "your partner\'s Venus sign is Taurus" and "your partner\'s Venus sits in their 2nd house". Never write "Venus is in Taurus" or "in the 2nd house" for the partner: those sentence forms are reserved for the reader\'s own chart and are checked against it.',

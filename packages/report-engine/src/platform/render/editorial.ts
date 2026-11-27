@@ -93,18 +93,23 @@ export function coverPage(def: ReportDefinition, c: CoverInfo): string {
   return String.raw`\thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
   \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/covers/${assetKey}.jpg}};
-  \node[anchor=south,inner sep=0pt] at ([yshift=3.5mm]current page.south) {
-    \begin{tcolorbox}[enhanced,colback=CoverJewel,opacityback=0.94,colframe=CoverGold!85,boxrule=0.8pt,arc=2.2mm,width=158mm,left=6mm,right=6mm,top=4.2mm,bottom=4.2mm,borderline={0.35pt}{1.5pt}{CoverGold!40}]
+  \node[anchor=north,inner sep=0pt] at ([yshift=-14mm]current page.north) {
+    \begin{minipage}{156mm}
       \centering
-      \includegraphics[height=11mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{1.5mm}
-      {\sffamily\fontsize{7}{8.8}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace VEDIC \& NADI ASTROLOGY}\par\vspace{1.8mm}
-      {\displayfont\fontsize{16.5}{20.5}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{1mm}
-      {\fontsize{8.5}{11.5}\selectfont\itshape\color{CoverGoldTint!85}${tex(def.subtitle)}\par}\vspace{2.4mm}
-      {\color{CoverGold!65}\rule{36mm}{0.5pt}}\par\vspace{2.4mm}
+      \includegraphics[height=11mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{1.6mm}
+      {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace VEDIC \& NADI ASTROLOGY}\par\vspace{2.8mm}
+      {\color{CoverGold!65}\rule{38mm}{0.5pt}}\par\vspace{3mm}
+      {\displayfont\fontsize{22}{26.5}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{1.5mm}
+      {\fontsize{9.5}{13}\selectfont\itshape\color{CoverGoldTint!88}${tex(def.subtitle)}\par}
+    \end{minipage}};
+  \node[anchor=south,inner sep=0pt] at ([yshift=10mm]current page.south) {
+    \begin{tcolorbox}[enhanced,colback=CoverJewel,opacityback=0.90,colframe=CoverGold!85,boxrule=0.8pt,arc=2.2mm,width=156mm,left=6mm,right=6mm,top=3.8mm,bottom=3.8mm,borderline={0.35pt}{1.5pt}{CoverGold!40}]
+      \centering
       {\sffamily\fontsize{6.8}{8.5}\selectfont\bfseries\color{CoverGold}PREPARED EXCLUSIVELY FOR}\par\vspace{1.2mm}
       {\displayfont\fontsize{16.5}{20}\selectfont\color{white}${tex(c.clientName)}\par}\vspace{1.4mm}
-      {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!92}${birth}\par}\vspace{2.6mm}
-      {\sffamily\fontsize{6.8}{8.5}\selectfont\color{CoverBrightGold!85}PERSONAL \& CONFIDENTIAL\enspace\textbar\enspace ${tex(c.generatedOn)}\enspace\textbar\enspace astrosushil.com}\par
+      {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!92}${birth}\par}\vspace{2.2mm}
+      {\color{CoverGold!55}\rule{34mm}{0.4pt}}\par\vspace{2mm}
+      {\sffamily\fontsize{6.8}{8.5}\selectfont\color{CoverBrightGold!88}PERSONAL \& CONFIDENTIAL\enspace\textbar\enspace ${tex(c.generatedOn)}\enspace\textbar\enspace astrosushil.com\enspace\textbar\enspace +91 9621127233}\par
     \end{tcolorbox}};
 \end{tikzpicture}
 \null\clearpage
@@ -138,6 +143,48 @@ Read it slowly, with an open and calm mind. Return to it at different moments of
 With blessings,\par\vspace{2mm}
 {\displayfont\fontsize{13}{16}\selectfont\color{Primary}Astro Sushil\par}
 \end{minipage}
+\clearpage
+`;
+}
+
+export function aboutAstroSushilPage(def: ReportDefinition): string {
+  if (def.language === 'hi') return aboutAstroSushilPageHi();
+  return String.raw`\markboth{About Astro Sushil}{}
+\vspace*{2mm}
+{\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}ABOUT ASTROLOGER}\par\vspace{1.5mm}
+{\displayfont\fontsize{21}{26}\selectfont\color{Primary}Astro Sushil Kumar Singh --- Vedic \& Nadi Astrologer\par}\vspace{1mm}
+\SectionDivider
+\noindent
+\begin{minipage}[t]{0.40\linewidth}\vspace{0pt}
+  \begin{tcolorbox}[enhanced,colback=white,colframe=Accent!80,boxrule=1pt,arc=2mm,left=2mm,right=2mm,top=2mm,bottom=2mm,boxsep=0pt,borderline={0.4pt}{1.8pt}{Primary!45}]
+    \includegraphics[width=\linewidth]{assets/about_sushil.png}
+  \end{tcolorbox}
+  \begin{center}
+    {\displayfont\fontsize{12}{15}\selectfont\color{Primary}Astro Sushil Kumar Singh\par}\vspace{0.8mm}
+    {\sffamily\fontsize{7.5}{10}\selectfont\bfseries\color{Accent}GUPTA NADI \& VEDIC JYOTISH\par}\vspace{0.5mm}
+    {\sffamily\fontsize{7.5}{10}\selectfont\color{Muted}K.\,N.\,Rao Tradition \enspace\textbar\enspace Ayodhya Lineage\par}
+  \end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.56\linewidth}\vspace{0pt}
+  \begin{asCard}\CardTitleStar{Our Story}
+  {\fontsize{9.1}{13}\selectfont Astro Sushil Kumar Singh is one of India's most trusted astrology authorities, carrying forward the legacy of his revered mentor K.\,N.\,Rao. His path began at age six, inspired by celestial patterns and an unshakable drive to decode them. His lineage traces back to the Suryavanshi (Sun-Dynasty) roots of Ayodhya, invoking the enduring spirit of the Ramayana and its dharmic values.\par}\vspace{1.5mm}
+  {\fontsize{9.1}{13}\selectfont Blending the analytical rigor of Vedic Jyotish with the intuitive depth of Gupta Nadi Shastra and the structural acuity of Vastu Shastra, his insights reach seekers across India, the USA, Canada, UAE, Australia, and Europe.\par}
+  \end{asCard}
+  \vspace{1.5mm}
+  \begin{asHighlight}\CardTitle{Mission \& Vision}
+  {\fontsize{8.9}{12.5}\selectfont \textbf{Mission:} To empower individuals to reclaim destiny with clarity --- where modern ambition meets cosmic wisdom and spiritual insight drives tangible results.\par}\vspace{1mm}
+  {\fontsize{8.9}{12.5}\selectfont \textbf{Vision:} A world where ancient wisdom functions as a practical strategic tool for success, harmony, and purpose in the 21st century.\par}
+  \end{asHighlight}
+\end{minipage}\par\vspace{3mm}
+\begin{asCard}\CardTitleStar{Why Choose Astro Sushil \& How He Serves You}
+{\fontsize{8.9}{12.6}\selectfont
+\begin{gemlist}
+  \item \textbf{Proven Accuracy \& Corporate-Tech Spiritual Style:} Decades of disciplined study in the K.\,N.\,Rao and Gupta Nadi traditions, bridging spiritual heritage with modern clarity for professionals, families, and seekers.
+  \item \textbf{1-on-1 Consultations \& Personalised Reports:} Focused voice, video, in-person, and message consultations alongside custom ephemeris-driven Kundli, Career, Finance, Love, Match-Making, and Transit dossiers.
+  \item \textbf{Courses, Remedies \& Thought Leadership:} Structured trainings (Vastu Nadi Astrology, Marriage \& Money Astrology, Dash Mahavidya), consecrated spiritual offerings, and global webinars.
+\end{gemlist}
+\par}
+\end{asCard}
 \clearpage
 `;
 }
@@ -207,17 +254,22 @@ export function contentsPage(language: EditorialLang = 'en'): string {
 export function closingPage(def: ReportDefinition): string {
   if (def.language === 'hi') return closingPageHi(def);
   return String.raw`\clearpage\markboth{Closing Words}{}
-\vspace*{28mm}
+\vspace*{14mm}
 \begin{center}
-\includegraphics[height=22mm]{assets/astrosushil_logo.png}\par\vspace{7mm}
+\includegraphics[height=18mm]{assets/astrosushil_logo.png}\par\vspace{5mm}
+\begin{tcolorbox}[enhanced,colback=white,colframe=Accent!80,boxrule=0.9pt,arc=2mm,width=50mm,left=1.5mm,right=1.5mm,top=1.5mm,bottom=1.5mm,boxsep=0pt,center]
+  \includegraphics[width=\linewidth]{assets/about_sushil.png}
+\end{tcolorbox}\par\vspace{2.5mm}
+{\displayfont\fontsize{12}{15}\selectfont\color{Primary}Astro Sushil Kumar Singh\par}\vspace{0.5mm}
+{\sffamily\fontsize{7.5}{9.5}\selectfont\color{Accent}\bfseries VEDIC \& NADI ASTROLOGER\enspace\textbar\enspace AYODHYA\par}\vspace{5mm}
 {\displayfont\fontsize{20}{25}\selectfont\color{Primary}The stars incline; you decide.\par}\vspace{2mm}
 \SectionDivider
 \begin{asQuote}
-\begin{minipage}{125mm}\centering\fontsize{10}{14.5}\selectfont
+\begin{minipage}{128mm}\centering\fontsize{10}{14.5}\selectfont
 Thank you for reading your ${tex(def.title)}. May it bring you clarity, patience and confidence in the choices ahead. If you would like to explore any part of it more deeply, a personal consultation is always available at astrosushil.com.
 \end{minipage}
-\end{asQuote}\par\vspace{8mm}
-{\sffamily\fontsize{7.5}{9.5}\selectfont\color{Muted}Astro Sushil\enspace\textbar\enspace astrosushil.com\par}
+\end{asQuote}\par\vspace{7mm}
+{\sffamily\fontsize{7.5}{9.5}\selectfont\color{Muted}Astro Sushil Private Limited\enspace\textbar\enspace astrosushil.com\par}
 \end{center}
 `;
 }
@@ -238,18 +290,23 @@ function coverPageHi(def: ReportDefinition, c: CoverInfo): string {
   return String.raw`\thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
   \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/covers/${assetKey}.jpg}};
-  \node[anchor=south,inner sep=0pt] at ([yshift=3.5mm]current page.south) {
-    \begin{tcolorbox}[enhanced,colback=CoverJewel,opacityback=0.94,colframe=CoverGold!85,boxrule=0.8pt,arc=2.2mm,width=158mm,left=6mm,right=6mm,top=4.2mm,bottom=4.2mm,borderline={0.35pt}{1.5pt}{CoverGold!40}]
+  \node[anchor=north,inner sep=0pt] at ([yshift=-14mm]current page.north) {
+    \begin{minipage}{156mm}
       \centering
-      \includegraphics[height=11mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{1.5mm}
-      {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace वैदिक एवं नाड़ी ज्योतिष}\par\vspace{1.8mm}
-      {\displayfont\fontsize{18}{24}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{1mm}
-      {\fontsize{9}{13}\selectfont\color{CoverGoldTint!85}${tex(def.subtitle)}\par}\vspace{2.4mm}
-      {\color{CoverGold!65}\rule{36mm}{0.5pt}}\par\vspace{2.4mm}
+      \includegraphics[height=11mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{1.6mm}
+      {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace वैदिक एवं नाड़ी ज्योतिष}\par\vspace{2.8mm}
+      {\color{CoverGold!65}\rule{38mm}{0.5pt}}\par\vspace{3mm}
+      {\displayfont\fontsize{22}{28}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{1.5mm}
+      {\fontsize{9.5}{13.5}\selectfont\color{CoverGoldTint!88}${tex(def.subtitle)}\par}
+    \end{minipage}};
+  \node[anchor=south,inner sep=0pt] at ([yshift=10mm]current page.south) {
+    \begin{tcolorbox}[enhanced,colback=CoverJewel,opacityback=0.90,colframe=CoverGold!85,boxrule=0.8pt,arc=2.2mm,width=156mm,left=6mm,right=6mm,top=3.8mm,bottom=3.8mm,borderline={0.35pt}{1.5pt}{CoverGold!40}]
+      \centering
       {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{CoverGold}विशेष रूप से आपके लिए तैयार}\par\vspace{1.2mm}
       {\displayfont\fontsize{16.5}{21}\selectfont\color{white}${tex(c.clientName)}\par}\vspace{1.4mm}
-      {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!92}${birth}\par}\vspace{2.6mm}
-      {\sffamily\fontsize{7.2}{9}\selectfont\color{CoverBrightGold!85}व्यक्तिगत एवं गोपनीय\enspace\textbar\enspace ${tex(c.generatedOn)}\enspace\textbar\enspace astrosushil.com}\par
+      {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!92}${birth}\par}\vspace{2.2mm}
+      {\color{CoverGold!55}\rule{34mm}{0.4pt}}\par\vspace{2mm}
+      {\sffamily\fontsize{7.2}{9}\selectfont\color{CoverBrightGold!88}व्यक्तिगत एवं गोपनीय\enspace\textbar\enspace ${tex(c.generatedOn)}\enspace\textbar\enspace astrosushil.com\enspace\textbar\enspace +91 9621127233}\par
     \end{tcolorbox}};
 \end{tikzpicture}
 \null\clearpage
@@ -282,6 +339,47 @@ function authorNotePageHi(def: ReportDefinition): string {
 शुभाशीष सहित,\par\vspace{2mm}
 {\displayfont\fontsize{13}{16}\selectfont\color{Primary}Astro Sushil\par}
 \end{minipage}
+\clearpage
+`;
+}
+
+function aboutAstroSushilPageHi(): string {
+  return String.raw`\markboth{एस्ट्रो सुशील के बारे में}{}
+\vspace*{2mm}
+{\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}ज्योतिषी परिचय}\par\vspace{1.5mm}
+{\displayfont\fontsize{21}{28}\selectfont\color{Primary}एस्ट्रो सुशील कुमार सिंह --- वैदिक एवं नाड़ी ज्योतिषी\par}\vspace{1mm}
+\SectionDivider
+\noindent
+\begin{minipage}[t]{0.40\linewidth}\vspace{0pt}
+  \begin{tcolorbox}[enhanced,colback=white,colframe=Accent!80,boxrule=1pt,arc=2mm,left=2mm,right=2mm,top=2mm,bottom=2mm,boxsep=0pt,borderline={0.4pt}{1.8pt}{Primary!45}]
+    \includegraphics[width=\linewidth]{assets/about_sushil.png}
+  \end{tcolorbox}
+  \begin{center}
+    {\displayfont\fontsize{12}{15}\selectfont\color{Primary}एस्ट्रो सुशील कुमार सिंह\par}\vspace{0.8mm}
+    {\sffamily\fontsize{7.5}{10}\selectfont\bfseries\color{Accent}गुप्त नाड़ी एवं वैदिक ज्योतिष\par}\vspace{0.5mm}
+    {\sffamily\fontsize{7.5}{10}\selectfont\color{Muted}के.\,एन.\,राव परंपरा \enspace\textbar\enspace अयोध्या मूल\par}
+  \end{center}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.56\linewidth}\vspace{0pt}
+  \begin{asCard}\CardTitleStar{हमारी कहानी}
+  {\fontsize{9.3}{14}\selectfont एस्ट्रो सुशील कुमार सिंह भारत के सर्वाधिक विश्वसनीय ज्योतिष विशेषज्ञों में से एक हैं, जो अपने पूज्य गुरु के.\,एन.\,राव जी की परंपरा को आगे बढ़ा रहे हैं। छह वर्ष की आयु से प्रारंभ हुई उनकी यात्रा अयोध्या की सूर्यवंशी परंपरा और रामायण के धर्म-मूल्यों से जुड़ी है।\par}\vspace{1.5mm}
+  {\fontsize{9.3}{14}\selectfont वैदिक ज्योतिष की सटीक गणना, गुप्त नाड़ी शास्त्र की अंतर्दृष्टि और वास्तु शास्त्र के समन्वय से वे भारत, अमेरिका, कनाडा, यूएई, ऑस्ट्रेलिया और यूरोप के साधकों और परिवारों का मार्गदर्शन करते हैं।\par}
+  \end{asCard}
+  \vspace{1.5mm}
+  \begin{asHighlight}\CardTitle{लक्ष्य एवं दृष्टिकोण}
+  {\fontsize{9.1}{13.5}\selectfont \textbf{लक्ष्य:} आधुनिक महत्वाकांक्षा और ब्रह्मांडीय ज्ञान के संगम से प्रत्येक व्यक्ति को स्पष्टता और आत्मविश्वास प्रदान करना।\par}\vspace{1mm}
+  {\fontsize{9.1}{13.5}\selectfont \textbf{दृष्टिकोण:} 21वीं सदी में प्राचीन वैदिक ज्ञान को सफलता, सामंजस्य और उद्देश्यपूर्ण जीवन के व्यावहारिक साधन के रूप में स्थापित करना।\par}
+  \end{asHighlight}
+\end{minipage}\par\vspace{3mm}
+\begin{asCard}\CardTitleStar{एस्ट्रो सुशील सेवाएँ एवं विशेषताएँ}
+{\fontsize{9.1}{13.5}\selectfont
+\begin{gemlist}
+  \item \textbf{प्रमाणित सटीकता एवं आधुनिक दृष्टिकोण:} के.\,एन.\,राव एवं गुप्त नाड़ी परंपरा में दशकों का अध्ययन और पेशेवरों तथा परिवारों के लिए स्पष्ट व्यावहारिक मार्गदर्शन।
+  \item \textbf{परामर्श एवं व्यक्तिगत रिपोर्ट्स:} ऑडियो, वीडियो, व्यक्तिगत एवं संदेश परामर्श के साथ जन्म कुंडली, करियर, वित्त, प्रेम, विवाह मिलान और गोचर रिपोर्ट्स।
+  \item \textbf{पाठ्यक्रम एवं ज्ञान-प्रसार:} वास्तु नाड़ी, विवाह एवं धन ज्योतिष और दश महाविद्या पाठ्यक्रम तथा वैश्विक वेबिनार।
+\end{gemlist}
+\par}
+\end{asCard}
 \clearpage
 `;
 }
@@ -342,17 +440,22 @@ function contentsPageHi(): string {
 
 function closingPageHi(def: ReportDefinition): string {
   return String.raw`\clearpage\markboth{अंतिम शब्द}{}
-\vspace*{28mm}
+\vspace*{14mm}
 \begin{center}
-\includegraphics[height=22mm]{assets/astrosushil_logo.png}\par\vspace{7mm}
+\includegraphics[height=18mm]{assets/astrosushil_logo.png}\par\vspace{5mm}
+\begin{tcolorbox}[enhanced,colback=white,colframe=Accent!80,boxrule=0.9pt,arc=2mm,width=50mm,left=1.5mm,right=1.5mm,top=1.5mm,bottom=1.5mm,boxsep=0pt,center]
+  \includegraphics[width=\linewidth]{assets/about_sushil.png}
+\end{tcolorbox}\par\vspace{2.5mm}
+{\displayfont\fontsize{12}{15}\selectfont\color{Primary}एस्ट्रो सुशील कुमार सिंह\par}\vspace{0.5mm}
+{\sffamily\fontsize{7.5}{9.5}\selectfont\color{Accent}\bfseries वैदिक एवं नाड़ी ज्योतिषी\enspace\textbar\enspace अयोध्या\par}\vspace{5mm}
 {\displayfont\fontsize{20}{27}\selectfont\color{Primary}सितारे झुकाव देते हैं; निर्णय आपका है।\par}\vspace{2mm}
 \SectionDivider
 \begin{asQuote}
-\begin{minipage}{125mm}\centering\fontsize{10.3}{16}\selectfont
+\begin{minipage}{128mm}\centering\fontsize{10.3}{16}\selectfont
 अपनी ${tex(def.title)} पढ़ने के लिए धन्यवाद। यह आपको आगे के चुनावों में स्पष्टता, धैर्य और आत्मविश्वास दे। यदि आप किसी भाग को और गहराई से समझना चाहें, तो astrosushil.com पर व्यक्तिगत परामर्श सदैव उपलब्ध है।
 \end{minipage}
-\end{asQuote}\par\vspace{8mm}
-{\sffamily\fontsize{7.5}{9.5}\selectfont\color{Muted}Astro Sushil\enspace\textbar\enspace astrosushil.com\par}
+\end{asQuote}\par\vspace{7mm}
+{\sffamily\fontsize{7.5}{9.5}\selectfont\color{Muted}Astro Sushil Private Limited\enspace\textbar\enspace astrosushil.com\par}
 \end{center}
 `;
 }

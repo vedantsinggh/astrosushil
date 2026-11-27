@@ -36,7 +36,7 @@ export const FORTUNE_PLUS_DEFINITION: ReportDefinitionInput = {
   referenceFiles: ['docs/referencerepots/Personalised Fortune Report Plus.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1', 'D9', 'D10'], transitYears: 12 },
   language: 'en',
-  theme: { primary: '6E440B', accent: 'C98F1E', tint: 'FCF6E8' },
+  theme: { primary: '261340', accent: 'B8861B', tint: 'F1EAF7' },
   writingGuidance: [
     ...NUMEROLOGY_WRITING_GUIDANCE.map((g) => g.replace('in this numerology part', 'in the numerology part (part two uses real chart positions from the evidence)')),
     'In the astrology part (the Cosmic Pathway), planets and houses are real chart positions: use only the evidence given for each topic.',

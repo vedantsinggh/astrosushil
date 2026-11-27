@@ -48,7 +48,7 @@ export const SATURN_DEFINITION: ReportDefinitionInput = {
   description: 'This report reads natal Saturn by house, sign, nakshatra, aspects and lordship, its Ashtakavarga, every Sade Sati, Kantaka Shani and Dhaiya period of your life computed from Saturn\'s real ingress dates, and Saturn\'s current and next transits, with practical, purchase-free practices.',
   referenceFiles: ['docs/referencerepots/Saturn In Your Birth Chart Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1'], transitYears: 3 },
-  theme: { primary: '1E2456', accent: 'BD9242', tint: 'F1F2F9' },
+  theme: { primary: '161E35', accent: '9A8242', tint: 'EDF0F4' },
   writingGuidance: [
     'This is a Saturn report: keep every topic anchored to Saturn\'s themes (time, discipline, responsibility, karma, structure, patience, service).',
     'Astro Sushil does not believe in doshas. Sade Sati, Kantaka Shani and Dhaiya are seasons of maturity, never curses or guaranteed hardship. Never use words like doom, suffering, curse or bad luck.',
