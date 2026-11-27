@@ -486,12 +486,12 @@ export interface RashiNarratorOptions {
  * tuned and measured for PDF reports only.
  */
 const RASHI_NARRATOR_DEFAULTS: Partial<reportPlatform.NarratorConfig> = {
-  model: process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
-  thinkingLevel: 'low',
+  model: process.env.RASHI_LLM_MODEL || process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
+  thinkingLevel: 'minimal',
   maxAttempts: 2,
   retryModel: undefined,
   maxRepairShare: 0,
-  maxOutputTokens: 8000,
+  maxOutputTokens: 2500,
 };
 
 export class RashiNarrator {

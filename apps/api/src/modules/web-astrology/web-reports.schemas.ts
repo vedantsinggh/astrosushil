@@ -13,7 +13,33 @@ import { ianaTimezoneSchema, parseWebsiteDate, MIN_BIRTH_YEAR } from './web-astr
  *   - dates, times and coordinates are real dates, times and numbers in range.
  */
 
-export const WEBSITE_REPORT_TYPES = ['mini_horoscope_pdf', 'basic_horoscope_pdf', 'pro_horoscope_pdf', 'match_making_pdf'] as const;
+export const CANONICAL_WEBSITE_REPORT_TYPES = [
+  'kundli_pdf',
+  'career_pdf',
+  'marriage_compatibility_pdf',
+  'finance_pdf',
+  'love_pdf',
+  'fortune_pdf',
+  'fortune_plus_pdf',
+  'horoscope_pdf',
+  'saturn_pdf',
+  'jupiter_transit_pdf',
+  'rahu_ketu_transit_pdf',
+  'varshphal_pdf',
+  'baby_name_pdf',
+] as const;
+
+export const LEGACY_WEBSITE_REPORT_TYPES = [
+  'mini_horoscope_pdf',
+  'basic_horoscope_pdf',
+  'pro_horoscope_pdf',
+  'match_making_pdf',
+] as const;
+
+export const WEBSITE_REPORT_TYPES = [
+  ...CANONICAL_WEBSITE_REPORT_TYPES,
+  ...LEGACY_WEBSITE_REPORT_TYPES,
+] as const;
 export type WebsiteReportType = (typeof WEBSITE_REPORT_TYPES)[number];
 
 const coordinate = (min: number, max: number) =>

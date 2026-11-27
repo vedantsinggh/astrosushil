@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/localization/content_language.dart';
 import '../../../core/utils/app_date_time.dart';
+import 'report_brand_assets.dart';
 
 /// Representation of a user's generated or queued report dossier
 class UserReportItemModel {
@@ -92,37 +93,40 @@ class UserReportItemModel {
   bool get isFailed => status.toUpperCase() == 'FAILED';
   bool get isProcessing => !isCompleted && !isFailed;
 
+  ReportBrandInfo? get brandInfo => ReportBrandRegistry.resolve(reportType);
+
   String get displayTitle {
     switch (reportType.toUpperCase()) {
       case 'KUNDLI':
-        return 'Birth Chart & Kundli Report';
+        return 'Premium Personalised Kundli Report';
       case 'PLANETARY_SUMMARY':
-        return 'Mini Horoscope & Transit Forecast';
+        return 'Planetary Dynamics & Dignity Summary';
       case 'CAREER':
-        return 'Career & Professional Life';
+        return 'Career Report';
       case 'CAREER_PROSITY':
-        return 'Pro Horoscope & Divisional Charts';
+        return 'Career Report';
       case 'HOROSCOPE':
-        // Year of the report itself, not a hardcoded calendar year.
-        return 'Personalised Horoscope ${createdAt.year}';
+        return 'Personalised Horoscope Report';
       case 'FINANCE':
-        return 'Personalised Finance & Wealth Dossier';
+        return 'Finance Report';
       case 'LOVE':
-        return 'Personalised Love & Relationship Report';
+        return 'Love Report';
       case 'FORTUNE':
-        return 'Personalised Fortune Report Plus';
+        return 'Fortune Report';
       case 'FORTUNE_PLUS':
-        return 'Personalised Fortune Report Plus (Comprehensive Edition)';
+        return 'Personalised Fortune Report Plus';
       case 'SATURN':
-        return 'Saturn in Your Birth Chart Report';
+        return 'Saturn In Your Birth Chart Report';
       case 'JUPITER_TRANSIT':
         return 'Jupiter Transit Report';
       case 'RAHU_KETU_TRANSIT':
-        return 'Rahu-Ketu Transit Report';
+        return 'Rahu Ketu Transit Report';
       case 'VARSHPHAL':
-        return 'Varshphal (Annual Solar Return) Report';
+        return 'Varshphal Report';
       case 'MARRIAGE_COMPATIBILITY':
-        return 'Marriage & Relationship Report';
+        return 'Couple Kundli Matching Report';
+      case 'BABY_NAME':
+        return 'Baby Name Report';
       case 'CHILDBIRTH_FAMILY':
         return 'Childbirth & Family Lineage';
       case 'GUPTA_NADI_DOSSIER':
@@ -162,6 +166,8 @@ class UserReportItemModel {
         return 'TAJIKA MUNTHA, VARSHESH & 12-MONTH PREDICTIVE ROADMAP';
       case 'MARRIAGE_COMPATIBILITY':
         return 'ASHTAKOOTA 36-GUNA MILAN & MANGLIK';
+      case 'BABY_NAME':
+        return 'JANMA NAKSHATRA NAMAKSHARA & NUMEROLOGY';
       default:
         return 'ASTROLOGICAL DOSSIER';
     }
@@ -197,6 +203,8 @@ class UserReportItemModel {
         return Icons.calendar_month_rounded;
       case 'MARRIAGE_COMPATIBILITY':
         return Icons.favorite_rounded;
+      case 'BABY_NAME':
+        return Icons.child_care_rounded;
       default:
         return Icons.description_outlined;
     }

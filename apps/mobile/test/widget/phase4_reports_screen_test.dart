@@ -51,7 +51,7 @@ void main() {
     );
   }
 
-  testWidgets('ReportsScreen renders all 5 active report tiers with pricing badges', (tester) async {
+  testWidgets('ReportsScreen renders all 13 canonical report cards with live pricing and Coming Soon badges', (tester) async {
     await tester.pumpWidget(createTestWidget());
     await tester.pumpAndSettle();
 
@@ -60,15 +60,13 @@ void main() {
     expect(find.text('₹499'), findsWidgets); // career price from server catalogue
 
     // 2. Kundli report (₹299)
-    expect(find.text('Janma Kundli & Birth Chart Report'), findsOneWidget);
+    expect(find.text('Premium Personalised Kundli Report'), findsOneWidget);
     expect(find.text('₹299'), findsOneWidget);
 
-    // 3. Mini Horoscope (₹199)
-    expect(find.text('Planetary Dynamics & Dignity Summary'), findsOneWidget);
-    expect(find.text('₹199'), findsOneWidget);
+    // 3. Horoscope report (₹499)
+    expect(find.text('Personalised Horoscope Report'), findsOneWidget);
 
-    // 4. Pro Horoscope / Executive Career was retired (only one career report):
-    // it is inactive in the server catalogue and must not be shown or sold.
+    // 4. Retired Pro/Executive career report must not be shown.
     expect(find.text('Executive Career & Wealth Prosperity Dossier'), findsNothing);
     expect(find.text('Pro Horoscope & Divisional Charts'), findsNothing);
     expect(find.text('₹699'), findsNothing);
@@ -76,6 +74,9 @@ void main() {
     // 5. Matchmaking Report (₹499)
     expect(find.text('Marriage & Relationship Compatibility Report'), findsOneWidget);
     expect(find.text('₹499'), findsWidgets);
+
+    // 6. Reports without active server pricing show Coming Soon (no fake price)
+    expect(find.text('Coming Soon'), findsNWidgets(5));
 
     // Simple layout: one heading and the "Get a report" tab
     expect(find.text('Reports'), findsOneWidget);

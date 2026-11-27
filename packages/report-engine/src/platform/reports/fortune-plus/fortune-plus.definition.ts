@@ -29,14 +29,14 @@ export const FORTUNE_PLUS_DEFINITION: ReportDefinitionInput = {
   id: 'fortune-plus',
   reportType: 'FORTUNE_PLUS',
   specVersion: '1.0.0',
-  title: 'Fortune Report Plus',
+  title: 'Personalised Fortune Report Plus',
   subtitle: 'Your numbers and your stars — numerology and Vedic astrology in one personal guide',
   description:
     'Part one reads your numbers: Mulank, Bhagyank, name numbers, the Lo Shu grid, Kua directions, your twelve-month fortune trend and life cycles. Part two, the Cosmic Pathway, reads your Vedic birth chart: charts and panchang, birth star and ascendant, every planet in its house, Mars and Saturn themes explained calmly, yogas, marriage timing, career and simple remedies.',
   referenceFiles: ['docs/referencerepots/Personalised Fortune Report Plus.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1', 'D9', 'D10'], transitYears: 12 },
   language: 'en',
-  theme: { primary: '5A3A28', accent: 'B8863B', tint: 'F7F0E6' },
+  theme: { primary: '6E440B', accent: 'C98F1E', tint: 'FCF6E8' },
   writingGuidance: [
     ...NUMEROLOGY_WRITING_GUIDANCE.map((g) => g.replace('in this numerology part', 'in the numerology part (part two uses real chart positions from the evidence)')),
     'In the astrology part (the Cosmic Pathway), planets and houses are real chart positions: use only the evidence given for each topic.',

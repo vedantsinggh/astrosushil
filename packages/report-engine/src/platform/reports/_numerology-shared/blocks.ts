@@ -5,7 +5,7 @@
  * is built for its report's own language and follows the language of the
  * edition being generated (`langOf`).
  */
-import { BlockContext, BlockOutput, BlockRenderer } from '../../render/blocks';
+import { BlockContext, BlockOutput, BlockRenderer, longTableTex } from '../../render/blocks';
 import { tex } from '../../render/latex';
 import {
   BEEJ_MANTRA,
@@ -50,12 +50,16 @@ export function kv(lang: Lang, rows: Array<[string, string]>, head?: [string, st
   ].join('\n');
 }
 
-/** Multi-column table; `spec` is a tabularx column spec, cells are escaped here. */
+/** Multi-column table; upgrades to repeating-header `longtable` when >= 9 rows, cells are escaped here. */
 export function grid(spec: string, head: string[], rows: string[][], highlight?: (i: number) => boolean): string {
+  if (rows.length >= 9) {
+    const hl = highlight ? rows.reduce<number[]>((acc, _, i) => (highlight(i) ? [...acc, i] : acc), []) : [];
+    return longTableTex(spec, head, rows, { highlight: hl });
+  }
   return [
     `\\begin{center}\\begin{tabularx}{\\linewidth}{${spec}}`,
     `\\TableHead${head.map((h) => `\\THd{${tex(h)}}`).join(' & ')}\\\\`,
-    ...rows.map((r, i) => `${highlight?.(i) ? '\\rowcolor{Tint}' : i % 2 ? '\\rowcolor{Surface}' : ''}${r.map((c) => `\\TCell{${tex(c)}}`).join(' & ')}\\\\`),
+    ...rows.map((r, i) => `${highlight?.(i) ? '\\rowcolor{Accent!18}' : i % 2 ? '\\rowcolor{Surface}' : ''}${r.map((c) => `\\TCell{${tex(c)}}`).join(' & ')}\\\\`),
     '\\bottomrule\\end{tabularx}\\end{center}',
   ].join('\n');
 }

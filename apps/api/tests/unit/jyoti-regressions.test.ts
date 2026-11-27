@@ -143,8 +143,12 @@ describe('JyotiService failure mapping & budgets', () => {
 
   it('explainer requests a generous token budget (1000 was fully consumed by reasoning)', async () => {
     const llm = { generateResponse: vi.fn().mockResolvedValue({ message: 'ok', keyPoints: [] }) };
-    await new JyotiService(llm).processExplain('u-budget', explainPayload);
-    expect(llm.generateResponse.mock.calls[0][1].maxOutputTokens).toBeGreaterThanOrEqual(4000);
+    const service = new JyotiService(llm);
+    await service.processExplain('u-budget', explainPayload);
+    expect(llm.generateResponse.mock.calls[0][1].maxOutputTokens).toBeGreaterThanOrEqual(2000);
+    // Second identical explain call hits cache (0 extra LLM tokens).
+    await service.processExplain('u-budget', explainPayload);
+    expect(llm.generateResponse).toHaveBeenCalledTimes(1);
   });
 
   it('explainer LLM failure surfaces a Sushil Sir message with AI_SERVICE_UNAVAILABLE', async () => {

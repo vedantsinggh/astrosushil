@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { config } from '../../config';
 import { AppError } from '../../errors/app-error';
 import { logger } from '../../utils/logger';
@@ -9,8 +10,10 @@ import { OpenRouterProvider, AiServiceUnavailableError, AiResponseInvalidError }
 import { LLMProvider, LLMResponse } from './providers/llm.provider';
 import { SUSHIL_EXPLAINER_SYSTEM_PROMPT } from './prompts/sushil-explainer.prompt';
 
-const JYOTI_CHAT_MAX_TOKENS = 4000;
-const EXPLAINER_MAX_TOKENS = 6000;
+const JYOTI_CHAT_MAX_TOKENS = 1500;
+const EXPLAINER_MAX_TOKENS = 2000;
+const EXPLAINER_CACHE_TTL_MS = 15 * 60 * 1000;
+const EXPLAINER_CACHE_MAX_ENTRIES = 500;
 export const JYOTI_UNAVAILABLE_MESSAGE = 'Jyoti is unavailable right now. Please try again in a moment.';
 export const SUSHIL_UNAVAILABLE_MESSAGE = 'Sushil Sir is unavailable right now. Please try again in a moment.';
 
@@ -42,6 +45,7 @@ export class JyotiService {
 
   // Simple in-memory rate limiter per user ID
   private readonly rateLimits = new Map<string, { count: number; resetAt: number }>();
+  private readonly explainerCache = new Map<string, { value: SushilExplanationPayload; expiresAt: number }>();
 
   constructor(llmProvider?: LLMProvider) {
     this.llmProvider = llmProvider || new OpenRouterProvider();
@@ -96,11 +100,11 @@ export class JyotiService {
       currentScreen: payload.context?.currentScreen,
     });
 
-    // 3. Assemble history into prompt string
+    // 3. Assemble history into prompt string (bounded to save tokens)
     const historyText = payload.conversation && payload.conversation.length > 0
       ? payload.conversation
-          .slice(-6)
-          .map((msg) => `${msg.role.toUpperCase()}: ${msg.content}`)
+          .slice(-4)
+          .map((msg) => `${msg.role.toUpperCase()}: ${msg.content.slice(0, 500)}`)
           .join('\n')
       : 'No previous conversation.';
 
@@ -204,15 +208,24 @@ ${payload.message}
       };
     }
 
-    // 4. Assemble prompt context
+    // 4. Assemble prompt context (compact JSON to minimize input tokens)
     // Strip personal identifiers before anything is sent to the third-party LLM (docs/jyoti.md).
     const safeProfileContext = redactProfileContext(userProfileContext);
+    const cacheKey = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({ feature, screenTitle, mode, language, safeProfileContext, importantValues, astrologyData }))
+      .digest('hex');
+    const cached = this.explainerCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
     const profileText = safeProfileContext && Object.keys(safeProfileContext).length > 0
-      ? `USER PROFILE CONTEXT:\n${JSON.stringify(safeProfileContext, null, 2)}`
+      ? `USER PROFILE CONTEXT:\n${JSON.stringify(safeProfileContext)}`
       : 'USER PROFILE CONTEXT: Default Profile';
 
     const highlightsText = importantValues && Object.keys(importantValues).length > 0
-      ? `KEY VALUES & HIGHLIGHTS:\n${JSON.stringify(importantValues, null, 2)}`
+      ? `KEY VALUES & HIGHLIGHTS:\n${JSON.stringify(importantValues)}`
       : 'KEY VALUES & HIGHLIGHTS: Standard chart view';
 
     const prompt = `
@@ -228,7 +241,7 @@ ${profileText}
 ${highlightsText}
 
 ASTROLOGY DATA (Deterministic Calculation Engine Output):
-${JSON.stringify(astrologyData, null, 2)}
+${JSON.stringify(astrologyData)}
 
 INSTRUCTION:
 Explain this screen and its astrology data clearly and simply as AI Sushil Sir.
@@ -263,7 +276,7 @@ Return valid JSON with headline, message, keyPoints, and disclaimer.
     // Only genuine model-produced key points are returned; no generic filler is injected.
     const keyPoints = Array.isArray(rawResponse.keyPoints) ? rawResponse.keyPoints : [];
 
-    return {
+    const result: SushilExplanationPayload = {
       headline,
       message,
       keyPoints,
@@ -271,6 +284,12 @@ Return valid JSON with headline, message, keyPoints, and disclaimer.
       mode,
       language,
     };
+    if (this.explainerCache.size >= EXPLAINER_CACHE_MAX_ENTRIES) {
+      const oldestKey = this.explainerCache.keys().next().value;
+      if (oldestKey) this.explainerCache.delete(oldestKey);
+    }
+    this.explainerCache.set(cacheKey, { value: result, expiresAt: Date.now() + EXPLAINER_CACHE_TTL_MS });
+    return result;
   }
 }
 

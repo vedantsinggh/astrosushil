@@ -49,7 +49,7 @@ export class GeminiAiProvider implements IAiProvider {
       config?.defaultModel ||
       process.env.GEMINI_MODEL ||
       process.env.AI_MODEL ||
-      'gemini-3.8-flash';
+      'gemini-3.1-flash-lite';
     this.anonymizeDefault =
       config?.anonymizeClientData ??
       (process.env.AI_ANONYMIZE_PII === 'true' || process.env.NODE_ENV !== 'production');
@@ -108,7 +108,7 @@ export class GeminiAiProvider implements IAiProvider {
       ],
       generationConfig: {
         temperature: options?.temperature ?? 0.25,
-        maxOutputTokens: options?.maxTokens ?? 8192,
+        maxOutputTokens: options?.maxTokens ?? 4096,
       },
     };
 

@@ -9,6 +9,7 @@ import '../../../shared/widgets/astro_design_system.dart';
 import '../../birth_profile/models/birth_profile_model.dart';
 import '../../birth_profile/providers/birth_profile_provider.dart';
 import '../../birth_profile/screens/create_birth_profile_screen.dart';
+import '../models/report_brand_assets.dart';
 import '../models/user_report_item_model.dart';
 import '../models/report_language.dart';
 import '../models/report_purchase_models.dart';
@@ -36,6 +37,10 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
   /// unless the catalogue names it.
   final List<String> availableLanguages;
 
+  /// False when the report SKU has `pricePaise <= 0` or `!isActive` in the
+  /// server catalogue ("Coming Soon" state).
+  final bool isAvailable;
+
   const ReportDetailScreen({
     super.key,
     required this.reportType,
@@ -49,6 +54,7 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
     required this.initialProfile,
     required this.includedSections,
     this.availableLanguages = const [ContentLanguage.english],
+    this.isAvailable = true,
   });
 
   @override
@@ -84,6 +90,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   /// The choice is closed while a purchase is running and once the active
   /// order is paid: a paid order keeps its language.
   bool get _languageLocked => _isSubmitting || (_activeOrder?.isPaid ?? false);
+
+  bool get _isComingSoon => !widget.isAvailable || widget.pricePaise <= 0;
+
+  ReportBrandInfo? get _brand => ReportBrandRegistry.resolve(widget.reportType);
 
   @override
   void initState() {
@@ -169,8 +179,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   }
 
   Future<void> _handleGenerateReport({bool forceRegenerate = false}) async {
-    // 1. Prevent simultaneous / double-tap submissions
-    if (_isSubmitting) return;
+    // 1. Prevent simultaneous / double-tap submissions or purchase of Coming Soon SKUs
+    if (_isSubmitting || _isComingSoon) return;
 
     // 2. Validate input requirements (partner profile for Matchmaking)
     if (widget.reportType == 'MARRIAGE_COMPATIBILITY' && _selectedPartnerProfile == null) {
@@ -523,10 +533,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final isRetry = _purchaseStep == ReportPurchaseStep.orderCreationFailed ||
         _purchaseStep == ReportPurchaseStep.paymentFailed ||
         _purchaseStep == ReportPurchaseStep.verificationFailed;
+    final brand = _brand;
     // The language step is shown only when there is a choice to make.
     final languageChoices = _languageChoices;
-    final showLanguageStep = languageChoices.length > 1;
-    final totalSteps = showLanguageStep ? 4 : 3;
+    final showLanguageStep = !_isComingSoon && languageChoices.length > 1;
+    final totalSteps = _isComingSoon ? 2 : (showLanguageStep ? 4 : 3);
     var step = 1;
 
     return AstroPage(
@@ -535,8 +546,13 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSummaryCard(),
+          _buildSummaryCard(brand),
           const SizedBox(height: 16),
+
+          if (brand != null) ...[
+            _buildIllustrationSpotlight(brand),
+            const SizedBox(height: 16),
+          ],
 
           // Existing Completed Report Notice
           if (existingCompletedReport != null) ...[
@@ -544,23 +560,33 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
             const SizedBox(height: 16),
           ],
 
-          const SizedBox(height: 8),
-          ReportStepHeading(step: step++, total: totalSteps, title: 'Who is this report for?'),
-          _buildProfileCard(profiles),
+          if (!_isComingSoon) ...[
+            const SizedBox(height: 8),
+            ReportStepHeading(step: step++, total: totalSteps, title: 'Who is this report for?'),
+            _buildProfileCard(profiles),
 
-          if (showLanguageStep) ...[
+            if (showLanguageStep) ...[
+              const SizedBox(height: 28),
+              ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportLanguageStepTitle),
+              _buildLanguageCard(languageChoices),
+            ],
+
             const SizedBox(height: 28),
-            ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportLanguageStepTitle),
-            _buildLanguageCard(languageChoices),
+            ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportIncludedSections),
+            _buildIncludedSectionsCard(),
+
+            const SizedBox(height: 28),
+            ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportPriceBreakdown),
+            _buildPriceCard(subtotalPaise, gstPaise),
+          ] else ...[
+            const SizedBox(height: 8),
+            ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportIncludedSections),
+            _buildIncludedSectionsCard(),
+
+            const SizedBox(height: 28),
+            ReportStepHeading(step: step++, total: totalSteps, title: 'Edition Availability'),
+            _buildComingSoonAvailabilityCard(brand),
           ],
-
-          const SizedBox(height: 28),
-          ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportIncludedSections),
-          _buildIncludedSectionsCard(),
-
-          const SizedBox(height: 28),
-          ReportStepHeading(step: step++, total: totalSteps, title: context.l10n.reportPriceBreakdown),
-          _buildPriceCard(subtotalPaise, gstPaise),
 
           // Error status notice if any
           if (_purchaseError != null && !_isSubmitting) ...[
@@ -593,8 +619,68 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
-  /// Sticky bottom bar holding the single primary purchase action.
+  /// Sticky bottom bar holding the single primary purchase action, or an
+  /// explicit "Coming Soon" unavailable state when the SKU is not active/priced.
   Widget _buildActionBar(bool isRetry) {
+    if (_isComingSoon) {
+      return Container(
+        key: const Key('report_coming_soon_bar'),
+        decoration: const BoxDecoration(
+          color: AppColors.cardSurfaceWarm,
+          border: Border(top: BorderSide(color: AppColors.cardBorder)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Center(
+              heightFactor: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Semantics(
+                  label: 'Coming Soon, this report is not yet available for purchase',
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 52),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _brand?.tintColor ?? AppColors.disabledSurface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: (_brand?.accentColor ?? AppColors.disabled).withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 20,
+                          color: _brand?.textAccentColor ?? AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Coming Soon · Currently Unavailable',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: _brand?.textAccentColor ?? AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final label = _isSubmitting
         ? _getStepLoadingText(_purchaseStep)
         : isRetry
@@ -627,94 +713,286 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(ReportBrandInfo? brand) {
+    final primary = brand?.primaryColor ?? AppColors.primary;
+    final accent = brand?.accentColor ?? AppColors.gold;
+    final headerGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        primary,
+        Color.lerp(primary, AppColors.midnight, 0.42) ?? AppColors.midnight,
+      ],
+    );
+
+    Widget buildCoverPreview(double width) {
+      if (brand == null) {
+        return Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: accent.withValues(alpha: 0.45)),
+          ),
+          child: Icon(widget.icon, color: accent, size: 28),
+        );
+      }
+      return Semantics(
+        image: true,
+        label: '${widget.title} cover preview, ${brand.motifDescription}',
+        child: SizedBox(
+          width: width,
+          child: AspectRatio(
+            aspectRatio: 210 / 297,
+            child: Container(
+              decoration: BoxDecoration(
+                color: primary,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accent.withValues(alpha: 0.65), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                brand.coverAsset,
+                fit: BoxFit.cover,
+                cacheWidth: 360,
+                filterQuality: FilterQuality.medium,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Icon(brand.icon, color: accent, size: width * 0.4),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return AstroGradientCard(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      gradient: headerGradient,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final stackHeader = constraints.maxWidth < 300 || textScale > 1.6;
+          final coverWidth = stackHeader ? 96.0 : 108.0;
+
+          final titleAndPrice = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.45)),
-                ),
-                child: Icon(widget.icon, color: AppColors.gold, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        widget.title,
-                        style: AppTypography.displayMedium.copyWith(fontSize: 22, color: Colors.white, height: 1.25),
-                      ),
+              if (_isComingSoon)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.55)),
+                  ),
+                  child: Text(
+                    'Coming Soon',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
                     ),
-                    const SizedBox(height: 4),
+                  ),
+                ),
+              Semantics(
+                header: true,
+                child: Text(
+                  widget.title,
+                  style: AppTypography.displayMedium.copyWith(fontSize: 22, color: Colors.white, height: 1.25),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                widget.tagline,
+                style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textInverseSecondary),
+              ),
+              const SizedBox(height: 14),
+              if (!_isComingSoon) ...[
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  spacing: 10,
+                  runSpacing: 4,
+                  children: [
                     Text(
-                      widget.tagline,
-                      style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textInverseSecondary),
+                      widget.priceText,
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: accent, height: 1.1),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 3),
+                      child: Text(
+                        'one-time price',
+                        style: TextStyle(fontSize: 14, color: AppColors.textInverseSecondary),
+                      ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(Icons.bolt_rounded, size: 20, color: accent),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        context.l10n.reportDeliveryInstant,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else
+                const Text(
+                  'This edition is being prepared for upcoming release.',
+                  style: TextStyle(fontSize: 14, height: 1.4, color: AppColors.textInverseSecondary),
+                ),
             ],
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.end,
-            spacing: 10,
-            runSpacing: 4,
-            children: [
-              Text(
-                widget.priceText,
-                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.gold, height: 1.1),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 3),
-                child: Text('one-time price', style: TextStyle(fontSize: 15, color: AppColors.textInverseSecondary)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
+          );
+
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 1),
-                child: Icon(Icons.bolt_rounded, size: 20, color: AppColors.gold),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  context.l10n.reportDeliveryInstant,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+              if (stackHeader) ...[
+                Center(child: buildCoverPreview(coverWidth)),
+                const SizedBox(height: 16),
+                titleAndPrice,
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildCoverPreview(coverWidth),
+                    const SizedBox(width: 16),
+                    Expanded(child: titleAndPrice),
+                  ],
                 ),
-              ),
+              if (widget.description.isNotEmpty)
+                ReportLearnMore(
+                  label: 'About this report',
+                  onDark: true,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    child: Text(
+                      widget.description,
+                      style: const TextStyle(fontSize: 16, height: 1.5, color: AppColors.textInverseSecondary),
+                    ),
+                  ),
+                )
+              else
+                const SizedBox(height: 8),
             ],
-          ),
-          if (widget.description.isNotEmpty)
-            ReportLearnMore(
-              label: 'About this report',
-              onDark: true,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 4),
-                child: Text(
-                  widget.description,
-                  style: const TextStyle(fontSize: 16, height: 1.5, color: AppColors.textInverseSecondary),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildIllustrationSpotlight(ReportBrandInfo brand) {
+    return ReportCard(
+      color: brand.tintColor,
+      borderColor: brand.accentColor.withValues(alpha: 0.4),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: brand.primaryColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: brand.accentColor.withValues(alpha: 0.35)),
+            ),
+            child: Image.asset(
+              brand.illustrationAsset,
+              height: 140,
+              cacheWidth: 500,
+              fit: BoxFit.contain,
+              semanticLabel: '${widget.title} illustration: ${brand.motifDescription}',
+              errorBuilder: (_, __, ___) => SizedBox(
+                height: 84,
+                child: Center(
+                  child: Icon(brand.icon, color: brand.accentColor, size: 44),
                 ),
               ),
-            )
-          else
-            const SizedBox(height: 8),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Image.asset(
+            ReportBrandRegistry.sectionDividerAsset,
+            height: 14,
+            cacheWidth: 400,
+            fit: BoxFit.contain,
+            excludeFromSemantics: true,
+            errorBuilder: (_, __, ___) => Divider(
+              height: 1,
+              color: brand.accentColor.withValues(alpha: 0.35),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            brand.motifDescription,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+              color: brand.textAccentColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComingSoonAvailabilityCard(ReportBrandInfo? brand) {
+    final accentText = brand?.textAccentColor ?? AppColors.primary;
+    return ReportCard(
+      key: const Key('report_coming_soon_card'),
+      borderColor: brand?.accentColor.withValues(alpha: 0.4) ?? AppColors.cardBorder,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AstroIconSquare(
+            icon: Icons.schedule_rounded,
+            tint: AstroTint(accentText, brand?.tintColor ?? AppColors.accentFill),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Coming Soon',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'This Astro Sushil report edition is not yet active in the store. Pricing and checkout will appear here once published.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.45,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

@@ -70,9 +70,10 @@ void main() {
   }
 
   group('Phase 6.11A: Fortune Plus Mobile UI & Widget Verification', () {
-    testWidgets('1. Fortune Plus is hidden while the server catalogue does not offer it (no invented price)', (tester) async {
+    testWidgets('1. Fortune Plus shows Coming Soon without an invented price when inactive in server catalogue', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 844 * 2);
       tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
         createTestWidget(
@@ -89,9 +90,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // FORTUNE_PLUS is inactive in the server catalogue, so no card and no
-      // fabricated "pricing pending" offer is shown.
-      expect(find.text('Personalised Fortune Report Plus (Comprehensive Edition)'), findsNothing);
+      // FORTUNE_PLUS is one of the 13 canonical reports, shown with Coming Soon
+      // and no invented price or "PRICING PENDING" placeholder.
+      final fortunePlusCard = find.byKey(const ValueKey('report-offer-FORTUNE_PLUS'));
+      expect(fortunePlusCard, findsOneWidget);
+      expect(
+        find.descendant(of: fortunePlusCard, matching: find.text('Personalised Fortune Report Plus')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: fortunePlusCard, matching: find.text('Coming Soon')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: fortunePlusCard, matching: find.textContaining('₹')),
+        findsNothing,
+      );
       expect(find.text('PRICING PENDING'), findsNothing);
     });
 
@@ -125,7 +139,7 @@ void main() {
       expect(find.text('My reports'), findsOneWidget);
 
       // Verify report item rendered with model getters
-      expect(find.text('Personalised Fortune Report Plus (Comprehensive Edition)'), findsOneWidget);
+      expect(find.text('Personalised Fortune Report Plus'), findsOneWidget);
       expect(find.textContaining('For Puneet Kumar'), findsOneWidget);
       expect(find.text('Ready'), findsOneWidget);
 
@@ -140,7 +154,7 @@ void main() {
 
       // Verify navigation to ReportPdfViewerScreen
       expect(find.byType(ReportPdfViewerScreen), findsOneWidget);
-      expect(find.text('Personalised Fortune Report Plus (Comprehensive Edition)'), findsWidgets);
+      expect(find.text('Personalised Fortune Report Plus'), findsWidgets);
       expect(find.text('Puneet Kumar'), findsOneWidget);
     });
   });

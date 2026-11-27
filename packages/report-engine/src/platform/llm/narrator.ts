@@ -104,12 +104,12 @@ export function resolveThinkingLevel(raw: string | undefined): ThinkingLevel | u
 }
 
 export const DEFAULT_INTERPRETATION_TEMPERATURE = 0.2;
-export const DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS = 32000;
+export const DEFAULT_INTERPRETATION_MAX_OUTPUT_TOKENS = 8000;
 
 export const DEFAULT_NARRATOR_CONFIG: NarratorConfig = {
   model: process.env.REPORT_LLM_MODEL || process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
   temperature: 0.55,
-  maxOutputTokens: 16000,
+  maxOutputTokens: 6000,
   timeoutMs: 240000,
   maxAttempts: 3,
   maxTransportRetries: 6,

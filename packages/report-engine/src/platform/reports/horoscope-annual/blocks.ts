@@ -3,7 +3,7 @@
  */
 import { ordinal } from '../../evidence/evidence-registry';
 import { ReportLanguage } from '../../i18n/hindi';
-import { blockLang, BlockContext, BlockOutput, BlockRenderer } from '../../render/blocks';
+import { blockLang, BlockContext, BlockOutput, BlockRenderer, timelineTex } from '../../render/blocks';
 import { tex } from '../../render/latex';
 import { avakahadaBlock } from '../_annual-shared/avakahada';
 import { coloursLabel, deityLabel, gemLabel, L, mantraLabel, ord, pk, planetL, signL, weekdayLabel } from '../_annual-shared/annual-shared.hindi';
@@ -40,8 +40,17 @@ export function horoscopeWindows(ctx: BlockContext): BlockOutput {
     ...SLOW_PLANETS.map((p) => periodsBetween(d.transits[p], w.startIso, w.endIso)
       .map((t) => `${tex(signL(lang, t.sign))}~{\\color{Muted}(${mo}~${t.houseFromMoon}, ${as}~${t.houseFromLagna})}`).join('\\newline ')),
   ]);
+  const tlItems = d.windows.map((w, idx) => ({
+    date: `${localDate(w.startIso, tz(ctx), lang)} -- ${localDate(w.endIso, tz(ctx), lang)}`,
+    title: windowLabel(lang, w),
+    detail: SLOW_PLANETS.map((p) => {
+      const ts = periodsBetween(d.transits[p], w.startIso, w.endIso);
+      return `${planetL(lang, p)}: ${ts.map((t) => signL(lang, t.sign)).join(', ')}`;
+    }).join(' · '),
+    active: idx === 0,
+  }));
   return {
-    tex: gridTable(cols('l.17', 'X', 'X', 'X', 'X'), [L(lang, 'Window'), ...SLOW_PLANETS.map((p) => planetL(lang, p))], rows),
+    tex: `${timelineTex(tlItems)}\n${gridTable(cols('l.17', 'X', 'X', 'X', 'X'), [L(lang, 'Window'), ...SLOW_PLANETS.map((p) => planetL(lang, p))], rows)}`,
     evidenceIds: d.windows.flatMap((w) => [`horo.window.${w.index}.dates`, ...SLOW_PLANETS.map((p) => `horo.window.${w.index}.${p.toLowerCase()}`)]),
     method: pk(lang,
       'Signs occupied by the slow planets in each four-month window (TransitIngressSolver). Mo n = the nth house counted from your natal Moon sign; As n = counted from your natal Ascendant.',
@@ -54,7 +63,7 @@ export function horoscopeSlowTable(ctx: BlockContext): BlockOutput {
   const lang = blockLang(ctx);
   const rows = SLOW_PLANETS.flatMap((p) => d.transits[p].map((t) => transitRow(t, tz(ctx), true, lang)));
   return {
-    tex: gridTable(cols('l.1', 'l.29', 'l.14', 'c.1', 'c.1', 'X'), heads(lang, TRANSIT_HEADS), rows),
+    tex: longTable('p{0.1\\linewidth}p{0.29\\linewidth}p{0.15\\linewidth}p{0.09\\linewidth}p{0.09\\linewidth}p{0.13\\linewidth}', heads(lang, TRANSIT_HEADS), rows),
     evidenceIds: SLOW_PLANETS.flatMap((p) => d.transits[p].map((_, i) => `horo.transit.${p.toLowerCase()}.${pad2(i + 1)}`)),
     method: pk(lang,
       `Sign periods within the horoscope year; (R) = retrograde re-entry. ${GOCHARA_METHOD}`,

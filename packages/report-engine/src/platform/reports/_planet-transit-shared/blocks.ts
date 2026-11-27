@@ -7,7 +7,7 @@
 import { AshtakavargaContributor, PlanetSymbol } from '@astro/astrology-engine';
 import { ordinal, planetName, SIGNS } from '../../evidence/evidence-registry';
 import { dignityLabel, label, nakshatraLabel, pick, planetAbbr, planetLabel, ReportLanguage, signLabel } from '../../i18n/hindi';
-import { BlockContext, BlockOutput, BlockRenderer, blockLang, kvTable, northChart } from '../../render/blocks';
+import { BlockContext, BlockOutput, BlockRenderer, blockLang, kvTable, longTableTex, northChart, timelineTex } from '../../render/blocks';
 import { formatDate, tex } from '../../render/latex';
 import { PlanetReturn } from './calc/lifetime';
 import { PlanetKey, PlanetTransitData, PLANET_NAME, StayView, TransitPosition } from './calc/planet-transit';
@@ -42,6 +42,14 @@ export const rowTex = (cells: string[], i: number): string =>
   `${i % 2 ? '\\rowcolor{Surface}' : ''}${cells.map((c) => `\\TCell{${c}}`).join(' & ')}\\\\`;
 
 export function tableTex(colspec: string, headers: string[], rows: string[][], width = '\\linewidth'): string {
+  if (rows.length >= 8 && width === '\\linewidth') {
+    return longTableTex(
+      colspec,
+      headers.map((h) => `\\THd{${h}}`),
+      rows.map((r) => r.map((c) => `\\TCell{${c}}`)),
+      { raw: true }
+    );
+  }
   return [
     `\\begin{center}\\begin{tabularx}{${width}}{${colspec}}`,
     `\\TableHead${headers.map((h) => `\\THd{${h}}`).join(' & ')}\\\\`,
@@ -345,9 +353,7 @@ export function transitBinduBlock(key: 'saturn' | 'jupiter'): BlockRenderer {
       tex(tl(lang, (o.bav ?? 0) >= 5 ? 'supportive' : o.bav === 4 ? 'balanced' : 'patience and effort')),
     ]);
     return {
-      tex: tableTex(lang === 'hi'
-        ? 'p{0.13\\linewidth}p{0.21\\linewidth}p{0.09\\linewidth}p{0.09\\linewidth}p{0.08\\linewidth}p{0.08\\linewidth}X'
-        : 'p{0.13\\linewidth}p{0.15\\linewidth}p{0.1\\linewidth}p{0.1\\linewidth}p{0.08\\linewidth}p{0.08\\linewidth}X',
+      tex: tableTex('p{0.13\\linewidth}p{0.20\\linewidth}p{0.09\\linewidth}p{0.09\\linewidth}p{0.08\\linewidth}p{0.08\\linewidth}X',
         ['Transit sign', 'From', 'Lagna', 'Moon', 'BAV', 'SAV', 'Classical reading'].map((h) => hd(lang, h)), rows),
       evidenceIds: [`${key}.transit.horizon`, ...SIGNS.map((s) => `${key}.bav.sign.${slugSign(s)}`)],
       method: pickLazy(lang,
@@ -433,8 +439,14 @@ export function overviewBlock(key: PlanetKey): BlockRenderer {
       ? 'p{0.14\\linewidth}>{\\raggedright\\arraybackslash}X p{0.08\\linewidth}p{0.08\\linewidth}p{0.06\\linewidth}p{0.06\\linewidth}'
       : 'p{0.14\\linewidth}>{\\raggedright\\arraybackslash}X p{0.1\\linewidth}p{0.1\\linewidth}p{0.07\\linewidth}';
     const head = showBav ? ['Sign', 'Dates', 'Lagna', 'Moon', 'BAV', 'SAV'] : ['Sign', 'Dates', 'Lagna', 'Moon', 'SAV'];
+    const tlItems = d.overview.slice(0, 5).map((o, idx) => ({
+      date: o.spans.map((s) => spanL(lang, s)).join('; '),
+      title: `${planetLabel(lang, d.name)} — ${signLabel(lang, o.sign)}`,
+      detail: `${ord(lang, o.houseFromLagna)} / ${ord(lang, o.houseFromMoon)}`,
+      active: idx === 0,
+    }));
     return {
-      tex: tableTex(spec, head.map((h) => hd(lang, h)), rows),
+      tex: timelineTex(tlItems) + '\n' + tableTex(spec, head.map((h) => hd(lang, h)), rows),
       evidenceIds: [`${key}.transit.horizon`],
       method: pickLazy(lang,
         () => `Every ${d.name} sign period from the report date for ${d.horizonYears} years, solved with the TransitIngressSolver. Lagna/Moon = house counted from your Ascendant / Moon sign. R marks a return to the natal sign.`,

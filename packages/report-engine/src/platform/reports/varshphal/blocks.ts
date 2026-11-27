@@ -4,7 +4,7 @@
  */
 import { ordinal, PLANETS } from '../../evidence/evidence-registry';
 import { label, nakshatraLabel, planetAbbr, ReportLanguage } from '../../i18n/hindi';
-import { blockLang, BlockContext, BlockOutput, BlockRenderer, northChart } from '../../render/blocks';
+import { blockLang, BlockContext, BlockOutput, BlockRenderer, northChart, timelineTex } from '../../render/blocks';
 import { tex } from '../../render/latex';
 import { avakahadaBlock } from '../_annual-shared/avakahada';
 import { L, masaLabel, ord, ordOblique, pk, planetL, signL, weekdayLabel } from '../_annual-shared/annual-shared.hindi';
@@ -181,7 +181,7 @@ export function varshphalSahams(ctx: BlockContext): BlockOutput {
   ]);
   const day = d.varsha.panchadhikari.isDayReturn;
   return {
-    tex: gridTable(cols('l.19', 'X', 'l.2', 'l.15', 'c.06'), heads(lang, ['Saham', 'Signifies', 'Formula', 'Position', 'House']), rows),
+    tex: longTable('p{0.18\\linewidth}p{0.29\\linewidth}p{0.18\\linewidth}p{0.15\\linewidth}p{0.07\\linewidth}', heads(lang, ['Saham', 'Signifies', 'Formula', 'Position', 'House']), rows),
     evidenceIds: list.map((s) => `varsha.saham.${s.name.replace(/ Saham$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`),
     method: pk(lang,
       `Tajik Sahams (sensitive points) = Ascendant + A − B, with A and B reversed for a ${day ? 'night' : 'day'} return (this is a ${day ? 'day' : 'night'} return). Computed by the engine\'s SahamsCalculator. Mitra Saham is omitted because the engine\'s formula for it currently duplicates Yashas Saham.`,
@@ -192,12 +192,19 @@ export function varshphalSahams(ctx: BlockContext): BlockOutput {
 export function varshphalMudda(ctx: BlockContext): BlockOutput {
   const d = data(ctx);
   const lang = blockLang(ctx);
+  const nowMs = Date.parse(ctx.snapshot.asOfIso);
   const rows = d.mudda.map((p) => [
     `${p.order}`, `\\textbf{${tex(planetL(lang, p.lord))}}`, tex(localDate(p.startIso, tz(ctx), lang)), tex(localDate(p.endIso, tz(ctx), lang)), `${p.days.toFixed(1)}`,
     L(lang, p.part === 'balance' ? 'Balance at the start of the year' : p.part === 'closing' ? 'Remaining part, closes the year' : 'Full period'),
   ]);
+  const tlItems = d.mudda.map((p) => ({
+    date: `${localDate(p.startIso, tz(ctx), lang)} -- ${localDate(p.endIso, tz(ctx), lang)}`,
+    title: `${planetL(lang, p.lord)} (${p.days.toFixed(1)})`,
+    detail: L(lang, p.part === 'balance' ? 'Balance at the start of the year' : p.part === 'closing' ? 'Remaining part, closes the year' : 'Full period'),
+    active: Date.parse(p.startIso) <= nowMs && nowMs < Date.parse(p.endIso),
+  }));
   return {
-    tex: gridTable(cols('c.04', 'l.1', 'l.13', 'l.13', 'r.06', 'X'), ['\\#', ...heads(lang, ['Lord', 'From', 'To', 'Days', 'Note'])], rows),
+    tex: `${timelineTex(tlItems)}\n${longTable('p{0.05\\linewidth}p{0.11\\linewidth}p{0.14\\linewidth}p{0.14\\linewidth}p{0.08\\linewidth}p{0.34\\linewidth}', ['\\#', ...heads(lang, ['Lord', 'From', 'To', 'Days', 'Note'])], rows)}`,
     evidenceIds: d.mudda.map((_, i) => `varsha.mudda.${pad2(i + 1)}`),
     method: pk(lang, 'Mudda dasha (Tajika Neelakanthi): first lord = remainder of (natal nakshatra number + completed years − 2) ÷ 9, counted Sun, Moon, Mars, Rahu, Jupiter, Saturn, Mercury, Ketu, Venus. Each lord rules (Vimshottari years ÷ 120) of the actual year; the first period runs for the natal Moon\'s remaining share of its nakshatra and its elapsed share closes the year.',
       'मुद्दा दशा (ताजिक नीलकंठी): पहला स्वामी = (जन्म नक्षत्र की संख्या + पूर्ण हुए वर्ष − 2) ÷ 9 का शेष, जिसे सूर्य, चंद्र, मंगल, राहु, गुरु, शनि, बुध, केतु, शुक्र के क्रम में गिना जाता है। हर स्वामी वास्तविक वर्ष के (विंशोत्तरी वर्ष ÷ 120) भाग पर शासन करता है; पहली अवधि उतनी चलती है जितना भाग जन्म के चंद्र को अपने नक्षत्र में तय करना शेष था, और उसका बीता हुआ भाग वर्ष को पूरा करता है।'),
@@ -260,9 +267,15 @@ export function varshphalMonth(index: number): BlockRenderer {
     const header = pk(lang,
       `\\begin{asHighlight}\\CardTitle{Month ${index}: ${date(mf.month.startIso)} to ${date(mf.month.endIso)}}{\\fontsize{9.5}{13.5}\\selectfont Mudda dasha: ${muddaText}.\\\\ Sign changes: ${ingress}\\\\ Transits supportive from your Moon at mid-month: \\textbf{${mf.supportiveCount} of 8}. Practice planet for the month: \\textbf{${tex(mf.focus)}} (${weekday}).\\par}\\end{asHighlight}`,
       `\\begin{asHighlight}\\CardTitle{माह ${index}: ${date(mf.month.startIso)} से ${date(mf.month.endIso)} तक}{\\fontsize{9.5}{13.5}\\selectfont मुद्दा दशा: ${muddaText}।\\\\ राशि परिवर्तन: ${ingress}\\\\ माह के मध्य में आपके चंद्र से सहायक गोचर: \\textbf{8 में से ${mf.supportiveCount}}। इस माह का साधना ग्रह: \\textbf{${tex(planetL(lang, mf.focus))}} (${weekday})।\\par}\\end{asHighlight}`);
+    const monthTl = timelineTex(mf.mudda.map((p) => ({
+      date: `${localDate(p.startIso, tz(ctx), lang)} -- ${localDate(p.endIso, tz(ctx), lang)}`,
+      title: planetL(lang, p.lord),
+      active: true,
+    })));
     return {
       tex: [
         header,
+        monthTl,
         '\\begin{minipage}[t]{0.49\\linewidth}\\vspace{0pt}',
         gridTable(cols('l.15', 'l.21', 'c.08', 'c.09', 'X'), [L(lang, 'Planet'), L(lang, 'Sign'), pk(lang, 'Asc', 'लग्न'), pk(lang, 'Moon', 'चंद्र'), L(lang, 'Gochara')], rows, '\\linewidth', false),
         '\\end{minipage}\\hfill\\begin{minipage}[t]{0.49\\linewidth}\\vspace{0pt}',

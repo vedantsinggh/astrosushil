@@ -4,6 +4,7 @@ import { AppError, NotFoundError, ValidationError } from '../../errors/app-error
 import { logger } from '../../utils/logger';
 import { platformReportLanguages } from '../../services/platform-report.runner';
 import { CatalogItem, commerceCatalog } from '../commerce/commerce.catalog';
+import { reportCatalogOverrides } from '../commerce/report-catalog.overrides';
 import { commerceService } from '../commerce/commerce.service';
 import { computeGst } from '../commerce/money/tax';
 import { birthProfilesService } from '../birth-profiles/birth-profiles.service';
@@ -38,20 +39,168 @@ export interface WebsiteReportProduct {
   /** Catalogue item that is sold for it (owner decision 2026-11-24). */
   catalogId: string;
   /** Report type the platform generates for it; must be the catalogue item's own type. */
-  platformType: CreateReportInput['reportType'];
+  platformType: ReportType;
   /** Two people (bride and groom) instead of one. */
   couple: boolean;
+  /** Lookup aliases (legacy slugs, legacy report types, retired catalog IDs/platform types). */
+  aliases?: readonly string[];
+  /** Legacy website reportType values accepted on buy() for this product. */
+  legacyReportTypes?: readonly WebsiteReportType[];
+  /** Default cover image path when no admin override exists. */
+  defaultCoverImage?: string;
+  /** Default SVG illustration path. */
+  defaultIllustrationUrl?: string;
 }
 
 /**
- * The four products of the website and what replaces each. The slugs are the provisional ones
- * until the website's `reports` collection is read (the slug lives in its database, not its code).
+ * The 13 canonical Astro Sushil reports matching `brand_assets.json`.
+ * Unpriced / inactive reports are still returned in `listReports()` with `isActive: false` and
+ * `availableForPurchase: false` so the catalog displays them as Coming Soon without accepting orders.
  */
 export const WEBSITE_REPORT_PRODUCTS: readonly WebsiteReportProduct[] = [
-  { slug: 'mini-horoscope', reportType: 'mini_horoscope_pdf', name: 'Mini Horoscope', catalogId: 'report-planetary-summary', platformType: 'PLANETARY_SUMMARY', couple: false },
-  { slug: 'basic-horoscope', reportType: 'basic_horoscope_pdf', name: 'Basic Horoscope', catalogId: 'report-kundli-basic', platformType: 'KUNDLI_BASIC', couple: false },
-  { slug: 'pro-horoscope', reportType: 'pro_horoscope_pdf', name: 'Pro Horoscope', catalogId: 'report-fortune-plus', platformType: 'FORTUNE_PLUS', couple: false },
-  { slug: 'match-making', reportType: 'match_making_pdf', name: 'Match Making', catalogId: 'report-marriage', platformType: 'MARRIAGE_COMPATIBILITY', couple: true },
+  {
+    slug: 'kundli',
+    reportType: 'kundli_pdf',
+    name: 'Premium Personalised Kundli Report',
+    catalogId: 'report-kundli',
+    platformType: 'KUNDLI',
+    couple: false,
+  },
+  {
+    slug: 'career',
+    reportType: 'career_pdf',
+    name: 'Career Report',
+    catalogId: 'report-career',
+    platformType: 'CAREER',
+    couple: false,
+    aliases: ['report-career-pro', 'career-pro', 'career_prosity'],
+  },
+  {
+    slug: 'marriage',
+    reportType: 'marriage_compatibility_pdf',
+    name: 'Couple Kundli Matching Report',
+    catalogId: 'report-marriage',
+    platformType: 'MARRIAGE_COMPATIBILITY',
+    couple: true,
+    aliases: ['match-making', 'match_making_pdf', 'couple-kundli-matching'],
+    legacyReportTypes: ['match_making_pdf'],
+  },
+  {
+    slug: 'finance',
+    reportType: 'finance_pdf',
+    name: 'Finance Report',
+    catalogId: 'report-finance',
+    platformType: 'FINANCE',
+    couple: false,
+  },
+  {
+    slug: 'love',
+    reportType: 'love_pdf',
+    name: 'Love Report',
+    catalogId: 'report-love',
+    platformType: 'LOVE',
+    couple: false,
+  },
+  {
+    slug: 'fortune',
+    reportType: 'fortune_pdf',
+    name: 'Fortune Report',
+    catalogId: 'report-fortune',
+    platformType: 'FORTUNE',
+    couple: false,
+  },
+  {
+    slug: 'fortune-plus',
+    reportType: 'fortune_plus_pdf',
+    name: 'Personalised Fortune Report Plus',
+    catalogId: 'report-fortune-plus',
+    platformType: 'FORTUNE_PLUS',
+    couple: false,
+    aliases: ['pro-horoscope', 'pro_horoscope_pdf'],
+    legacyReportTypes: ['pro_horoscope_pdf'],
+  },
+  {
+    slug: 'horoscope',
+    reportType: 'horoscope_pdf',
+    name: 'Personalised Horoscope Report',
+    catalogId: 'report-horoscope',
+    platformType: 'HOROSCOPE',
+    couple: false,
+    aliases: ['report-personalised-horoscope', 'personalised-horoscope'],
+  },
+  {
+    slug: 'saturn',
+    reportType: 'saturn_pdf',
+    name: 'Saturn In Your Birth Chart Report',
+    catalogId: 'report-saturn',
+    platformType: 'SATURN',
+    couple: false,
+  },
+  {
+    slug: 'jupiter-transit',
+    reportType: 'jupiter_transit_pdf',
+    name: 'Jupiter Transit Report',
+    catalogId: 'report-jupiter-transit',
+    platformType: 'JUPITER_TRANSIT',
+    couple: false,
+  },
+  {
+    slug: 'rahu-ketu-transit',
+    reportType: 'rahu_ketu_transit_pdf',
+    name: 'Rahu Ketu Transit Report',
+    catalogId: 'report-rahu-ketu-transit',
+    platformType: 'RAHU_KETU_TRANSIT',
+    couple: false,
+  },
+  {
+    slug: 'varshphal',
+    reportType: 'varshphal_pdf',
+    name: 'Varshphal Report',
+    catalogId: 'report-varshphal',
+    platformType: 'VARSHPHAL',
+    couple: false,
+  },
+  {
+    slug: 'baby-name',
+    reportType: 'baby_name_pdf',
+    name: 'Baby Name Report',
+    catalogId: 'report-baby-name',
+    platformType: 'BABY_NAME',
+    couple: false,
+  },
+];
+
+/**
+ * Legacy website products kept for existing links, bookmarks, and historical order fulfillment
+ * (`mini-horoscope` / `mini_horoscope_pdf`, `basic-horoscope` / `basic_horoscope_pdf`).
+ * Not returned in `listReports()`, which serves the 13 canonical reports.
+ */
+export const LEGACY_WEBSITE_REPORT_PRODUCTS: readonly WebsiteReportProduct[] = [
+  {
+    slug: 'mini-horoscope',
+    reportType: 'mini_horoscope_pdf',
+    name: 'Mini Horoscope',
+    catalogId: 'report-planetary-summary',
+    platformType: 'PLANETARY_SUMMARY',
+    couple: false,
+    defaultCoverImage: '/Image/Reports/mini-horscope.webp',
+    defaultIllustrationUrl: '/report-assets/illustrations/reports/report-horoscope.svg',
+  },
+  {
+    slug: 'basic-horoscope',
+    reportType: 'basic_horoscope_pdf',
+    name: 'Basic Horoscope',
+    catalogId: 'report-kundli-basic',
+    platformType: 'KUNDLI_BASIC',
+    couple: false,
+    defaultCoverImage: '/Image/Reports/basic-horscope.webp',
+    defaultIllustrationUrl: '/report-assets/illustrations/reports/report-kundli.svg',
+  },
+];
+
+const ALL_WEBSITE_REPORT_PRODUCTS: readonly WebsiteReportProduct[] = [
+  ...WEBSITE_REPORT_PRODUCTS,
+  ...LEGACY_WEBSITE_REPORT_PRODUCTS,
 ];
 
 const paiseToRupees = (paise: number): number => paise / 100;
@@ -126,7 +275,7 @@ export class WebReportsService {
 
   private resolve(product: WebsiteReportProduct): ResolvedProduct | null {
     const item = commerceCatalog.getItem(product.catalogId);
-    if (!item || !item.isActive || item.itemType !== OrderItemType.REPORT) return null;
+    if (!item || item.itemType !== OrderItemType.REPORT) return null;
     // The mapping is only valid while the catalogue item still is the report it names.
     if (item.legacyReportType !== product.platformType) return null;
     return { product, item, reportType: item.legacyReportType };
@@ -134,24 +283,30 @@ export class WebReportsService {
 
   /** A product in the website's `Report` shape. Every amount comes from the catalogue item. */
   private toWebsiteReport({ product, item, reportType }: ResolvedProduct) {
+    const availableForPurchase = item.isActive && item.pricePaise > 0;
+    const effectivePricePaise = item.pricePaise > 0 ? item.pricePaise : 0;
     // The catalogue stores the amount the customer pays. The split is the money engine's own.
-    const split = computeGst(item.pricePaise, {
-      enabled: item.taxRateBasisPoints > 0,
+    const split = computeGst(effectivePricePaise, {
+      enabled: item.taxRateBasisPoints > 0 && effectivePricePaise > 0,
       rateBp: item.taxRateBasisPoints,
       type: item.taxIncluded ? 'inclusive' : 'exclusive',
     });
-    const ratePercent = item.taxRateBasisPoints / 100;
+    const ratePercent = effectivePricePaise > 0 ? item.taxRateBasisPoints / 100 : 0;
+    // Admin edits (owner decision 2026-11-26: the website admin's report editor).
+    const edit = reportCatalogOverrides.get(item.id);
     return {
       _id: item.id,
-      name: product.name,
-      slug: product.slug,
+      name: edit?.name?.trim() || product.name,
+      slug: this.slugOf(product),
       reportType: product.reportType,
-      shortDescription: item.title,
+      platformType: reportType,
+      shortDescription: edit?.shortDescription?.trim() || item.description,
       description: item.description,
       // Shown as on the website: the price before GST, with GST added at checkout.
       originalPrice: item.originalPricePaise !== undefined ? paiseToRupees(item.originalPricePaise) : null,
+      pricePaise: effectivePricePaise,
       salePrice: paiseToRupees(split.basePaise),
-      gst: { enabled: item.taxRateBasisPoints > 0, rate: ratePercent, type: 'exclusive' as const },
+      gst: { enabled: item.taxRateBasisPoints > 0 && effectivePricePaise > 0, rate: ratePercent, type: 'exclusive' as const },
       priceWithGst: paiseToRupees(split.totalPaise),
       priceBreakdown: {
         rate: ratePercent,
@@ -166,14 +321,16 @@ export class WebReportsService {
       priceWithGstPaise: split.totalPaise,
       currency: item.currency,
       languages: this.languagesOf(reportType),
-      isActive: true,
-      isPremium: true,
+      isActive: item.isActive,
+      availableForPurchase,
+      isPremium: edit?.isPremium ?? true,
       requires: product.couple ? 'matchMakingDetails' : 'customerDetails',
-      // Marketing content of the website's product pages lives in its database and is not part of the catalogue.
-      coverImage: null,
-      benefits: [],
-      features: [],
-      faqs: [],
+      // Brand assets default to the canonical report cover & spot illustration when no admin override exists.
+      coverImage: edit?.coverImageUrl || product.defaultCoverImage || `/report-assets/covers/web-preview/${item.id}.webp`,
+      illustrationUrl: product.defaultIllustrationUrl || `/report-assets/illustrations/reports/${item.id}.svg`,
+      benefits: edit?.benefits ?? [],
+      features: edit?.features ?? [],
+      faqs: edit?.faqs ?? [],
     };
   }
 
@@ -183,9 +340,26 @@ export class WebReportsService {
       .map((r) => this.toWebsiteReport(r));
   }
 
+  /** The product's slug: the one set in the admin, else the code one. */
+  private slugOf(product: WebsiteReportProduct): string {
+    return reportCatalogOverrides.get(product.catalogId)?.slug?.trim() || product.slug;
+  }
+
+  private matchesReference(product: WebsiteReportProduct, ref: string): boolean {
+    return (
+      this.slugOf(product).toLowerCase() === ref ||
+      product.slug.toLowerCase() === ref ||
+      product.catalogId.toLowerCase() === ref ||
+      product.reportType.toLowerCase() === ref ||
+      product.platformType.toLowerCase() === ref ||
+      (product.aliases ?? []).some((alias) => alias.toLowerCase() === ref)
+    );
+  }
+
   private findProduct(reference: string): ResolvedProduct {
     const ref = reference.trim().toLowerCase();
-    const product = WEBSITE_REPORT_PRODUCTS.find((p) => p.slug === ref || p.catalogId === ref || p.reportType === ref);
+    // Canonical products take precedence, then legacy products (`mini-horoscope`, `basic-horoscope`).
+    const product = ALL_WEBSITE_REPORT_PRODUCTS.find((p) => this.matchesReference(p, ref));
     const resolved = product ? this.resolve(product) : null;
     if (!resolved) throw new NotFoundError('Report not found');
     return resolved;
@@ -215,8 +389,13 @@ export class WebReportsService {
         Math.abs(p.longitude - person.longitude) < 0.0001 &&
         p.timezone === tz.timezone
     );
-    if (same) return same.id;
+    const gender = person.gender ? (String(person.gender).toLowerCase() as 'male' | 'female' | 'other') : undefined;
+    if (same) {
+      if (!same.gender && gender) await prisma.birthProfile.update({ where: { id: same.id }, data: { gender } });
+      return same.id;
+    }
     const created = await this.profiles.createProfile(userId, {
+      ...(gender && ['male', 'female', 'other'].includes(gender) ? { gender } : {}),
       name: person.fullName,
       dateOfBirth: person.dateOfBirth,
       timeOfBirth: person.timeOfBirth,
@@ -244,8 +423,15 @@ export class WebReportsService {
     const resolved = this.findProduct(input.reportId);
     const { product, item, reportType } = resolved;
 
-    // The type is the product's. A request naming another type for this product is refused.
-    if (input.reportType && input.reportType !== product.reportType) {
+    if (!item.isActive || item.pricePaise <= 0) {
+      throw new ValidationError(`Offering "${item.title}" is currently unavailable for purchase`, [
+        { field: 'reportId', message: 'This report is not yet available for purchase' },
+      ]);
+    }
+
+    // The type is the product's (or its preserved legacy alias). A request naming another type for this product is refused.
+    const allowedTypes = new Set<string>([product.reportType, ...(product.legacyReportTypes ?? [])]);
+    if (input.reportType && !allowedTypes.has(input.reportType)) {
       throw new ValidationError('reportType does not match the selected report', [
         { field: 'reportType', message: `This report is "${product.reportType}"` },
       ]);
@@ -403,14 +589,20 @@ export class WebReportsService {
       if (orderItem.itemType !== OrderItemType.REPORT) continue;
       const meta = (orderItem.metadata ?? null) as Partial<WebReportItemMetadata> | null;
       if (!meta || meta.source !== 'website' || typeof meta.birthProfileId !== 'string') continue;
-      const product = WEBSITE_REPORT_PRODUCTS.find((p) => p.catalogId === orderItem.catalogId);
-      if (!product || commerceCatalog.getItem(orderItem.catalogId)?.legacyReportType !== product.platformType) continue;
-      const reportType = product.platformType;
+      const product = ALL_WEBSITE_REPORT_PRODUCTS.find((p) => p.catalogId === orderItem.catalogId);
+      const catalogItem = commerceCatalog.getItem(orderItem.catalogId);
+      const reportType =
+        product && catalogItem?.legacyReportType === product.platformType
+          ? product.platformType
+          : orderItem.catalogId === 'report-career-pro' && catalogItem?.legacyReportType === 'CAREER_PROSITY'
+            ? 'CAREER_PROSITY'
+            : null;
+      if (!reportType) continue;
       const job = await this.reports.createReportJob(
         {
           birthProfileId: meta.birthProfileId,
           partnerProfileId: typeof meta.partnerProfileId === 'string' ? meta.partnerProfileId : undefined,
-          reportType,
+          reportType: reportType as CreateReportInput['reportType'],
           orderId: order.id,
           // The language bought. ReportsService refuses any other language for this paid slot.
           language: meta.language === 'hi' ? 'hi' : 'en',
@@ -453,7 +645,12 @@ export class WebReportsService {
 
       const catalogItem = commerceCatalog.getItemByLegacyReportType(report.reportType);
       const orderItem = order.items.find((i) => i.itemType === OrderItemType.REPORT && (!catalogItem || i.catalogId === catalogItem.id)) ?? null;
-      const product = WEBSITE_REPORT_PRODUCTS.find((p) => p.catalogId === (orderItem?.catalogId ?? catalogItem?.id));
+      const resolvedCatalogId = orderItem?.catalogId ?? catalogItem?.id;
+      const product =
+        ALL_WEBSITE_REPORT_PRODUCTS.find((p) => p.catalogId === resolvedCatalogId) ??
+        (resolvedCatalogId === 'report-career-pro'
+          ? WEBSITE_REPORT_PRODUCTS.find((p) => p.catalogId === 'report-career')
+          : undefined);
 
       let reportUrl: string | null = null;
       try {

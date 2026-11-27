@@ -146,12 +146,11 @@ void main() {
       expect(find.text('Get a report'), findsOneWidget);
       expect(find.text('100% Deterministic Engine'), findsNothing);
 
-      // Verify 5 active report tiers
-      expect(find.text('Janma Kundli & Birth Chart Report'), findsOneWidget);
+      // Verify active server-priced canonical reports
+      expect(find.text('Premium Personalised Kundli Report'), findsOneWidget);
       expect(find.text('₹299'), findsOneWidget);
 
-      expect(find.text('Planetary Dynamics & Dignity Summary'), findsOneWidget);
-      expect(find.text('₹199'), findsOneWidget);
+      expect(find.text('Personalised Horoscope Report'), findsOneWidget);
 
       expect(find.text('Career & Professional Life Report'), findsOneWidget);
       expect(find.text('₹499'), findsWidgets); // career price from server catalogue
@@ -167,8 +166,7 @@ void main() {
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
       await tester.pumpAndSettle();
 
-      // Childbirth/Family and Gupta Nadi have no genuine generator and are
-      // inactive in the server catalogue: they must not be listed at all.
+      // Childbirth/Family and Gupta Nadi are retired and not part of the 13 canonical reports.
       expect(find.text('Childbirth & Family Lineage'), findsNothing);
       expect(find.text('Gupta Nadi Life Dossier'), findsNothing);
       expect(find.text('COMING SOON'), findsNothing);
@@ -259,25 +257,25 @@ void main() {
       expect(find.text('Failed (1)'), findsOneWidget);
 
       // Initial visible reports
-      expect(find.text('Birth Chart & Kundli Report'), findsOneWidget);
-      expect(find.text('Career & Professional Life'), findsOneWidget);
+      expect(find.text('Premium Personalised Kundli Report'), findsOneWidget);
+      expect(find.text('Career Report'), findsOneWidget);
 
       // Filter by Ready
       await tester.tap(find.text('Ready (1)'));
       await tester.pumpAndSettle();
-      expect(find.text('Birth Chart & Kundli Report'), findsOneWidget);
-      expect(find.text('Career & Professional Life'), findsNothing);
+      expect(find.text('Premium Personalised Kundli Report'), findsOneWidget);
+      expect(find.text('Career Report'), findsNothing);
 
       // Filter by Being prepared
       await tester.tap(find.text('Being prepared (1)'));
       await tester.pumpAndSettle();
-      expect(find.text('Career & Professional Life'), findsOneWidget);
-      expect(find.text('Birth Chart & Kundli Report'), findsNothing);
+      expect(find.text('Career Report'), findsOneWidget);
+      expect(find.text('Premium Personalised Kundli Report'), findsNothing);
 
       // Filter by Failed
       await tester.tap(find.text('Failed (1)'));
       await tester.pumpAndSettle();
-      expect(find.text('Marriage & Relationship Report'), findsOneWidget);
+      expect(find.text('Couple Kundli Matching Report'), findsOneWidget);
       // Technical error detail sits behind a "Details" expander.
       expect(find.text('Ephemeris calculation timeout'), findsNothing);
       await tester.tap(find.text('Details'));

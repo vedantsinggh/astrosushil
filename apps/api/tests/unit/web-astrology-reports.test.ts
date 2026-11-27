@@ -170,68 +170,145 @@ beforeEach(() => {
   db.blocked = false;
 });
 
-describe('GET /web/reports: the four website products, priced from our catalogue', () => {
-  it('maps each website product to the decided replacement', () => {
-    const map = Object.fromEntries(WEBSITE_REPORT_PRODUCTS.map((p) => [p.reportType, [p.catalogId, p.platformType]]));
+describe('GET /web/reports: all 13 canonical reports plus legacy aliases', () => {
+  it('maps all 13 canonical reports to their commerce catalog items and platform types', () => {
+    expect(WEBSITE_REPORT_PRODUCTS).toHaveLength(13);
+    const map = Object.fromEntries(WEBSITE_REPORT_PRODUCTS.map((p) => [p.catalogId, p.platformType]));
     expect(map).toEqual({
-      mini_horoscope_pdf: ['report-planetary-summary', 'PLANETARY_SUMMARY'],
-      basic_horoscope_pdf: ['report-kundli-basic', 'KUNDLI_BASIC'],
-      pro_horoscope_pdf: ['report-fortune-plus', 'FORTUNE_PLUS'],
-      match_making_pdf: ['report-marriage', 'MARRIAGE_COMPATIBILITY'],
+      'report-kundli': 'KUNDLI',
+      'report-career': 'CAREER',
+      'report-marriage': 'MARRIAGE_COMPATIBILITY',
+      'report-finance': 'FINANCE',
+      'report-love': 'LOVE',
+      'report-fortune': 'FORTUNE',
+      'report-fortune-plus': 'FORTUNE_PLUS',
+      'report-horoscope': 'HOROSCOPE',
+      'report-saturn': 'SATURN',
+      'report-jupiter-transit': 'JUPITER_TRANSIT',
+      'report-rahu-ketu-transit': 'RAHU_KETU_TRANSIT',
+      'report-varshphal': 'VARSHPHAL',
+      'report-baby-name': 'BABY_NAME',
     });
     for (const product of WEBSITE_REPORT_PRODUCTS) {
       expect(COMMERCE_CATALOG[product.catalogId].legacyReportType).toBe(product.platformType);
     }
   });
 
-  it('returns the website fields with the website prices (read 2026-11-24) from the catalogue', () => {
+  it('returns all 13 reports with exact GST splits for the 9 priced items, Coming Soon state for the 4 unpriced items, and default brand assets', () => {
     const reports = harness().service.listReports();
-    expect(reports.map((r) => r.name)).toEqual(['Mini Horoscope', 'Basic Horoscope', 'Pro Horoscope', 'Match Making']);
-    const by = Object.fromEntries(reports.map((r) => [r.reportType, r]));
-    expect(by.mini_horoscope_pdf).toMatchObject({
-      _id: 'report-planetary-summary',
-      slug: 'mini-horoscope',
-      originalPrice: 499,
-      salePrice: 199,
+    expect(reports).toHaveLength(13);
+    expect(reports.map((r) => r._id)).toEqual([
+      'report-kundli',
+      'report-career',
+      'report-marriage',
+      'report-finance',
+      'report-love',
+      'report-fortune',
+      'report-fortune-plus',
+      'report-horoscope',
+      'report-saturn',
+      'report-jupiter-transit',
+      'report-rahu-ketu-transit',
+      'report-varshphal',
+      'report-baby-name',
+    ]);
+
+    const byId = Object.fromEntries(reports.map((r) => [r._id, r]));
+    expect(byId['report-kundli']).toMatchObject({
+      name: 'Premium Personalised Kundli Report',
+      slug: 'kundli',
+      salePrice: 999,
       gst: { enabled: true, rate: 18, type: 'exclusive' },
-      priceWithGst: 234.82,
-      priceWithGstPaise: COMMERCE_CATALOG['report-planetary-summary'].pricePaise,
-      priceBreakdown: { rate: 18, base: 199, taxAmount: 35.82, total: 234.82 },
+      priceWithGst: 1178.82,
+      priceWithGstPaise: COMMERCE_CATALOG['report-kundli'].pricePaise,
+      availableForPurchase: true,
+      isActive: true,
+      coverImage: '/report-assets/covers/web-preview/report-kundli.webp',
+      illustrationUrl: '/report-assets/illustrations/reports/report-kundli.svg',
       languages: ['en', 'hi'],
     });
-    expect(by.basic_horoscope_pdf).toMatchObject({ originalPrice: 799, salePrice: 299, priceWithGst: 352.82 });
-    expect(by.pro_horoscope_pdf).toMatchObject({ originalPrice: 1499, salePrice: 699, priceWithGst: 824.82 });
-    expect(by.match_making_pdf).toMatchObject({ originalPrice: 1999, salePrice: 999, priceWithGst: 1178.82, gst: { enabled: true, rate: 18 }, requires: 'matchMakingDetails' });
+    expect(byId['report-fortune-plus']).toMatchObject({
+      originalPrice: 1499,
+      salePrice: 699,
+      priceWithGst: 824.82,
+      availableForPurchase: true,
+    });
+    expect(byId['report-marriage']).toMatchObject({
+      originalPrice: 1999,
+      salePrice: 999,
+      priceWithGst: 1178.82,
+      requires: 'matchMakingDetails',
+      availableForPurchase: true,
+    });
+    expect(byId['report-career']).toMatchObject({
+      salePrice: 422.88,
+      priceWithGst: 499,
+      priceWithGstPaise: COMMERCE_CATALOG['report-career'].pricePaise,
+      availableForPurchase: true,
+    });
+
+    const pricedReports = reports.filter((r) => r.availableForPurchase);
+    const unpricedReports = reports.filter((r) => !r.availableForPurchase);
+    expect(pricedReports).toHaveLength(9);
+    expect(unpricedReports.map((r) => r._id)).toEqual([
+      'report-jupiter-transit',
+      'report-rahu-ketu-transit',
+      'report-varshphal',
+      'report-baby-name',
+    ]);
+
+    for (const report of pricedReports) {
+      expect(report.isActive).toBe(true);
+      expect(report.pricePaise).toBeGreaterThan(0);
+      expect(report.priceWithGstPaise).toBe(commerceCatalog.calculateOrder([{ catalogId: report._id }]).totalAmount);
+    }
+
+    for (const report of unpricedReports) {
+      expect(report).toMatchObject({
+        isActive: false,
+        availableForPurchase: false,
+        pricePaise: 0,
+        salePrice: 0,
+        priceWithGst: 0,
+        priceWithGstPaise: 0,
+      });
+    }
+
     for (const report of reports) {
-      for (const key of ['name', 'slug', 'description', 'originalPrice', 'salePrice', 'gst', 'priceWithGst', 'languages']) {
+      for (const key of ['name', 'slug', 'description', 'originalPrice', 'salePrice', 'gst', 'priceWithGst', 'languages', 'coverImage', 'illustrationUrl', 'availableForPurchase']) {
         expect(report, `${report.slug}.${key}`).toHaveProperty(key);
       }
-      // What is displayed is what is charged.
-      expect(report.priceWithGstPaise).toBe(commerceCatalog.calculateOrder([{ catalogId: report._id }]).totalAmount);
+      expect(report.coverImage).toBe(`/report-assets/covers/web-preview/${report._id}.webp`);
+      expect(report.illustrationUrl).toBe(`/report-assets/illustrations/reports/${report._id}.svg`);
     }
   });
 
-  it('follows the catalogue: a changed price or an inactive item changes the list', () => {
+  it('follows the catalogue: a changed price or inactive flag updates availability', () => {
     const item = COMMERCE_CATALOG['report-planetary-summary'];
     const original = { pricePaise: item.pricePaise, isActive: item.isActive };
     try {
       item.pricePaise = 11800;
-      expect(harness().service.getReport('mini-horoscope')).toMatchObject({ salePrice: 100, priceWithGst: 118 });
+      expect(harness().service.getReport('mini-horoscope')).toMatchObject({ salePrice: 100, priceWithGst: 118, availableForPurchase: true });
       item.isActive = false;
-      expect(harness().service.listReports().map((r) => r.slug)).toEqual(['basic-horoscope', 'pro-horoscope', 'match-making']);
-      expect(() => harness().service.getReport('mini-horoscope')).toThrow(NotFoundError);
+      expect(harness().service.getReport('mini-horoscope')).toMatchObject({ isActive: false, availableForPurchase: false });
     } finally {
       Object.assign(item, original);
     }
   });
 
-  it('finds a product by slug, catalogue id or website type, and nothing else', () => {
+  it('preserves all 4 legacy slugs/types and CAREER_PROSITY alias in getReport()', () => {
     const { service } = harness();
-    expect(service.getReport('pro-horoscope')._id).toBe('report-fortune-plus');
-    expect(service.getReport('report-fortune-plus').slug).toBe('pro-horoscope');
-    expect(service.getReport('pro_horoscope_pdf').slug).toBe('pro-horoscope');
-    // Another catalogue item is not a website report.
-    expect(() => service.getReport('report-career')).toThrow(NotFoundError);
+    expect(service.getReport('mini-horoscope')).toMatchObject({ _id: 'report-planetary-summary', slug: 'mini-horoscope', salePrice: 199, priceWithGst: 234.82 });
+    expect(service.getReport('mini_horoscope_pdf')._id).toBe('report-planetary-summary');
+    expect(service.getReport('basic-horoscope')).toMatchObject({ _id: 'report-kundli-basic', slug: 'basic-horoscope', salePrice: 299, priceWithGst: 352.82 });
+    expect(service.getReport('basic_horoscope_pdf')._id).toBe('report-kundli-basic');
+    expect(service.getReport('pro-horoscope')).toMatchObject({ _id: 'report-fortune-plus', slug: 'fortune-plus' });
+    expect(service.getReport('pro_horoscope_pdf')._id).toBe('report-fortune-plus');
+    expect(service.getReport('match-making')).toMatchObject({ _id: 'report-marriage', slug: 'marriage', requires: 'matchMakingDetails' });
+    expect(service.getReport('match_making_pdf')._id).toBe('report-marriage');
+    expect(service.getReport('CAREER_PROSITY')._id).toBe('report-career');
+    expect(service.getReport('report-career-pro')._id).toBe('report-career');
+    expect(service.getReport('report-career').slug).toBe('career');
     expect(() => service.getReport('__proto__')).toThrow(NotFoundError);
   });
 });
@@ -337,13 +414,21 @@ describe('POST /web/reports/buy', () => {
     );
   });
 
-  it('needs the right details for the product and two different people for a match', async () => {
+  it('needs the right details for the product, two different people for a match, and rejects unpriced/inactive reports', async () => {
     const h = harness();
     await expect(h.service.buy(webBuyReportSchema.parse({ reportId: 'match-making', customerDetails: { ...person(), reportLanguage: 'en' } }), USER)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
     await expect(h.service.buy(webBuyReportSchema.parse({ reportId: 'mini-horoscope', matchMakingDetails: { bride: person(), groom: person({ fullName: 'B' }), reportLanguage: 'en' } }), USER)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
     await expect(h.service.buy(webBuyReportSchema.parse({ reportId: 'match-making', matchMakingDetails: { bride: person(), groom: person(), reportLanguage: 'en' } }), USER)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
-    await expect(h.service.buy(webBuyReportSchema.parse({ reportId: 'report-career', customerDetails: { ...person(), reportLanguage: 'en' } }), USER)).rejects.toBeInstanceOf(NotFoundError);
+    // Unpriced / inactive reports cannot be purchased
+    for (const unpricedId of ['report-jupiter-transit', 'report-rahu-ketu-transit', 'report-varshphal', 'report-baby-name']) {
+      await expect(h.service.buy(webBuyReportSchema.parse({ reportId: unpricedId, customerDetails: { ...person(), reportLanguage: 'en' } }), USER)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    }
+    await expect(h.service.buy(webBuyReportSchema.parse({ reportId: 'does-not-exist', customerDetails: { ...person(), reportLanguage: 'en' } }), USER)).rejects.toBeInstanceOf(NotFoundError);
     expect(h.createOrder).not.toHaveBeenCalled();
+
+    // Canonical priced report (report-career) can be bought directly and also via CAREER_PROSITY alias
+    const bought = await h.service.buy(webBuyReportSchema.parse({ reportId: 'report-career', reportType: 'career_pdf', customerDetails: { ...person(), reportLanguage: 'en' } }), USER);
+    expect(bought.order).toMatchObject({ reportId: 'report-career', reportType: 'career_pdf', amountPaise: 49900 });
   });
 
   it('reuses the buyer\'s matching birth profile and never another customer\'s', async () => {
@@ -389,7 +474,7 @@ describe('POST /web/reports/buy', () => {
     expect(ok({ whatsappNumber: '123' })).toBe(false);
     expect(ok({ gender: 'x' })).toBe(false);
     expect(ok({ timezone: 'India' })).toBe(false);
-    expect(webBuyReportSchema.safeParse({ reportId: 'mini-horoscope', reportType: 'career_pdf', customerDetails: { ...person(), reportLanguage: 'en' } }).success).toBe(false);
+    expect(webBuyReportSchema.safeParse({ reportId: 'mini-horoscope', reportType: 'invalid_report_pdf', customerDetails: { ...person(), reportLanguage: 'en' } }).success).toBe(false);
   });
 });
 
@@ -488,7 +573,7 @@ describe('GET /web/reports/orders: visible only after the report is delivered', 
       baseAmount: 234.82,
       reportUrl: 'https://files.example.test/signed/r-delivered?expires=900',
     });
-    expect(rows.find((r) => r._id === 'o-match')!.reportId.name).toBe('Match Making');
+    expect(rows.find((r) => r._id === 'o-match')!.reportId.name).toBe('Couple Kundli Matching Report');
     // A download link is requested only for what is shown, and only as this user.
     expect(h.getReportAccessUrl.mock.calls.map((c) => c[0]).sort()).toEqual(['r-delivered', 'r-match']);
     expect(h.getReportAccessUrl.mock.calls.every((c) => c[1] === USER)).toBe(true);
@@ -543,10 +628,12 @@ describe('routes', () => {
       const res = await call('GET', url);
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({ statusCode: 200, success: true, message: 'Reports fetched successfully' });
-      expect(res.json().data).toHaveLength(4);
+      expect(res.json().data).toHaveLength(13);
     }
     expect((await call('GET', '/report/slug/mini-horoscope')).json().data.slug).toBe('mini-horoscope');
-    expect((await call('GET', '/report/report-marriage')).json().data.reportType).toBe('match_making_pdf');
+    expect((await call('GET', '/report/slug/kundli')).json().data._id).toBe('report-kundli');
+    expect((await call('GET', '/report/report-marriage')).json().data.reportType).toBe('marriage_compatibility_pdf');
+    expect((await call('GET', '/report/slug/match-making')).json().data._id).toBe('report-marriage');
     const missing = await call('GET', '/report/slug/nothing');
     expect(missing.statusCode).toBe(404);
     expect(missing.json().error).toMatchObject({ code: 'NOT_FOUND' });

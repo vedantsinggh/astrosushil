@@ -1,0 +1,110 @@
+{
+  "brand": "Astro Sushil",
+  "version": "2.0",
+  "covers": [
+    {
+      "key": "report-kundli",
+      "title": "Premium Personalised Kundli Report",
+      "print_jpg": "covers/print-a4/report-kundli.jpg",
+      "web_preview": "covers/web-preview/report-kundli.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-career",
+      "title": "Career Report",
+      "print_jpg": "covers/print-a4/report-career.jpg",
+      "web_preview": "covers/web-preview/report-career.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-marriage",
+      "title": "Couple Kundli Matching Report",
+      "print_jpg": "covers/print-a4/report-marriage.jpg",
+      "web_preview": "covers/web-preview/report-marriage.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-finance",
+      "title": "Finance Report",
+      "print_jpg": "covers/print-a4/report-finance.jpg",
+      "web_preview": "covers/web-preview/report-finance.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-love",
+      "title": "Love Report",
+      "print_jpg": "covers/print-a4/report-love.jpg",
+      "web_preview": "covers/web-preview/report-love.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-fortune",
+      "title": "Fortune Report",
+      "print_jpg": "covers/print-a4/report-fortune.jpg",
+      "web_preview": "covers/web-preview/report-fortune.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-fortune-plus",
+      "title": "Personalised Fortune Report Plus",
+      "print_jpg": "covers/print-a4/report-fortune-plus.jpg",
+      "web_preview": "covers/web-preview/report-fortune-plus.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-horoscope",
+      "title": "Personalised Horoscope Report",
+      "print_jpg": "covers/print-a4/report-horoscope.jpg",
+      "web_preview": "covers/web-preview/report-horoscope.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-saturn",
+      "title": "Saturn In Your Birth Chart Report",
+      "print_jpg": "covers/print-a4/report-saturn.jpg",
+      "web_preview": "covers/web-preview/report-saturn.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-jupiter-transit",
+      "title": "Jupiter Transit Report",
+      "print_jpg": "covers/print-a4/report-jupiter-transit.jpg",
+      "web_preview": "covers/web-preview/report-jupiter-transit.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-rahu-ketu-transit",
+      "title": "Rahu Ketu Transit Report",
+      "print_jpg": "covers/print-a4/report-rahu-ketu-transit.jpg",
+      "web_preview": "covers/web-preview/report-rahu-ketu-transit.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-varshphal",
+      "title": "Varshphal Report",
+      "print_jpg": "covers/print-a4/report-varshphal.jpg",
+      "web_preview": "covers/web-preview/report-varshphal.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    },
+    {
+      "key": "report-baby-name",
+      "title": "Baby Name Report",
+      "print_jpg": "covers/print-a4/report-baby-name.jpg",
+      "web_preview": "covers/web-preview/report-baby-name.webp",
+      "dimensions_px": "2480x3508",
+      "dpi": 300
+    }
+  ]
+}

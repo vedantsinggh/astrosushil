@@ -20,27 +20,71 @@ export interface CoverInfo {
 
 type EditorialLang = 'en' | 'hi';
 
-/**
- * Language of the document being assembled. `coverPage` is always the first
- * editorial call of `assembleDocument`, so it records `def.language` here for
- * the pages whose signatures carry no definition (`philosophyPage`,
- * `contentsPage`). Both also accept an explicit language.
- */
+const ASSET_BY_ID_OR_TYPE: Record<string, string> = {
+  kundli: 'report-kundli',
+  KUNDLI: 'report-kundli',
+  'kundli-basic': 'report-kundli',
+  KUNDLI_BASIC: 'report-kundli',
+  'planetary-summary': 'report-kundli',
+  PLANETARY_SUMMARY: 'report-kundli',
+  career: 'report-career',
+  CAREER: 'report-career',
+  CAREER_PROSITY: 'report-career',
+  'couple-matching': 'report-marriage',
+  MARRIAGE_COMPATIBILITY: 'report-marriage',
+  finance: 'report-finance',
+  FINANCE: 'report-finance',
+  love: 'report-love',
+  LOVE: 'report-love',
+  fortune: 'report-fortune',
+  FORTUNE: 'report-fortune',
+  'fortune-plus': 'report-fortune-plus',
+  FORTUNE_PLUS: 'report-fortune-plus',
+  'horoscope-annual': 'report-horoscope',
+  HOROSCOPE: 'report-horoscope',
+  saturn: 'report-saturn',
+  SATURN: 'report-saturn',
+  'jupiter-transit': 'report-jupiter-transit',
+  JUPITER_TRANSIT: 'report-jupiter-transit',
+  'rahu-ketu-transit': 'report-rahu-ketu-transit',
+  RAHU_KETU_TRANSIT: 'report-rahu-ketu-transit',
+  varshphal: 'report-varshphal',
+  VARSHPHAL: 'report-varshphal',
+  'baby-name': 'report-baby-name',
+  BABY_NAME: 'report-baby-name',
+};
+
+/** Resolve the cover / spot-illustration asset stem for any report definition or alias. */
+export function reportAssetKey(def: Pick<ReportDefinition, 'id' | 'reportType'> & { additionalReportTypes?: string[] }): string {
+  if (ASSET_BY_ID_OR_TYPE[def.id]) return ASSET_BY_ID_OR_TYPE[def.id];
+  const rt = def.reportType?.toUpperCase();
+  if (rt && ASSET_BY_ID_OR_TYPE[rt]) return ASSET_BY_ID_OR_TYPE[rt];
+  for (const alias of def.additionalReportTypes ?? []) {
+    const key = ASSET_BY_ID_OR_TYPE[alias] ?? ASSET_BY_ID_OR_TYPE[alias.toUpperCase()];
+    if (key) return key;
+  }
+  return 'report-kundli';
+}
 
 /**
  * Document-level set-up for Hindi: an ActualText layer so the extracted PDF
  * text matches the Devanagari source (search, copy, PDF QA), danda glyphs from
- * the Devanagari font (dandas join the Devanagari character class), and a Hindi label for the "In Essence" box.
+ * the Devanagari font (dandas join the Devanagari character class), and Hindi
+ * labels for shared section/callout/takeaway Chrome.
  */
 function hindiSetup(): string {
   return String.raw`\XeTeXgenerateactualtext=1
 \XeTeXcharclass"0964=\XeTeXcharclass"0915 \XeTeXcharclass"0965=\XeTeXcharclass"0915
-\renewcommand{\Takeaway}[1]{\begin{asHighlight}\CardTitle{सार}{\fontsize{9.8}{13.5}\selectfont #1\par}\end{asHighlight}}
+\renewcommand{\SectionWord}{खंड}
+\renewcommand{\TakeawayWord}{सार}
+\renewcommand{\InsightWord}{मुख्य बिंदु}
+\renewcommand{\KeyTakeawaysWord}{प्रमुख बिंदु}
 `;
 }
 
 export function coverPage(def: ReportDefinition, c: CoverInfo): string {
   if (def.language === 'hi') return hindiSetup() + coverPageHi(def, c);
+  const assetKey = reportAssetKey(def);
   const line = (d: string, t: string | undefined, p: string) =>
     `${tex(d)}${t ? ` \\enspace\\textbar\\enspace ${tex(t)}` : ''} \\enspace\\textbar\\enspace ${tex(p)}`;
   const birth = c.partner
@@ -48,23 +92,20 @@ export function coverPage(def: ReportDefinition, c: CoverInfo): string {
     : line(c.dateOfBirth, c.timeOfBirth, c.placeName);
   return String.raw`\thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
-  \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/celestial_cover.jpg}};
-  \node[anchor=center,inner sep=0pt] at ([yshift=-40mm]current page.center) {
-    \begin{minipage}{150mm}\centering
-      \includegraphics[height=24mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{4mm}
-      {\sffamily\fontsize{8}{10}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace VEDIC \& NADI ASTROLOGY}\par\vspace{2mm}
-      {\color{CoverGold!70}\rule{32mm}{0.6pt}}\par\vspace{6mm}
-      {\displayfont\fontsize{27}{33}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{3mm}
-      {\fontsize{10.5}{14}\selectfont\itshape\color{CoverGoldTint!85}${tex(def.subtitle)}\par}\vspace{9mm}
-      \begin{tcolorbox}[enhanced,colback=CoverCard!92,colframe=CoverGold!50,boxrule=0.6pt,arc=1.5mm,width=130mm,left=5mm,right=5mm,top=4mm,bottom=4mm,center]
-        \centering
-        {\sffamily\fontsize{7}{9}\selectfont\bfseries\color{CoverGold}PREPARED EXCLUSIVELY FOR}\par\vspace{2mm}
-        {\displayfont\fontsize{17}{21}\selectfont\color{white}${tex(c.clientName)}\par}\vspace{2mm}
-        {\color{CoverGold!40}\rule{28mm}{0.4pt}}\par\vspace{2mm}
-        {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!90}${birth}\par}
-      \end{tcolorbox}\par\vspace{6mm}
-      {\sffamily\fontsize{7}{9}\selectfont\color{CoverGoldTint!70}PERSONAL \& CONFIDENTIAL\enspace\textbar\enspace ${tex(c.generatedOn)}}\par
-    \end{minipage}};
+  \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/covers/${assetKey}.jpg}};
+  \node[anchor=south,inner sep=0pt] at ([yshift=3.5mm]current page.south) {
+    \begin{tcolorbox}[enhanced,colback=CoverJewel,opacityback=0.94,colframe=CoverGold!85,boxrule=0.8pt,arc=2.2mm,width=158mm,left=6mm,right=6mm,top=4.2mm,bottom=4.2mm,borderline={0.35pt}{1.5pt}{CoverGold!40}]
+      \centering
+      \includegraphics[height=11mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{1.5mm}
+      {\sffamily\fontsize{7}{8.8}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace VEDIC \& NADI ASTROLOGY}\par\vspace{1.8mm}
+      {\displayfont\fontsize{16.5}{20.5}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{1mm}
+      {\fontsize{8.5}{11.5}\selectfont\itshape\color{CoverGoldTint!85}${tex(def.subtitle)}\par}\vspace{2.4mm}
+      {\color{CoverGold!65}\rule{36mm}{0.5pt}}\par\vspace{2.4mm}
+      {\sffamily\fontsize{6.8}{8.5}\selectfont\bfseries\color{CoverGold}PREPARED EXCLUSIVELY FOR}\par\vspace{1.2mm}
+      {\displayfont\fontsize{16.5}{20}\selectfont\color{white}${tex(c.clientName)}\par}\vspace{1.4mm}
+      {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!92}${birth}\par}\vspace{2.6mm}
+      {\sffamily\fontsize{6.8}{8.5}\selectfont\color{CoverBrightGold!85}PERSONAL \& CONFIDENTIAL\enspace\textbar\enspace ${tex(c.generatedOn)}\enspace\textbar\enspace astrosushil.com}\par
+    \end{tcolorbox}};
 \end{tikzpicture}
 \null\clearpage
 `;
@@ -75,10 +116,10 @@ export function authorNotePage(def: ReportDefinition): string {
   return String.raw`\markboth{A Note from Astro Sushil}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}WELCOME}\par\vspace{2mm}
-{\displayfont\fontsize{22}{27}\selectfont\color{Primary}A Note from Astro Sushil\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{5mm}
+{\displayfont\fontsize{22}{27}\selectfont\color{Primary}A Note from Astro Sushil\par}\vspace{1mm}
+\SectionDivider
 \begin{minipage}[t]{0.30\linewidth}\vspace{0pt}
-  \begin{tcolorbox}[enhanced,colback=white,colframe=Primary,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=1.5mm,bottom=1.5mm,boxsep=0pt]
+  \begin{tcolorbox}[enhanced,colback=white,colframe=Primary,boxrule=0.8pt,arc=1.8mm,left=1.5mm,right=1.5mm,top=1.5mm,bottom=1.5mm,boxsep=0pt]
     \includegraphics[width=\linewidth]{assets/about_sushil.png}
   \end{tcolorbox}
   \begin{center}{\sffamily\fontsize{10}{12}\selectfont\bfseries\color{Primary}Astro Sushil\par}\vspace{0.8mm}
@@ -111,9 +152,9 @@ export function philosophyPage(_llmProviderLabel: string, language: EditorialLan
   return String.raw`\markboth{Our Philosophy}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}BEFORE YOU BEGIN}\par\vspace{2mm}
-{\displayfont\fontsize{22}{27}\selectfont\color{Primary}Our Philosophy \& Your Freedom of Choice\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{4mm}
-\begin{asCard}\CardTitle{Astrology as cosmic weather, not fate}
+{\displayfont\fontsize{22}{27}\selectfont\color{Primary}Our Philosophy \& Your Freedom of Choice\par}\vspace{1mm}
+\SectionDivider
+\begin{asCard}\CardTitleStar{Astrology as cosmic weather, not fate}
 {\fontsize{9.5}{13.5}\selectfont Jyotish, the science of light, maps the sky at the moment of your birth. It describes inclinations, strengths and seasons of life, much as a weather forecast describes conditions rather than commanding them. Your effort, values and choices remain the decisive factors.\par}\end{asCard}
 \vspace{2mm}
 \begin{asCaution}\CardTitle{We do not believe in doshas}
@@ -133,11 +174,11 @@ export function howToReadPage(def: ReportDefinition): string {
   return String.raw`\markboth{How to Read This Report}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}A GUIDE}\par\vspace{2mm}
-{\displayfont\fontsize{22}{27}\selectfont\color{Primary}How to Read This Report\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{4mm}
+{\displayfont\fontsize{22}{27}\selectfont\color{Primary}How to Read This Report\par}\vspace{1mm}
+\SectionDivider
 {\fontsize{10}{14.5}\selectfont
-${tex(def.description)}
-
+\begin{asQuote}{\itshape\color{PrimaryDeep}${tex(def.description)}\par}\end{asQuote}
+\vspace{2mm}
 \begin{gemlist}
   \item \textbf{Start with your chart.} The first section shows the calculated facts this report is built on. Every interpretation later refers back to them.
   \item \textbf{Read section by section.} Each topic opens with a short lead, explains the relevant astrology in plain language, and closes with an “In Essence” summary.
@@ -146,7 +187,7 @@ ${tex(def.description)}
 \end{gemlist}
 \par}
 \vspace{4mm}
-\begin{asHighlight}\CardTitle{A few terms}
+\begin{asHighlight}\CardTitleStar{A few terms}
 {\fontsize{9.3}{13}\selectfont \textbf{Lagna (Ascendant):} the sign rising at birth, the lens of the whole chart. \textbf{House (Bhava):} one of twelve areas of life. \textbf{Nakshatra:} one of 27 lunar mansions. \textbf{Dasha:} a planetary period in the Vimshottari system. \textbf{D9 (Navamsa):} the divisional chart of partnership and inner strength. \textbf{Transit (Gochar):} the present movement of planets through your chart.\par}\end{asHighlight}
 \clearpage
 `;
@@ -156,8 +197,8 @@ export function contentsPage(language: EditorialLang = 'en'): string {
   if (language === 'hi') return contentsPageHi();
   return String.raw`\markboth{Contents}{}
 \vspace*{4mm}
-{\displayfont\fontsize{22}{27}\selectfont\color{Primary}Contents\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{3mm}
+{\displayfont\fontsize{22}{27}\selectfont\color{Primary}Contents\par}\vspace{1mm}
+\SectionDivider
 \makeatletter\@starttoc{toc}\makeatother
 \clearpage
 `;
@@ -166,14 +207,16 @@ export function contentsPage(language: EditorialLang = 'en'): string {
 export function closingPage(def: ReportDefinition): string {
   if (def.language === 'hi') return closingPageHi(def);
   return String.raw`\clearpage\markboth{Closing Words}{}
-\vspace*{30mm}
+\vspace*{28mm}
 \begin{center}
-\includegraphics[height=22mm]{assets/astrosushil_logo.png}\par\vspace{8mm}
-{\displayfont\fontsize{20}{25}\selectfont\color{Primary}The stars incline; you decide.\par}\vspace{4mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{6mm}
+\includegraphics[height=22mm]{assets/astrosushil_logo.png}\par\vspace{7mm}
+{\displayfont\fontsize{20}{25}\selectfont\color{Primary}The stars incline; you decide.\par}\vspace{2mm}
+\SectionDivider
+\begin{asQuote}
 \begin{minipage}{125mm}\centering\fontsize{10}{14.5}\selectfont
 Thank you for reading your ${tex(def.title)}. May it bring you clarity, patience and confidence in the choices ahead. If you would like to explore any part of it more deeply, a personal consultation is always available at astrosushil.com.
-\end{minipage}\par\vspace{10mm}
+\end{minipage}
+\end{asQuote}\par\vspace{8mm}
 {\sffamily\fontsize{7.5}{9.5}\selectfont\color{Muted}Astro Sushil\enspace\textbar\enspace astrosushil.com\par}
 \end{center}
 `;
@@ -185,6 +228,7 @@ Thank you for reading your ${tex(def.title)}. May it bring you clarity, patience
 // ---------------------------------------------------------------------------
 
 function coverPageHi(def: ReportDefinition, c: CoverInfo): string {
+  const assetKey = reportAssetKey(def);
   const line = (d: string, t: string | undefined, p: string) =>
     `${tex(d)}${t ? ` \\enspace\\textbar\\enspace ${tex(t)}` : ''} \\enspace\\textbar\\enspace ${tex(p)}`;
   // A two-person report shows both birth lines, as the English cover does.
@@ -193,23 +237,20 @@ function coverPageHi(def: ReportDefinition, c: CoverInfo): string {
     : line(c.dateOfBirth, c.timeOfBirth, c.placeName);
   return String.raw`\thispagestyle{empty}
 \begin{tikzpicture}[remember picture,overlay]
-  \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/celestial_cover.jpg}};
-  \node[anchor=center,inner sep=0pt] at ([yshift=-40mm]current page.center) {
-    \begin{minipage}{150mm}\centering
-      \includegraphics[height=24mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{4mm}
-      {\sffamily\fontsize{8.5}{11}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace वैदिक एवं नाड़ी ज्योतिष}\par\vspace{2mm}
-      {\color{CoverGold!70}\rule{32mm}{0.6pt}}\par\vspace{6mm}
-      {\displayfont\fontsize{29}{38}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{3mm}
-      {\fontsize{11}{16}\selectfont\color{CoverGoldTint!85}${tex(def.subtitle)}\par}\vspace{9mm}
-      \begin{tcolorbox}[enhanced,colback=CoverCard!92,colframe=CoverGold!50,boxrule=0.6pt,arc=1.5mm,width=130mm,left=5mm,right=5mm,top=4mm,bottom=4mm,center]
-        \centering
-        {\sffamily\fontsize{8}{10}\selectfont\bfseries\color{CoverGold}विशेष रूप से आपके लिए तैयार}\par\vspace{2mm}
-        {\displayfont\fontsize{17}{21}\selectfont\color{white}${tex(c.clientName)}\par}\vspace{2mm}
-        {\color{CoverGold!40}\rule{28mm}{0.4pt}}\par\vspace{2mm}
-        {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!90}${birth}\par}
-      \end{tcolorbox}\par\vspace{6mm}
-      {\sffamily\fontsize{7.5}{9.5}\selectfont\color{CoverGoldTint!70}व्यक्तिगत एवं गोपनीय\enspace\textbar\enspace ${tex(c.generatedOn)}}\par
-    \end{minipage}};
+  \node[anchor=center,inner sep=0pt] at (current page.center) {\includegraphics[width=\paperwidth,height=\paperheight]{assets/covers/${assetKey}.jpg}};
+  \node[anchor=south,inner sep=0pt] at ([yshift=3.5mm]current page.south) {
+    \begin{tcolorbox}[enhanced,colback=CoverJewel,opacityback=0.94,colframe=CoverGold!85,boxrule=0.8pt,arc=2.2mm,width=158mm,left=6mm,right=6mm,top=4.2mm,bottom=4.2mm,borderline={0.35pt}{1.5pt}{CoverGold!40}]
+      \centering
+      \includegraphics[height=11mm,keepaspectratio]{assets/astrosushil_logo_gold.png}\par\vspace{1.5mm}
+      {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{CoverBrightGold}ASTRO SUSHIL\enspace\textbullet\enspace वैदिक एवं नाड़ी ज्योतिष}\par\vspace{1.8mm}
+      {\displayfont\fontsize{18}{24}\selectfont\color{CoverGoldTint}${tex(def.title)}\par}\vspace{1mm}
+      {\fontsize{9}{13}\selectfont\color{CoverGoldTint!85}${tex(def.subtitle)}\par}\vspace{2.4mm}
+      {\color{CoverGold!65}\rule{36mm}{0.5pt}}\par\vspace{2.4mm}
+      {\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{CoverGold}विशेष रूप से आपके लिए तैयार}\par\vspace{1.2mm}
+      {\displayfont\fontsize{16.5}{21}\selectfont\color{white}${tex(c.clientName)}\par}\vspace{1.4mm}
+      {\sffamily\fontsize{8}{11}\selectfont\color{CoverGoldTint!92}${birth}\par}\vspace{2.6mm}
+      {\sffamily\fontsize{7.2}{9}\selectfont\color{CoverBrightGold!85}व्यक्तिगत एवं गोपनीय\enspace\textbar\enspace ${tex(c.generatedOn)}\enspace\textbar\enspace astrosushil.com}\par
+    \end{tcolorbox}};
 \end{tikzpicture}
 \null\clearpage
 `;
@@ -219,10 +260,10 @@ function authorNotePageHi(def: ReportDefinition): string {
   return String.raw`\markboth{एस्ट्रो सुशील का संदेश}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}स्वागत}\par\vspace{2mm}
-{\displayfont\fontsize{22}{29}\selectfont\color{Primary}एस्ट्रो सुशील का संदेश\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{5mm}
+{\displayfont\fontsize{22}{29}\selectfont\color{Primary}एस्ट्रो सुशील का संदेश\par}\vspace{1mm}
+\SectionDivider
 \begin{minipage}[t]{0.30\linewidth}\vspace{0pt}
-  \begin{tcolorbox}[enhanced,colback=white,colframe=Primary,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=1.5mm,bottom=1.5mm,boxsep=0pt]
+  \begin{tcolorbox}[enhanced,colback=white,colframe=Primary,boxrule=0.8pt,arc=1.8mm,left=1.5mm,right=1.5mm,top=1.5mm,bottom=1.5mm,boxsep=0pt]
     \includegraphics[width=\linewidth]{assets/about_sushil.png}
   \end{tcolorbox}
   \begin{center}{\sffamily\fontsize{10}{12}\selectfont\bfseries\color{Primary}Astro Sushil\par}\vspace{0.8mm}
@@ -249,9 +290,9 @@ function philosophyPageHi(): string {
   return String.raw`\markboth{हमारा दर्शन}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}आरंभ से पहले}\par\vspace{2mm}
-{\displayfont\fontsize{22}{29}\selectfont\color{Primary}हमारा दर्शन और आपकी चुनने की स्वतंत्रता\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{4mm}
-\begin{asCard}\CardTitle{ज्योतिष: भाग्य का आदेश नहीं, ब्रह्मांड का मौसम}
+{\displayfont\fontsize{22}{29}\selectfont\color{Primary}हमारा दर्शन और आपकी चुनने की स्वतंत्रता\par}\vspace{1mm}
+\SectionDivider
+\begin{asCard}\CardTitleStar{ज्योतिष: भाग्य का आदेश नहीं, ब्रह्मांड का मौसम}
 {\fontsize{9.8}{14.5}\selectfont ज्योतिष, अर्थात प्रकाश का विज्ञान, आपके जन्म के क्षण के आकाश का मानचित्र है, और अंकशास्त्र आपकी जन्म तिथि और नाम के अंकों को पढ़ता है। दोनों झुकावों, क्षमताओं और जीवन के मौसमों का वर्णन करते हैं, ठीक वैसे ही जैसे मौसम का पूर्वानुमान परिस्थितियाँ बताता है, आदेश नहीं देता। आपका प्रयास, मूल्य और चुनाव ही निर्णायक रहते हैं।\par}\end{asCard}
 \vspace{2mm}
 \begin{asCaution}\CardTitle{हम दोषों में विश्वास नहीं करते}
@@ -270,11 +311,11 @@ function howToReadPageHi(def: ReportDefinition): string {
   return String.raw`\markboth{इस रिपोर्ट को कैसे पढ़ें}{}
 \vspace*{4mm}
 {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}मार्गदर्शिका}\par\vspace{2mm}
-{\displayfont\fontsize{22}{29}\selectfont\color{Primary}इस रिपोर्ट को कैसे पढ़ें\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{4mm}
+{\displayfont\fontsize{22}{29}\selectfont\color{Primary}इस रिपोर्ट को कैसे पढ़ें\par}\vspace{1mm}
+\SectionDivider
 {\fontsize{10.3}{16}\selectfont
-${tex(def.description)}
-
+\begin{asQuote}{\color{PrimaryDeep}${tex(def.description)}\par}\end{asQuote}
+\vspace{2mm}
 \begin{gemlist}
   \item \textbf{पहले अपने अंक देखें।} पहला खंड वे गणना किए गए तथ्य दिखाता है जिन पर यह रिपोर्ट आधारित है; आगे की हर व्याख्या उन्हीं से जुड़ी है।
   \item \textbf{खंड-दर-खंड पढ़ें।} हर विषय एक संक्षिप्त भूमिका से शुरू होता है, सरल भाषा में समझाता है, और “सार” के साथ समाप्त होता है।
@@ -283,7 +324,7 @@ ${tex(def.description)}
 \end{gemlist}
 \par}
 \vspace{4mm}
-\begin{asHighlight}\CardTitle{कुछ शब्द}
+\begin{asHighlight}\CardTitleStar{कुछ शब्द}
 {\fontsize{9.6}{14}\selectfont \textbf{मूलांक:} जन्म दिन के अंकों का योग (1–9)। \textbf{भाग्यांक:} पूरी जन्म तिथि के अंकों का योग। \textbf{नामांक:} नाम के अक्षरों का कैल्डियन योग। \textbf{लो शू ग्रिड:} जन्म तिथि के अंकों से भरा 3×3 वर्ग। \textbf{कुआ नंबर:} सौर जन्म वर्ष और लिंग से निकली संख्या, जो शुभ दिशाएँ बताती है। \textbf{व्यक्तिगत वर्ष और माह:} हर वर्ष और हर महीने का अंक-चक्र।\par}\end{asHighlight}
 \clearpage
 `;
@@ -292,8 +333,8 @@ ${tex(def.description)}
 function contentsPageHi(): string {
   return String.raw`\markboth{विषय-सूची}{}
 \vspace*{4mm}
-{\displayfont\fontsize{22}{29}\selectfont\color{Primary}विषय-सूची\par}\vspace{1.5mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{3mm}
+{\displayfont\fontsize{22}{29}\selectfont\color{Primary}विषय-सूची\par}\vspace{1mm}
+\SectionDivider
 \makeatletter\@starttoc{toc}\makeatother
 \clearpage
 `;
@@ -301,14 +342,16 @@ function contentsPageHi(): string {
 
 function closingPageHi(def: ReportDefinition): string {
   return String.raw`\clearpage\markboth{अंतिम शब्द}{}
-\vspace*{30mm}
+\vspace*{28mm}
 \begin{center}
-\includegraphics[height=22mm]{assets/astrosushil_logo.png}\par\vspace{8mm}
-{\displayfont\fontsize{20}{27}\selectfont\color{Primary}सितारे झुकाव देते हैं; निर्णय आपका है।\par}\vspace{4mm}
-{\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{6mm}
+\includegraphics[height=22mm]{assets/astrosushil_logo.png}\par\vspace{7mm}
+{\displayfont\fontsize{20}{27}\selectfont\color{Primary}सितारे झुकाव देते हैं; निर्णय आपका है।\par}\vspace{2mm}
+\SectionDivider
+\begin{asQuote}
 \begin{minipage}{125mm}\centering\fontsize{10.3}{16}\selectfont
 अपनी ${tex(def.title)} पढ़ने के लिए धन्यवाद। यह आपको आगे के चुनावों में स्पष्टता, धैर्य और आत्मविश्वास दे। यदि आप किसी भाग को और गहराई से समझना चाहें, तो astrosushil.com पर व्यक्तिगत परामर्श सदैव उपलब्ध है।
-\end{minipage}\par\vspace{10mm}
+\end{minipage}
+\end{asQuote}\par\vspace{8mm}
 {\sffamily\fontsize{7.5}{9.5}\selectfont\color{Muted}Astro Sushil\enspace\textbar\enspace astrosushil.com\par}
 \end{center}
 `;

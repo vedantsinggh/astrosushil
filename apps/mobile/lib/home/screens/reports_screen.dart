@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/content_language.dart';
+import '../../core/localization/locale_provider.dart';
+import '../../core/utils/app_date_time.dart';
 import '../../features/birth_profile/models/birth_profile_model.dart';
 import '../../features/birth_profile/providers/birth_profile_provider.dart';
 import '../../features/birth_profile/screens/create_birth_profile_screen.dart';
+import '../../features/reports/models/report_brand_assets.dart';
 import '../../features/reports/models/report_catalog_model.dart';
 import '../../features/reports/models/report_language.dart';
 import '../../features/reports/models/user_report_item_model.dart';
@@ -11,8 +15,6 @@ import '../../features/reports/providers/reports_provider.dart';
 import '../../features/reports/screens/report_detail_screen.dart';
 import '../../features/reports/screens/report_generation_screen.dart';
 import '../../features/reports/screens/report_pdf_viewer_screen.dart';
-import '../../core/localization/locale_provider.dart';
-import '../../core/utils/app_date_time.dart';
 import '../../shared/widgets/astro_design_system.dart';
 
 /// Optional override for the birth profile new reports are bought for.
@@ -26,231 +28,6 @@ enum ReportsTab { mine, get }
 /// session. Null until they pick one; then the default rule no longer applies.
 final reportsTabProvider = StateProvider<ReportsTab?>((ref) => null);
 
-/// Client-side presentation for a report type the server catalogue may offer.
-/// Title, description and price always come from the server catalogue; this
-/// only adds an icon, a one-line plain-language summary and the list of
-/// sections shown on the detail screen.
-class _ReportOffer {
-  final String type;
-  final IconData icon;
-  final Color color;
-  final String line;
-  final String lineHi;
-  final List<String> sections;
-
-  const _ReportOffer({
-    required this.type,
-    required this.icon,
-    required this.color,
-    required this.line,
-    required this.lineHi,
-    required this.sections,
-  });
-}
-
-/// Display order of the reports on sale. Only types the server catalogue
-/// lists as active are shown.
-const List<_ReportOffer> _kOffers = [
-  _ReportOffer(
-    type: 'CAREER',
-    icon: Icons.work_outline_rounded,
-    color: AppColors.tintSkyText,
-    line: 'Work, career path and good times for change',
-    lineHi: 'काम, करियर और बदलाव का सही समय',
-    sections: [
-      '10th House Karma Bhava & Planetary Significators',
-      'Professional Aptitude & Vocational DNA Mapping',
-      'Saturn Career Lessons & Jupiter Expansion Horizons',
-      'Multi-Year Dasha Professional Career Roadmap',
-      'Practical Astrological & Behavioral Remedies',
-    ],
-  ),
-  _ReportOffer(
-    type: 'KUNDLI',
-    icon: Icons.auto_awesome_rounded,
-    color: AppColors.goldDark,
-    line: 'Your full birth chart and dasha periods',
-    lineHi: 'आपकी पूरी जन्म कुंडली और दशा',
-    sections: [
-      'North Indian D1 Lagna Kundli & Chandra Kundli',
-      '9 Graha Placements, Degrees & Functional Dignities',
-      '120-Year Parashari Vimshottari Dasha Periods',
-      'Planetary Placements & Manglik Analysis',
-      'Trikona Lord Gemstone Recommendations (1st, 5th, 9th Lords)',
-    ],
-  ),
-  _ReportOffer(
-    type: 'PLANETARY_SUMMARY',
-    icon: Icons.brightness_6_rounded,
-    color: AppColors.tintVioletText,
-    line: 'Planet movements for the next 3 to 6 months',
-    lineHi: 'अगले 3 से 6 महीनों की ग्रह चाल',
-    sections: [
-      '3–6 Month Transit Horizons from Janma Rashi (Natal Moon)',
-      'Saturn Transit Gochara Tracking & Planetary Cycles',
-      'Planetary Combustion, Retrogression & Dignity Status',
-      'Critical Astrological Caution Dates & Favorable Windows',
-    ],
-  ),
-  _ReportOffer(
-    type: 'MARRIAGE_COMPATIBILITY',
-    icon: Icons.favorite_rounded,
-    color: AppColors.tintRoseText,
-    line: 'Match two birth charts for marriage',
-    lineHi: 'विवाह के लिए दो कुंडली का मिलान',
-    sections: [
-      'Full 36-Point Ashtakoota Guna Milan (Varna, Vashya, Tara, Yoni, Maitri, Gana, Bhakoot, Nadi)',
-      'Comparative Dual-Chart Manglik Placement & Compatibility Analysis',
-      '7th House & Venus/Jupiter Synastry Analysis',
-      'Astrological Compatibility Score & Relationship Synthesis',
-    ],
-  ),
-  _ReportOffer(
-    type: 'HOROSCOPE',
-    icon: Icons.stars_rounded,
-    color: AppColors.tintVioletText,
-    line: 'Your year ahead, quarter by quarter',
-    lineHi: 'आने वाला साल, हर तिमाही',
-    sections: [
-      'Annual Chandra Lagna Planetary Transits & Quarter-by-Quarter Trajectories',
-      '12-Month Detailed Timeline Matrix & Favorable Career/Financial Windows',
-      'Saturn, Jupiter, Rahu-Ketu Gochara Effects and Mitigation',
-      'Comprehensive Vedic Remedies, Gemstone & Mantra Guidance',
-    ],
-  ),
-  _ReportOffer(
-    type: 'FINANCE',
-    icon: Icons.account_balance_wallet_outlined,
-    color: AppColors.tintSageText,
-    line: 'Money, savings and wealth timing',
-    lineHi: 'धन, बचत और समृद्धि का समय',
-    sections: [
-      '2nd (Accumulated Wealth) and 11th (Gains) House Deep Dive',
-      'Indu Lagna, Dhana Yogas, and Planetary Wealth Combinations',
-      'Sarvashtakavarga (SAV) House Inflow Potency Breakdown',
-      '3-Year Chronological Financial Milestone & Cashflow Matrix',
-      'Practical Vedic & Tantric Wealth Preservation Remedies',
-    ],
-  ),
-  _ReportOffer(
-    type: 'LOVE',
-    icon: Icons.favorite_outline_rounded,
-    color: AppColors.tintRoseText,
-    line: 'Love, relationships and marriage timing',
-    lineHi: 'प्रेम, रिश्ते और विवाह का समय',
-    sections: [
-      '5th & 7th House Romance, Passion and Karmic Relationship Patterns',
-      'Venus Placements, Navamsha D9 Matrimonial Blueprint',
-      'Jaimini Darakaraka Comprehensive Future Spouse Archetype',
-      '10 Favorable Chronological Marriage & Fruition Timing Windows',
-      'Relationship Harmonization & Remedial Measures',
-    ],
-  ),
-  _ReportOffer(
-    type: 'FORTUNE',
-    icon: Icons.diamond_outlined,
-    color: AppColors.goldDark,
-    line: 'Numerology, lucky numbers and remedies',
-    lineHi: 'अंक ज्योतिष, शुभ अंक और उपाय',
-    sections: [
-      'Mulank (Psychic) and Bhagyank (Destiny) Exhaustive Profile',
-      '3x3 Lo-Shu Magic Square Grid & Cardinal Kua Feng-Shui Alignment',
-      'Chaldean Legal Name Number, Soul Urge & Personality Vibration',
-      '12-Month Personal Forecasting Rhythm & Life Challenge Cycles',
-      'Vedic Quadrant Charts (D1, Moon, D9, Lal Kitab) & Consecrated Remedies',
-    ],
-  ),
-  _ReportOffer(
-    type: 'SATURN',
-    icon: Icons.hourglass_empty_rounded,
-    color: AppColors.primary,
-    line: 'Saturn in your chart and Sade Sati dates',
-    lineHi: 'आपकी कुंडली में शनि और साढ़े साती',
-    sections: [
-      'Natal Saturn House Placement, Zodiac Dignity & Aspect Geography',
-      'Lord Shani Karmic Taskmaster Lessons & Life Restructuring Zones',
-      'Complete Shani Sade Sati Rising, Peak, and Setting Chronology',
-      'Dhaiya (Small Panoti) 4th and 8th House Transit Timings',
-      'Classical Saturday Astrological, Fasting, and Charitable Remedies',
-    ],
-  ),
-  _ReportOffer(
-    type: 'JUPITER_TRANSIT',
-    icon: Icons.auto_awesome_rounded,
-    color: AppColors.goldDark,
-    line: "How Jupiter's movement affects you",
-    lineHi: 'गुरु (बृहस्पति) की चाल का आप पर असर',
-    // "Nakshatra Mula Deep Dive" was one sample customer's birth star, not
-    // true for every buyer; it now names the buyer's own birth nakshatra.
-    sections: [
-      'Jupiter’s Divine Placement (Birth Chart & Coordinates)',
-      'Vedic Charts Overview (Lagna, Chandra & Jupiter Gochara)',
-      'Natal Jupiter Placement Deep Dive (House, Sign & Dignity)',
-      'Aspects of Jupiter (5th, 7th & 9th Golden Drishti Rays)',
-      'Benefic vs Malefic Dynamic & Moon Sign Psyche Evolution',
-      'Birth Nakshatra Deep Dive',
-      'Jupiter’s Bhinnashtakavarga (56-Point Zodiacal Scorecard)',
-      'Jupiter Transits 2026: Gemini & Exalted Cancer Horizons',
-      'Consecrated Remedies (Yellow Sapphire, 5 Mukhi Rudraksha, Vastu & Mantras)',
-    ],
-  ),
-  _ReportOffer(
-    type: 'RAHU_KETU_TRANSIT',
-    icon: Icons.all_inclusive_rounded,
-    color: AppColors.tintVioletText,
-    line: "How Rahu and Ketu's movement affects you",
-    lineHi: 'राहु और केतु की चाल का आप पर असर',
-    // "Rahu (7th House) & Ketu (1st House)" and "Venus-Ketu" were one sample
-    // customer's placements, not true for every buyer; made generic.
-    sections: [
-      'The Nodes’ Placement (Astronomical Coordinates & 180° Axis)',
-      'Vedic Charts Overview (Lagna, Chandra & Nodal Gochara)',
-      'Natal Rahu & Ketu Deep Dive',
-      'Aspects of Rahu & Ketu (Triple 5th, 7th & 9th Drishti)',
-      'Planetary Conjunctions & Moon Sign Dynamics',
-      'The Karmic Journey: Past Life Karma & Soul Evolution',
-      'Cosmic Karma Transit 2025–2026 (Aquarius Rahu / Leo Ketu)',
-      'Cosmic Karma Transit 2026–2028 (Capricorn Rahu / Cancer Ketu)',
-      'Consecrated Remedies (Gemstone Cautions, 8 & 9 Mukhi Rudraksha, Mantras)',
-      'The 18.6-Year Nodal Return Cycles & Divine Benediction',
-    ],
-  ),
-  _ReportOffer(
-    type: 'VARSHPHAL',
-    icon: Icons.calendar_month_rounded,
-    color: AppColors.primary,
-    line: 'Your year from one birthday to the next',
-    lineHi: 'एक जन्मदिन से अगले जन्मदिन तक का साल',
-    sections: [
-      'Astronomical Solar Return Precision (Exact Sidereal Longitude)',
-      'Dual Cosmic Blueprints (Natal Lagna & Varshphal Kundli)',
-      'Muntha Progression Analysis & Annual Karmic Axis',
-      'Varshesh (Year Lord) & Panchadhikari Selection',
-      'Tajika Yogas & Planetary Aspect Dynamics',
-      'Annual Planetary Dignities & Harsha Bala Scorecard',
-      'Summary of Annual Planetary Effects & House Transits',
-      'Annual Mudda Dasha Timing Periods & Milestones',
-      '12-Month Performance Matrix & Quarterly Trajectories',
-      'Month-by-Month Predictive Roadmap (Months 1 to 12)',
-      'Consecrated Panchang Remedies & Three-Remedy Caution Rule',
-    ],
-  ),
-  _ReportOffer(
-    type: 'FORTUNE_PLUS',
-    icon: Icons.diamond_rounded,
-    color: AppColors.goldDark,
-    line: 'Full numerology and astrology book',
-    lineHi: 'पूरी अंक ज्योतिष और ज्योतिष पुस्तिका',
-    sections: [
-      'Complete 25-Chapter Vedic Numerology and Astrological Blueprint',
-      'Your Mulank, Bhagyank, Chaldean Name, Kua, Success, Connection & Maturity Numbers',
-      'Four Life Pinnacles / Challenge Cycles (0-29, 29-38, 38-47, 47+)',
-      'Four Vedic Charts Quadrant (D1, Chandra, Navamsha D9, Lal Kitab Aries-fixed)',
-      'Three-Remedy Caution Rule & Consecrated Astrological Remedies',
-    ],
-  ),
-];
-
 enum _ReportFilter { all, ready, preparing, failed }
 
 /// Reports tab.
@@ -258,9 +35,9 @@ enum _ReportFilter { all, ready, preparing, failed }
 /// 1. Heading
 /// 2. "My reports": every report the user owns (ready, being prepared,
 ///    failed), each with one clear action
-/// 3. "Get a new report": the reports on sale, straight from the server
-///    catalogue (name, one plain line, price), opening the report detail
-///    and purchase flow
+/// 3. "Get a report": all 13 canonical Astro Sushil reports with portrait WebP
+///    cover art, jewel-tone motif accents, live server pricing, and "Coming Soon"
+///    badges for reports without active pricing.
 class ReportsScreen extends ConsumerStatefulWidget {
   /// Tab to open on (e.g. [ReportsTab.get] when opened to buy a report).
   /// When null: the tab picked earlier this session, else "My reports" if
@@ -280,6 +57,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   /// a tap). Takes precedence over the session memory.
   late ReportsTab? _tab = widget.initialTab;
 
+  String? _retryingReportId;
+
+  bool get _isHindi => Localizations.maybeLocaleOf(context)?.languageCode == 'hi';
+  String _t(String en, String hi) => _isHindi ? hi : en;
+
   void _selectTab(ReportsTab tab) {
     setState(() => _tab = tab);
     ref.read(reportsTabProvider.notifier).state = tab;
@@ -293,10 +75,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     }
     return reportsAsync.isLoading ? ReportsTab.mine : ReportsTab.get;
   }
-  String? _retryingReportId;
-
-  bool get _isHindi => Localizations.maybeLocaleOf(context)?.languageCode == 'hi';
-  String _t(String en, String hi) => _isHindi ? hi : en;
 
   /// Reloads "My reports" after the user returns from any report flow, so
   /// newly bought or finished reports show up without a restart.
@@ -314,25 +92,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     _push(const CreateBirthProfileScreen());
   }
 
-  void _openOffer(_ReportOffer offer, ReportCatalogItem item, BirthProfileModel? profile) {
+  void _openEntry(ReportCatalogDisplayEntry entry, BirthProfileModel? profile) {
     if (profile == null) {
       _addBirthProfile();
       return;
     }
+    final brand = entry.brand;
     _push(
       ReportDetailScreen(
-        reportType: offer.type,
-        title: item.title,
-        tagline: offer.line,
-        description: item.description,
-        priceText: item.priceText,
-        pricePaise: item.pricePaise,
-        icon: offer.icon,
-        accentColor: offer.color,
+        reportType: brand.reportType,
+        title: entry.title,
+        tagline: _isHindi ? brand.taglineHi : brand.tagline,
+        description: entry.description,
+        priceText: entry.priceText,
+        pricePaise: entry.pricePaise,
+        icon: brand.icon,
+        accentColor: brand.textAccentColor,
         initialProfile: profile,
-        includedSections: offer.sections,
-        // The language choice offered before payment comes from the catalogue.
-        availableLanguages: item.languages,
+        includedSections: brand.includedSections,
+        availableLanguages: entry.availableLanguages,
+        isAvailable: entry.isAvailable,
       ),
     );
   }
@@ -359,8 +138,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   void _showProgress(UserReportItemModel report, List<BirthProfileModel> profiles) {
     final profile = _profileById(profiles, report.birthProfileId);
     if (profile == null) {
-      // The progress screen needs the birth profile; without it, just
-      // reload the list so the latest status is shown.
       _refreshReports();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_t('Status updated.', 'स्थिति अपडेट की गई।'))),
@@ -410,7 +187,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         reportTitle: report.displayTitle,
         profile: profile,
         partnerProfile: _profileById(profiles, report.partnerProfileId),
-        // A regenerated report keeps the language it was bought in.
         language: report.language,
       ),
     );
@@ -447,8 +223,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
     final l10n = context.l10n;
-    // With no birth profile and no reports there is nothing under "My
-    // reports": show the add-details card and the catalogue, without tabs.
     final showTabs = activeProfile != null || hasReports;
     final tab = showTabs ? (_tab ?? ref.watch(reportsTabProvider) ?? _defaultTab(reportsAsync)) : ReportsTab.get;
 
@@ -459,12 +233,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     return AstroPage(
       title: _t('Reports', 'रिपोर्ट'),
-      // With tabs, same bar as the other tab roots: the intro line sits at
-      // the top of "Get a report" instead.
       subtitle: showTabs ? null : intro,
       showBack: canPop,
       onRefresh: _onPullToRefresh,
-      // Pinned under the large title, so switching stays one tap away.
       navBottom: showTabs
           ? AstroSegmentedNavBottom<ReportsTab>(
               controlKey: const ValueKey('reports-tabs'),
@@ -477,7 +248,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               ],
             )
           : null,
-      // Clear the floating tab bar (iOS) when shown as a tab.
       padding: EdgeInsets.fromLTRB(
         AstroMetrics.gutter,
         showTabs ? 16 : 8,
@@ -665,6 +435,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final names = _forNames(report);
     final isRetrying = _retryingReportId == report.id;
     final languageLine = reportLanguageLine(context.l10n, report.language);
+    final brand = report.brandInfo;
 
     final _StatusStyle status;
     final Widget action;
@@ -714,6 +485,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       key: ValueKey('my-report-${report.id}'),
       radius: 18,
       padding: const EdgeInsets.all(16),
+      borderColor: brand?.accentColor.withValues(alpha: 0.28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -721,7 +493,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AstroIconSquare(icon: report.icon, tint: AstroTint.indigo, size: 44),
+                if (brand != null)
+                  _CoverPreviewThumb(
+                    brand: brand,
+                    width: 48,
+                    cacheWidth: 160,
+                    semanticLabel: '${report.displayTitle} cover',
+                  )
+                else
+                  AstroIconSquare(icon: report.icon, tint: AstroTint.indigo, size: 44),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -729,11 +509,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     children: [
                       Text(
                         report.displayTitle,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTypography.rowTitle.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         names.isEmpty ? date : '${_t('For', 'के लिए:')} $names · $date',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textSecondary),
                       ),
                       if (languageLine != null) ...[
@@ -770,7 +554,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 
   // ---------------------------------------------------------------------
-  // Get a new report (server catalogue)
+  // Get a new report (13 canonical Astro Sushil reports + live pricing)
   // ---------------------------------------------------------------------
 
   Widget _buildCatalog(AsyncValue<Map<String, ReportCatalogItem>> catalogAsync, BirthProfileModel? profile) {
@@ -783,33 +567,84 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         onRetry: () => ref.invalidate(reportCatalogProvider),
       ),
       data: (catalog) {
-        final offers = _kOffers.where((o) => catalog.containsKey(o.type)).toList();
-        if (offers.isEmpty) {
-          return AstroNote(
-            _t(
-              'No reports are on sale right now. Please check back later.',
-              'अभी कोई रिपोर्ट उपलब्ध नहीं है। कृपया बाद में देखें।',
-            ),
-          );
-        }
+        final entries = buildCanonicalReportCatalog(catalog);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final o in offers) ...[
+            for (final entry in entries) ...[
               _OfferCard(
-                key: ValueKey('report-offer-${o.type}'),
-                icon: o.icon,
-                color: o.color,
-                title: catalog[o.type]!.title,
-                line: _isHindi ? o.lineHi : o.line,
-                price: catalog[o.type]!.priceText,
-                onTap: () => _openOffer(o, catalog[o.type]!, profile),
+                key: ValueKey('report-offer-${entry.brand.reportType}'),
+                entry: entry,
+                isHindi: _isHindi,
+                comingSoonLabel: _t('Coming Soon', 'जल्द आ रहा है'),
+                hindiBadgeLabel: _t('Hindi & English', 'हिन्दी व अंग्रेज़ी'),
+                onTap: () => _openEntry(entry, profile),
               ),
               const SizedBox(height: 12),
             ],
           ],
         );
       },
+    );
+  }
+}
+
+class _CoverPreviewThumb extends StatelessWidget {
+  final ReportBrandInfo brand;
+  final double width;
+  final int cacheWidth;
+  final String semanticLabel;
+
+  const _CoverPreviewThumb({
+    required this.brand,
+    required this.width,
+    required this.cacheWidth,
+    required this.semanticLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: SizedBox(
+        width: width,
+        child: AspectRatio(
+          aspectRatio: 210 / 297,
+          child: Container(
+            decoration: BoxDecoration(
+              color: brand.primaryColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: brand.accentColor.withValues(alpha: 0.5), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: brand.primaryColor.withValues(alpha: 0.16),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.asset(
+              brand.coverAsset,
+              fit: BoxFit.cover,
+              cacheWidth: cacheWidth,
+              filterQuality: FilterQuality.medium,
+              semanticLabel: semanticLabel,
+              errorBuilder: (_, __, ___) => DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [brand.primaryColor, brand.primaryColor.withValues(alpha: 0.85)],
+                  ),
+                ),
+                child: Center(
+                  child: Icon(brand.icon, color: brand.accentColor, size: width * 0.42),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -858,61 +693,142 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-/// One report on sale: icon, name, one plain line and the server price.
-/// The whole card is the tap target.
+/// One of the 13 canonical Astro Sushil report cards: portrait WebP cover
+/// preview (`210:297`), jewel-tone motif accent, title, plain-language tagline,
+/// and either the live server price or a "Coming Soon" badge.
 class _OfferCard extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String line;
-  final String price;
+  final ReportCatalogDisplayEntry entry;
+  final bool isHindi;
+  final String comingSoonLabel;
+  final String hindiBadgeLabel;
   final VoidCallback onTap;
 
   const _OfferCard({
     super.key,
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.line,
-    required this.price,
+    required this.entry,
+    required this.isHindi,
+    required this.comingSoonLabel,
+    required this.hindiBadgeLabel,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final brand = entry.brand;
+    final tagline = isHindi ? brand.taglineHi : brand.tagline;
+    final hasHindi = entry.availableLanguages.contains(ContentLanguage.hindi);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final thumbWidth = textScale > 1.5 ? 62.0 : 76.0;
+
+    final statusAnnouncement = entry.isAvailable ? entry.priceText : comingSoonLabel;
+    final semanticsLabel = '${entry.title}, $tagline, $statusAnnouncement. ${brand.motifDescription}';
+
     return Semantics(
       button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
       child: AstroSurfaceCard(
         onTap: onTap,
         radius: 18,
-        padding: const EdgeInsets.fromLTRB(16, 16, 10, 16),
+        borderColor: brand.accentColor.withValues(alpha: 0.35),
+        padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 48),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AstroIconSquare(icon: icon, tint: AstroTint(color, color.withValues(alpha: 0.10)), size: 46),
+              _CoverPreviewThumb(
+                brand: brand,
+                width: thumbWidth,
+                cacheWidth: 240,
+                semanticLabel: '${entry.title} cover',
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTypography.rowTitle.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 3),
-                    Text(line, style: AppTypography.rowSubtitle),
-                    const SizedBox(height: 8),
-                    Text(
-                      price,
-                      style: AppTypography.headlineMedium.copyWith(
-                        fontSize: 19,
-                        color: AppColors.primary,
+                    // Subtle jewel-tone motif accent strip
+                    Container(
+                      width: 28,
+                      height: 3.5,
+                      decoration: BoxDecoration(
+                        color: brand.accentColor,
+                        borderRadius: BorderRadius.circular(999),
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      entry.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.rowTitle.copyWith(fontWeight: FontWeight.w700, height: 1.25),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tagline,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.rowSubtitle,
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (entry.isAvailable)
+                          Text(
+                            entry.priceText,
+                            style: AppTypography.headlineMedium.copyWith(
+                              fontSize: 19,
+                              color: brand.textAccentColor,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: brand.tintColor,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: brand.accentColor.withValues(alpha: 0.45)),
+                            ),
+                            child: Text(
+                              comingSoonLabel,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: brand.textAccentColor,
+                              ),
+                            ),
+                          ),
+                        if (entry.isAvailable && hasHindi)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: brand.tintColor,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              hindiBadgeLabel,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: brand.textAccentColor,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 26),
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Icon(Icons.chevron_right_rounded, color: brand.textAccentColor.withValues(alpha: 0.7), size: 26),
+              ),
             ],
           ),
         ),

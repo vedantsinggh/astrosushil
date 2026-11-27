@@ -1,7 +1,8 @@
 /* eslint-disable no-unused-vars */
 import { motion } from "framer-motion";
+import { SHARED_REPORT_ASSETS } from "../../data/reportCatalogMeta";
 
-const FEATURES = [
+const DEFAULT_FEATURES = [
   {
     icon: "/Image/Service/In-Person.png",
     title: "Love Compatibility & Relationship Insights",
@@ -48,25 +49,32 @@ const cardVariants = {
   },
 };
 
-export function ServiceCard({ feature }) {
+export function ServiceCard({ feature, accent, illustrationUrl }) {
   return (
-    <div className="relative pt-10 pb-7 h-full">  {/* h-full add kiya */}
-      <div className="absolute left-4 top-2 z-10 h-20 w-20 sm:h-24 sm:w-24 rounded-full flex items-center justify-center">
+    <div className="relative pt-8 pb-6 h-full">
+      <div
+        className="absolute left-5 top-2 z-10 h-14 w-14 rounded-2xl flex items-center justify-center shadow-md bg-white"
+        style={
+          accent
+            ? { border: `1.5px solid ${accent}66` }
+            : { border: "1.5px solid #e6dcf8" }
+        }
+      >
         <img
-          src={feature.icon}
+          src={feature.icon || illustrationUrl || SHARED_REPORT_ASSETS.insightStar}
           alt={feature.title}
-          className="h-full w-full object-contain"
+          className="h-9 w-9 object-contain"
         />
       </div>
 
       <motion.div
         variants={cardVariants}
-        className="flex flex-col bg-secondary rounded-2xl shadow px-5 sm:px-6 pt-12 pb-10 h-full transition-all duration-300"
+        className="flex flex-col bg-secondary/75 rounded-2xl shadow-sm px-5 sm:px-6 pt-12 pb-8 h-full transition-all duration-300 border border-secondary"
       >
-        <h3 className="mb-3 mt-6 text-start text-lg sm:text-xl font-bold leading-snug text-gold">
+        <h3 className="mb-2.5 mt-2 text-start text-lg sm:text-xl font-bold leading-snug text-primary">
           {feature.title}
         </h3>
-        <p className="text-start text-sm leading-relaxed text-black/80">
+        <p className="text-start text-sm leading-relaxed text-[#444460]">
           {feature.description}
         </p>
       </motion.div>
@@ -74,9 +82,19 @@ export function ServiceCard({ feature }) {
   );
 }
 
-export default function Include() {
-  const firstRow = FEATURES.slice(0, 3);
-  const secondRow = FEATURES.slice(3);
+export default function Include({ report, meta } = {}) {
+  const customSections =
+    report?.features?.length > 0
+      ? report.features
+      : report?.benefits?.length > 0
+        ? report.benefits
+        : meta?.highlights?.length > 0
+          ? meta.highlights
+          : null;
+
+  const items = customSections || DEFAULT_FEATURES;
+  const firstRow = items.slice(0, 3);
+  const secondRow = items.slice(3);
 
   return (
     <section className="bg-white px-4 sm:px-8 lg:px-12 py-12">
@@ -85,15 +103,23 @@ export default function Include() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-12"
+        className="text-center mb-10"
       >
-        <p className="text-sm font-bold tracking-[0.18em] uppercase text-primary mb-2.5">
-          Kundali Report
+        <p className="text-sm font-bold tracking-[0.18em] uppercase text-primary mb-2">
+          {report?.name || meta?.badgeLabel || "Kundali Report"}
         </p>
         <h2 className="text-[clamp(26px,4vw,40px)] font-bold text-primary leading-tight mx-auto mb-3">
-          What's Included in Your <br />
-          <span className="text-gold">Astrology Report</span>
+          What&apos;s Included in Your <br />
+          <span className="text-gold">
+            {report?.name || "Astrology Report"}
+          </span>
         </h2>
+        <img
+          src={SHARED_REPORT_ASSETS.sectionDivider}
+          alt=""
+          aria-hidden="true"
+          className="w-64 sm:w-80 mx-auto mt-2 opacity-80"
+        />
       </motion.div>
 
       <div className="max-w-7xl mx-auto">
@@ -102,26 +128,35 @@ export default function Include() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="flex flex-col gap-0"
+          className="flex flex-col gap-2"
         >
-          {/* Row 1 — 3 cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
             {firstRow.map((feature, i) => (
-              <ServiceCard key={i} feature={feature} />
+              <ServiceCard
+                key={i}
+                feature={feature}
+                accent={meta?.accent}
+                illustrationUrl={report?.illustrationUrl || meta?.illustrationUrl}
+              />
             ))}
           </div>
 
-          {/* Row 2 — 2 cards centered */}
-          <div className="flex flex-wrap justify-center gap-x-8">
-            {secondRow.map((feature, i) => (
-              <div
-                key={i + 3}
-                className="w-full sm:w-[calc(50%-16px)] lg:w-[calc(33.333%-22px)]"
-              >
-                <ServiceCard feature={feature} />
-              </div>
-            ))}
-          </div>
+          {secondRow.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-x-8">
+              {secondRow.map((feature, i) => (
+                <div
+                  key={i + 3}
+                  className="w-full sm:w-[calc(50%-16px)] lg:w-[calc(33.333%-22px)]"
+                >
+                  <ServiceCard
+                    feature={feature}
+                    accent={meta?.accent}
+                    illustrationUrl={report?.illustrationUrl || meta?.illustrationUrl}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </section>

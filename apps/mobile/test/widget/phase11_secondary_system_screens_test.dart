@@ -203,7 +203,7 @@ void main() {
       expect(find.textContaining('Shipping'), findsWidgets);
 
       // Verify privacy policy content is displayed
-      expect(find.textContaining('Birth Data Privacy'), findsOneWidget);
+      expect(find.textContaining('Website, iOS & Android'), findsWidgets);
     });
 
     testWidgets('switches to Refund & Cancellation policy on chip tap', (tester) async {
@@ -223,7 +223,8 @@ void main() {
       await tester.tap(refundChip);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Personalized PDF Reports'), findsOneWidget);
+      expect(find.textContaining('Strict No-Refund Policy'), findsWidgets);
+      expect(find.textContaining('Ayodhya'), findsWidgets);
     });
   });
 

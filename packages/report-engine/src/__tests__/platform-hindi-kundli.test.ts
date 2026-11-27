@@ -99,7 +99,7 @@ describe('Kundli Hindi edition', () => {
   it('leaves the English definition untouched', () => {
     const en = ReportRegistry.get('kundli');
     expect(en.language).toBe('en');
-    expect(en.title).toBe('Premium Personalised Kundli');
+    expect(en.title).toBe('Premium Personalised Kundli Report');
     expect(en.sections[0].topics[0].title).toBe('Birth Details and Astronomical Data');
   });
 });

@@ -72,7 +72,7 @@ export const VARSHPHAL_DEFINITION: ReportDefinitionInput = {
   description: 'This report reads the year that began at your latest solar return: the annual (Varsha) chart, its Year Lord and Muntha, Tajik yogas and Sahams, the Mudda dasha periods, every planetary transit of the year and twelve Tajik months, each written from its own planetary weather.',
   referenceFiles: ['docs/referencerepots/Varshphal Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1', 'D9'], transitYears: 2 },
-  theme: { primary: '7A2E12', accent: 'D9822B', tint: 'FCF4EC' },
+  theme: { primary: '541866', accent: 'CF8624', tint: 'F8F1FA' },
   writingGuidance: [
     'This is a Varshphal (Tajik annual) report for one solar-return year. Keep every topic anchored to this year and to the facts given for it.',
     'Annual-chart houses must always be written as "the year\'s Nth house" (for example "Jupiter falls in the year\'s 1st house"). Never write "<planet> in the Nth house" or "<planet> in <sign>" for an annual-chart or transit position; for transits always use the verb "transits" (for example "Saturn transits Pisces, the 7th from your Moon").',

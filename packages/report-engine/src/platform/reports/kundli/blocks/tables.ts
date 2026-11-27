@@ -1,6 +1,6 @@
 /** Kundli reference tables: ashtakavarga, bhavas, conjunctions, karakas, Mangal, Sade Sati, yogas, patterns, numerology, practices. */
 import { ASHTAKAVARGA_PLANETS } from '@astro/astrology-engine';
-import { BlockContext, blockLang, BlockOutput } from '../../../render/blocks';
+import { BlockContext, blockLang, BlockOutput, timelineTex } from '../../../render/blocks';
 import { tex } from '../../../render/latex';
 import { ordinal, planetName, SIGNS } from '../../../evidence/evidence-registry';
 import { computeNumerology } from '../../../evidence/numerology';
@@ -184,10 +184,20 @@ export function kundliSadeSatiTable(ctx: BlockContext): BlockOutput {
   const t = Date.parse(ctx.snapshot.asOfIso);
   const rows: string[][] = [];
   const hl: number[] = [];
+  const tlItems: Array<{ date: string; title: string; detail?: string; active?: boolean }> = [];
   for (const c of k.sadeSati) {
     c.phases.forEach((p, j) => {
-      if (Date.parse(p.startIso) <= t && t < Date.parse(p.endIso)) hl.push(rows.length);
+      const isCur = Date.parse(p.startIso) <= t && t < Date.parse(p.endIso);
+      if (isCur) hl.push(rows.length);
       rows.push([j === 0 ? `\\textbf{${L('Cycle')} ${c.index}}` : '', tex(L(PHASE_LABEL[p.phase])), tex(signLabel(lang, p.sign)), dateIn(lang, p.startIso), dateIn(lang, p.endIso)]);
+      if (c.index <= 2 || isCur) {
+        tlItems.push({
+          date: `${dateIn(lang, p.startIso)} -- ${dateIn(lang, p.endIso)}`,
+          title: `${L('Cycle')} ${c.index} · ${signLabel(lang, p.sign)}`,
+          detail: L(PHASE_LABEL[p.phase]),
+          active: isCur,
+        });
+      }
     });
   }
   const moonSign = planetOf(ctx.snapshot.natal, 'Moon').sign;
@@ -198,7 +208,7 @@ export function kundliSadeSatiTable(ctx: BlockContext): BlockOutput {
     `Your Moon is in ${moonSign}, so Sade Sati runs while Saturn moves through ${before}, ${moonSign} and ${after}. ${first?.runningAtBirth ? 'A cycle was already under way when you were born. ' : ''}Each cycle lasts roughly seven and a half years and returns about every thirty years.`,
     `आपका चंद्र ${signLabel(lang, moonSign)} राशि में है, इसलिए साढ़े साती तब चलती है जब शनि ${signLabel(lang, before)}, ${signLabel(lang, moonSign)} और ${signLabel(lang, after)} राशियों से गुजरता है। ${first?.runningAtBirth ? 'आपके जन्म के समय एक चक्र पहले से चल रहा था। ' : ''}हर चक्र लगभग साढ़े सात वर्ष का होता है और लगभग तीस वर्ष बाद लौटता है।`), 9.6);
   return {
-    tex: intro + '\n' + dataTable('l>{\\raggedright\\arraybackslash}Xlll', ['Cycle', 'Phase', 'Saturn in', 'From', 'To'].map(L), rows, { highlight: hl, fontPt: 8.6 }),
+    tex: intro + '\n' + timelineTex(tlItems) + '\n' + dataTable('l>{\\raggedright\\arraybackslash}Xlll', ['Cycle', 'Phase', 'Saturn in', 'From', 'To'].map(L), rows, { highlight: hl, fontPt: 8.6 }),
     evidenceIds: ['planet.moon.d1.sign', 'kundli.sadesati.count', 'kundli.sadesati.status', ...k.sadeSati.map((c) => `kundli.sadesati.cycle.${pad2(c.index)}`)],
     method: L('Saturn\'s real sign ingresses (engine transit solver, Lahiri) over 100 years from birth. Dates are the first entry into and final exit from each sign, so retrograde back-and-forth movement is included in the span. The highlighted row is current on the report date.'),
   };

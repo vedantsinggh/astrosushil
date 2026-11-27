@@ -401,7 +401,8 @@ describe('Sushil AI Explainer Integration Test Suite', () => {
         method: 'POST',
         url: '/api/v1/jyoti/explain',
         headers: { Authorization: `Bearer ${userToken}` },
-        payload: { feature: 'birth_chart', screenTitle: 'Birth Chart', mode: 'detailed', context: { astrologyData: { ascendant: { sign: 'Leo' } } } },
+        // A request not seen before: an identical earlier one would be answered from the 15-minute explainer cache.
+        payload: { feature: 'birth_chart', screenTitle: `Birth Chart ${Date.now()}`, mode: 'detailed', context: { astrologyData: { ascendant: { sign: 'Leo' } } } },
       });
       expect(res.statusCode).toBe(503);
       const body = JSON.parse(res.payload);

@@ -4,7 +4,7 @@
  */
 import { ordinal } from '../../evidence/evidence-registry';
 import { pick, signLabel } from '../../i18n/hindi';
-import { BlockContext, BlockOutput, BlockRenderer, blockLang } from '../../render/blocks';
+import { BlockContext, BlockOutput, BlockRenderer, blockLang, timelineTex } from '../../render/blocks';
 import { formatDate, tex } from '../../render/latex';
 import { card, dateL, kvTableL, ord, PHASE_LABEL, pickLazy, signAt, signName, spanL, tableTex, YEAR_MS } from '../_planet-transit-shared';
 import { SaturnExt } from './saturn.calc';
@@ -97,8 +97,11 @@ export function sadeSatiCyclesBlock(ctx: BlockContext): BlockOutput {
   const L = life(ctx);
   const lang = blockLang(ctx);
   const rows: string[][] = [];
+  const tlItems: Array<{ date: string; title: string; detail?: string; active?: boolean }> = [];
+  const nowMs = Date.parse(ctx.snapshot.asOfIso);
   for (const c of L.cycles) {
     c.phases.forEach((p, i) => {
+      const active = Date.parse(p.startIso) <= nowMs && nowMs < Date.parse(p.endIso);
       rows.push([
         i === 0 ? `\\textbf{${c.n}}` : '',
         tex(lang === 'hi' ? PHASE_LABEL_HI[p.key] : SHORT[p.key]),
@@ -106,13 +109,22 @@ export function sadeSatiCyclesBlock(ctx: BlockContext): BlockOutput {
         p.spans.map((s) => tex(spanL(lang, s))).join('\\newline '),
         tex(`${Math.max(0, Math.floor((Date.parse(p.startIso) - Date.parse(L.birthIso)) / YEAR_MS))}–${Math.max(0, Math.floor((Date.parse(p.endIso) - Date.parse(L.birthIso)) / YEAR_MS))}`),
       ]);
+      if (c.n === L.status.cycle || c.n === (L.nextCycle !== undefined ? L.cycles[L.nextCycle]?.n : 1) || (c.n === 1 && !L.status.active && L.nextCycle === undefined)) {
+        tlItems.push({
+          date: p.spans.map((s) => spanL(lang, s)).join('; '),
+          title: `${lang === 'hi' ? `चक्र ${c.n}` : `Cycle ${c.n}`} · ${signLabel(lang, p.sign)}`,
+          detail: lang === 'hi' ? PHASE_LABEL_HI[p.key] : SHORT[p.key],
+          active,
+        });
+      }
     });
   }
   const notes = L.cycles.filter((c) => c.beganBeforeBirth).map((c) => pick(lang,
     `Cycle ${c.n} was already running when you were born; dates before birth are shown so the phases are complete.`,
     `चक्र ${c.n} आपके जन्म के समय पहले से चल रहा था; चरणों को पूरा दिखाने के लिए जन्म से पहले की तिथियाँ भी दी गई हैं।`));
   return {
-    tex: tableTex('p{0.06\\linewidth}>{\\raggedright\\arraybackslash}p{0.2\\linewidth}p{0.11\\linewidth}>{\\raggedright\\arraybackslash}X p{0.08\\linewidth}', ['Cycle', 'Phase', 'Saturn in', 'Dates (each continuous span)', 'Ages'].map((h) => (lang === 'en' ? h : tex(sl(lang, h)))), rows) +
+    tex: (tlItems.length ? timelineTex(tlItems) + '\n' : '') +
+      tableTex('p{0.06\\linewidth}>{\\raggedright\\arraybackslash}p{0.2\\linewidth}p{0.11\\linewidth}>{\\raggedright\\arraybackslash}X p{0.08\\linewidth}', ['Cycle', 'Phase', 'Saturn in', 'Dates (each continuous span)', 'Ages'].map((h) => (lang === 'en' ? h : tex(sl(lang, h)))), rows) +
       (notes.length ? '\n' + card(sl(lang, 'Born during a Sade Sati'), tex(notes.join(' ')), 'asCard') : ''),
     evidenceIds: L.cycles.flatMap((c) => [`sadesati.cycle.${nn(c.n)}.span`, ...c.phases.map((p) => `sadesati.cycle.${nn(c.n)}.${p.key}`)]),
     method: sl(lang, 'A cycle runs from Saturn\'s first ingress into the 12th sign from the Moon to its final egress from the 2nd (decision PT-003). Where Saturn retrogrades back across a boundary, each continuous span is listed, so phases may overlap by a few months; nothing is rounded to contiguous blocks.'),

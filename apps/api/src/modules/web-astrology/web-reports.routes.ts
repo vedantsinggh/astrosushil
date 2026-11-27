@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { requireActiveCustomer, sendOk } from '../products/shop-http';
 import { webReportsService } from './web-reports.service';
+import { commerceCatalog } from '../commerce/commerce.catalog';
 import { webBuyReportSchema, webVerifyReportPaymentSchema } from './web-reports.schemas';
 
 /**
@@ -37,7 +38,10 @@ export async function webReportsRoutes(fastify: FastifyInstance, _options: Fasti
   fastify.get('/', {
     config: { rateLimit: WEB_REPORTS_RATE_LIMITS.list },
     schema: { tags: ['Website reports'], summary: 'The website report products with prices from the catalogue' },
-    handler: async (_request, reply) => sendOk(reply, webReportsService.listReports(), 'Reports fetched successfully'),
+    handler: async (_request, reply) => {
+      await commerceCatalog.refresh();
+      return sendOk(reply, webReportsService.listReports(), 'Reports fetched successfully');
+    },
   });
 
   fastify.get('/slug/:slug', {
@@ -45,6 +49,7 @@ export async function webReportsRoutes(fastify: FastifyInstance, _options: Fasti
     schema: { tags: ['Website reports'], summary: 'One website report product by slug' },
     handler: async (request, reply) => {
       const { slug } = request.params as { slug: string };
+      await commerceCatalog.refresh();
       return sendOk(reply, webReportsService.getReport(String(slug).slice(0, 100)), 'Report fetched successfully');
     },
   });
@@ -87,6 +92,7 @@ export async function webReportsRoutes(fastify: FastifyInstance, _options: Fasti
     schema: { tags: ['Website reports'], summary: 'One website report product by id' },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
+      await commerceCatalog.refresh();
       return sendOk(reply, webReportsService.getReport(String(id).slice(0, 100)), 'Report fetched successfully');
     },
   });

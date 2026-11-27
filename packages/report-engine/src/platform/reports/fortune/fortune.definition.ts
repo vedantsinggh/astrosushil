@@ -23,7 +23,7 @@ export const FORTUNE_DEFINITION: ReportDefinitionInput = {
   referenceFiles: ['docs/referencerepots/Fortune Report.pdf'],
   requires: { birthTime: false, partner: false, vargas: ['D1'], transitYears: 1 },
   language: 'hi',
-  theme: { primary: '3D2366', accent: 'C59A3A', tint: 'F6F1FA' },
+  theme: { primary: '633115', accent: 'CC8E26', tint: 'FBF4EB' },
   writingGuidance: [
     ...NUMEROLOGY_WRITING_GUIDANCE,
     'Write in natural, warm, contemporary Hindi (Devanagari), as spoken by an educated Indian family; keep common English terms such as Lo Shu, Kua and Feng Shui where Hindi readers use them.',

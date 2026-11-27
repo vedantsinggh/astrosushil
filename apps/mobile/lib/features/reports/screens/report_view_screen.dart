@@ -5,14 +5,19 @@ import '../../../shared/widgets/astro_loader/astro_loader_full_screen.dart';
 import '../../astrology/widgets/kundli_chart_widget.dart';
 import '../../sushil_explainer/models/explanation_context.dart';
 import '../../sushil_explainer/widgets/sushil_explainer_button.dart';
+import '../models/report_brand_assets.dart';
 import '../models/report_model.dart';
 import '../providers/reports_provider.dart';
 import '../widgets/report_ui.dart';
 
+enum ReportViewTab { overview, chartsAndHouses, timelines, fullDetails }
+
+enum _TimelineFilter { all, dasha, transits, periods }
+
 class ReportViewScreen extends ConsumerStatefulWidget {
   final String birthProfileId;
   final String? partnerProfileId;
-  final String reportType; // 'KUNDLI', 'PLANETARY_SUMMARY', 'CAREER_PROSITY', 'MARRIAGE_COMPATIBILITY'
+  final String reportType;
 
   const ReportViewScreen({
     super.key,
@@ -27,12 +32,8 @@ class ReportViewScreen extends ConsumerStatefulWidget {
 
 class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
   final Set<String> _expandedSections = {};
-  final _summaryKey = GlobalKey();
-  final _chartKey = GlobalKey();
-  final _planetsKey = GlobalKey();
-  final _housesKey = GlobalKey();
-  final _nakshatraKey = GlobalKey();
-  final _insightsKey = GlobalKey();
+  ReportViewTab _activeTab = ReportViewTab.overview;
+  _TimelineFilter _timelineFilter = _TimelineFilter.all;
 
   @override
   void initState() {
@@ -55,7 +56,8 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     final reportResponse = state.reportResponse;
     if (reportResponse == null) return;
 
-    final filename = 'astro_sushil_${widget.reportType.toLowerCase()}_${reportResponse.id.substring(0, 8)}.pdf';
+    final idPrefix = reportResponse.id.length >= 8 ? reportResponse.id.substring(0, 8) : reportResponse.id;
+    final filename = 'astro_sushil_${widget.reportType.toLowerCase()}_$idPrefix.pdf';
 
     final success = await ref.read(reportsNotifierProvider.notifier).downloadAndSharePdf(reportResponse.id, filename);
 
@@ -80,7 +82,108 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     });
   }
 
-  void _showHouseDetailsModal(BuildContext context, ReportHouseModel house) {
+  void _showPlanetDetailsModal(
+    BuildContext context,
+    ReportPlanetModel planet,
+    ReportDataModel report,
+    ReportBrandInfo? brand,
+  ) {
+    final matchingSections = report.sections.where((sec) {
+      final needle = planet.planet.toLowerCase();
+      return sec.title.toLowerCase().contains(needle) || sec.content.toLowerCase().contains(needle);
+    }).toList();
+
+    showAstroSheet<void>(
+      context: context,
+      title: '${planet.planet} • ${planet.sign}',
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AstroIconSquare(
+                icon: _getPlanetIcon(planet.planet),
+                tint: AstroTint(
+                  brand?.textAccentColor ?? AppColors.accent,
+                  brand?.tintColor ?? AppColors.accentFill,
+                ),
+                size: 44,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'House ${planet.house} • ${_getHouseDomainName(planet.house)}',
+                      style: AppTypography.headlineMedium.copyWith(fontSize: 18),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${planet.degree.toStringAsFixed(2)}° in ${planet.sign}${planet.isRetrograde ? ' (Retrograde)' : ''}',
+                      style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AstroSurfaceCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nakshatra: ${planet.nakshatra} (Pada ${planet.pada})',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _getHouseDescription(planet.house),
+                  style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+          if (matchingSections.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Text('Related Report Insights', style: AppTypography.sectionHeader),
+            const SizedBox(height: 8),
+            for (final sec in matchingSections.take(2)) ...[
+              AstroSurfaceCard(
+                color: brand?.tintColor ?? AppColors.cardSurfaceWarm,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sec.title,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    if (sec.content.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        sec.content,
+                        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.45),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showHouseDetailsModal(
+    BuildContext context,
+    ReportHouseModel house,
+    ReportDataModel report,
+    ReportBrandInfo? brand,
+  ) {
     showAstroSheet<void>(
       context: context,
       title: 'House ${house.houseNumber} • ${house.sign}',
@@ -90,7 +193,14 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
         children: [
           Row(
             children: [
-              const AstroIconSquare(icon: Icons.home_outlined, tint: AstroTint.indigo, size: 44),
+              AstroIconSquare(
+                icon: Icons.home_outlined,
+                tint: AstroTint(
+                  brand?.textAccentColor ?? AppColors.accent,
+                  brand?.tintColor ?? AppColors.accentFill,
+                ),
+                size: 44,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -112,17 +222,30 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: house.planetsPresent.map((p) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AstroTint.violet.background,
-                    borderRadius: BorderRadius.circular(999),
+              children: house.planetsPresent.map((planetName) {
+                ReportPlanetModel? matchedPlanet;
+                for (final p in report.planets) {
+                  if (p.planet.toLowerCase() == planetName.toLowerCase()) {
+                    matchedPlanet = p;
+                    break;
+                  }
+                }
+                return ActionChip(
+                  backgroundColor: brand?.tintColor ?? AstroTint.violet.background,
+                  label: Text(
+                    planetName,
+                    style: TextStyle(
+                      color: brand?.textAccentColor ?? AstroTint.violet.foreground,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
-                  child: Text(
-                    p,
-                    style: TextStyle(color: AstroTint.violet.foreground, fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
+                  onPressed: matchedPlanet == null
+                      ? null
+                      : () {
+                          Navigator.of(ctx).pop();
+                          _showPlanetDetailsModal(context, matchedPlanet!, report, brand);
+                        },
                 );
               }).toList(),
             ),
@@ -212,21 +335,9 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     );
   }
 
-  void _jumpTo(GlobalKey key) {
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(
-      ctx,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-      alignment: 0.02,
-    );
-  }
-
-  Widget _sectionHeading(GlobalKey key, String title, {String? helper}) {
+  Widget _sectionHeading(String title, {String? helper}) {
     return Padding(
-      key: key,
-      padding: const EdgeInsets.only(top: 32, bottom: 12),
+      padding: const EdgeInsets.only(top: 24, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -243,14 +354,62 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     );
   }
 
+  bool _isTimelineSection(ReportSectionModel sec) {
+    final type = sec.type.toUpperCase();
+    final combined = '${sec.title} ${sec.content}'.toLowerCase();
+    return type.contains('TIMELINE') ||
+        type.contains('DASHA') ||
+        type.contains('TRANSIT') ||
+        type.contains('PERIOD') ||
+        combined.contains('dasha') ||
+        combined.contains('transit') ||
+        combined.contains('gochara') ||
+        combined.contains('sade sati') ||
+        combined.contains('varshphal') ||
+        combined.contains('timeline') ||
+        combined.contains('month') ||
+        combined.contains('quarter') ||
+        combined.contains('year') ||
+        combined.contains('window') ||
+        combined.contains('period');
+  }
+
+  bool _matchesTimelineFilter(ReportSectionModel sec, _TimelineFilter filter) {
+    if (filter == _TimelineFilter.all) return true;
+    final combined = '${sec.type} ${sec.title} ${sec.content}'.toLowerCase();
+    switch (filter) {
+      case _TimelineFilter.dasha:
+        return combined.contains('dasha') || combined.contains('antardasha') || combined.contains('mahadasha');
+      case _TimelineFilter.transits:
+        return combined.contains('transit') || combined.contains('gochara') || combined.contains('sade sati');
+      case _TimelineFilter.periods:
+        return combined.contains('month') ||
+            combined.contains('quarter') ||
+            combined.contains('year') ||
+            combined.contains('window') ||
+            combined.contains('period') ||
+            combined.contains('milestone');
+      case _TimelineFilter.all:
+        return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(reportsNotifierProvider);
+    final routeBrand = ReportBrandRegistry.resolve(widget.reportType);
+    final loadedBrand = state.reportResponse != null
+        ? (ReportBrandRegistry.resolve(state.reportResponse!.report.type) ?? routeBrand)
+        : routeBrand;
+    final pageTitle = loadedBrand?.title ??
+        (state.reportResponse?.report.title.isNotEmpty == true
+            ? state.reportResponse!.report.title
+            : 'Astrology Report');
 
     Widget fill(Widget child) => SliverFillRemaining(hasScrollBody: false, child: child);
 
     return AstroPage(
-      title: widget.reportType == 'PLANETARY_SUMMARY' ? 'Planetary Summary' : 'Birth Chart & Kundli',
+      title: pageTitle,
       bottomBar: state.reportResponse != null
           ? Container(
               decoration: const BoxDecoration(
@@ -268,7 +427,7 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 640),
                       child: ReportPrimaryButton(
-                        label: state.isDownloadingPdf ? 'Preparing your Kundli PDF...' : 'Download or share PDF',
+                        label: state.isDownloadingPdf ? 'Preparing your PDF...' : 'Download or share PDF',
                         icon: Icons.download_rounded,
                         isLoading: state.isDownloadingPdf,
                         onPressed: state.isDownloadingPdf ? null : _downloadPdf,
@@ -282,7 +441,6 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
       slivers: [
         Builder(
           builder: (context) {
-            // 1. Loading State using AstroLoaderFullScreen
             if (state.isLoading) {
               return fill(const AstroLoaderFullScreen(
                 message: 'Reading your cosmic map...',
@@ -290,7 +448,6 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
               ));
             }
 
-            // 2. Error State using AstroErrorState
             if (state.errorMessage != null && state.reportResponse == null) {
               return fill(ReportStatusMessage(
                 icon: Icons.cloud_off_rounded,
@@ -303,7 +460,6 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
               ));
             }
 
-            // 3. Empty / Missing Data State
             final reportResponse = state.reportResponse;
             if (reportResponse == null || reportResponse.report.planets.isEmpty) {
               return fill(ReportStatusMessage(
@@ -317,84 +473,24 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
               ));
             }
 
-            // 4. Structured Report Display
             final report = reportResponse.report;
+            final brand = loadedBrand;
 
             return AstroSliverContent(
               sliver: SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 4.1 REPORT COVER
-                    _buildReportCoverHeader(report),
-
+                    _buildReportCoverHeader(report, brand),
                     const SizedBox(height: 14),
-
-                    // Sushil Sir Explainer Button
                     SushilExplainerButton(
                       contextBuilder: () => _buildExplanationContext(report),
                       poseAsset: AppAssets.sushilGuiding,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Table of contents / jump list
-                    _buildJumpList(report),
-
-                    // 4.2 EXECUTIVE SUMMARY
-                    _sectionHeading(_summaryKey, 'At a glance'),
-                    _buildExecutiveSummary(report),
-
-                    // 4.3 NORTH INDIAN KUNDLI CHART
-                    _sectionHeading(
-                      _chartKey,
-                      'Your Birth Chart',
-                      helper: 'North Indian style Vedic planetary layout',
-                    ),
-                    // The chart sizes itself to the available width; its built-in
-                    // title row is hidden because it cannot wrap at large text sizes.
-                    KundliChartWidget(
-                      chart: report.toAstroChartModel(),
-                      size: 360,
-                      showTitle: false,
-                    ),
-                    ReportLearnMore(
-                      label: 'How to read this chart',
-                      child: Text(
-                        'Understand your chart: The North Indian Kundli maps your 12 houses starting with your Ascendant sign at the top center diamond (House 1).',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.lightTextPrimary.withValues(alpha: 0.9),
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-
-                    // 4.4 PLANETS (placements + insights)
-                    _sectionHeading(
-                      _planetsKey,
-                      'Planets',
-                      helper: 'Tap a planet to see what it means.',
-                    ),
-                    ...report.planets.map((p) => _buildPlanetInsightCard(p)),
-
-                    // 4.5 YOUR 12 HOUSES GRID
-                    _sectionHeading(
-                      _housesKey,
-                      'Your 12 Houses',
-                      helper: 'Tap a house to learn more.',
-                    ),
-                    _buildHousesGrid(context, report),
-
-                    // 4.6 YOUR BIRTH NAKSHATRA
-                    _sectionHeading(_nakshatraKey, 'Your Birth Nakshatra'),
-                    _buildNakshatraSection(report),
-
-                    // 4.7 ASTROLOGICAL INSIGHTS & INTERPRETATIONS
-                    if (report.sections.isNotEmpty) ...[
-                      _sectionHeading(_insightsKey, 'Astrological Insights'),
-                      ...report.sections.map((sec) => _buildSectionCard(sec)),
-                    ],
+                    _buildViewerTabs(brand),
+                    const SizedBox(height: 8),
+                    _buildActiveTabContent(context, report, brand),
                   ],
                 ),
               ),
@@ -405,46 +501,312 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     );
   }
 
-  // Simple table of contents
-  Widget _buildJumpList(ReportDataModel report) {
-    final entries = <(String, IconData, GlobalKey)>[
-      ('At a glance', Icons.dashboard_outlined, _summaryKey),
-      ('Birth chart', Icons.grid_view_rounded, _chartKey),
-      ('Planets', Icons.public_rounded, _planetsKey),
-      ('Houses', Icons.home_outlined, _housesKey),
-      ('Nakshatra', Icons.star_outline_rounded, _nakshatraKey),
-      if (report.sections.isNotEmpty) ('Insights', Icons.menu_book_outlined, _insightsKey),
-    ];
-    return ReportCard(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
+  Widget _buildViewerTabs(ReportBrandInfo? brand) {
+    Widget tabPill(ReportViewTab tab, String label, IconData icon, String keyName) {
+      final selected = _activeTab == tab;
+      return AstroPill(
+        key: ValueKey(keyName),
+        label: label,
+        icon: icon,
+        selected: selected,
+        onTap: () => setState(() => _activeTab = tab),
+      );
+    }
+
+    return Semantics(
+      container: true,
+      label: 'Report viewer sections',
+      child: ReportCard(
+        padding: const EdgeInsets.all(14),
+        borderColor: brand != null ? brand.accentColor.withValues(alpha: 0.3) : AppColors.cardBorder,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            tabPill(ReportViewTab.overview, 'Overview', Icons.dashboard_outlined, 'report-view-tab-overview'),
+            tabPill(
+              ReportViewTab.chartsAndHouses,
+              'Charts & Houses',
+              Icons.grid_view_rounded,
+              'report-view-tab-charts',
+            ),
+            tabPill(ReportViewTab.timelines, 'Timelines', Icons.timeline_rounded, 'report-view-tab-timelines'),
+            tabPill(ReportViewTab.fullDetails, 'Full Details', Icons.article_outlined, 'report-view-tab-details'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveTabContent(BuildContext context, ReportDataModel report, ReportBrandInfo? brand) {
+    switch (_activeTab) {
+      case ReportViewTab.overview:
+        return _buildOverviewTab(report, brand);
+      case ReportViewTab.chartsAndHouses:
+        return _buildChartsAndHousesTab(context, report, brand);
+      case ReportViewTab.timelines:
+        return _buildTimelinesTab(report, brand);
+      case ReportViewTab.fullDetails:
+        return _buildFullDetailsTab(context, report, brand);
+    }
+  }
+
+  Widget _buildOverviewTab(ReportDataModel report, ReportBrandInfo? brand) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (brand != null) ...[
+          const SizedBox(height: 16),
+          _buildIllustrationStrip(brand),
+        ],
+        _sectionHeading('At a glance'),
+        _buildExecutiveSummary(report),
+        _sectionHeading('Your Birth Nakshatra'),
+        _buildNakshatraSection(report, brand),
+        _sectionHeading(
+          'Astrological Insights',
+          helper: report.sections.isNotEmpty ? 'Tap any insight card to read full details.' : null,
+        ),
+        if (report.sections.isEmpty)
+          const AstroNote(
+            'Detailed narrative insights are not included in this compact chart payload.',
+          )
+        else
+          for (final sec in report.sections) _buildSectionCard(sec, brand),
+      ],
+    );
+  }
+
+  Widget _buildChartsAndHousesTab(BuildContext context, ReportDataModel report, ReportBrandInfo? brand) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeading(
+          'Your Birth Chart',
+          helper: 'North Indian style Vedic planetary layout',
+        ),
+        KundliChartWidget(
+          chart: report.toAstroChartModel(),
+          size: 360,
+          showTitle: false,
+        ),
+        ReportLearnMore(
+          label: 'How to read this chart',
+          child: Text(
+            'Understand your chart: The North Indian Kundli maps your 12 houses starting with your Ascendant sign at the top center diamond (House 1).',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.lightTextPrimary.withValues(alpha: 0.9),
+              height: 1.5,
+            ),
+          ),
+        ),
+        _sectionHeading(
+          'Planets',
+          helper: 'Tap a planet to expand placement details or open its explanation.',
+        ),
+        for (final p in report.planets) _buildPlanetInsightCard(p, report, brand),
+        _sectionHeading(
+          'Your 12 Houses',
+          helper: 'Tap a house to learn more about its domain and occupant planets.',
+        ),
+        _buildHousesGrid(context, report, brand),
+      ],
+    );
+  }
+
+  Widget _buildTimelinesTab(ReportDataModel report, ReportBrandInfo? brand) {
+    final allTimelines = report.sections.where(_isTimelineSection).toList();
+    final filtered = allTimelines.where((s) => _matchesTimelineFilter(s, _timelineFilter)).toList();
+
+    Widget filterPill(_TimelineFilter filter, String label, String keyName) {
+      return AstroPill(
+        key: ValueKey(keyName),
+        label: label,
+        selected: _timelineFilter == filter,
+        onTap: () => setState(() => _timelineFilter = filter),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 24, bottom: 12),
+          child: Row(
+            children: [
+              Image.asset(
+                ReportBrandRegistry.timelineMarkerAsset,
+                width: 24,
+                height: 24,
+                cacheWidth: 72,
+                excludeFromSemantics: true,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.timeline_rounded,
+                  size: 22,
+                  color: brand?.textAccentColor ?? AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(child: ReportHeading('Timelines & Cycles')),
+            ],
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            filterPill(_TimelineFilter.all, 'All (${allTimelines.length})', 'report-timeline-filter-all'),
+            filterPill(_TimelineFilter.dasha, 'Dasha', 'report-timeline-filter-dasha'),
+            filterPill(_TimelineFilter.transits, 'Transits', 'report-timeline-filter-transits'),
+            filterPill(_TimelineFilter.periods, 'Periods', 'report-timeline-filter-periods'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (allTimelines.isEmpty)
+          const AstroNote(
+            'No Dasha or transit timeline entries were included in this report payload. Download the PDF edition for full chronological tables when available.',
+          )
+        else if (filtered.isEmpty)
+          const AstroNote(
+            'No timeline entries in this report match the selected filter. Choose "All" to view all available timelines.',
+          )
+        else
+          for (final sec in filtered) _buildSectionCard(sec, brand, useTimelineMarker: true),
+      ],
+    );
+  }
+
+  Widget _buildFullDetailsTab(BuildContext context, ReportDataModel report, ReportBrandInfo? brand) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeading('Birth Particulars & Configuration'),
+        ReportCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailRow('Name', report.profile.name),
+              _detailRow('Date of Birth', report.profile.dateOfBirth),
+              _detailRow('Time of Birth', report.profile.timeOfBirth),
+              if (report.profile.placeName != null && report.profile.placeName!.isNotEmpty)
+                _detailRow('Birth Place', report.profile.placeName!),
+              if (report.profile.timezone.isNotEmpty) _detailRow('Timezone', report.profile.timezone),
+              const Divider(height: 20, color: AppColors.cardBorderSubtle),
+              _detailRow('Zodiac', report.configuration.zodiacType),
+              _detailRow('Ayanamsa', report.configuration.ayanamsa),
+              _detailRow('House System', report.configuration.houseSystem),
+              _detailRow('Node Calculation', report.configuration.nodeCalculation),
+            ],
+          ),
+        ),
+        _sectionHeading('All Planetary Placements'),
+        for (final p in report.planets) _buildPlanetInsightCard(p, report, brand),
+        if (report.houses.isNotEmpty) ...[
+          _sectionHeading('12 Houses Summary'),
+          _buildHousesGrid(context, report, brand),
+        ],
+        if (report.sections.isNotEmpty) ...[
+          _sectionHeading('All Report Sections'),
+          for (final sec in report.sections) _buildSectionCard(sec, brand),
+        ],
+      ],
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'In this report',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.lightTextPrimary),
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final e in entries)
-                AstroPill(
-                  label: e.$1,
-                  icon: e.$2,
-                  selected: false,
-                  onTap: () => _jumpTo(e.$3),
-                ),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Cover card
-  Widget _buildReportCoverHeader(ReportDataModel report) {
+  Widget _buildIllustrationStrip(ReportBrandInfo brand) {
+    return ReportCard(
+      color: brand.tintColor,
+      borderColor: brand.accentColor.withValues(alpha: 0.35),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            width: 72,
+            height: 52,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: brand.primaryColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Image.asset(
+              brand.illustrationAsset,
+              fit: BoxFit.contain,
+              cacheWidth: 220,
+              excludeFromSemantics: true,
+              errorBuilder: (_, __, ___) => Icon(brand.icon, color: brand.accentColor, size: 28),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  brand.motifDescription,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: brand.textAccentColor,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Image.asset(
+                  ReportBrandRegistry.sectionDividerAsset,
+                  height: 10,
+                  cacheWidth: 320,
+                  fit: BoxFit.contain,
+                  excludeFromSemantics: true,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportCoverHeader(ReportDataModel report, ReportBrandInfo? brand) {
+    final primary = brand?.primaryColor ?? AppColors.primary;
+    final accent = brand?.accentColor ?? AppColors.gold;
+    final headerGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        primary,
+        Color.lerp(primary, AppColors.midnight, 0.4) ?? AppColors.midnight,
+      ],
+    );
+
     Widget infoRow(IconData icon, String text) {
       return Padding(
         padding: const EdgeInsets.only(top: 6),
@@ -453,13 +815,13 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 1),
-              child: Icon(icon, color: AppColors.gold, size: 20),
+              child: Icon(icon, color: accent, size: 19),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 text,
-                style: const TextStyle(fontSize: 16, height: 1.35, color: AppColors.textInverseSecondary),
+                style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textInverseSecondary),
               ),
             ),
           ],
@@ -468,44 +830,56 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     }
 
     return AstroGradientCard(
-      child: Column(
+      gradient: headerGradient,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            header: true,
-            child: Text(report.title, style: AppTypography.displayMedium.copyWith(color: Colors.white)),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Icon(Icons.person_outline, color: AppColors.gold, size: 20),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  report.profile.name,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+          if (brand != null) ...[
+            SizedBox(
+              width: 68,
+              child: AspectRatio(
+                aspectRatio: 210 / 297,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: primary,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: accent.withValues(alpha: 0.6)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    brand.coverAsset,
+                    fit: BoxFit.cover,
+                    cacheWidth: 220,
+                    semanticLabel: '${report.title} cover',
+                    errorBuilder: (_, __, ___) => Icon(brand.icon, color: accent, size: 28),
                   ),
                 ),
               ),
-            ],
+            ),
+            const SizedBox(width: 14),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(report.title, style: AppTypography.displayMedium.copyWith(fontSize: 21, color: Colors.white)),
+                ),
+                const SizedBox(height: 8),
+                infoRow(Icons.person_outline, report.profile.name),
+                infoRow(Icons.cake_outlined, '${report.profile.dateOfBirth} • ${report.profile.timeOfBirth}'),
+                if (report.profile.placeName != null && report.profile.placeName!.isNotEmpty)
+                  infoRow(Icons.location_on_outlined, report.profile.placeName!),
+              ],
+            ),
           ),
-          infoRow(Icons.cake_outlined, '${report.profile.dateOfBirth} • ${report.profile.timeOfBirth}'),
-          if (report.profile.placeName != null) infoRow(Icons.location_on_outlined, report.profile.placeName!),
         ],
       ),
     );
   }
 
-  // Executive Summary tiles
   Widget _buildExecutiveSummary(ReportDataModel report) {
-    // Find Sun and Moon placements
     final sun = report.planets.firstWhere(
       (p) => p.planet.toUpperCase().contains('SUN') || p.planet.toUpperCase().contains('SURYA'),
       orElse: () => report.planets.isNotEmpty
@@ -574,18 +948,19 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     );
   }
 
-  // Planet card: placement summary, tap to expand interpretation
-  Widget _buildPlanetInsightCard(ReportPlanetModel p) {
-    final isExpanded = _expandedSections.contains(p.planet);
+  Widget _buildPlanetInsightCard(ReportPlanetModel p, ReportDataModel report, ReportBrandInfo? brand) {
+    final expandKey = 'planet:${p.planet}';
+    final isExpanded = _expandedSections.contains(expandKey);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AstroSurfaceCard(
         padding: EdgeInsets.zero,
+        borderColor: isExpanded ? brand?.accentColor.withValues(alpha: 0.5) : null,
         child: Column(
           children: [
             InkWell(
-              onTap: () => _toggleSection(p.planet),
+              onTap: () => _toggleSection(expandKey),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
                 child: Row(
@@ -666,21 +1041,30 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Astrological interpretation',
+                    Text(
+                      '${p.planet} in ${p.sign} · House ${p.house} (${_getHouseDomainName(p.house)})',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.secondary,
+                        color: brand?.textAccentColor ?? AppColors.secondary,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '${p.planet} in ${p.sign} (${p.house}th House): Traditionally, this placement influences your key expression in ${p.sign} traits within the domain of the ${p.house}th house.',
+                      _getHouseDescription(p.house),
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         color: AppColors.lightTextPrimary,
                         height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => _showPlanetDetailsModal(context, p, report, brand),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                        label: const Text('View full placement sheet'),
                       ),
                     ),
                   ],
@@ -692,8 +1076,7 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     );
   }
 
-  // 12 Houses responsive grid
-  Widget _buildHousesGrid(BuildContext context, ReportDataModel report) {
+  Widget _buildHousesGrid(BuildContext context, ReportDataModel report, ReportBrandInfo? brand) {
     final tiles = List<Widget>.generate(12, (index) {
       final houseNum = index + 1;
       final house = report.houses.firstWhere(
@@ -708,7 +1091,7 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
       return AstroSurfaceCard(
         radius: 16,
         padding: const EdgeInsets.all(12),
-        onTap: () => _showHouseDetailsModal(context, house),
+        onTap: () => _showHouseDetailsModal(context, house, report, brand),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 48),
           child: Column(
@@ -716,10 +1099,10 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
             children: [
               Text(
                 'House $houseNum',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
+                  color: brand?.textAccentColor ?? AppColors.primary,
                 ),
               ),
               const SizedBox(height: 2),
@@ -749,16 +1132,24 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
     return _EqualHeightGrid(minTileWidth: 104, maxColumns: 4, children: tiles);
   }
 
-  // Nakshatra card
-  Widget _buildNakshatraSection(ReportDataModel report) {
+  Widget _buildNakshatraSection(ReportDataModel report, ReportBrandInfo? brand) {
+    final info = report.nakshatra.associatedInfo;
     return AstroSurfaceCard(
       padding: const EdgeInsets.all(20),
+      borderColor: brand?.accentColor.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const AstroIconSquare(icon: Icons.star_rounded, tint: AstroTint.violet, size: 44),
+              AstroIconSquare(
+                icon: Icons.star_rounded,
+                tint: AstroTint(
+                  brand?.textAccentColor ?? AstroTint.violet.foreground,
+                  brand?.tintColor ?? AstroTint.violet.background,
+                ),
+                size: 44,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -768,49 +1159,73 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
                     const SizedBox(height: 2),
                     Text(
                       'Pada ${report.nakshatra.pada} • Ruling Planet: ${report.nakshatra.rulingPlanet}',
-                      style: TextStyle(fontSize: 16, color: AstroTint.violet.foreground, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: brand?.textAccentColor ?? AstroTint.violet.foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const Divider(height: 28, color: AppColors.separator),
-          const Text(
-            'Understanding your Nakshatra:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            report.nakshatra.associatedInfo.isNotEmpty
-                ? report.nakshatra.associatedInfo
-                : 'Your Janma Nakshatra governs your subconscious emotional patterns, natural talents, and planetary dasha cycles.',
-            style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
-          ),
+          if (info.isNotEmpty) ...[
+            const Divider(height: 28, color: AppColors.separator),
+            const Text(
+              'Nakshatra Notes:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              info,
+              style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // Interpretation Section Card
-  Widget _buildSectionCard(ReportSectionModel sec) {
-    final isExpanded = _expandedSections.contains(sec.id);
+  Widget _buildSectionCard(
+    ReportSectionModel sec,
+    ReportBrandInfo? brand, {
+    bool useTimelineMarker = false,
+  }) {
+    final expandKey = 'sec:${sec.id.isNotEmpty ? sec.id : sec.title}';
+    final isExpanded = _expandedSections.contains(expandKey);
+    final markerAsset =
+        useTimelineMarker ? ReportBrandRegistry.timelineMarkerAsset : ReportBrandRegistry.insightStarAsset;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AstroSurfaceCard(
         padding: EdgeInsets.zero,
+        borderColor: isExpanded ? brand?.accentColor.withValues(alpha: 0.45) : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              onTap: () => _toggleSection(sec.id),
+              onTap: () => _toggleSection(expandKey),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 56),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
                   child: Row(
                     children: [
+                      Image.asset(
+                        markerAsset,
+                        width: 20,
+                        height: 20,
+                        cacheWidth: 60,
+                        excludeFromSemantics: true,
+                        errorBuilder: (_, __, ___) => Icon(
+                          useTimelineMarker ? Icons.timeline_rounded : Icons.auto_awesome_rounded,
+                          size: 18,
+                          color: brand?.textAccentColor ?? AppColors.goldDark,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           sec.title,
@@ -834,14 +1249,19 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      sec.content,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: AppColors.lightTextPrimary,
-                        height: 1.6,
+                    if (sec.content.isNotEmpty)
+                      Text(
+                        sec.content,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: AppColors.lightTextPrimary,
+                          height: 1.6,
+                        ),
                       ),
-                    ),
+                    if (sec.listItems != null && sec.listItems!.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      for (final item in sec.listItems!) ReportBullet(item),
+                    ],
                     if (sec.keyValues != null && sec.keyValues!.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Wrap(
@@ -851,9 +1271,11 @@ class _ReportViewScreenState extends ConsumerState<ReportViewScreen> {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppColors.lightBackground,
+                              color: brand?.tintColor ?? AppColors.lightBackground,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.cardBorderSubtle),
+                              border: Border.all(
+                                color: brand?.accentColor.withValues(alpha: 0.35) ?? AppColors.cardBorderSubtle,
+                              ),
                             ),
                             child: Text(
                               '${e.key}: ${e.value}',
@@ -936,8 +1358,7 @@ class _SnapshotCard extends StatelessWidget {
 }
 
 /// Responsive grid whose rows size to their tallest tile, so content wraps
-/// instead of clipping at large text sizes. The LayoutBuilder sits outside
-/// the IntrinsicHeight rows (never inside).
+/// instead of clipping at large text sizes.
 class _EqualHeightGrid extends StatelessWidget {
   final double minTileWidth;
   final int maxColumns;

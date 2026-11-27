@@ -220,10 +220,24 @@ void main() {
       for (final f in ['all', 'ready', 'preparing', 'failed']) find.byKey(ValueKey('reports-filter-$f')),
     ]);
 
-    // "Get a report" tab.
+    // "Get a report" tab: all 13 canonical Astro Sushil reports.
     await openTab(tester, 'Get a report');
     await checkAll([
-      for (final t in ['CAREER', 'KUNDLI', 'PLANETARY_SUMMARY', 'MARRIAGE_COMPATIBILITY', 'HOROSCOPE', 'FINANCE', 'LOVE', 'FORTUNE', 'SATURN'])
+      for (final t in [
+        'KUNDLI',
+        'CAREER',
+        'MARRIAGE_COMPATIBILITY',
+        'FINANCE',
+        'LOVE',
+        'FORTUNE',
+        'FORTUNE_PLUS',
+        'HOROSCOPE',
+        'SATURN',
+        'JUPITER_TRANSIT',
+        'RAHU_KETU_TRANSIT',
+        'VARSHPHAL',
+        'BABY_NAME',
+      ])
         find.byKey(ValueKey('report-offer-$t')),
     ]);
     // One clear action per report: no broken empty-PDF "Share" button.
@@ -243,7 +257,7 @@ void main() {
 
     final detail = tester.widget<ReportDetailScreen>(find.byType(ReportDetailScreen));
     expect(detail.reportType, 'KUNDLI');
-    expect(detail.title, 'Janma Kundli & Birth Chart Report');
+    expect(detail.title, 'Premium Personalised Kundli Report');
     expect(detail.priceText, '₹299');
     expect(detail.pricePaise, 29900);
     expect(detail.initialProfile.id, 'bp_1');

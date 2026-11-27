@@ -3,7 +3,7 @@
  * All values come from the snapshot, the evidence registry or the career
  * `extend` output; all dynamic text passes through `tex()`.
  */
-import { BlockContext, blockLang, BlockRenderer, evidenceValue, kvTable } from '../../render/blocks';
+import { BlockContext, blockLang, BlockRenderer, evidenceValue, kvTable, longTableTex, timelineTex } from '../../render/blocks';
 import { dateLabel, ordinalLabel, planetList } from '../../render/blocks.hindi';
 import { ordinal, planetName, SIGNS } from '../../evidence/evidence-registry';
 import { dignityLabel, label, nakshatraLabel, pick, planetLabel, ReportLanguage, signLabel } from '../../i18n/hindi';
@@ -43,12 +43,19 @@ const labels = (lang: ReportLanguage, head: string[]) => head.map((h) => (h ? la
 /** Key/value rows with the keys looked up in the glossary. */
 const kv = (lang: ReportLanguage, rows: Array<[string, string]>) => kvTable(rows.map(([k, v]) => [label(lang, k), v]), lang);
 
-/** Full-width table helper: `spec` is a tabularx column spec. */
-function table(spec: string, head: string[], rows: string[][], size = ''): string {
+/** Full-width table helper: uses `longTableTex` with repeating headers when >= 7 rows, else `tabularx`. */
+function table(spec: string, head: string[], rows: string[][], size = '', highlight: number[] = []): string {
+  if (rows.length >= 7) {
+    return longTableTex(spec, head.map((h) => `\\THd{${tex(h)}}`), rows.map((r) => r.map((c) => `\\TCell{${c}}`)), {
+      font: size,
+      highlight,
+      raw: true,
+    });
+  }
   return [
     `\\begin{center}${size}\\begin{tabularx}{\\linewidth}{${spec}}`,
     `\\TableHead${head.map((h) => `\\THd{${tex(h)}}`).join(' & ')}\\\\`,
-    ...rows.map((r, i) => row(r, i)),
+    ...rows.map((r, i) => `${highlight.includes(i) ? '\\rowcolor{Accent!18}' : i % 2 ? '\\rowcolor{Surface}' : ''}${r.map((c) => `\\TCell{${c}}`).join(' & ')}\\\\`),
     '\\bottomrule\\end{tabularx}\\end{center}',
   ].join('\n');
 }
@@ -350,8 +357,19 @@ export const careerTransitTable: BlockRenderer = (ctx) => {
       rows.push(['', label(lang, 'Next'), tex(signLabel(lang, u.sign) + re), tex(periodText(lang, u.startIso, u.endIso)), tex(duration(u.startIso, u.endIso)), from(u.fromAsc, u.fromMoon)]);
     });
   }
+  const nowLabel = label(lang, 'Now');
+  const tlItems = c.transits.map((t) => {
+    const p = t.current;
+    return {
+      date: `${periodText(lang, p.startIso, p.endIso)} (${nowLabel})`,
+      title: `${planetLabel(lang, t.planet)} — ${signLabel(lang, p.sign)}`,
+      detail: `${from(p.fromAsc, p.fromMoon)} · ${duration(p.startIso, p.endIso)}`,
+      active: true,
+    };
+  });
   return {
     tex: intro(label(lang, 'The four slow-moving planets that shape the longer seasons of a career. "From Lagna / Moon" shows which house of your chart the transit sign is, counted from the Ascendant and from the Moon.')) +
+      timelineTex(tlItems) + '\n' +
       table('>{\\raggedright\\arraybackslash}p{0.1\\linewidth}>{\\raggedright\\arraybackslash}p{0.07\\linewidth}>{\\raggedright\\arraybackslash}p{0.15\\linewidth}>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}p{0.17\\linewidth}>{\\centering\\arraybackslash}p{0.12\\linewidth}',
         labels(lang, ['Planet', '', 'Sign', 'Period', 'Duration', 'From Lagna / Moon']), rows),
     evidenceIds: ids,
@@ -364,18 +382,28 @@ export const careerDashaTimeline: BlockRenderer = (ctx) => {
   const lang = blockLang(ctx);
   const now = pick(lang, ' (now)', ' (अभी)');
   const ids: string[] = [];
+  const hl: number[] = [];
   const birthYear = Number(ctx.snapshot.subject.dateOfBirth.slice(0, 4));
   const rows = c.dashas.map((d, i) => {
     ids.push(`career.dasha.md.${String(i + 1).padStart(2, '0')}.links`, `dasha.md.${String(i + 1).padStart(2, '0')}`);
+    if (d.active) hl.push(i);
     const b = (s: string) => (d.active ? `\\textbf{${s}}` : s);
     const ages = `${Math.max(0, Number(d.startIso.slice(0, 4)) - birthYear)}–${Number(d.endIso.slice(0, 4)) - birthYear}`;
     return [b(tex(planetLabel(lang, d.lord) + (d.active ? now : ''))), b(tex(periodText(lang, d.startIso, d.endIso))), tex(ages),
       tex(d.rules.map((h) => ordinalLabel(lang, h)).join(', ') || '—'), tex(`${ordinalLabel(lang, d.house)} / ${d.d10House}`), tex(careerLinks(lang, d.careerLinks))];
   });
+  const activeIdx = Math.max(0, c.dashas.findIndex((d) => d.active));
+  const tlItems = c.dashas.slice(activeIdx, activeIdx + 4).map((d) => ({
+    date: periodText(lang, d.startIso, d.endIso),
+    title: `${planetLabel(lang, d.lord)}${d.active ? now : ''}`,
+    detail: careerLinks(lang, d.careerLinks),
+    active: d.active,
+  }));
   return {
     tex: intro(label(lang, 'Your Vimshottari Mahadashas with the facts that connect each period lord to work: the houses it rules, where it sits in the birth chart and in the D10, and its direct links to the career houses (2nd, 6th, 10th, 11th).')) +
+      timelineTex(tlItems) + '\n' +
       table('>{\\raggedright\\arraybackslash}p{0.13\\linewidth}>{\\raggedright\\arraybackslash}p{0.21\\linewidth}>{\\centering\\arraybackslash}p{0.07\\linewidth}>{\\raggedright\\arraybackslash}p{0.1\\linewidth}>{\\centering\\arraybackslash}p{0.1\\linewidth}X',
-        labels(lang, ['Mahadasha', 'Period', 'Age', 'Rules', 'D1 / D10 house', 'Career links']), rows, '\\setlength{\\tabcolsep}{4pt}'),
+        labels(lang, ['Mahadasha', 'Period', 'Age', 'Rules', 'D1 / D10 house', 'Career links']), rows, '\\setlength{\\tabcolsep}{4pt}', hl),
     evidenceIds: ids,
     method: label(lang, 'Vimshottari dasha from the Moon\'s nakshatra (engine). Ages are approximate calendar years. Career links are listed facts, not a score.'),
   };
@@ -387,14 +415,16 @@ export const careerAntardashaTable: BlockRenderer = (ctx) => {
   const md = planetLabel(lang, String(evidenceValue(ctx.registry, 'dasha.current.md')));
   const now = pick(lang, ' (now)', ' (अभी)');
   const ids: string[] = ['dasha.current.md'];
+  const hl: number[] = [];
   const rows = c.antardashas.map((a, i) => {
     ids.push(`career.dasha.ad.${String(i + 1).padStart(2, '0')}`);
+    if (a.active) hl.push(i);
     const b = (s: string) => (a.active ? `\\textbf{${s}}` : s);
     const links = careerExtLinks(ctx, a.lord);
     return [b(tex(`${md}–${planetLabel(lang, a.lord)}${a.active ? now : ''}`)), b(tex(periodText(lang, a.startIso, a.endIso))), tex(links)];
   });
   return {
-    tex: table('>{\\raggedright\\arraybackslash}p{0.24\\linewidth}>{\\raggedright\\arraybackslash}p{0.3\\linewidth}X', labels(lang, ['Antardasha', 'Period', 'Sub-lord\'s career links']), rows),
+    tex: table('>{\\raggedright\\arraybackslash}p{0.24\\linewidth}>{\\raggedright\\arraybackslash}p{0.3\\linewidth}X', labels(lang, ['Antardasha', 'Period', 'Sub-lord\'s career links']), rows, '', hl),
     evidenceIds: ids,
     method: label(lang, 'Antardashas (sub-periods) of the running Mahadasha, Vimshottari proportions.'),
   };

@@ -102,6 +102,152 @@ export function kvTable(rows: Array<[string, string]>, lang: ReportLanguage = 'e
   ].join('\n');
 }
 
+function readBraced(s: string, start: number): { content: string; end: number } | undefined {
+  if (s[start] !== '{') return undefined;
+  let depth = 0;
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === '{') depth++;
+    else if (s[i] === '}') {
+      depth--;
+      if (depth === 0) return { content: s.slice(start + 1, i), end: i + 1 };
+    }
+  }
+  return undefined;
+}
+
+function expandColRepeats(spec: string): string {
+  let out = '';
+  for (let i = 0; i < spec.length; i++) {
+    if (spec[i] === '*' && spec[i + 1] === '{') {
+      const count = readBraced(spec, i + 1);
+      if (count && spec[count.end] === '{') {
+        const body = readBraced(spec, count.end);
+        const n = Number(count.content);
+        if (body && Number.isInteger(n) && n > 0 && n <= 30) {
+          out += expandColRepeats(body.content).repeat(n);
+          i = body.end - 1;
+          continue;
+        }
+      }
+    }
+    out += spec[i];
+  }
+  return out;
+}
+
+/**
+ * Convert a `tabularx` column specification into fixed-width `p{...}` columns
+ * suitable for `longtable` with `\setlength{\tabcolsep}{3.5pt}`, guaranteeing
+ * total width stays within `\linewidth` with zero right-margin clipping.
+ */
+export function tabularxSpecToLongtable(colSpec: string): string {
+  const s = expandColRepeats(colSpec).replace(/@\{[^}]*\}/g, '');
+  interface Col { prefix?: string; align: string; width?: number; isX: boolean }
+  const cols: Col[] = [];
+  let i = 0;
+  while (i < s.length) {
+    if (/\s|\|/.test(s[i])) { i++; continue; }
+    let prefix: string | undefined;
+    if (s[i] === '>' && s[i + 1] === '{') {
+      const b = readBraced(s, i + 1);
+      if (b) { prefix = b.content; i = b.end; }
+    }
+    while (i < s.length && /\s/.test(s[i])) i++;
+    if (i >= s.length) break;
+    const ch = s[i];
+    if (ch === 'X') {
+      cols.push({ prefix, align: '\\raggedright', isX: true });
+      i++;
+    } else if (ch === 'l' || ch === 'c' || ch === 'r') {
+      const align = ch === 'c' ? '\\centering' : ch === 'r' ? '\\raggedleft' : '\\raggedright';
+      cols.push({ prefix, align, width: ch === 'l' ? 0.14 : 0.09, isX: false });
+      i++;
+    } else if ((ch === 'p' || ch === 'm' || ch === 'b') && s[i + 1] === '{') {
+      const b = readBraced(s, i + 1);
+      if (b) {
+        const lw = /([0-9.]+)\s*\\linewidth/.exec(b.content);
+        const mm = /([0-9.]+)\s*mm/.exec(b.content);
+        const w = lw ? Number(lw[1]) : mm ? Number(mm[1]) / 170 : 0.15;
+        cols.push({ prefix, align: '\\raggedright', width: w, isX: false });
+        i = b.end;
+      } else { i++; }
+    } else {
+      i++;
+    }
+  }
+  if (!cols.length) return colSpec;
+  // Budget 0.97\linewidth minus 2*\tabcolsep (3.5pt ≈ 0.0145\linewidth per col).
+  const budget = Math.max(0.55, 0.975 - cols.length * 0.0145);
+  const xCount = cols.filter((c) => c.isX).length;
+  const fixedSum = cols.reduce((acc, c) => acc + (c.isX ? 0 : (c.width ?? 0.14)), 0);
+  const rawX = xCount > 0 ? Math.max(0.11, (budget - fixedSum) / xCount) : 0;
+  const totalRaw = fixedSum + rawX * xCount;
+  const scale = totalRaw > budget ? budget / totalRaw : 1;
+  return cols.map((c) => {
+    const w = ((c.isX ? rawX : (c.width ?? 0.14)) * scale).toFixed(3);
+    const p = c.prefix ?? `${c.align}\\arraybackslash`;
+    return `>{${p}}p{${w}\\linewidth}`;
+  }).join('');
+}
+
+export interface LongTableOpts {
+  font?: string;
+  tabcolsep?: string;
+  highlight?: number[];
+  /** Pass true when `headers` and `rows` are already LaTeX-formatted (not plain text). */
+  raw?: boolean;
+}
+
+/**
+ * Multi-page `longtable` with repeating header (`\endfirsthead` and `\endhead`),
+ * zebra striping (`Surface`), optional active-row highlight (`Tint`), and safe widths.
+ */
+export function longTableTex(colSpec: string, headers: string[], rows: string[][], opts: LongTableOpts = {}): string {
+  const ltSpec = tabularxSpecToLongtable(colSpec);
+  const hl = new Set(opts.highlight ?? []);
+  const fmtHead = (h: string) => (opts.raw ? h : `\\THd{${tex(h)}}`);
+  const fmtCell = (c: string) => (opts.raw ? c : `\\TCell{${tex(c)}}`);
+  const headRow = `\\TableHead${headers.map(fmtHead).join(' & ')}\\\\`;
+  const font = opts.font ?? '';
+  const sep = opts.tabcolsep ?? '3.5pt';
+  return [
+    `{${font}\\setlength{\\tabcolsep}{${sep}}\\begin{longtable}{${ltSpec}}`,
+    headRow,
+    '\\endfirsthead',
+    headRow,
+    '\\endhead',
+    ...rows.map((r, i) => `${hl.has(i) ? '\\rowcolor{Accent!18}' : i % 2 ? '\\rowcolor{Surface}' : ''}${r.map(fmtCell).join(' & ')}\\\\`),
+    '\\bottomrule\\end{longtable}}',
+  ].join('\n');
+}
+
+export interface TimelineEntry {
+  date: string;
+  title: string;
+  detail?: string;
+  active?: boolean;
+}
+
+/** Vertical visual timeline built with `\asTimelineItem` / `\asTimelineItemActive`. */
+export function timelineTex(items: TimelineEntry[]): string {
+  return items
+    .map((it) =>
+      `${it.active ? '\\asTimelineItemActive' : '\\asTimelineItem'}{${tex(it.date)}}{${tex(it.title)}}{${it.detail ? tex(it.detail) : ''}}`
+    )
+    .join('\n');
+}
+
+/** Compact 3- or 4-column stat strip for key natal/transit metrics. */
+export function statStripTex(items: Array<[string, string]>): string {
+  if (items.length === 3) {
+    return `\\asStatStripThree${items.map(([k, v]) => `{${tex(k)}}{${tex(v)}}`).join('')}`;
+  }
+  if (items.length === 4) {
+    return `\\asStatStripFour${items.map(([k, v]) => `{${tex(k)}}{${tex(v)}}`).join('')}`;
+  }
+  return '';
+}
+
 export const evidenceValue = (r: EvidenceRegistry, id: string) => {
   const item = r.get(id);
   if (!item) throw new Error(`BLOCK_EVIDENCE_MISSING: ${id}`);
@@ -235,9 +381,11 @@ export function loveJupiterWindows(ctx: BlockContext): BlockOutput {
     [pick(lang, `7th lord (${planetName(seventhLord)})`, `7वें भाव के स्वामी (${planetLabel(lang, planetName(seventhLord))})`), idx(lordSign)],
     [pick(lang, `Darakaraka (${dk})`, `दारकारक (${planetLabel(lang, dk)})`), idx(dkSign)],
   ];
-  const rows: string[] = [];
+  const rawRows: string[][] = [];
+  const timelineItems: TimelineEntry[] = [];
   const ids: string[] = ['house.7.d1.sign', 'house.7.d1.lord', `planet.${seventhLord}.d1.sign`, 'karaka.dk', `planet.${dk.toLowerCase()}.d1.sign`];
   const periods = ctx.snapshot.transits.JUPITER;
+  const nowMs = Date.parse(ctx.snapshot.asOfIso);
   periods.forEach((per, i) => {
     const factors: string[] = [];
     for (const [target, sign] of targets) {
@@ -248,12 +396,24 @@ export function loveJupiterWindows(ctx: BlockContext): BlockOutput {
     if (!factors.length) return;
     ids.push(`transit.jupiter.${String(i + 1).padStart(2, '0')}`);
     const retro = per.enteredRetrograde ? ` (${label(lang, 'R')})` : '';
-    rows.push(`${rows.length % 2 ? '\\rowcolor{Surface}' : ''}\\TCell{${dateLabel(lang, formatDate(per.startIso))} -- ${dateLabel(lang, formatDate(per.endIso))}} & \\TCell{${tex(signLabel(lang, per.sign))}${retro}} & \\TCell{${tex(factors.join('; '))}}\\\\`);
+    const span = `${dateLabel(lang, formatDate(per.startIso))} -- ${dateLabel(lang, formatDate(per.endIso))}`;
+    const signStr = `${signLabel(lang, per.sign)}${retro}`;
+    const factorStr = factors.join('; ');
+    rawRows.push([`\\TCell{${span}}`, `\\TCell{${tex(signStr)}}`, `\\TCell{${tex(factorStr)}}`]);
+    timelineItems.push({
+      date: `${dateLabel(lang, formatDate(per.startIso))} – ${dateLabel(lang, formatDate(per.endIso))}`,
+      title: signStr,
+      detail: factorStr,
+      active: Date.parse(per.startIso) <= nowMs && nowMs < Date.parse(per.endIso),
+    });
   });
-  const head = ['Period', 'Jupiter in', 'Jupiter\'s influence'].map((h) => `\\THd{${tex(label(lang, h))}}`).join(' & ');
-  const table = rows.length
-    ? ['\\begin{center}\\begin{tabularx}{\\linewidth}{p{0.34\\linewidth}p{0.17\\linewidth}X}',
-       `\\TableHead${head}\\\\`, ...rows, '\\bottomrule\\end{tabularx}\\end{center}'].join('\n')
+  const head = ['Period', 'Jupiter in', 'Jupiter\'s influence'].map((h) => `\\THd{${tex(label(lang, h))}}`);
+  const activeIdx = timelineItems.reduce<number[]>((acc, it, idx) => (it.active ? [...acc, idx] : acc), []);
+  const table = rawRows.length
+    ? [
+        timelineTex(timelineItems.slice(0, 6)),
+        longTableTex('p{0.34\\linewidth}p{0.17\\linewidth}X', head, rawRows, { raw: true, highlight: activeIdx }),
+      ].join('\n\\vspace{2mm}\n')
     : `{\\itshape ${label(lang, 'No Jupiter contact with these points falls within the calculated horizon.')}}`;
   const years = Math.round((Date.parse(periods[periods.length - 1].endIso) - Date.parse(periods[0].startIso)) / 3.15576e10);
   const intro = pick(lang,

@@ -126,7 +126,7 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
     it('should enforce distinct titles between Fortune and Fortune Plus', () => {
       expect(COMMERCE_CATALOG['report-fortune'].title).toBe('Personalised Fortune Report');
       expect(COMMERCE_CATALOG['report-fortune-plus'].title).toBe(
-        'Personalised Fortune Report Plus (Comprehensive Edition)'
+        'Personalised Fortune Report Plus'
       );
     });
 
@@ -358,7 +358,7 @@ describe('Phase 10A: Catalogue and Checkout Integration Test Suite', () => {
               {
                 catalogId: 'report-horoscope',
                 itemType: OrderItemType.REPORT,
-                title: 'Personalised Horoscope & Yearly Transit Dossier 2026',
+                title: 'Personalised Horoscope Report',
                 unitPrice: 49900,
                 quantity: 1,
                 totalAmount: 49900,

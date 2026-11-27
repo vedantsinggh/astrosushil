@@ -1,19 +1,15 @@
 import { Breadcrumb } from "@/components/HeroPage";
 import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { REPORT_CATALOG_META } from "../../data/reportCatalogMeta";
 
-const REPORTS = [
-  { img: "/Image/Reports/match-making.webp" },
-  { img: "/Image/Reports/basic-horscope.webp" },
-  { img: "/Image/Reports/mini-horscope.webp" },
-  { img: "/Image/Reports/pro-horscope.webp" },
-];
-
-const DOUBLED = [...REPORTS, ...REPORTS, ...REPORTS, ...REPORTS];
+const SLIDES = [...REPORT_CATALOG_META, ...REPORT_CATALOG_META];
 
 export default function ReportsCarousel() {
   const wrapRef = useRef(null);
   const trackRef = useRef(null);
   const rafRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const tick = () => {
@@ -28,21 +24,13 @@ export default function ReportsCarousel() {
       const centerX = wrapRect.left + wrapRect.width / 2;
       const slides = track.querySelectorAll("[data-slide]");
 
-      let bestDist = Infinity;
-
       slides.forEach((slide) => {
         const r = slide.getBoundingClientRect();
         const slideCenter = r.left + r.width / 2;
         const dist = Math.abs(slideCenter - centerX);
-        const norm = Math.max(0, 1 - dist / 260);
-        const scale = (0.82 + norm * 0.31).toFixed(3);
-        // const opacity = (0.58 + norm * 0.42).toFixed(3);
+        const norm = Math.max(0, 1 - dist / 280);
+        const scale = (0.86 + norm * 0.18).toFixed(3);
         slide.style.transform = `scale(${scale})`;
-        // slide.style.opacity = opacity;
-
-        if (dist < bestDist) {
-          bestDist = dist;
-        }
       });
 
       rafRef.current = requestAnimationFrame(tick);
@@ -54,44 +42,36 @@ export default function ReportsCarousel() {
 
   return (
     <section
-      className="pt-10 select-none relative overflow-hidden bg-cover bg-center bg-no-repeat"
+      className="pt-12 select-none relative overflow-hidden bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage:
-          "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/Image/reports-bg.webp')",
-        zIndex: -1,
+          "linear-gradient(rgba(16,13,66,0.72), rgba(16,13,66,0.84)), url('/Image/reports-bg.webp')",
       }}
     >
       <div
-        className="absolute inset-0 bg-linear-to-r from-[#100D42] via-[#100D42]/20 to-[#100D42] -z-1"
+        className="absolute inset-0 bg-linear-to-r from-[#100D42] via-[#100D42]/30 to-[#100D42] pointer-events-none"
         aria-hidden="true"
       />
-      <div
-        className="absolute inset-0 bg-linear-to-l from-[#100D42] via-[#100D42]/20 to-[#100D42] -z-1"
-        aria-hidden="true"
-      />
-      <h2 className="text-center text-4xl  font-bold text-white mb-6">
-        Life Path & <span className="text-gold">Destiny Reports</span>
-      </h2>
-      <p className="text-center  text-lg  tracking-normal  max-w-4xl mx-auto text-white mb-1">
-        Discover detailed insights into your life journey and true purpose
-        through personalized astrological analysis.Understand your strengths,
-        challenges, and future possibilities guided by planetary influences.
-      </p>
 
-      <div
-        ref={wrapRef}
-        className="overflow-hidden relative py-8"
-        // style={{
-        //   maskImage:
-        //     "linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)",
-        //   WebkitMaskImage:
-        //     "linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)",
-        // }}
-      >
+      <div className="relative z-10 max-w-5xl mx-auto px-5 text-center">
+        <p className="text-[12px] uppercase tracking-[0.26em] text-gold/90 mb-2 font-body">
+          13 Canonical Vedic &amp; Numerology Dossiers
+        </p>
+        <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">
+          Life Path &amp; <span className="text-gold">Destiny Reports</span>
+        </h1>
+        <p className="text-base md:text-lg tracking-normal max-w-3xl mx-auto text-white/85 mb-2">
+          Discover detailed insights into your life journey, relationships,
+          career, and planetary transits—crafted deterministically from your
+          exact birth chart.
+        </p>
+      </div>
+
+      <div ref={wrapRef} className="relative z-10 overflow-hidden py-8">
         <div
           ref={trackRef}
-          className="flex gap-5 w-max"
-          style={{ animation: "scrollLeft 20s linear infinite" }}
+          className="flex gap-6 w-max items-center"
+          style={{ animation: "scrollLeft 46s linear infinite" }}
           onMouseEnter={(e) =>
             (e.currentTarget.style.animationPlayState = "paused")
           }
@@ -99,37 +79,56 @@ export default function ReportsCarousel() {
             (e.currentTarget.style.animationPlayState = "running")
           }
         >
-          {DOUBLED.map((r, i) => (
-            <div
-              key={i}
+          {SLIDES.map((item, i) => (
+            <button
+              key={`${item.key}-${i}`}
+              type="button"
               data-slide
-              data-title={r.title}
-              data-badge={r.badge}
-              className="relative w-64 h-full shrink-0 rounded-xl overflow-hidden cursor-pointer"
-              // style={{
-              //   transition:
-              //     "transform 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.4s ease",
-              //   transform: "scale(0.82)",
-              // }}
+              onClick={() =>
+                navigate(`/personalized-astrology-reports/${item.slug}`)
+              }
+              className="group relative w-48 sm:w-52 aspect-210/297 shrink-0 rounded-2xl overflow-hidden cursor-pointer shadow-2xl transition-shadow duration-300 focus:outline-none"
+              style={{
+                border: `1.5px solid ${item.borderTint}`,
+                boxShadow: `0 18px 36px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px ${item.softTint}`,
+                background: item.jewelSurface,
+              }}
+              aria-label={`View ${item.title}`}
             >
               <img
-                src="/Image/card-frame-golden.png"
-                alt=""
-                aria-hidden="true"
-                className="w-full h-full p-1"
+                src={item.coverImage}
+                alt={item.title}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <img
-                src={r.img}
-                alt={r.title}
-                className="absolute inset-0 w-full h-full object-contain p-6"
-              />
-            </div>
+              <div
+                className="absolute inset-x-0 bottom-0 p-2.5 text-left opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(16,13,66,0) 0%, rgba(16,13,66,0.92) 60%)",
+                }}
+              >
+                <span
+                  className="inline-block text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold mb-1"
+                  style={{
+                    backgroundColor: `${item.accent}24`,
+                    color: item.accent,
+                    border: `1px solid ${item.accent}55`,
+                  }}
+                >
+                  {item.badgeLabel}
+                </span>
+                <p className="text-xs font-semibold text-white line-clamp-1">
+                  {item.title}
+                </p>
+              </div>
+            </button>
           ))}
         </div>
       </div>
 
       {/* Breadcrumbs */}
-      <div className="max-w-7xl mx-auto md:px-5">
+      <div className="relative z-10 max-w-7xl mx-auto md:px-5">
         <div className="relative px-3 left-0 right-0 bottom-0 pr-10 bg-white/5 rounded-tr-3xl py-3 backdrop-blur-sm max-w-max">
           <Breadcrumb
             crumbs={[

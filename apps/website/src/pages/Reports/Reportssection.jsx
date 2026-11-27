@@ -1,114 +1,249 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Clock, ArrowRight, Mail } from "lucide-react";
 import ReportsCarousel from "./ReportsCarousel";
 import Seo from "../../components/Seo";
 import useReportStore from "@/store/useReportStore";
 import { useCurrency } from "../../hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
+import {
+  REPORT_CATALOG_CATEGORIES,
+  SHARED_REPORT_ASSETS,
+  getReportMeta,
+  isReportPurchasable,
+} from "../../data/reportCatalogMeta";
 
-const TABS = [
-  { key: "all", label: "All" },
-  { key: "popular", label: "Popular" },
-  { key: "trending", label: "Trending" },
-];
-
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 13;
 
 function ReportCard({ report, index }) {
   const navigate = useNavigate();
   const { convert } = useCurrency();
+  const meta = getReportMeta(report);
+  const purchasable = isReportPurchasable(report);
+
+  const coverSrc = report.coverImage || meta.coverImage;
+  const illustrationSrc = report.illustrationUrl || meta.illustrationUrl;
+  const displayPrice = report.priceBreakdown?.total ?? report.priceWithGst ?? report.salePrice;
 
   const handleViewMore = () => {
     navigate(`/personalized-astrology-reports/${report.slug}`);
   };
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -16 }}
-      transition={{ duration: 0.35, delay: index * 0.06 }}
-      className="relative flex flex-col"
-      style={{ minHeight: "420px" }}
-    >
-      <img
-        src="/Image/card-frame.png"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 p-3 w-full h-full object-fill pointer-events-none z-10"
-        draggable={false}
-      />
 
-      <div className="relative z-0 flex flex-col h-full bg-secondary rounded-2xl p-8 m-1.5">
-        <div className="w-full aspect-4/3 rounded-sm overflow-hidden mb-4 flex items-center justify-center">
-          <img
-            src={report.coverImage}
-            alt={report.name}
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              e.target.style.display = "none";
-              e.target.parentNode.classList.add("placeholder-bg");
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.04 }}
+      className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300"
+      style={{
+        border: `1px solid ${meta.borderTint}`,
+      }}
+    >
+      {/* Top jewel-tone showcase header */}
+      <div
+        className="relative px-5 pt-5 pb-4 overflow-hidden"
+        style={{ background: meta.jewelSurface }}
+      >
+        {/* Subtle SVG spot-art watermark in top-right */}
+        <img
+          src={illustrationSrc}
+          alt=""
+          aria-hidden="true"
+          className="absolute -right-5 -bottom-5 w-36 h-28 object-contain opacity-25 pointer-events-none select-none transition-transform duration-500 group-hover:scale-105"
+        />
+
+        {/* Top status & category row */}
+        <div className="relative z-10 flex items-center justify-between gap-2 mb-4">
+          <span
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium tracking-wide px-2.5 py-1 rounded-full backdrop-blur-sm"
+            style={{
+              backgroundColor: `${meta.accent}22`,
+              color: meta.accent,
+              border: `1px solid ${meta.accent}50`,
             }}
-          />
+          >
+            <img
+              src={SHARED_REPORT_ASSETS.insightStar}
+              alt=""
+              aria-hidden="true"
+              className="w-3 h-3"
+            />
+            {meta.badgeLabel}
+          </span>
+
+          {!purchasable && (
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-400/15 text-amber-200 border border-amber-300/35">
+              <Clock className="w-3 h-3" />
+              Coming Soon
+            </span>
+          )}
         </div>
 
-        <div className=" p-2">
-          <h3 className="text-[22px] max-w-full font-bold mb-1 leading-snug text-primary line-clamp-1">
-            {report.name}
-          </h3>
-
-          <p className="text-[14px] leading-relaxed mb-3 flex-1 line-clamp-2">
-            {report.shortDescription}
-          </p>
-
-          <div className="flex flex-col gap-0.5 mb-3">
-            <div className="flex items-center gap-2">
-              {report.originalPrice && (
-                <span className="text-base line-through font-body text-black/40">
-                  {convert(report.originalPrice)}
-                </span>
-              )}
-              <span className="text-lg font-bold text-primary">
-                {convert(report.salePrice)}
-              </span>
-            </div>
-            <span className="text-black/35 text-[10.5px] font-body">
-              {report.gst?.type === "inclusive"
-                ? "Inclusive of GST"
-                : "Exclusive of GST"}
-            </span>
+        {/* Portrait A4 WebP Preview + SVG Spot Art Emblem */}
+        <div
+          onClick={handleViewMore}
+          className="relative z-10 flex items-end justify-center gap-3 cursor-pointer"
+        >
+          <div
+            className="w-36 sm:w-40 aspect-210/297 rounded-xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:-translate-y-1"
+            style={{
+              border: `1.5px solid ${meta.accent}66`,
+              boxShadow: `0 18px 34px -10px rgba(0,0,0,0.65), 0 0 24px -8px ${meta.accent}55`,
+            }}
+          >
+            <img
+              src={coverSrc}
+              alt={report.name}
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                if (e.currentTarget.src !== meta.coverImage) {
+                  e.currentTarget.src = meta.coverImage;
+                }
+              }}
+            />
           </div>
 
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleViewMore}
-            className="w-full py-2.5 bg-primary hover:bg-gold transition-colors duration-700 rounded-lg text-sm sm:text-sm font-medium text-white tracking-wide cursor-pointer"
+          <div
+            className="hidden sm:flex flex-col items-center justify-center w-16 h-16 rounded-2xl p-2 shrink-0 mb-1 backdrop-blur-md"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.06)",
+              border: `1px solid ${meta.accent}45`,
+            }}
           >
-            View more
-          </motion.button>
+            <img
+              src={illustrationSrc}
+              alt={`${report.name} emblem`}
+              className="w-full h-full object-contain"
+            />
+          </div>
         </div>
       </div>
-    </motion.div>
+
+      {/* Bottom Jewel Accent Bar */}
+      <div
+        className="h-1 w-full"
+        style={{
+          background: `linear-gradient(90deg, ${meta.accent}, #d4af37)`,
+        }}
+      />
+
+      {/* Card Body */}
+      <div className="flex flex-col flex-1 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h3 className="text-[20px] font-bold leading-snug text-primary line-clamp-2">
+            {report.name}
+          </h3>
+        </div>
+
+        <p className="text-[13.5px] leading-relaxed text-[#4b4b63] mb-4 flex-1 line-clamp-3">
+          {report.shortDescription || report.description}
+        </p>
+
+        {/* Languages & Format strip */}
+        {Array.isArray(report.languages) && report.languages.length > 0 && (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className="text-[11px] uppercase tracking-wider text-black/45 font-medium">
+              Editions:
+            </span>
+            {report.languages.map((lang) => (
+              <span
+                key={lang}
+                className="text-[11px] px-2 py-0.5 rounded-md font-medium"
+                style={{
+                  backgroundColor: meta.softTint,
+                  color: "#2b2848",
+                  border: `1px solid ${meta.borderTint}`,
+                }}
+              >
+                {lang === "hi" ? "Hindi" : lang === "en" ? "English" : lang.toUpperCase()}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Pricing / Coming Soon row */}
+        <div className="pt-3 border-t border-secondary/90 flex items-end justify-between gap-3 mb-4">
+          {purchasable ? (
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-2">
+                <span className="text-xl font-bold text-primary font-heading">
+                  {convert(displayPrice)}
+                </span>
+                {report.originalPrice && (
+                  <span className="text-sm line-through font-body text-black/40">
+                    {convert(report.originalPrice)}
+                  </span>
+                )}
+              </div>
+              <span className="text-black/45 text-[11px] font-body">
+                {report.priceBreakdown?.taxAmount > 0
+                  ? `Incl. ${report.priceBreakdown.rate}% GST (${convert(report.priceBreakdown.base)} + ${convert(report.priceBreakdown.taxAmount)})`
+                  : "Inclusive of all taxes"}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                Pricing Pending
+              </span>
+              <span className="text-black/45 text-[11px] font-body">
+                Releasing soon · Preview sections inside
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        {purchasable ? (
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={handleViewMore}
+            className="w-full py-2.5 px-4 bg-primary hover:bg-gold transition-colors duration-300 rounded-xl text-sm font-medium text-white tracking-wide cursor-pointer inline-flex items-center justify-center gap-2"
+          >
+            View &amp; Order
+            <ArrowRight className="w-4 h-4" />
+          </motion.button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleViewMore}
+              className="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium text-primary border border-primary/25 hover:border-primary/60 hover:bg-secondary/40 transition-colors cursor-pointer"
+            >
+              Preview Report
+            </motion.button>
+            <button
+              type="button"
+              onClick={() => navigate("/contact-us/")}
+              className="py-2.5 px-3 rounded-xl text-xs sm:text-sm font-medium text-amber-900 bg-amber-100/80 hover:bg-amber-200/80 border border-amber-300/60 transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+              title="Pricing Pending — Enquire for release updates"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Enquire
+            </button>
+          </div>
+        )}
+      </div>
+    </motion.article>
   );
 }
 
 function SkeletonCard() {
   return (
-    <div
-      className="relative flex flex-col animate-pulse"
-      style={{ minHeight: "420px" }}
-    >
-      <div className="flex flex-col h-full bg-secondary/30 rounded-2xl px-5 pt-5 pb-4 m-1.5 border border-gray-100">
-        <div className="w-full aspect-4/3 bg-gray-200 rounded-sm mb-4" />
-        <div className="h-6 bg-gray-200 rounded mb-2 w-3/4" />
-        <div className="h-4 bg-gray-100 rounded mb-1 w-full" />
-        <div className="h-4 bg-gray-100 rounded mb-4 w-5/6" />
-        <div className="flex gap-2 mb-3">
-          <div className="h-4 bg-gray-200 rounded w-16" />
-          <div className="h-4 bg-gray-200 rounded w-12" />
-        </div>
-        <div className="h-9 bg-gray-200 rounded-lg w-full" />
+    <div className="flex flex-col rounded-2xl overflow-hidden border border-secondary bg-white animate-pulse">
+      <div className="h-64 bg-primary/15 p-5 flex items-center justify-center">
+        <div className="w-36 aspect-210/297 bg-white/30 rounded-xl" />
+      </div>
+      <div className="p-6 space-y-3">
+        <div className="h-6 bg-gray-200 rounded w-3/4" />
+        <div className="h-4 bg-gray-100 rounded w-full" />
+        <div className="h-4 bg-gray-100 rounded w-5/6" />
+        <div className="h-10 bg-gray-200 rounded-xl w-full mt-4" />
       </div>
     </div>
   );
@@ -162,27 +297,24 @@ function Pagination({ current, total, onChange }) {
   );
 }
 
-function TabBtn({ label, active, onClick }) {
+function TabBtn({ label, count, active, onClick }) {
   return (
     <motion.button
-      whileTap={{ scale: 0.95 }}
+      whileTap={{ scale: 0.96 }}
       onClick={onClick}
-      className={`relative font-heading flex items-center gap-6 pl-1 pr-5 py-2 rounded-xl cursor-pointer overflow-visible min-w-32 ${active ? "bg-gold text-white" : "bg-[url('/Image/card-bg.webp')] bg-cover bg-center bg-no-repeat hover:bg-gold text-white"}`}
+      className={`font-heading inline-flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer text-sm sm:text-base font-medium tracking-wide transition-all duration-300 ${
+        active
+          ? "bg-primary text-white shadow-md"
+          : "bg-secondary/70 text-primary hover:bg-secondary border border-primary/10"
+      }`}
     >
-      <span className="relative z-10 -ml-3 shrink-0 w-8 h-8 rounded-full overflow-hidden">
-        <img
-          src="/Image/tab-ellipse.png"
-          alt=""
-          aria-hidden="true"
-          className="w-full h-full object-cover"
-          draggable={false}
-        />
-      </span>
+      <span>{label}</span>
       <span
-        className="relative z-10 text-sm sm:text-base font-medium tracking-wide"
-        // style={{ color: active ? "var(--color-primary)" : "var(--color-gold)" }}
+        className={`text-xs px-2 py-0.5 rounded-full font-body ${
+          active ? "bg-gold text-[#111] font-semibold" : "bg-white text-primary/80"
+        }`}
       >
-        {label}
+        {count}
       </span>
     </motion.button>
   );
@@ -198,8 +330,29 @@ export default function ReportsSection() {
     getReports();
   }, []);
 
-  const totalPages = Math.ceil(reports.length / ITEMS_PER_PAGE);
-  const paginated = reports.slice(
+  const categoryCounts = useMemo(() => {
+    const counts = { all: reports.length, available: 0 };
+    for (const cat of REPORT_CATALOG_CATEGORIES) {
+      if (cat.key !== "all" && cat.key !== "available") counts[cat.key] = 0;
+    }
+    for (const r of reports) {
+      if (isReportPurchasable(r)) counts.available += 1;
+      const meta = getReportMeta(r);
+      if (meta?.category && counts[meta.category] !== undefined) {
+        counts[meta.category] += 1;
+      }
+    }
+    return counts;
+  }, [reports]);
+
+  const filteredReports = useMemo(() => {
+    if (activeTab === "all") return reports;
+    if (activeTab === "available") return reports.filter(isReportPurchasable);
+    return reports.filter((r) => getReportMeta(r)?.category === activeTab);
+  }, [reports, activeTab]);
+
+  const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
+  const paginated = filteredReports.slice(
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE,
   );
@@ -213,33 +366,40 @@ export default function ReportsSection() {
     <>
       <Seo page="reports" />
       <ReportsCarousel />
-      <section className="py-16 px-5 max-w-7xl mx-auto">
+      <section className="py-14 px-5 max-w-7xl mx-auto">
         {/* Heading */}
         <div className="text-center mb-10">
           <p
             className="text-[13px] uppercase tracking-[0.2em] mb-2 text-primary"
             style={{ fontFamily: "var(--font-body)" }}
           >
-            About The Reports
+            Canonical Report Collection
           </p>
-          <h2 className="text-[28px] md:text-[36px] leading-tight text-primary ">
-            Highly Preferred by
-            <span className=" text-gold ml-2">Our Users</span>
+          <h2 className="text-[28px] md:text-[38px] leading-tight text-primary">
+            Personalised Vedic &amp;
+            <span className="text-gold ml-2">Numerology Reports</span>
           </h2>
-          <p className="mt-3 max-w-4xl mx-auto text-base text-primary leading-relaxed">
-            Astro Sushil Sir is known for his profound wisdom, clear guidance,
-            and deeply intuitive understanding of Vedic astrology. With a calm
-            presence and an extraordinary ability to simplify even the most
-            complex cosmic patterns, he helps people find clarity, direction,
-            and confidence in their life journey.
+          <img
+            src={SHARED_REPORT_ASSETS.sectionDivider}
+            alt=""
+            aria-hidden="true"
+            className="w-72 sm:w-96 mx-auto my-3 opacity-80"
+          />
+          <p className="mt-2 max-w-3xl mx-auto text-base text-[#444460] leading-relaxed">
+            Every report is computed deterministically from your exact birth
+            date, time, and coordinates using classical Parashari, Tajika,
+            Ashtakavarga, and Vedic Numerology frameworks—reviewed for clarity
+            and delivered in English or Hindi.
           </p>
         </div>
 
-        <div className="flex items-center gap-5 mb-8 flex-wrap justify-center md:justify-start">
-          {TABS.map((t) => (
+        {/* Category Filter Tabs */}
+        <div className="flex items-center gap-2.5 mb-8 flex-wrap justify-center">
+          {REPORT_CATALOG_CATEGORIES.map((t) => (
             <TabBtn
               key={t.key}
               label={t.label}
+              count={categoryCounts[t.key] ?? 0}
               active={activeTab === t.key}
               onClick={() => handleTabChange(t.key)}
             />
@@ -253,8 +413,8 @@ export default function ReportsSection() {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+            {Array.from({ length: 6 }).map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
@@ -266,15 +426,15 @@ export default function ReportsSection() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7"
             >
               {paginated.length > 0 ? (
                 paginated.map((report, i) => (
                   <ReportCard key={report._id} report={report} index={i} />
                 ))
               ) : (
-                <p className="col-span-3 text-center text-[13px] text-gray-400 py-12">
-                  No reports found.
+                <p className="col-span-full text-center text-[14px] text-gray-400 py-12">
+                  No reports found in this category.
                 </p>
               )}
             </motion.div>

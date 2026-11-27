@@ -1,5 +1,6 @@
 /** Shared LaTeX helpers for Kundli blocks. All dynamic text passes through `tex()`. */
 import { NormalizedChart } from '@astro/astrology-engine';
+import { longTableTex } from '../../../render/blocks';
 import { planetName, PlanetName } from '../../../evidence/evidence-registry';
 import { tex } from '../../../render/latex';
 import { dignityLabel, ReportLanguage } from '../../../i18n/hindi';
@@ -53,12 +54,21 @@ export interface TableOptions {
   tabcolsep?: string;
 }
 
-/** Striped table. Header strings are escaped here; row cells must already be LaTeX-safe. */
+/** Striped table (upgrades to repeating-header `longtable` when >= 9 rows). Header strings are escaped here; row cells must already be LaTeX-safe. */
 export function dataTable(colSpec: string, header: string[], rows: string[][], opts: TableOptions = {}): string {
   const pt = opts.fontPt ?? 8.6;
   const hl = new Set(opts.highlight ?? []);
+  const font = `\\fontsize{${pt}}{${(pt * 1.32).toFixed(1)}}\\selectfont`;
+  if (rows.length >= 9 && (!opts.width || opts.width === '\\linewidth')) {
+    return longTableTex(
+      colSpec,
+      header.map((h) => `\\THd{${tex(h)}}`),
+      rows,
+      { font, tabcolsep: opts.tabcolsep ?? '4pt', highlight: opts.highlight, raw: true }
+    );
+  }
   return [
-    `\\begin{center}{\\fontsize{${pt}}{${(pt * 1.32).toFixed(1)}}\\selectfont\\setlength{\\tabcolsep}{${opts.tabcolsep ?? '4pt'}}`,
+    `\\begin{center}{${font}\\setlength{\\tabcolsep}{${opts.tabcolsep ?? '4pt'}}`,
     `\\begin{tabularx}{${opts.width ?? '\\linewidth'}}{${colSpec}}`,
     `\\TableHead${header.map((h) => `\\THd{${tex(h)}}`).join(' & ')}\\\\`,
     ...rows.map((r, i) => `${hl.has(i) ? '\\rowcolor{Accent!22}' : i % 2 ? '\\rowcolor{Surface}' : ''}${r.join(' & ')}\\\\`),

@@ -38,7 +38,7 @@ export const JUPITER_DEFINITION: ReportDefinitionInput = {
   description: 'This report reads natal Jupiter by house, sign, nakshatra, aspects and lordship, its Ashtakavarga, and Jupiter\'s current and next transits computed from real ingress and station dates, from your Ascendant and from your Moon, with practical, purchase-free practices.',
   referenceFiles: ['docs/referencerepots/Jupiter Transit Report.pdf'],
   requires: { birthTime: true, partner: false, vargas: ['D1'], transitYears: 3 },
-  theme: { primary: '5A3A12', accent: 'C8962E', tint: 'FBF5E8' },
+  theme: { primary: '0D4270', accent: 'CC9629', tint: 'EFF5FB' },
   writingGuidance: [
     'This is a Jupiter report: keep every topic anchored to Jupiter\'s themes (wisdom, growth, teachers, children, fortune, ethics, faith, wealth through right conduct).',
     'Transit periods are supportive windows, never promised events. Name dates only as they appear in the evidence.',

@@ -5,7 +5,7 @@
 % BEFORE this package is loaded.
 % =========================================================================
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{astrosushil-platform}[2026/11/18 v1.0 Astro Sushil platform]
+\ProvidesPackage{astrosushil-platform}[2026/11/26 v2.0 Astro Sushil platform]
 
 \RequirePackage[a4paper,top=22mm,bottom=22mm,left=20mm,right=20mm,headheight=14pt,footskip=11mm]{geometry}
 \RequirePackage{fontspec}
@@ -33,6 +33,9 @@
 \definecolor{CoverGoldTint}{HTML}{FBF7EE}
 \definecolor{Caution}{HTML}{824661}
 \definecolor{CautionTint}{HTML}{F6EDF1}
+\colorlet{PrimaryDeep}{Primary!72!black}
+\colorlet{PrimarySoft}{Primary!7!white}
+\colorlet{CoverJewel}{Primary!38!black}
 
 \RequirePackage{graphicx}
 \RequirePackage{tikz}
@@ -54,10 +57,29 @@
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{4pt plus 1pt minus 1pt}
-\linespread{1.12}
+\linespread{1.13}
 \renewcommand{\arraystretch}{1.25}
 \clubpenalty=10000
 \widowpenalty=10000
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\LTpre}{2.5mm}
+\setlength{\LTpost}{2.5mm}
+
+% ------------------------------------------------------- language hooks --
+\newcommand{\as@empty}{}
+\newcommand{\ReportSpotIllustration}{}
+\newcommand{\SectionWord}{Section}
+\newcommand{\TakeawayWord}{In Essence}
+\newcommand{\InsightWord}{Key Insight}
+\newcommand{\KeyTakeawaysWord}{Key Takeaways}
+
+% ---------------------------------------------------------------- motifs --
+\protected\def\InsightStar{\raisebox{-0.18ex}{\includegraphics[height=3.2mm,keepaspectratio]{assets/illustrations/insight-star.png}}\hspace{1.4mm}}
+\protected\def\TimelinePin{\raisebox{-0.2ex}{\includegraphics[height=3.8mm,keepaspectratio]{assets/illustrations/timeline-marker.png}}}
+\newcommand{\SectionDivider}{%
+  \par\vspace{2mm}\noindent\makebox[\linewidth][c]{\includegraphics[width=118mm,keepaspectratio]{assets/illustrations/section-divider.png}}\par\vspace{2.5mm}%
+}
 
 % ---------------------------------------------------------------- chrome --
 \newcommand{\ReportRunningTitle}{}
@@ -65,57 +87,143 @@
 \fancypagestyle{asreport}{%
   \fancyhf{}%
   \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}%
-  \fancyhead[L]{\sffamily\fontsize{7}{8.5}\selectfont\color{Muted}ASTRO SUSHIL\enspace\textcolor{Rule}{|}\enspace\MakeUppercase{\leftmark}}%
+  \fancyhead[L]{\sffamily\fontsize{7}{8.5}\selectfont\color{Muted}ASTRO SUSHIL\enspace\textcolor{Accent}{|}\enspace\MakeUppercase{\leftmark}}%
   \fancyhead[R]{\sffamily\fontsize{7}{8.5}\selectfont\color{Primary}\bfseries\ReportRunningTitle}%
   \fancyhead[C]{\begin{tikzpicture}[remember picture,overlay]
       \draw[Rule,line width=0.5pt]([xshift=12mm,yshift=-12mm]current page.north west) rectangle ([xshift=-12mm,yshift=12mm]current page.south east);
-      \draw[Accent!50,line width=0.35pt]([xshift=13.5mm,yshift=-13.5mm]current page.north west) rectangle ([xshift=-13.5mm,yshift=13.5mm]current page.south east);
+      \draw[Accent!55,line width=0.35pt]([xshift=13.5mm,yshift=-13.5mm]current page.north west) rectangle ([xshift=-13.5mm,yshift=13.5mm]current page.south east);
       \draw[Rule,line width=0.4pt]([xshift=20mm,yshift=-17mm]current page.north west) -- ([xshift=-20mm,yshift=-17mm]current page.north east);
       \draw[Rule,line width=0.4pt]([xshift=20mm,yshift=17mm]current page.south west) -- ([xshift=-20mm,yshift=17mm]current page.south east);
     \end{tikzpicture}}%
-  \fancyfoot[L]{\sffamily\fontsize{7}{8.5}\selectfont\color{Muted}\PreparedForLine\enspace\textcolor{Rule}{|}\enspace astrosushil.com}%
+  \fancyfoot[L]{\sffamily\fontsize{7}{8.5}\selectfont\color{Muted}\PreparedForLine\enspace\textcolor{Accent}{|}\enspace astrosushil.com}%
   \fancyfoot[R]{\sffamily\fontsize{7.5}{9}\selectfont\bfseries\color{Primary}\thepage\ / \pageref*{LastPage}}%
 }
 \pagestyle{asreport}
 
 % ------------------------------------------------------------- headings --
 \newcounter{asSection}
+\newcommand{\AsSectionNum}{\ifnum\value{asSection}<10 0\fi\arabic{asSection}}
+
 \newcommand{\ReportSection}[3]{% kicker, title, intro
   \clearpage\stepcounter{asSection}%
   \markboth{#2}{#2}%
   \phantomsection\addcontentsline{toc}{section}{#2}%
-  \vspace*{6mm}%
-  {\sffamily\fontsize{8.5}{10}\selectfont\bfseries\color{Accent}\MakeUppercase{#1}}\par\vspace{2mm}%
-  {\displayfont\fontsize{22}{27}\selectfont\color{Primary}#2\par}\vspace{1.5mm}%
-  {\color{Accent}\rule{38mm}{0.9pt}}\par\vspace{2.5mm}%
-  \ifx\relax#3\relax\else{\fontsize{10}{14}\selectfont\itshape\color{Muted}#3\par}\vspace{3mm}\fi
+  \vspace*{2mm}%
+  \begin{tcolorbox}[enhanced,colback=Tint,colframe=Accent!50,boxrule=0.55pt,arc=2mm,left=4.5mm,right=4mm,top=4mm,bottom=4mm,borderline north={2.2pt}{0pt}{Primary}]
+    \noindent
+    \begin{minipage}[c]{0.73\linewidth}
+      {\colorbox{Primary}{\sffamily\fontsize{7}{8.5}\selectfont\bfseries\color{white}\ \AsSectionNum\ }}%
+      \if\relax\detokenize{#1}\relax\else\enspace{\sffamily\fontsize{8}{9.5}\selectfont\bfseries\color{Accent}\MakeUppercase{#1}}\fi\par\vspace{2mm}%
+      {\displayfont\fontsize{20}{25}\selectfont\color{Primary}#2\par}%
+      \if\relax\detokenize{#3}\relax\else\vspace{1.8mm}{\fontsize{9.5}{13.2}\selectfont\itshape\color{Muted}#3\par}\fi
+    \end{minipage}\hfill
+    \begin{minipage}[c]{0.23\linewidth}\raggedleft
+      \ifx\ReportSpotIllustration\as@empty\else
+        \includegraphics[width=31mm,height=22mm,keepaspectratio]{\ReportSpotIllustration}%
+      \fi
+    \end{minipage}%
+  \end{tcolorbox}%
+  \SectionDivider
 }
+
+\newcommand{\ReportSectionJewel}[3]{% kicker, title, intro (alternating jewel banner)
+  \clearpage\stepcounter{asSection}%
+  \markboth{#2}{#2}%
+  \phantomsection\addcontentsline{toc}{section}{#2}%
+  \vspace*{2mm}%
+  \begin{tcolorbox}[enhanced,colback=PrimaryDeep,colframe=Accent!75,boxrule=0.7pt,arc=2mm,left=4.5mm,right=4mm,top=4.2mm,bottom=4.2mm,borderline south={1.8pt}{0pt}{Accent}]
+    \noindent
+    \begin{minipage}[c]{0.73\linewidth}
+      {\colorbox{Accent}{\sffamily\fontsize{7}{8.5}\selectfont\bfseries\color{PrimaryDeep}\ \AsSectionNum\ }}%
+      \if\relax\detokenize{#1}\relax\else\enspace{\sffamily\fontsize{8}{9.5}\selectfont\bfseries\color{CoverBrightGold}\MakeUppercase{#1}}\fi\par\vspace{2mm}%
+      {\displayfont\fontsize{20}{25}\selectfont\color{white}#2\par}%
+      \if\relax\detokenize{#3}\relax\else\vspace{1.8mm}{\fontsize{9.5}{13.2}\selectfont\itshape\color{CoverGoldTint!88}#3\par}\fi
+    \end{minipage}\hfill
+    \begin{minipage}[c]{0.23\linewidth}\raggedleft
+      \ifx\ReportSpotIllustration\as@empty\else
+        \setlength{\fboxsep}{1mm}\fcolorbox{Accent!75}{white}{\includegraphics[width=28mm,height=20mm,keepaspectratio]{\ReportSpotIllustration}}%
+      \fi
+    \end{minipage}%
+  \end{tcolorbox}%
+  \SectionDivider
+}
+
 % Picture cropped to a rounded box: width, height, \includegraphics key that makes it cover the box, file
 \newcommand{\AsImage}[4]{%
   \begin{tikzpicture}
-    \clip[rounded corners=1.6mm] (0,0) rectangle (#1,#2);
+    \clip[rounded corners=1.8mm] (0,0) rectangle (#1,#2);
     \node[inner sep=0pt] at ($(0,0)!0.5!(#1,#2)$) {\includegraphics[#3]{#4}};
-    \draw[Accent!55,line width=0.5pt,rounded corners=1.6mm] (0,0) rectangle (#1,#2);
+    \draw[Accent!65,line width=0.6pt,rounded corners=1.8mm] (0,0) rectangle (#1,#2);
   \end{tikzpicture}%
 }
+
 \newcommand{\ReportTopic}[2]{% title, subtitle
   \needspace{9\baselineskip}%
-  \vspace{4mm plus 2mm}%
+  \vspace{4.5mm plus 2mm}%
   \phantomsection\addcontentsline{toc}{subsection}{#1}%
-  {\displayfont\fontsize{14.5}{18}\selectfont\color{Primary}#1\par}\vspace{0.8mm}%
-  \ifx\relax#2\relax\else{\fontsize{9.5}{12}\selectfont\itshape\color{Muted}#2\par}\vspace{0.6mm}\fi
-  {\color{Rule}\rule{\linewidth}{0.4pt}}\par\vspace{1.8mm}%
+  {\displayfont\fontsize{14.5}{18}\selectfont\color{Primary}\textcolor{Accent}{\fontsize{9}{11}\selectfont$\diamondsuit$}\enspace #1\par}\vspace{0.8mm}%
+  \if\relax\detokenize{#2}\relax\else{\fontsize{9.5}{12}\selectfont\itshape\color{Muted}#2\par}\vspace{0.6mm}\fi
+  {\color{Accent!45}\rule{24mm}{0.8pt}}{\color{Rule}\rule{\dimexpr\linewidth-24mm\relax}{0.4pt}}\par\vspace{1.8mm}%
 }
 \newcommand{\TopicLead}[1]{{\fontsize{11}{15.5}\selectfont\color{Primary}#1\par}\vspace{1.5mm}}
-\newenvironment{gemlist}{\begin{itemize}[leftmargin=6mm,itemsep=2.5pt,parsep=0pt,topsep=3pt,label={\textcolor{Accent}{\small$\diamondsuit$}}]}{\end{itemize}}
+\newenvironment{gemlist}{\begin{itemize}[leftmargin=6mm,itemsep=2.8pt,parsep=0pt,topsep=3pt,label={\textcolor{Accent}{\small$\diamondsuit$}}]}{\end{itemize}}
 
 % --------------------------------------------------------------- boxes --
-\newtcolorbox{asCard}[1][]{enhanced,colback=white,colframe=Rule,boxrule=0.6pt,arc=1.5mm,left=4mm,right=4mm,top=3mm,bottom=3mm,borderline west={2.5pt}{0pt}{Accent},#1}
-\newtcolorbox{asHighlight}[1][]{enhanced,colback=Tint,colframe=Accent!45,boxrule=0.6pt,arc=1.5mm,left=4mm,right=4mm,top=3mm,bottom=3mm,borderline west={2.5pt}{0pt}{Accent},#1}
-\newtcolorbox{asCaution}[1][]{enhanced,colback=CautionTint,colframe=Caution!30,boxrule=0.6pt,arc=1.5mm,left=4mm,right=4mm,top=3mm,bottom=3mm,borderline west={2.5pt}{0pt}{Caution},#1}
+\newtcolorbox{asCard}[1][]{enhanced,breakable,colback=white,colframe=Rule,boxrule=0.6pt,arc=1.8mm,left=4.2mm,right=4.2mm,top=3.2mm,bottom=3.2mm,borderline west={2.5pt}{0pt}{Accent},#1}
+\newtcolorbox{asHighlight}[1][]{enhanced,breakable,colback=Tint,colframe=Accent!50,boxrule=0.6pt,arc=1.8mm,left=4.2mm,right=4.2mm,top=3.2mm,bottom=3.2mm,borderline west={2.8pt}{0pt}{Primary},#1}
+\newtcolorbox{asCaution}[1][]{enhanced,breakable,colback=CautionTint,colframe=Caution!35,boxrule=0.6pt,arc=1.8mm,left=4.2mm,right=4.2mm,top=3.2mm,bottom=3.2mm,borderline west={2.5pt}{0pt}{Caution},#1}
+\newtcolorbox{asCallout}[1][]{enhanced,breakable,colback=PrimarySoft,colframe=Accent!40,boxrule=0.45pt,arc=1.6mm,left=4.5mm,right=4.5mm,top=3mm,bottom=3mm,borderline west={2pt}{0pt}{Accent},#1}
+\newtcolorbox{asQuote}[1][]{enhanced,colback=Tint!65!white,colframe=Accent!35,boxrule=0pt,top=3mm,bottom=3mm,left=5mm,right=5mm,borderline north={0.6pt}{0pt}{Accent!65},borderline south={0.6pt}{0pt}{Accent!65},#1}
+\newtcolorbox{asLeadBar}{enhanced,colback=white,colframe=white,boxrule=0pt,arc=0pt,left=3.5mm,right=0pt,top=0.5mm,bottom=0.5mm,borderline west={1.8pt}{0pt}{Accent!75}}
+
 \newcommand{\CardTitle}[1]{{\sffamily\fontsize{8.5}{10.5}\selectfont\bfseries\color{Primary}\MakeUppercase{#1}}\par\vspace{1.2mm}}
-\newcommand{\Takeaway}[1]{\begin{asHighlight}\CardTitle{In Essence}{\fontsize{9.8}{13.5}\selectfont #1\par}\end{asHighlight}}
+\newcommand{\CardTitleStar}[1]{{\sffamily\fontsize{8.5}{10.5}\selectfont\bfseries\color{Primary}\InsightStar\MakeUppercase{#1}}\par\vspace{1.2mm}}
+\newcommand{\Takeaway}[1]{\begin{asHighlight}\CardTitleStar{\TakeawayWord}{\fontsize{9.8}{13.6}\selectfont #1\par}\end{asHighlight}}
 \newcommand{\SourceNote}[1]{{\sffamily\fontsize{6.8}{8.5}\selectfont\color{Muted}#1\par}}
+
+% ---------------------------------------------------------- stat strips --
+\newcommand{\asStatCell}[2]{% label, value
+  {\sffamily\fontsize{6.8}{8.5}\selectfont\bfseries\color{Muted}\MakeUppercase{#1}}\par\vspace{0.8mm}%
+  {\sffamily\fontsize{9.5}{12}\selectfont\bfseries\color{Primary}#2}%
+}
+\newcommand{\asStatStripThree}[6]{%
+  \needspace{4\baselineskip}%
+  \begin{tcolorbox}[enhanced,colback=PrimarySoft,colframe=Accent!45,boxrule=0.5pt,arc=1.5mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm]
+    \begin{tabularx}{\linewidth}{@{}X|X|X@{}}
+      \asStatCell{#1}{#2} & \asStatCell{#3}{#4} & \asStatCell{#5}{#6}
+    \end{tabularx}
+  \end{tcolorbox}\vspace{1.5mm}%
+}
+\newcommand{\asStatStripFour}[8]{%
+  \needspace{4\baselineskip}%
+  \begin{tcolorbox}[enhanced,colback=PrimarySoft,colframe=Accent!45,boxrule=0.5pt,arc=1.5mm,left=3mm,right=3mm,top=2.5mm,bottom=2.5mm]
+    \begin{tabularx}{\linewidth}{@{}X|X|X|X@{}}
+      \asStatCell{#1}{#2} & \asStatCell{#3}{#4} & \asStatCell{#5}{#6} & \asStatCell{#7}{#8}
+    \end{tabularx}
+  \end{tcolorbox}\vspace{1.5mm}%
+}
+
+% ------------------------------------------------------------ timelines --
+\newcommand{\asTimelineItem}[3]{% date, title, detail
+  \needspace{3.5\baselineskip}%
+  \noindent\begin{minipage}[t]{7.5mm}\vspace{0.5pt}\centering\TimelinePin\end{minipage}\hfill
+  \begin{minipage}[t]{\dimexpr\linewidth-9.5mm\relax}\vspace{0pt}%
+    {\colorbox{Tint}{\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{Primary}\ #1\ }}\enspace{\fontsize{9.5}{12.5}\selectfont\textbf{\color{Ink}#2}}%
+    \if\relax\detokenize{#3}\relax\else\par\vspace{0.5mm}{\fontsize{8.7}{12}\selectfont\color{Muted}#3}\fi
+    \par\vspace{1.8mm}%
+  \end{minipage}\par
+}
+\newcommand{\asTimelineItemActive}[3]{% date, title, detail
+  \needspace{4\baselineskip}%
+  \begin{tcolorbox}[enhanced,colback=Tint!75!white,colframe=Accent!60,boxrule=0.5pt,arc=1.4mm,left=2.5mm,right=3mm,top=2mm,bottom=2mm,borderline west={2.5pt}{0pt}{Primary}]
+    \noindent\begin{minipage}[t]{7mm}\vspace{0.5pt}\centering\TimelinePin\end{minipage}\hfill
+    \begin{minipage}[t]{\dimexpr\linewidth-9mm\relax}\vspace{0pt}%
+      {\colorbox{Primary}{\sffamily\fontsize{7.5}{9.5}\selectfont\bfseries\color{white}\ #1\ }}\enspace{\fontsize{9.5}{12.5}\selectfont\textbf{\color{Primary}#2}}%
+      \if\relax\detokenize{#3}\relax\else\par\vspace{0.5mm}{\fontsize{8.7}{12}\selectfont\color{Ink}#3}\fi
+      \par
+    \end{minipage}%
+  \end{tcolorbox}\vspace{0.6mm}%
+}
 
 % --------------------------------------------------------------- tables --
 \newcommand{\TableHead}{\rowcolor{Primary}}

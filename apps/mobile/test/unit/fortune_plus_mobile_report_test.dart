@@ -17,7 +17,7 @@ void main() {
         profileName: 'Puneet Kumar',
       );
 
-      expect(item.displayTitle, 'Personalised Fortune Report Plus (Comprehensive Edition)');
+      expect(item.displayTitle, 'Personalised Fortune Report Plus');
       expect(item.displayTagline, '25-CHAPTER VEDIC NUMEROLOGY & ASTROLOGICAL DOSSIER');
       expect(item.icon, Icons.diamond_rounded);
       expect(item.isCompleted, isTrue);
@@ -36,7 +36,7 @@ void main() {
         profileName: 'Puneet Kumar',
       );
 
-      expect(item.displayTitle, 'Personalised Fortune Report Plus');
+      expect(item.displayTitle, 'Fortune Report');
       expect(item.displayTagline, 'CHALDEAN NUMEROLOGY, LO-SHU GRID & 17-PART VEDIC BLUEPRINT');
       expect(item.icon, Icons.diamond_outlined);
     });

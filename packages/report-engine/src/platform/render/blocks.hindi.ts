@@ -132,6 +132,7 @@ registerHindiLabels({
   Period: 'अवधि',
   'Jupiter in': 'गुरु की राशि',
   "Jupiter's influence": 'गुरु का प्रभाव',
+  'Timeline of supportive windows': 'सहायक अवधियों की समय-रेखा',
   'No Jupiter contact with these points falls within the calculated horizon.': 'गणना की गई अवधि में गुरु का इन बिंदुओं से कोई संपर्क नहीं बनता।',
   'Jupiter sign periods computed by the transit ingress solver from your report date; (R) marks a retrograde re-entry.':
     'गुरु की राशि-अवधियाँ आपकी रिपोर्ट की तिथि से राशि-प्रवेश की गणना द्वारा निकाली गई हैं; (व) का अर्थ है वक्री होकर पिछली राशि में दोबारा प्रवेश।',
