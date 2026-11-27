@@ -100,9 +100,14 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
 
   _GatewayPayment? _payment;
 
+  /// WhatsApp message consultation: no date or time step; answered in writing.
+  bool get _isMessage => isMessageConsultationMode(widget.offering.mode);
+  int get _firstStep => _isMessage ? 1 : 0;
+
   @override
   void initState() {
     super.initState();
+    if (_isMessage) _step = 1;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(consultationNotifierProvider.notifier).selectOffering(widget.offering);
@@ -270,7 +275,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
 
   void _goToStep(int step) {
     setState(() {
-      _step = step.clamp(0, _stepCount - 1);
+      _step = step.clamp(_firstStep, _stepCount - 1);
     });
   }
 
@@ -423,7 +428,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
   Widget _buildStepProgress() {
     return Semantics(
       liveRegion: true,
-      child: AstroStepIndicator(current: _step + 1, total: _stepCount),
+      child: AstroStepIndicator(current: _step + 1 - _firstStep, total: _stepCount - _firstStep),
     );
   }
 
@@ -561,13 +566,15 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _SummaryRow(
-                icon: Icons.calendar_month_outlined,
-                text: slot != null ? '$dateText\n${slot.startTime} - ${slot.endTime} IST' : dateText,
-                onEdit: locked ? _chooseAnotherTime : () => _goToStep(0),
-                editTooltip: l10n.consultSelectDate,
-              ),
-              const Divider(height: 8, color: AppColors.separator),
+              if (!_isMessage) ...[
+                _SummaryRow(
+                  icon: Icons.calendar_month_outlined,
+                  text: slot != null ? '$dateText\n${slot.startTime} - ${slot.endTime} IST' : dateText,
+                  onEdit: locked ? _chooseAnotherTime : () => _goToStep(0),
+                  editTooltip: l10n.consultSelectDate,
+                ),
+                const Divider(height: 8, color: AppColors.separator),
+              ],
               _SummaryRow(
                 icon: Icons.person_outline_rounded,
                 text: profileName,
@@ -629,9 +636,9 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
 
   Widget _buildFooter(AppLocalizations l10n, ConsultationState state) {
     final isLastStep = _step == _stepCount - 1;
-    final canContinue = _step != 0 || state.selectedSlot != null;
+    final canContinue = _step != 0 || state.selectedSlot != null || _isMessage;
     final busy = state.isBookingLoading || _awaitingGateway;
-    final canPay = state.selectedSlot != null && !busy;
+    final canPay = (state.selectedSlot != null || _isMessage) && !busy;
     final failure = isLastStep ? state.bookingFailure : null;
     final mustRechoose = failure != null && failure.needsNewSlot;
     final locked = state.reservation != null;
@@ -696,7 +703,7 @@ class _BookingFlowSheetState extends ConsumerState<BookingFlowSheet> {
             children: [
               // With a slot held, the details are fixed: the only way back is
               // "Change" on the date and time, which starts over.
-              if (_step > 0 && !(isLastStep && (locked || mustRechoose))) ...[
+              if (_step > _firstStep && !(isLastStep && (locked || mustRechoose))) ...[
                 AstroSecondaryButton(
                   key: const ValueKey('booking_back'),
                   label: _backLabel,

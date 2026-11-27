@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ForbiddenError } from '../../errors/app-error';
 import { consultationsService } from './consultations.service';
 import {
   getSlotsQuerySchema,
@@ -226,14 +227,17 @@ export async function consultationsRoutes(fastify: FastifyInstance) {
 
     /**
      * POST /api/v1/consultations/bookings/:id/reschedule
-     * Reschedule confirmed booking
+     * Reschedule confirmed booking (admin only; clients cannot reschedule)
      */
     authenticated.post('/bookings/:id/reschedule', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       const user = request.user;
       const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+      if (!isAdmin) {
+        throw new ForbiddenError('Consultations can only be rescheduled by an administrator.');
+      }
       const body = rescheduleBookingSchema.parse(request.body);
 
-      const updated = await consultationsService.rescheduleBooking(user.id, request.params.id, body, isAdmin);
+      const updated = await consultationsService.rescheduleBooking(user.id, request.params.id, body, true);
 
       return reply.status(200).send({
         statusCode: 200,

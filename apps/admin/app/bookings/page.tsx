@@ -251,8 +251,8 @@ function BookingsScreen() {
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{MODE_LABELS[b.mode] ?? b.mode}</div>
                     </td>
                     <td style={{ fontSize: '0.82rem' }}>
-                      {formatDay(b.date)}
-                      <div style={{ color: 'var(--text-secondary)' }}>{b.slot}</div>
+                      {b.date ? formatDay(b.date) : 'WhatsApp message'}
+                      <div style={{ color: 'var(--text-secondary)' }}>{b.slot ?? (b.respondedAt ? 'Answered' : 'Awaiting answer')}</div>
                     </td>
                     <td style={{ fontSize: '0.85rem' }}>{b.durationMinutes} min</td>
                     <td style={{ fontWeight: 600, fontSize: '0.85rem' }}>{amountText(b)}</td>

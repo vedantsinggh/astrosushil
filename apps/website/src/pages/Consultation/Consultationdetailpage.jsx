@@ -110,14 +110,16 @@ export default function ConsultationDetailPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <span className="flex items-center gap-1 text-black/80 text-xs font-body">
-                    <Clock size={12} /> {consultation.duration} Min
-                  </span>
+                  {activeMode?.mode !== "message" && (
+                    <span className="flex items-center gap-1 text-black/80 text-xs font-body">
+                      <Clock size={12} /> {consultation.duration} Min
+                    </span>
+                  )}
                   {consultation.responseDays > 0 && (
                     <>
                       <span className="text-black/30 text-xs">·</span>
                       <span className="text-black/80 text-xs font-body">
-                        Appointment within {consultation.responseDays} days
+                        {activeMode?.mode === "message" ? "Response" : "Appointment"} within {consultation.responseDays} days
                       </span>
                     </>
                   )}
@@ -169,7 +171,7 @@ export default function ConsultationDetailPage() {
               <div className="bg-white rounded-2xl border border-black/8 shadow-md overflow-hidden">
                 <div className="bg-primary px-5 py-4">
                   <p className="text-white/80 font-body text-xs mb-1">
-                    {consultation.duration} Min
+                    {activeMode?.mode !== "message" && `${consultation.duration} Min`}
                     {activeMode &&
                       ` · ${MODE_LABELS[activeMode.mode] ?? activeMode.mode}`}
                   </p>
@@ -252,7 +254,7 @@ export default function ConsultationDetailPage() {
                     {[
                       {
                         icon: <Clock size={12} />,
-                        label: `${consultation.duration} min session`,
+                        label: activeMode?.mode === "message" ? `Response within ${consultation.responseDays || 0} days` : `${consultation.duration} min session`,
                       },
                       {
                         icon: <HelpCircle size={12} />,
@@ -280,9 +282,9 @@ export default function ConsultationDetailPage() {
                     <Calendar size={16} /> Book Now
                   </motion.button>
 
-                  <p className="text-center text-[11px] font-body text-black/30 flex items-center justify-center gap-1">
-                    <Shield size={11} className="text-green-500" />
-                    Full refund if cancelled 24hrs before
+                  <p className="text-center text-[11px] font-body text-black/45 flex items-center justify-center gap-1">
+                    <Shield size={11} className="text-primary/70" />
+                    All bookings are final &amp; non-refundable
                   </p>
                 </div>
               </div>

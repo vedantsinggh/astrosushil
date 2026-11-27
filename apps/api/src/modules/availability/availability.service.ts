@@ -125,7 +125,9 @@ function toView(s: AvailabilitySettings): AvailabilityView {
   };
 }
 
-function safeRange(startTime: string, endTime: string): MinuteRange | null {
+function safeRange(startTime: string | null, endTime: string | null): MinuteRange | null {
+  // A MESSAGE consultation has no time and occupies nothing.
+  if (!startTime || !endTime) return null;
   try {
     const startMinute = parseTimeOfDay(startTime);
     const endMinute = parseTimeOfDay(endTime);

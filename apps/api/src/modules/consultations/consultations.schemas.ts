@@ -8,20 +8,24 @@ export const getSlotsQuerySchema = z.object({
 
 export const bookConsultationSchema = z.object({
   consultationId: z.string().min(1, 'consultationId is required'),
-  mode: z.enum(['AUDIO', 'VIDEO', 'IN_PERSON', 'audio', 'video', 'in_person']).transform((val) => {
+  mode: z.enum(['AUDIO', 'VIDEO', 'IN_PERSON', 'MESSAGE', 'audio', 'video', 'in_person', 'message']).transform((val) => {
     const upper = val.toUpperCase();
     if (upper === 'AUDIO') return 'AUDIO' as const;
     if (upper === 'VIDEO') return 'VIDEO' as const;
+    if (upper === 'MESSAGE') return 'MESSAGE' as const;
     return 'IN_PERSON' as const;
   }),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format'),
-  slot: z.union([
-    z.string().min(3),
-    z.object({
-      startTime: z.string().min(3),
-      endTime: z.string().min(3),
-    }),
-  ]),
+  // A MESSAGE consultation (website "WhatsApp Message") has no date and no slot.
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format').optional(),
+  slot: z
+    .union([
+      z.string().min(3),
+      z.object({
+        startTime: z.string().min(3),
+        endTime: z.string().min(3),
+      }),
+    ])
+    .optional(),
   birthProfileId: z.string().uuid().optional(),
   name: z.string().min(1).max(100).optional(),
   phone: z.string().min(6).max(20).optional(),
@@ -32,6 +36,10 @@ export const bookConsultationSchema = z.object({
   timezone: z.string().optional().default('Asia/Kolkata'),
   currency: z.string().regex(/^[A-Za-z]{3}$/).transform((value) => value.toUpperCase()).optional(),
   couponCode: z.string().trim().min(3).max(20).optional(),
+}).superRefine((data, ctx) => {
+  if (data.mode !== 'MESSAGE' && (!data.date || !data.slot)) {
+    ctx.addIssue({ code: 'custom', path: ['date'], message: 'Date and slot are required for scheduled consultations' });
+  }
 });
 
 export const verifyConsultationPaymentSchema = z.object({

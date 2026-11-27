@@ -164,18 +164,18 @@ class MockConsultationService implements ConsultationService {
   Future<ConsultationReservation> bookAppointment({
     required String consultationId,
     required String mode,
-    required String date,
-    required String startTime,
-    required String endTime,
+    String? date,
+    String? startTime,
+    String? endTime,
     String? birthProfileId,
     String? notes,
   }) async =>
       fakeConsultationReservation(
         consultationId: consultationId,
         mode: mode,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
+        date: date ?? '',
+        startTime: startTime ?? '',
+        endTime: endTime ?? '',
         catalog: await fetchCatalog(),
       );
 
@@ -566,7 +566,7 @@ void main() {
       expect(find.text('Career promotion timing in 2026'), findsOneWidget);
       expect(find.byKey(const ValueKey('consult_join_bk-123')), findsOneWidget);
       expect(find.text('Join Live Session'), findsOneWidget);
-      expect(find.byKey(const ValueKey('consult_reschedule_bk-123')), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_reschedule_bk-123')), findsNothing);
       expect(find.byKey(const ValueKey('consult_cancel_bk-123')), findsOneWidget);
 
       // Pending-payment booking: no Join / Reschedule, but can be cancelled.

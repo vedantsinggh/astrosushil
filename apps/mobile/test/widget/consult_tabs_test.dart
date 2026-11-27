@@ -366,7 +366,7 @@ void main() {
     // My bookings (default: there is an upcoming booking).
     expect(_selected(tester), ConsultTab.bookings);
     await _checkAll(tester, [
-      for (final k in ['consult_join_up', 'consult_reschedule_up', 'consult_cancel_up', 'consult_cancel_pay'])
+      for (final k in ['consult_join_up', 'consult_cancel_up', 'consult_cancel_pay'])
         find.byKey(ValueKey(k)),
       for (final k in help) find.byKey(ValueKey(k)),
     ]);

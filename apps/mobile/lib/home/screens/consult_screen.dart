@@ -16,7 +16,6 @@ import '../../features/consultations/providers/consultation_provider.dart';
 import '../../features/consultations/widgets/booking_detail_sheet.dart';
 import '../../features/consultations/widgets/booking_flow_sheet.dart';
 import '../../features/consultations/widgets/consultation_slot_picker.dart';
-import '../../features/consultations/widgets/reschedule_sheet.dart';
 import '../../features/sushil_explainer/models/explanation_context.dart';
 import '../../features/sushil_explainer/widgets/sushil_explainer_sheet.dart';
 import '../../shared/assets/app_assets.dart';
@@ -334,17 +333,6 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
         ),
       ],
     );
-  }
-
-  /// Opens the in-app reschedule sheet (the server moves the booking to any
-  /// open slot that respects the calendar rules).
-  Future<void> _showReschedule(ConsultationBookingModel booking) async {
-    final movedTo = await RescheduleSheet.show(context, booking);
-    if (!mounted) return;
-    ref.read(consultationNotifierProvider.notifier).clearActionFailure();
-    if (movedTo != null) {
-      _showSnack(context.l10n.consultBkRescheduleDone(movedTo));
-    }
   }
 
   void _showDetails(ConsultationBookingModel booking) {
@@ -718,12 +706,17 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
     final mode = _modeKey(b.consultationMode);
     final hasLink = b.meetingLink != null && b.meetingLink!.trim().isNotEmpty;
     final canJoin = (b.isConfirmed || b.isRescheduled) && hasLink;
-    final canChange = b.isConfirmed || b.isRescheduled;
     final canCancel = b.isConfirmed || b.isPendingPayment || b.isRescheduled;
 
     String? hint;
-    if (showActions) {
-      if ((b.isConfirmed || b.isRescheduled) && !hasLink && mode != 'IN_PERSON') {
+    // A message consultation's answer is shown on past (answered) bookings too.
+    if (showActions || mode == 'CHAT') {
+      if (mode == 'CHAT') {
+        // WhatsApp message consultation: no session to join; the answer appears here.
+        hint = b.responseText != null && b.responseText!.trim().isNotEmpty
+            ? _t('Answer from Astro Sushil:\n${b.responseText!.trim()}', 'एस्ट्रो सुशील का उत्तर:\n${b.responseText!.trim()}')
+            : _t('Send your question on WhatsApp. The written answer will appear here.', 'अपना प्रश्न व्हाट्सऐप पर भेजें। लिखित उत्तर यहाँ दिखेगा।');
+      } else if ((b.isConfirmed || b.isRescheduled) && !hasLink && mode != 'IN_PERSON') {
         hint = _t('The Join button appears here before your session.', 'सत्र से पहले यहाँ जुड़ने का बटन दिखेगा।');
       } else if (b.isPendingPayment) {
         final heldUntil = b.reservationExpiresAt;
@@ -763,27 +756,18 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
                   icon: mode == 'AUDIO' ? Icons.call_rounded : Icons.videocam_rounded,
                   onPressed: () => _joinSession(b.meetingLink!.trim()),
                 ),
-              if (canChange || canCancel)
+              if (canCancel)
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    if (canChange)
-                      _SmallOutlineButton(
-                        key: ValueKey('consult_reschedule_${b.id}'),
-                        label: l10n.consultReschedule,
-                        icon: Icons.edit_calendar_outlined,
-                        color: AppColors.primary,
-                        onPressed: () => _showReschedule(b),
-                      ),
-                    if (canCancel)
-                      _SmallOutlineButton(
-                        key: ValueKey('consult_cancel_${b.id}'),
-                        label: l10n.consultCancel,
-                        icon: Icons.close_rounded,
-                        color: _kRedText,
-                        onPressed: () => _confirmCancel(b),
-                      ),
+                    _SmallOutlineButton(
+                      key: ValueKey('consult_cancel_${b.id}'),
+                      label: l10n.consultCancel,
+                      icon: Icons.close_rounded,
+                      color: _kRedText,
+                      onPressed: () => _confirmCancel(b),
+                    ),
                   ],
                 ),
             ],
@@ -866,7 +850,7 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
     final m = mode.toUpperCase();
     if (m.contains('PERSON')) return 'IN_PERSON';
     if (m.contains('AUDIO') || m.contains('VOICE') || m.contains('PHONE')) return 'AUDIO';
-    if (m.contains('CHAT')) return 'CHAT';
+    if (m.contains('CHAT') || m.contains('MESSAGE')) return 'CHAT';
     return 'VIDEO';
   }
 
@@ -877,7 +861,7 @@ class _ConsultScreenState extends ConsumerState<ConsultScreen> {
       case 'IN_PERSON':
         return _t('In person', 'आमने-सामने');
       case 'CHAT':
-        return _t('Chat', 'चैट');
+        return _t('WhatsApp message', 'व्हाट्सऐप संदेश');
       default:
         return _t('Video call', 'वीडियो कॉल');
     }

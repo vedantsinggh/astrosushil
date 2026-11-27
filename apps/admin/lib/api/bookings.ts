@@ -7,11 +7,12 @@
  */
 import { callData, downloadCsv, jsonBody, qs, QueryValue } from './sales';
 
-export type ConsultationMode = 'AUDIO' | 'VIDEO' | 'IN_PERSON';
+/** MESSAGE: website "WhatsApp Message" consultation, answered in writing, no date or slot. */
+export type ConsultationMode = 'AUDIO' | 'VIDEO' | 'IN_PERSON' | 'MESSAGE';
 export type GstType = 'INCLUSIVE' | 'EXCLUSIVE';
 
-export const CONSULTATION_MODES: ConsultationMode[] = ['AUDIO', 'VIDEO', 'IN_PERSON'];
-export const MODE_LABELS: Record<ConsultationMode, string> = { AUDIO: 'Audio', VIDEO: 'Video', IN_PERSON: 'In person' };
+export const CONSULTATION_MODES: ConsultationMode[] = ['AUDIO', 'VIDEO', 'IN_PERSON', 'MESSAGE'];
+export const MODE_LABELS: Record<ConsultationMode, string> = { AUDIO: 'Audio', VIDEO: 'Video', IN_PERSON: 'In person', MESSAGE: 'WhatsApp message' };
 
 // ---------------------------------------------------------------------------
 // Consultation types
@@ -65,7 +66,8 @@ export interface ConsultationTypeInput {
   description?: string | null;
   responseDays?: number;
   includes?: string[];
-  durationMinutes: number;
+  /** Optional when the only mode is MESSAGE. */
+  durationMinutes?: number;
   priceLabel?: string | null;
   note?: string | null;
   isActive?: boolean;
@@ -226,11 +228,15 @@ export interface Booking {
   title: string;
   mode: ConsultationMode;
   durationMinutes: number;
-  date: string;
-  startTime: string;
-  endTime: string;
-  slot: string;
+  /** Null for a MESSAGE consultation (no appointment). */
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  slot: string | null;
   timing: 'upcoming' | 'past';
+  responseText?: string | null;
+  respondedAt?: string | null;
+  respondedBy?: string | null;
   timezone: string;
   status: BookingStatus;
   source: 'USER' | 'ADMIN';
@@ -353,9 +359,10 @@ export interface ManualBookingInput {
   /** A consultation type id or a mode's catalog id. */
   consultationId: string;
   mode?: ConsultationMode;
-  date: string;
+  /** Not sent for a MESSAGE consultation. */
+  date?: string;
   /** "HH:mm-HH:mm". */
-  slot: string;
+  slot?: string;
   userId?: string;
   name?: string;
   phone?: string;
@@ -383,6 +390,11 @@ export function changeBookingPlan(
 
 export function addBookingNote(id: string, note: string): Promise<Booking> {
   return callData<Booking>(`/admin/bookings/${encodeURIComponent(id)}/notes`, jsonBody('POST', { note }));
+}
+
+/** Answer a paid MESSAGE consultation once; the customer sees it and the booking is completed. */
+export function respondToMessageBooking(id: string, response: string): Promise<Booking> {
+  return callData<Booking>(`/admin/bookings/${encodeURIComponent(id)}/message-response`, jsonBody('PATCH', { response }));
 }
 
 export function deleteBooking(id: string): Promise<Booking> {

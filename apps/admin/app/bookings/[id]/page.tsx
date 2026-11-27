@@ -18,6 +18,7 @@ import {
   listConsultationOptions,
   MODE_LABELS,
   rescheduleBooking,
+  respondToMessageBooking,
 } from '../../../lib/api/bookings';
 import { errorMessage } from '../../../lib/api/sales';
 import { basisPointsToPercent, formatDateTime, formatDay, formatMinor, formatPaise, titleCase, todayIst } from '../../../components/sales/format';
@@ -86,8 +87,67 @@ function HistoryEntry({ entry }: { entry: BookingAdminNote }) {
   );
 }
 
+/**
+ * MESSAGE consultation: staff write the one answer the customer sees (website
+ * `PATCH /booking/bookings/:id/message-response`). Once sent it cannot be changed.
+ */
+function MessageResponsePanel({ booking, canUpdate, onDone }: { booking: Booking; canUpdate: boolean; onDone: (message: string) => void }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const answerable = ['CONFIRMED', 'RESCHEDULED'].includes(booking.status) && !booking.responseText;
+
+  const send = async () => {
+    if (!text.trim()) return setError('Write the answer first.');
+    if (!window.confirm('Send this answer? The customer sees it at once and it cannot be changed afterwards.')) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await respondToMessageBooking(booking.id, text.trim());
+      onDone('Answer sent. The consultation is now completed.');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <SectionTitle>Answer to the customer</SectionTitle>
+      {booking.responseText ? (
+        <>
+          <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem' }}>{booking.responseText}</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+            Sent {formatDateTime(booking.respondedAt)}
+            {booking.respondedBy ? ` by ${booking.respondedBy}` : ''}
+          </p>
+        </>
+      ) : answerable && canUpdate ? (
+        <>
+          <ErrorBanner message={error} />
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+            The customer sends their question on WhatsApp. Write the answer and remedies here; it is shown in the customer&rsquo;s bookings on the website and in the app.
+          </p>
+          <textarea className="input-control" rows={8} maxLength={5000} value={text} onChange={(e) => setText(e.target.value)} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{text.length} / 5000</span>
+            <button type="button" className="btn btn-primary" onClick={send} disabled={busy}>
+              {busy ? 'Sending…' : 'Send answer'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          {answerable ? 'You do not have permission to answer.' : 'This consultation can be answered once it is paid.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RescheduleModal({ booking, onClose, onDone }: { booking: Booking; onClose: () => void; onDone: (message: string) => void }) {
-  const [date, setDate] = useState(booking.date);
+  const [date, setDate] = useState(booking.date ?? '');
   const [slot, setSlot] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -145,7 +205,7 @@ function RescheduleModal({ booking, onClose, onDone }: { booking: Booking; onClo
           />
         </Field>
         <Field label="New slot *">
-          <SlotPicker date={date} consultationId={booking.consultationTypeId || booking.consultationId} value={slot} onChange={setSlot} currentSlot={date === booking.date ? booking.slot : undefined} />
+          <SlotPicker date={date} consultationId={booking.consultationTypeId || booking.consultationId} value={slot} onChange={setSlot} currentSlot={date === booking.date ? booking.slot ?? undefined : undefined} />
         </Field>
         <Field label="Reason (staff only, optional)" hint="Kept in the booking history. Never shown to the customer.">
           <textarea className="input-control" rows={2} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -454,8 +514,10 @@ function BookingDetailScreen() {
   }
 
   const isDeleted = Boolean(booking.deletedAt);
-  const canReschedule = canUpdate && !isDeleted && RESCHEDULABLE.includes(booking.status);
-  const canChangePlan = canUpdate && !isDeleted && PLAN_CHANGEABLE.includes(booking.status);
+  // A message consultation has no appointment: no reschedule, no plan change; staff answer it.
+  const isMessage = booking.mode === 'MESSAGE';
+  const canReschedule = canUpdate && !isDeleted && !isMessage && RESCHEDULABLE.includes(booking.status);
+  const canChangePlan = canUpdate && !isDeleted && !isMessage && PLAN_CHANGEABLE.includes(booking.status);
   const isPaidStatus = ['CONFIRMED', 'RESCHEDULED', 'COMPLETED', 'NO_SHOW'].includes(booking.status);
   const customerName = booking.customer?.fullName || booking.customerName;
 
@@ -466,7 +528,7 @@ function BookingDetailScreen() {
         title={`${booking.consultation.title} · ${customerName}`}
         subtitle={
           <>
-            {formatDay(booking.date)}, {booking.slot} IST · <StatusPill status={booking.status} />{' '}
+            {isMessage ? 'WhatsApp message consultation' : `${formatDay(booking.date)}, ${booking.slot} IST`} · <StatusPill status={booking.status} />{' '}
             <span className={`badge ${booking.timing === 'upcoming' ? 'badge-info' : 'badge-warning'}`}>{booking.timing === 'upcoming' ? 'Upcoming' : 'Past'}</span>
             {isDeleted && <span className="badge badge-danger" style={{ marginLeft: '0.35rem' }}>Deleted</span>}
           </>
@@ -511,7 +573,10 @@ function BookingDetailScreen() {
           cannot be changed.
         </InfoBox>
       )}
-      {canUpdate && !isDeleted && !RESCHEDULABLE.includes(booking.status) && (
+      {isMessage && !isDeleted && (
+        <MessageResponsePanel booking={booking} canUpdate={canUpdate} onDone={(message) => { setNotice(message); load(); }} />
+      )}
+      {canUpdate && !isDeleted && !isMessage && !RESCHEDULABLE.includes(booking.status) && (
         <InfoBox>
           Only a confirmed booking can be rescheduled or moved to another plan; this one is {titleCase(booking.status).toLowerCase()}.
         </InfoBox>
@@ -541,9 +606,15 @@ function BookingDetailScreen() {
           <SectionTitle>Service</SectionTitle>
           <KeyValue label="Consultation">{booking.consultation.title}</KeyValue>
           <KeyValue label="Mode">{MODE_LABELS[booking.mode] ?? booking.mode}</KeyValue>
-          <KeyValue label="Duration">{booking.durationMinutes} min session</KeyValue>
-          <KeyValue label="Date">{formatDay(booking.date)}</KeyValue>
-          <KeyValue label="Slot (IST)">{booking.slot}</KeyValue>
+          {isMessage ? (
+            <KeyValue label="Answer">{booking.respondedAt ? `Sent ${formatDateTime(booking.respondedAt)}` : 'Not answered yet'}</KeyValue>
+          ) : (
+            <>
+              <KeyValue label="Duration">{booking.durationMinutes} min session</KeyValue>
+              <KeyValue label="Date">{formatDay(booking.date)}</KeyValue>
+              <KeyValue label="Slot (IST)">{booking.slot}</KeyValue>
+            </>
+          )}
           {booking.priceLabel && <KeyValue label="Price label">{booking.priceLabel}</KeyValue>}
           {booking.meetingLink && <KeyValue label="Meeting link">{booking.meetingLink}</KeyValue>}
           {booking.locationAddress && <KeyValue label="Address">{booking.locationAddress}</KeyValue>}

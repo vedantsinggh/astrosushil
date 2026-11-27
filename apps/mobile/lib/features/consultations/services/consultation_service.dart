@@ -65,17 +65,18 @@ class ConsultationService {
   Future<ConsultationReservation> bookAppointment({
     required String consultationId,
     required String mode,
-    required String date,
-    required String startTime,
-    required String endTime,
+    String? date,
+    String? startTime,
+    String? endTime,
     String? birthProfileId,
     String? notes,
   }) async {
     final payload = <String, dynamic>{
       'consultationId': consultationId,
       'mode': consultationApiMode(mode),
-      'date': date,
-      'slot': {'startTime': startTime, 'endTime': endTime},
+      // A message consultation has no appointment.
+      if (date != null) 'date': date,
+      if (startTime != null && endTime != null) 'slot': {'startTime': startTime, 'endTime': endTime},
     };
     if (birthProfileId != null && birthProfileId.isNotEmpty) {
       payload['birthProfileId'] = birthProfileId;

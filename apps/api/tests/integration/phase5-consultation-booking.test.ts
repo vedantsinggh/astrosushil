@@ -357,11 +357,31 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
       },
     });
 
-    // Reschedule to date2 at 17:00
-    const res = await app.inject({
+    // Client tries to reschedule -> 403 Forbidden (only admin can reschedule)
+    const clientRes = await app.inject({
       method: 'POST',
       url: `/api/v1/consultations/bookings/${booking.id}/reschedule`,
       headers: { authorization: `Bearer ${tokenA}` },
+      payload: {
+        newDate: date2Str,
+        newSlot: { startTime: '17:00', endTime: '17:30' },
+        reason: 'Office travel conflict',
+      },
+    });
+    expect(clientRes.statusCode).toBe(403);
+
+    // Admin reschedules to date2 at 17:00
+    const adminUser = await prisma.user.create({
+      data: {
+        email: `admin-resch-${Date.now()}@test.com`,
+        role: 'ADMIN',
+      },
+    });
+    const adminToken = app.jwt.sign({ sub: adminUser.id, role: 'ADMIN' });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/consultations/bookings/${booking.id}/reschedule`,
+      headers: { authorization: `Bearer ${adminToken}` },
       payload: {
         newDate: date2Str,
         newSlot: { startTime: '17:00', endTime: '17:30' },
@@ -418,7 +438,7 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
     });
     expect(viewRes.statusCode).toBe(404);
 
-    // 2. User B tries to RESCHEDULE User A's booking -> 404
+    // 2. Non-admin User B tries to RESCHEDULE User A's booking -> 403 Forbidden
     const reschRes = await app.inject({
       method: 'POST',
       url: `/api/v1/consultations/bookings/${booking.id}/reschedule`,
@@ -428,7 +448,7 @@ describe('Phase 5: Online Consultations & Appointment Booking Suite', { timeout:
         newSlot: '11:30',
       },
     });
-    expect(reschRes.statusCode).toBe(404);
+    expect(reschRes.statusCode).toBe(403);
 
     // 3. User B tries to CANCEL User A's booking -> 404
     const cancelRes = await app.inject({

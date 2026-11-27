@@ -6,6 +6,7 @@ import {
   Phone,
   Video,
   MapPin,
+  MessageCircle,
   Clock,
   Sparkles,
   ChevronRight,
@@ -21,6 +22,7 @@ import {
 import PageHero from "../../components/HeroPage";
 import { useConsultationStore } from "../../store/useConsultationStore";
 import { useAuthStore } from "../../store/useAuthStore";
+import { SavedProfilePicker } from "../../components/BirthProfiles";
 import { useNavigate, Link } from "react-router-dom";
 import MiniCalendar from "./MiniCalendar";
 import { MODE_LABELS, fmt } from "./Consultationconstants";
@@ -33,6 +35,7 @@ const MODE_ICONS = {
   audio: <Phone size={13} />,
   video: <Video size={13} />,
   in_person: <MapPin size={13} />,
+  message: <img src="/logo/whatsapp-logo.webp" alt="" className="w-3.5 h-3.5 object-contain" />,
 };
 
 const STEPS = ["Choose Service", "Pick Date & Slot", "Your Details", "Confirm"];
@@ -86,10 +89,10 @@ const toBackendDate = (date) => {
 };
 const toBackendSlot = (slot) => `${slot.startTime}-${slot.endTime}`;
 
-function StepIndicator({ step }) {
+function StepIndicator({ step, steps = STEPS }) {
   return (
     <div className="flex items-center justify-center gap-0 mb-10">
-      {STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const num = i + 1;
         const done = step > num;
         const current = step === num;
@@ -513,6 +516,19 @@ function Step3({ form, setForm, errors }) {
         Please fill in your details accurately for the best consultation
         experience.
       </p>
+      <SavedProfilePicker
+        label="Use a saved birth profile"
+        onPick={(p) =>
+          setForm((prev) => ({
+            ...prev,
+            name: p.fullName,
+            dob: p.dob,
+            tob: p.timeOfBirth,
+            pob: p.birthPlace,
+            birthProfileId: p.id,
+          }))
+        }
+      />
       {FIELDS.map(({ key, label, type, placeholder }) => (
         <div key={key}>
           <label className="block text-xs font-semibold text-primary/70 mb-1">
@@ -588,7 +604,8 @@ function Step4({ plan, activeMode, selectedDate, selectedSlot, form }) {
   const rows = [
     { label: "Service", value: plan?.title },
     { label: "Mode", value: MODE_LABELS[activeMode?.mode] ?? activeMode?.mode },
-    activeMode?.mode !== "in_person" && { label: "Duration", value: `${plan?.duration} Min` },
+    activeMode?.mode !== "in_person" && activeMode?.mode !== "message" && { label: "Duration", value: `${plan?.duration} Min` },
+    activeMode?.mode === "message" && { label: "Response time", value: `Within ${plan?.responseDays || 0} days` },
     {
       label: "Date",
       value: selectedDate?.toLocaleDateString("en-IN", {
@@ -610,7 +627,7 @@ function Step4({ plan, activeMode, selectedDate, selectedSlot, form }) {
     { label: "Time of Birth", value: form.tob },
     { label: "Place of Birth", value: form.pob },
     form.notes && { label: "Notes", value: form.notes },
-  ].filter(Boolean);
+  ].filter((row) => row?.value !== undefined && row?.value !== "");
 
   return (
     <motion.div
@@ -686,6 +703,17 @@ export default function Bookappointment() {
   } = useConsultationStore();
   const { isAuthenticated } = useAuthStore();
   const user = useAuthStore((s) => s.user);
+
+  // The account's own name and phone, unless the customer has typed something already.
+  useEffect(() => {
+    if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time prefill from the account
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || user.fullName || "",
+      phone: prev.phone || user.phoneNumber || "",
+    }));
+  }, [user]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -697,6 +725,11 @@ export default function Bookappointment() {
   );
   const selectedPlan = activePlans.find((p) => p._id === selectedPlanId);
   const activeMode = selectedPlan?.modes?.[selectedModeIdx];
+  const isMessageConsultation = activeMode?.mode === "message";
+  const stepLabels = isMessageConsultation
+    ? ["Choose Service", "Your Details", "Confirm"]
+    : STEPS;
+  const displayStep = isMessageConsultation && step > 1 ? step - 1 : step;
   const resolvedPrice = activeMode?.priceWithGst || activeMode?.price?.inr;
 
   const displaySlots =
@@ -735,7 +768,7 @@ export default function Bookappointment() {
 
   const handleNext = () => {
     if (step === 1 && selectedPlan && activeMode) {
-      setStep(2);
+      setStep(isMessageConsultation ? 3 : 2);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
     if (step === 2 && selectedDate && selectedSlot) {
@@ -749,7 +782,7 @@ export default function Bookappointment() {
   };
 
   const handleBack = () => {
-    setStep((s) => Math.max(1, s - 1));
+    setStep((s) => (isMessageConsultation && s === 3 ? 1 : Math.max(1, s - 1)));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -763,8 +796,9 @@ export default function Bookappointment() {
     const bookingPayload = {
       consultationId: selectedPlan._id,
       mode: activeMode.mode,
-      date: toBackendDate(selectedDate),
-      slot: toBackendSlot(selectedSlot),
+      ...(isMessageConsultation
+        ? {}
+        : { date: toBackendDate(selectedDate), slot: toBackendSlot(selectedSlot) }),
       userId: user?.id ?? user?._id,
       name: form.name,
       phone: form.phone,
@@ -772,6 +806,7 @@ export default function Bookappointment() {
       tob: form.tob,
       pob: form.pob,
       notes: form.notes,
+      ...(form.birthProfileId ? { birthProfileId: form.birthProfileId } : {}),
     };
 
     const bookingRes = await createUserBooking(bookingPayload);
@@ -855,7 +890,7 @@ export default function Bookappointment() {
       <section className="w-full bg-[#f5f7f6] py-12 sm:py-16 lg:py-20 min-h-screen">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           {/* Step indicator */}
-          <StepIndicator step={step} />
+          <StepIndicator step={displayStep} steps={stepLabels} />
 
           {/* Card */}
           <div className="bg-white rounded-3xl border border-black/6 shadow-sm overflow-hidden">
@@ -867,10 +902,10 @@ export default function Bookappointment() {
                 </div>
                 <div>
                   <h2 className="font-bold text-primary text-base">
-                    {STEPS[step - 1]}
+                    {stepLabels[displayStep - 1]}
                   </h2>
                   <p className="text-xs text-black/35">
-                    Step {step} of {STEPS.length}
+                    Step {displayStep} of {stepLabels.length}
                   </p>
                 </div>
               </div>
@@ -896,7 +931,7 @@ export default function Bookappointment() {
                       setSelectedModeIdx={setSelectedModeIdx}
                     />
                   )}
-                  {step === 2 && (
+                  {step === 2 && !isMessageConsultation && (
                     <Step2
                       key="s2"
                       consultation={selectedPlan}

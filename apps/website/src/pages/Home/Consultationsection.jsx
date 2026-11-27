@@ -9,6 +9,7 @@ const MODE_LABELS = {
   audio: "Voice Call",
   video: "Video Call",
   in_person: "In-Person",
+  message: "WhatsApp Message",
 };
 
 function DashedDivider() {

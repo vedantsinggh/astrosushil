@@ -1,3 +1,4 @@
+import { customerDisplayName } from '../birth-profiles/account-identity';
 import { getRazorpayPublicKeyId } from '../payments/razorpay-public-key';
 import { prisma } from '../../services/prisma.service';
 import { commerceService } from '../commerce/commerce.service';
@@ -6,6 +7,7 @@ import { notificationService } from '../notifications/notification.service';
 import { liveSessionService, AdminUser } from '../admin/live-session.service';
 import {
   AppError,
+  ForbiddenError,
   NotFoundError,
   ValidationError,
   ConflictError,
@@ -46,8 +48,9 @@ export interface SlotInterval {
 export interface BookConsultationInput {
   consultationId: string;
   mode: ConsultationMode;
-  date: string; // YYYY-MM-DD
-  slot: string | SlotInterval;
+  /** YYYY-MM-DD; absent for a MESSAGE consultation. */
+  date?: string;
+  slot?: string | SlotInterval;
   birthProfileId?: string;
   name?: string;
   phone?: string;
@@ -190,29 +193,38 @@ export class ConsultationsService {
     await consultationTypesService.refresh({ force: true });
     const offering = consultationTypesService.resolveOffering(input.consultationId, input.mode);
     const tier = this.toOffering(offering);
-    const dateStr = normaliseCalendarDate(input.date);
     const duration = tier.durationMinutes;
+    // MESSAGE (website "WhatsApp Message"): answered in writing within the type's response days;
+    // no date, no slot, nothing held in the calendar.
+    const isMessage = offering.mode.mode === ConsultationMode.MESSAGE;
+    let schedule: { dateStr: string; range: { startMinute: number; endMinute: number }; startTime: string; endTime: string; slotStartTimeUtc: Date; slotEndTimeUtc: Date } | null = null;
+    if (!isMessage) {
+      if (!input.date || !input.slot) throw new ValidationError('Date and slot are required for scheduled consultations');
+      const dateStr = normaliseCalendarDate(input.date);
+      const range = parseSlotInput(input.slot, duration);
 
-    const range = parseSlotInput(input.slot, duration);
-    const startTime = formatTimeOfDay(range.startMinute);
-    const endTime = formatTimeOfDay(range.endMinute);
-
-    // The slot must be one the customer would be offered: inside working hours, the type's own
-    // length, not blocked, not inside the notice period.
-    await availabilityService.assertCustomerCanBook(
-      {
-        title: offering.type.title,
-        durationMinutes: duration,
-        responseDays: offering.type.responseDays,
-        unavailableDates: offering.type.unavailableDates,
-      },
-      dateStr,
-      range
-    );
-
-    // UTC timestamps of the slot (IST wall clock, fixed +05:30)
-    const slotStartTimeUtc = istInstant(dateStr, range.startMinute);
-    const slotEndTimeUtc = istInstant(dateStr, range.endMinute);
+      // The slot must be one the customer would be offered: inside working hours, the type's own
+      // length, not blocked, not inside the notice period.
+      await availabilityService.assertCustomerCanBook(
+        {
+          title: offering.type.title,
+          durationMinutes: duration,
+          responseDays: offering.type.responseDays,
+          unavailableDates: offering.type.unavailableDates,
+        },
+        dateStr,
+        range
+      );
+      // UTC timestamps of the slot (IST wall clock, fixed +05:30)
+      schedule = {
+        dateStr,
+        range,
+        startTime: formatTimeOfDay(range.startMinute),
+        endTime: formatTimeOfDay(range.endMinute),
+        slotStartTimeUtc: istInstant(dateStr, range.startMinute),
+        slotEndTimeUtc: istInstant(dateStr, range.endMinute),
+      };
+    }
 
     // Check user profile or info
     const user = await prisma.user.findUnique({
@@ -223,7 +235,12 @@ export class ConsultationsService {
       throw new NotFoundError(`User '${userId}' not found`);
     }
 
-    const customerName = input.name || user.fullName || user.email || 'Valued Client';
+    // One name everywhere (2026-11-26): typed name, else account name, else the Self/oldest birth
+    // profile, else the phone. An account without a name takes the typed one.
+    const customerName = await customerDisplayName(prisma, userId, input.name);
+    if (!user.fullName?.trim() && input.name?.trim()) {
+      await prisma.user.update({ where: { id: userId }, data: { fullName: input.name.trim() } });
+    }
     const customerPhone = input.phone || user.phoneNumber || null;
     const customerEmail = user.email;
 
@@ -240,9 +257,9 @@ export class ConsultationsService {
 
     const expiresAt = new Date(Date.now() + this.reservationTimeoutMinutes * 60 * 1000);
 
-    // Redis lock attempt (best-effort distributed lock)
-    const redisLockKey = `slot:lock:${this.defaultPractitionerId}:${dateStr}:${startTime}`;
-    await this._acquireRedisLock(redisLockKey, userId, this.reservationTimeoutMinutes * 60);
+    // Redis lock attempt (best-effort distributed lock); a message consultation holds no time.
+    const redisLockKey = schedule ? `slot:lock:${this.defaultPractitionerId}:${schedule.dateStr}:${schedule.startTime}` : `message:${userId}:${Date.now()}`;
+    if (schedule) await this._acquireRedisLock(redisLockKey, userId, this.reservationTimeoutMinutes * 60);
 
     try {
       // 1. Atomically create the PENDING_PAYMENT booking and hold its slot. claimSlot serialises
@@ -258,11 +275,11 @@ export class ConsultationsService {
             title: tier.title,
             mode: offering.mode.mode,
             durationMinutes: duration,
-            date: dateStr,
-            startTime,
-            endTime,
-            slotStartTimeUtc,
-            slotEndTimeUtc,
+            date: schedule?.dateStr ?? null,
+            startTime: schedule?.startTime ?? null,
+            endTime: schedule?.endTime ?? null,
+            slotStartTimeUtc: schedule?.slotStartTimeUtc ?? null,
+            slotEndTimeUtc: schedule?.slotEndTimeUtc ?? null,
             timezone: input.timezone || 'Asia/Kolkata',
             practitionerId: this.defaultPractitionerId,
             practitionerName: this.defaultPractitionerName,
@@ -284,13 +301,15 @@ export class ConsultationsService {
           },
         });
 
-        await claimSlot(tx, {
-          bookingId: created.id,
-          date: dateStr,
-          range,
-          status: 'RESERVED',
-          lockedUntil: expiresAt,
-        });
+        if (schedule) {
+          await claimSlot(tx, {
+            bookingId: created.id,
+            date: schedule.dateStr,
+            range: schedule.range,
+            status: 'RESERVED',
+            lockedUntil: expiresAt,
+          });
+        }
 
         return created;
       });
@@ -307,15 +326,14 @@ export class ConsultationsService {
                 quantity: 1,
                 metadata: {
                   bookingId: booking.id,
-                  date: dateStr,
-                  startTime,
+                  ...(schedule ? { date: schedule.dateStr, startTime: schedule.startTime } : {}),
                   mode: offering.mode.mode,
                   birthProfileId: input.birthProfileId,
                 },
               },
             ],
             currency: input.currency,
-            notes: `Booking for ${tier.title} on ${dateStr} at ${startTime}`,
+            notes: schedule ? `Booking for ${tier.title} on ${schedule.dateStr} at ${schedule.startTime}` : `Message consultation: ${tier.title}`,
             couponCode: input.couponCode,
           },
           { id: userId }
@@ -490,10 +508,10 @@ export class ConsultationsService {
 
     const { meetingLink, locationAddress } = confirmedBookingPlace(booking);
 
-    const slotRange = {
-      startMinute: parseTimeOfDay(booking.startTime),
-      endMinute: parseTimeOfDay(booking.endTime),
-    };
+    const slotRange =
+      booking.date && booking.startTime && booking.endTime
+        ? { date: booking.date, startMinute: parseTimeOfDay(booking.startTime), endMinute: parseTimeOfDay(booking.endTime) }
+        : null;
 
     // Transactionally confirm booking and update order
     const confirmedBooking = await prisma.$transaction(async (tx) => {
@@ -502,7 +520,10 @@ export class ConsultationsService {
 
       // 0. Take the slot for good. Refuses if, after this booking's hold expired, the time
       //    went to someone else; nothing below is written in that case.
-      await claimSlot(tx, { bookingId: booking.id, date: booking.date, range: slotRange, status: 'BOOKED' });
+      //    A MESSAGE consultation holds no time.
+      if (slotRange) {
+        await claimSlot(tx, { bookingId: booking.id, date: slotRange.date, range: { startMinute: slotRange.startMinute, endMinute: slotRange.endMinute }, status: 'BOOKED' });
+      }
 
       // 1. Update order and create fulfillment units
       if (booking.orderId) {
@@ -647,9 +668,12 @@ export class ConsultationsService {
   }
 
   /** Staff-only columns never leave the server on a customer endpoint. */
-  private withoutStaffFields<T extends { internalNotes?: unknown }>(booking: T) {
+  private withoutStaffFields<T extends { internalNotes?: unknown; responseText?: string | null; respondedAt?: Date | null }>(booking: T) {
     return {
       ...booking,
+      // MESSAGE consultations: the answer, also in the website's own shape.
+      consultationResponse: booking.responseText ? { text: booking.responseText, respondedAt: booking.respondedAt ?? null } : null,
+      respondedBy: undefined,
       internalNotes: undefined,
       createdByAdminId: undefined,
       deletedById: undefined,
@@ -704,7 +728,7 @@ export class ConsultationsService {
   }
 
   /**
-   * Reschedule an existing confirmed consultation
+   * Reschedule an existing confirmed consultation (admin only)
    */
   public async rescheduleBooking(
     userId: string,
@@ -712,6 +736,10 @@ export class ConsultationsService {
     input: { newDate: string; newSlot: string | SlotInterval; reason?: string },
     isAdmin: boolean = false
   ) {
+    if (!isAdmin) {
+      throw new ForbiddenError('Consultations can only be rescheduled by an administrator.');
+    }
+
     const booking = await prisma.consultationBooking.findUnique({
       where: { id: bookingId },
     });

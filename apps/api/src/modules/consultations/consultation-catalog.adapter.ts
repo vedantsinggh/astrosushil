@@ -39,6 +39,7 @@ const MODE_LABEL: Record<ConsultationModeView['mode'], string> = {
   AUDIO: 'Audio',
   VIDEO: 'Video',
   IN_PERSON: 'In Person',
+  MESSAGE: 'WhatsApp Message',
 };
 
 export function toCatalogItem(type: ConsultationTypeView, mode: ConsultationModeView): CatalogItem {

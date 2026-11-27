@@ -26,7 +26,7 @@ import {
   createConsultationTypeSchema,
   updateConsultationTypeSchema,
 } from '../consultations/consultation-types.schemas';
-import {
+import { messageResponseSchema,
   addBookingNoteSchema,
   adminBookingExportQuerySchema,
   adminBookingListQuerySchema,
@@ -475,6 +475,18 @@ export async function bookingsAdminRoutes(fastify: FastifyInstance) {
         const booking = await bookingsService.addNote(id, note, actor(request));
         await audit(request, 'BOOKING_NOTE_ADD', `ConsultationBooking:${id}`);
         return send(reply, booking, 'Note added', 201);
+      },
+    });
+
+    admin.patch('/admin/bookings/:id/message-response', {
+      preHandler: [checkPermission('bookings:update')],
+      schema: { tags: ['Admin Bookings'], summary: 'Answer a paid message consultation (shown to the customer)' },
+      handler: async (request, reply) => {
+        const { id } = bookingIdParamSchema.parse(request.params);
+        const { response } = messageResponseSchema.parse(request.body);
+        const booking = await bookingsService.respondToMessage(id, response, actor(request));
+        await audit(request, 'BOOKING_MESSAGE_RESPONSE', `ConsultationBooking:${id}`, `${response.length} characters`);
+        return send(reply, booking, 'Message consultation response submitted');
       },
     });
 

@@ -96,9 +96,9 @@ class _Service extends MockConsultationService {
   Future<ConsultationReservation> bookAppointment({
     required String consultationId,
     required String mode,
-    required String date,
-    required String startTime,
-    required String endTime,
+    String? date,
+    String? startTime,
+    String? endTime,
     String? birthProfileId,
     String? notes,
   }) async {
@@ -116,9 +116,9 @@ class _Service extends MockConsultationService {
     return fakeConsultationReservation(
       consultationId: consultationId,
       mode: mode,
-      date: date,
-      startTime: startTime,
-      endTime: endTime,
+      date: date ?? '',
+      startTime: startTime ?? '',
+      endTime: endTime ?? '',
       amountPaise: bookAmountPaise,
       gstPaise: 270000,
       gstType: 'EXCLUSIVE',
@@ -586,67 +586,12 @@ void main() {
       expect(find.text('INV-2026-0042'), findsOneWidget);
     });
 
-    testWidgets('reschedule: pick an open time, the server moves the booking', (tester) async {
+    testWidgets('client cannot reschedule from the app (admin only)', (tester) async {
       final service = _Service(myBookings: [booking('b-1', 'CONFIRMED')]);
       await openBookings(tester, service);
 
-      await tester.tap(find.byKey(const ValueKey('consult_reschedule_b-1')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Choose a new time'), findsOneWidget);
-      expect(find.text('Current time: Tue, 1 Dec 2026, 11:00 - 11:30 IST'), findsOneWidget);
-      // Notice days of the booked consultation, from the catalogue (15).
-      expect(service.slotCalls.last, 'consult-general-video ${_firstBookableDate(15)}');
-
-      await tester.tap(find.text('11:00 - 11:30 IST'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('reschedule_confirm')));
-      await tester.pumpAndSettle();
-
-      expect(service.rescheduleCalls.single, {
-        'bookingId': 'b-1',
-        'newDate': _firstBookableDate(15),
-        'start': '11:00',
-        'end': '11:30',
-      });
-      expect(find.text('Choose a new time'), findsNothing);
-      expect(find.textContaining('Your consultation is moved to'), findsOneWidget);
-    });
-
-    testWidgets('reschedule refused with 409: message and a fresh slot list', (tester) async {
-      final service = _Service(myBookings: [booking('b-1', 'CONFIRMED')])
-        ..rescheduleError = const ServerException('taken', code: 'CONFLICT');
-      await openBookings(tester, service);
-
-      await tester.tap(find.byKey(const ValueKey('consult_reschedule_b-1')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('10:00 - 10:30 IST'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('reschedule_confirm')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('This time has just been taken by someone else. Please choose another time.'), findsOneWidget);
-      final loads = service.slotCalls.length;
-      await tester.tap(find.byKey(const ValueKey('reschedule_choose_time')));
-      await tester.pumpAndSettle();
-      expect(service.slotCalls.length, loads + 1);
-      expect(find.byKey(const ValueKey('reschedule_message')), findsNothing);
-      expect(find.byKey(const ValueKey('reschedule_confirm')), findsOneWidget);
-    });
-
-    testWidgets('reschedule refused by status: the rule is shown', (tester) async {
-      final service = _Service(myBookings: [booking('b-1', 'CONFIRMED')])
-        ..rescheduleError = const ValidationException("Cannot reschedule a booking with status 'CANCELLED'");
-      await openBookings(tester, service);
-
-      await tester.tap(find.byKey(const ValueKey('consult_reschedule_b-1')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('10:00 - 10:30 IST'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('reschedule_confirm')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('This booking can no longer be changed.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('consult_reschedule_b-1')), findsNothing);
+      expect(find.byKey(const ValueKey('consult_cancel_b-1')), findsOneWidget);
     });
 
     testWidgets('cancel: the confirmation states the payment rule, a refusal is explained', (tester) async {

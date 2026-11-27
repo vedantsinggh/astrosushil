@@ -18,8 +18,9 @@ export const manualBookingSchema = z
   .object({
     consultationId: z.string().min(1).max(200),
     mode: consultationModeSchema.optional(),
-    date: calendarDate,
-    slot,
+    /** Not used for a MESSAGE consultation (it has no appointment). */
+    date: calendarDate.optional(),
+    slot: slot.optional(),
     userId: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(100).optional(),
     phone: z.string().trim().min(6).max(20).optional(),
@@ -111,3 +112,6 @@ export const adminBookingExportQuerySchema = adminBookingListQuerySchema.extend(
 });
 
 export const bookingsByDateQuerySchema = z.object({ date: calendarDate });
+
+/** Website `PATCH /booking/bookings/:bookingId/message-response` body. */
+export const messageResponseSchema = z.object({ response: z.string().trim().min(1).max(5000) }).strict();

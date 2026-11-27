@@ -62,8 +62,10 @@ function NewBookingScreen() {
       if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) problems.push('The e-mail address is not valid');
     }
     if (!chosen) problems.push('Choose a consultation and a mode');
-    if (!date) problems.push('Choose a date');
-    if (!slot) problems.push('Choose a slot');
+    // A WhatsApp message consultation has no date or slot.
+    const isMessage = chosen?.mode === 'MESSAGE';
+    if (!isMessage && !date) problems.push('Choose a date');
+    if (!isMessage && !slot) problems.push('Choose a slot');
 
     let discountValue: number | undefined;
     if (discountKind === 'FLAT') {
@@ -84,8 +86,7 @@ function NewBookingScreen() {
       body: {
         consultationId: chosen.consultationTypeId,
         mode: chosen.mode,
-        date,
-        slot,
+        ...(chosen.mode === 'MESSAGE' ? {} : { date, slot }),
         ...(customerKind === 'existing' && customer ? { userId: customer.id } : { name: name.trim(), phone: phone.trim(), ...(email.trim() ? { email: email.trim() } : {}) }),
         ...(discountKind !== 'NONE' && discountValue !== undefined ? { discountType: discountKind, discountValue } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
@@ -253,7 +254,7 @@ function NewBookingScreen() {
                   ))}
                 </select>
               </Field>
-              <Field label="Date (IST) *" hint={date && date < todayIst() ? 'This date is in the past. Staff may record a past booking.' : undefined}>
+              {chosen?.mode !== 'MESSAGE' && <Field label="Date (IST) *" hint={date && date < todayIst() ? 'This date is in the past. Staff may record a past booking.' : undefined}>
                 <input
                   type="date"
                   className="input-control"
@@ -263,9 +264,11 @@ function NewBookingScreen() {
                     setSlot('');
                   }}
                 />
-              </Field>
+              </Field>}
             </div>
-            {typeId && date ? <SlotPicker date={date} consultationId={typeId} value={slot} onChange={setSlot} /> : <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Choose a consultation and a date to see the slots.</p>}
+            {chosen?.mode === 'MESSAGE' ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>A WhatsApp message consultation has no date or slot. Answer it from the booking page.</p>
+            ) : typeId && date ? <SlotPicker date={date} consultationId={typeId} value={slot} onChange={setSlot} /> : <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Choose a consultation and a date to see the slots.</p>}
           </>
         )}
       </div>

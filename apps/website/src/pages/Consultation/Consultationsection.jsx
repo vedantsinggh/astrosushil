@@ -32,12 +32,14 @@ const MODE_ICONS = {
   audio: <Phone size={13} />,
   video: <Video size={13} />,
   in_person: <MapPin size={13} />,
+  message: <img src="/logo/whatsapp-logo.webp" alt="" className="w-3.5 h-3.5 object-contain" />,
 };
 
 const MODE_LABELS = {
   audio: "Voice Call",
   video: "Video Call",
   in_person: "In-Person",
+  message: "WhatsApp Message",
 };
 
 function ModePill({ modeObj, selected, onClick }) {
@@ -90,7 +92,7 @@ function ConsultationCard({ plan, onBook }) {
         ))}
 
         {/* Duration — not shown for in-person mode, which has no fixed call time limit */}
-        {activeMode?.mode !== "in_person" && (
+        {activeMode?.mode !== "in_person" && activeMode?.mode !== "message" && (
           <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-body font-semibold bg-secondary/60 text-primary border-primary/30">
             <Clock size={11} />
             Time Limit – {plan.duration} Min.

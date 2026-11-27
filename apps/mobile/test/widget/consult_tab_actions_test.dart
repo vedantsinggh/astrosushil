@@ -133,18 +133,8 @@ void main() {
     await _settleLaunch(tester);
     expect(find.textContaining('Could not open the link'), findsOneWidget);
 
-    // Reschedule opens the in-app sheet: current time, the server's open
-    // slots, and a confirm button that needs a chosen time.
-    final reschedule = find.byKey(const ValueKey('consult_reschedule_bk-123'));
-    _expectTapTarget(tester, reschedule);
-    await tester.tap(reschedule);
-    await tester.pumpAndSettle();
-    expect(find.text('Choose a new time'), findsOneWidget);
-    expect(find.byKey(const ValueKey('reschedule_current')), findsOneWidget);
-    expect(find.byKey(const ValueKey('reschedule_confirm')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('reschedule_close')));
-    await tester.pumpAndSettle();
-    expect(find.text('Choose a new time'), findsNothing);
+    // Customers no longer reschedule in the app (staff do it, as on the website).
+    expect(find.byKey(const ValueKey('consult_reschedule_bk-123')), findsNothing);
 
     // Details are one tap away on every booking.
     final details = find.byKey(const ValueKey('consult_details_bk-123'));

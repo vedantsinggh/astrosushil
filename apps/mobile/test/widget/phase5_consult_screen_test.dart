@@ -63,18 +63,18 @@ class MockConsultationService implements ConsultationService {
   Future<ConsultationReservation> bookAppointment({
     required String consultationId,
     required String mode,
-    required String date,
-    required String startTime,
-    required String endTime,
+    String? date,
+    String? startTime,
+    String? endTime,
     String? birthProfileId,
     String? notes,
   }) async =>
       fakeConsultationReservation(
         consultationId: consultationId,
         mode: mode,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
+        date: date ?? '',
+        startTime: startTime ?? '',
+        endTime: endTime ?? '',
         catalog: await fetchCatalog(),
       );
 

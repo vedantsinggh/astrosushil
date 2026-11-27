@@ -1,3 +1,4 @@
+import { customerDisplayName } from '../birth-profiles/account-identity';
 /**
  * Staff-side booking operations (website module `booking`, admin half), the reminder queries
  * and the invoice data of a booking.
@@ -49,8 +50,9 @@ export interface ManualBookingInput {
   /** A consultation type id, or the catalog id of one of its modes. */
   consultationId: string;
   mode?: ConsultationMode;
-  date: string;
-  slot: string | { startTime: string; endTime?: string };
+  /** Absent for a MESSAGE consultation. */
+  date?: string;
+  slot?: string | { startTime: string; endTime?: string };
   /** Existing customer ... */
   userId?: string;
   /** ... or a new one. */
@@ -135,8 +137,18 @@ export function toCsv(headers: readonly string[], rows: Array<Array<string | num
   return [headers.map(csvCell).join(','), ...rows.map((r) => r.map(csvCell).join(','))].join('\r\n');
 }
 
-function slotOf(b: { startTime: string; endTime: string }): string {
-  return `${b.startTime}-${b.endTime}`;
+/** "10:00-10:30", or null for a MESSAGE consultation (no appointment). */
+function slotOf(b: { startTime: string | null; endTime: string | null }): string | null {
+  return b.startTime && b.endTime ? `${b.startTime}-${b.endTime}` : null;
+}
+
+/**
+ * Upcoming or past. A MESSAGE consultation has no appointment: it is upcoming until it is
+ * answered (or otherwise closed).
+ */
+function timingOf(b: { slotEndTimeUtc: Date | null; status: BookingStatus; respondedAt?: Date | null }, now: Date): 'upcoming' | 'past' {
+  if (b.slotEndTimeUtc) return b.slotEndTimeUtc.getTime() >= now.getTime() ? 'upcoming' : 'past';
+  return b.respondedAt || b.status === BookingStatus.COMPLETED || b.status === BookingStatus.CANCELLED ? 'past' : 'upcoming';
 }
 
 function adminView(row: AdminBookingRow, now: Date = new Date()) {
@@ -144,7 +156,7 @@ function adminView(row: AdminBookingRow, now: Date = new Date()) {
   return {
     ...booking,
     slot: slotOf(row),
-    timing: row.slotEndTimeUtc.getTime() >= now.getTime() ? ('upcoming' as const) : ('past' as const),
+    timing: timingOf(row, now),
     customer: user,
     consultation: consultationType ?? {
       id: null,
@@ -268,13 +280,13 @@ export class BookingsService {
         b.user?.phoneNumber ?? b.customerPhone ?? '',
         b.consultationType?.title ?? b.title,
         b.mode,
-        b.date,
-        slotOf(b),
+        b.date ?? '',
+        slotOf(b) ?? '',
         b.durationMinutes,
         amountMinor === null || amountMinor === undefined ? '' : minorToDecimal(amountMinor),
         paidInOtherCurrency ? (b.paidCurrency as string) : 'INR',
         b.status,
-        b.slotEndTimeUtc.getTime() >= now.getTime() ? 'Upcoming' : 'Past',
+        timingOf(b, now) === 'upcoming' ? 'Upcoming' : 'Past',
         b.note ?? '',
       ] as Array<string | number>;
     });
@@ -560,8 +572,11 @@ export class BookingsService {
     }
     await consultationTypesService.refresh({ force: true });
     const offering = consultationTypesService.resolveOffering(input.consultationId, input.mode, { includeInactive: true });
-    const date = normaliseCalendarDate(input.date);
-    const range = parseSlotInput(input.slot, offering.type.durationMinutes);
+    // A MESSAGE consultation has no appointment (website: staff can book one without a date).
+    const isMessage = offering.mode.mode === ConsultationMode.MESSAGE;
+    if (!isMessage && (!input.date || !input.slot)) throw new ValidationError('Date and slot are required for scheduled consultations');
+    const date = isMessage ? null : normaliseCalendarDate(input.date as string);
+    const range = isMessage ? null : parseSlotInput(input.slot as NonNullable<ManualBookingInput['slot']>, offering.type.durationMinutes);
     const adminName = await this.staffName(admin);
     const now = new Date();
 
@@ -625,15 +640,15 @@ export class BookingsService {
             mode: offering.mode.mode,
             durationMinutes: offering.type.durationMinutes,
             date,
-            startTime: formatTimeOfDay(range.startMinute),
-            endTime: formatTimeOfDay(range.endMinute),
-            slotStartTimeUtc: istInstant(date, range.startMinute),
-            slotEndTimeUtc: istInstant(date, range.endMinute),
+            startTime: range ? formatTimeOfDay(range.startMinute) : null,
+            endTime: range ? formatTimeOfDay(range.endMinute) : null,
+            slotStartTimeUtc: date && range ? istInstant(date, range.startMinute) : null,
+            slotEndTimeUtc: date && range ? istInstant(date, range.endMinute) : null,
             practitionerId: PRACTITIONER_ID,
             practitionerName: PRACTITIONER_NAME,
             status: BookingStatus.CONFIRMED,
             confirmedAt: now,
-            customerName: user.fullName || input.name?.trim() || user.email || 'Customer',
+            customerName: user.fullName?.trim() || (await customerDisplayName(tx, user.id, input.name)),
             customerPhone: user.phoneNumber,
             customerEmail: user.email,
             source: 'ADMIN',
@@ -654,7 +669,7 @@ export class BookingsService {
           select: { id: true },
         });
 
-        await claimSlot(tx, { bookingId: booking.id, date, range, status: 'BOOKED', now });
+        if (date && range) await claimSlot(tx, { bookingId: booking.id, date, range, status: 'BOOKED', now });
 
         // Money: a manual sale is an order paid outside the gateway (paymentMethod MANUAL). It
         // is created already paid and settled in this transaction, so it has a ledger row and
@@ -674,7 +689,7 @@ export class BookingsService {
             status: OrderStatus.PAID,
             paymentStatus: PaymentStatus.CAPTURED,
             paidAt: now,
-            notes: `Manual booking for ${offering.type.title} on ${date} at ${formatTimeOfDay(range.startMinute)}`,
+            notes: date && range ? `Manual booking for ${offering.type.title} on ${date} at ${formatTimeOfDay(range.startMinute)}` : `Manual message consultation: ${offering.type.title}`,
             items: {
               create: [
                 {
@@ -690,7 +705,7 @@ export class BookingsService {
                   totalAmount: pricing.totalPaise,
                   currency: 'INR',
                   fulfillmentType: FulfillmentType.SERVICE,
-                  metadata: { bookingId: booking.id, date, startTime: formatTimeOfDay(range.startMinute), mode: offering.mode.mode, manual: true },
+                  metadata: { bookingId: booking.id, ...(date && range ? { date, startTime: formatTimeOfDay(range.startMinute) } : {}), mode: offering.mode.mode, manual: true },
                 },
               ],
             },
@@ -833,6 +848,12 @@ export class BookingsService {
     const offering = consultationTypesService.resolveOffering(input.consultationId, input.mode, { includeInactive: true });
     const pricing = offering.pricing;
 
+    // A MESSAGE consultation has no appointment: it cannot become a call (book that as a new
+    // consultation) and a call cannot become a message.
+    if (!before.date || !before.startTime || before.mode === ConsultationMode.MESSAGE || offering.mode.mode === ConsultationMode.MESSAGE) {
+      throw new ValidationError('A message consultation cannot be changed to or from a scheduled consultation.');
+    }
+    const bookedDate = before.date;
     const startMinute = parseTimeOfDay(before.startTime);
     const range = { startMinute, endMinute: startMinute + offering.type.durationMinutes };
     if (range.endMinute > 24 * 60) {
@@ -849,7 +870,7 @@ export class BookingsService {
     const changeNote = await prisma.$transaction(async (tx) => {
       if (durationChanged) {
         try {
-          await claimSlot(tx, { bookingId, date: before.date, range, status: 'BOOKED' });
+          await claimSlot(tx, { bookingId, date: bookedDate, range, status: 'BOOKED' });
         } catch (err) {
           if (err instanceof ConflictError) {
             throw new ConflictError(
@@ -868,7 +889,7 @@ export class BookingsService {
           mode: offering.mode.mode,
           durationMinutes: offering.type.durationMinutes,
           endTime,
-          slotEndTimeUtc: istInstant(before.date, range.endMinute),
+          slotEndTimeUtc: istInstant(bookedDate, range.endMinute),
           pricePaise: offering.mode.pricePaise,
           // The new amount is the plan's full price, so an earlier discount no longer applies.
           discountType: null,
@@ -952,6 +973,33 @@ export class BookingsService {
         addedById: admin.id,
       },
     });
+    return adminView(await this.load(bookingId));
+  }
+
+  /**
+   * Website `PATCH /booking/bookings/:bookingId/message-response`: staff answer a paid MESSAGE
+   * consultation once. The answer is shown to the customer; the booking becomes COMPLETED.
+   * A second answer, an unpaid or deleted booking, or a scheduled consultation is refused.
+   */
+  public async respondToMessage(bookingId: string, text: string, admin: AdminActor) {
+    const responseText = text.trim();
+    if (!responseText || responseText.length > 5000) throw new ValidationError('Response must be between 1 and 5000 characters');
+    const respondedBy = await this.staffName(admin);
+    const now = new Date();
+    const result = await prisma.consultationBooking.updateMany({
+      where: {
+        id: bookingId,
+        deletedAt: null,
+        mode: ConsultationMode.MESSAGE,
+        status: { in: [BookingStatus.CONFIRMED, BookingStatus.RESCHEDULED] },
+        responseText: null,
+      },
+      data: { responseText, respondedAt: now, respondedBy, status: BookingStatus.COMPLETED, completedAt: now },
+    });
+    if (result.count === 0) {
+      await this.load(bookingId);
+      throw new ConflictError('Message consultation is no longer eligible for a response');
+    }
     return adminView(await this.load(bookingId));
   }
 
@@ -1117,7 +1165,9 @@ export class BookingsService {
    */
   public async findReminderBookings(date: string) {
     const day = normaliseCalendarDate(date);
-    return prisma.consultationBooking.findMany({
+    // Only scheduled consultations: a MESSAGE consultation has no appointment to remind of
+    // (the website skips it too).
+    const rows = await prisma.consultationBooking.findMany({
       where: {
         deletedAt: null,
         reminderSentAt: null,
@@ -1139,6 +1189,11 @@ export class BookingsService {
       },
       orderBy: { slotStartTimeUtc: 'asc' },
     });
+    return rows.flatMap((row) =>
+      row.date && row.startTime && row.endTime && row.mode !== ConsultationMode.MESSAGE
+        ? [{ ...row, date: row.date, startTime: row.startTime, endTime: row.endTime }]
+        : []
+    );
   }
 
   /**
@@ -1195,7 +1250,7 @@ export class BookingsService {
       consultationTitle: b.title,
       includes: type?.includes ?? [],
       mode,
-      date: toWebsiteDate(b.date),
+      date: b.date ? toWebsiteDate(b.date) : null,
       slot: slotOf(b),
       amountMinor: b.amountPaise ?? b.order?.amount ?? null,
       currency: 'INR',

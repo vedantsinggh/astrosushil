@@ -1,6 +1,6 @@
 // BookingModal.jsx
 /* eslint-disable no-unused-vars */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useConsultationStore } from "../../store/useConsultationStore";
 import { useAuthStore } from "../../store/useAuthStore";
+import { SavedProfilePicker } from "../../components/BirthProfiles";
 import MiniCalendar from "./MiniCalendar";
 import { MODE_LABELS, fmt } from "./Consultationconstants";
 import { useCurrency } from "../../hooks/useCurrency";
@@ -33,10 +34,10 @@ function loadRazorpay() {
   });
 }
 
-function StepBar({ step }) {
+function StepBar({ step, steps = STEPS }) {
   return (
     <div className="flex items-center gap-0 px-5 sm:px-6 py-3 border-b border-black/5 shrink-0">
-      {STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const num = i + 1;
         const done = step > num;
         const current = step === num;
@@ -200,6 +201,19 @@ function Step2({ form, setForm, errors }) {
         Please fill in your details accurately for the best consultation
         experience.
       </p>
+      <SavedProfilePicker
+        label="Use a saved birth profile"
+        onPick={(p) =>
+          setForm((prev) => ({
+            ...prev,
+            name: p.fullName,
+            dob: p.dob,
+            tob: p.timeOfBirth,
+            pob: p.birthPlace,
+            birthProfileId: p.id,
+          }))
+        }
+      />
       {FIELDS.map(({ key, label, type, placeholder }) => (
         <div key={key} className="flex flex-col gap-1 mt-1.5 first:mt-0">
           <label className="text-[11px] font-body font-semibold text-primary/70 leading-none mt-3">
@@ -292,7 +306,8 @@ function Step3({ consultation, selectedDate, selectedSlot, form }) {
   const rows = [
     { label: "Consultation", value: consultation?.title },
     { label: "Mode", value: modeLbl },
-    mode !== "in_person" && { label: "Duration", value: `${consultation?.duration} Min` },
+    mode !== "in_person" && mode !== "message" && { label: "Duration", value: `${consultation?.duration} Min` },
+    mode === "message" && { label: "Response time", value: `Within ${consultation?.responseDays || 0} days` },
     {
       label: "Date",
       value: selectedDate?.toLocaleDateString("en-IN", {
@@ -313,7 +328,7 @@ function Step3({ consultation, selectedDate, selectedSlot, form }) {
     { label: "DOB", value: form.dob },
     { label: "Time of Birth", value: form.tob },
     { label: "Place of Birth", value: form.pob },
-  ].filter(Boolean);
+  ].filter((row) => row?.value !== undefined && row?.value !== "");
 
   return (
     <motion.div
@@ -346,9 +361,10 @@ function Step3({ consultation, selectedDate, selectedSlot, form }) {
           {gstType === "inclusive" ? "Inclusive of GST" : "Includes GST added at checkout"}
         </p>
       </div>
-      <p className="text-[11px] font-body text-black/40 text-center leading-relaxed">
-        By confirming, you agree to our cancellation policy. Full refund if
-        cancelled 24 hours before appointment.
+      <p className="text-[11px] font-body text-black/45 text-center leading-relaxed">
+        By confirming, you agree to our Terms &amp; No-Refund Policy. All
+        bookings are final, non-refundable, and cannot be rescheduled by the
+        client.
       </p>
     </motion.div>
   );
@@ -394,6 +410,17 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
   });
   const [errors, setErrors] = useState({});
 
+  // The account's own name and phone, unless the customer has typed something already.
+  useEffect(() => {
+    if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time prefill from the account
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || user.fullName || "",
+      phone: prev.phone || user.phoneNumber || "",
+    }));
+  }, [user]);
+
   const getBlockedDates = () => {
     const blocked = [...(consultation?.unavailableDates || [])];
     const today = new Date();
@@ -414,6 +441,9 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
 
   const selectedMode = consultation?.selectedMode;
   const resolvedMode = selectedMode?.mode ?? consultation?.mode;
+  const isMessageConsultation = resolvedMode === "message";
+  const currentStep = isMessageConsultation ? step + 1 : step;
+  const stepLabels = isMessageConsultation ? ["Your Details", "Confirm"] : STEPS;
   const resolvedPrice =
     selectedMode?.priceWithGst ||
     consultation?.priceWithGst ||
@@ -459,16 +489,17 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
   };
 
   const handleNext = () => {
-    if (step === 1 && selectedDate && selectedSlot) setStep(2);
-    if (step === 2 && validateStep2()) setStep(3);
+    if (currentStep === 1 && selectedDate && selectedSlot) setStep(2);
+    if (currentStep === 2 && validateStep2()) setStep((value) => value + 1);
   };
 
   const handleConfirmAndPay = async () => {
     const bookingPayload = {
       consultationId: consultation._id,
       mode: resolvedMode,
-      date: toBackendDate(selectedDate),
-      slot: toBackendSlot(selectedSlot),
+      ...(isMessageConsultation
+        ? {}
+        : { date: toBackendDate(selectedDate), slot: toBackendSlot(selectedSlot) }),
       currency: currency?.toUpperCase() || "INR",
 
       exchangeRate: rates?.[currency?.toUpperCase()] || 1,
@@ -479,6 +510,7 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
       tob: form.tob,
       pob: form.pob,
       notes: form.notes,
+      ...(form.birthProfileId ? { birthProfileId: form.birthProfileId } : {}),
     };
 
     if (!isAuthenticated) {
@@ -603,11 +635,11 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
           </button>
         </div>
 
-        <StepBar step={step} />
+        <StepBar step={step} steps={stepLabels} />
 
         <div className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
-            {step === 1 && (
+            {currentStep === 1 && (
               <Step1
                 consultation={consultation}
                 selectedDate={selectedDate}
@@ -620,10 +652,10 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
                 blockedDates={getBlockedDates()}
               />
             )}
-            {step === 2 && (
+            {currentStep === 2 && (
               <Step2 form={form} setForm={setForm} errors={errors} />
             )}
-            {step === 3 && (
+            {currentStep === 3 && (
               <Step3
                 consultation={consultation}
                 selectedDate={selectedDate}
@@ -646,11 +678,11 @@ export default function BookingModal({ consultation, onClose, onConfirm }) {
             </button>
           )}
 
-          {step < 3 ? (
+          {currentStep < 3 ? (
             <button
               type="button"
               onClick={handleNext}
-              disabled={step === 1 && (!selectedDate || !selectedSlot)}
+              disabled={currentStep === 1 && (!selectedDate || !selectedSlot)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white font-body font-bold text-sm hover:bg-gold disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-700 shadow-md shadow-primary/20"
             >
               Continue <ChevronRight size={15} />

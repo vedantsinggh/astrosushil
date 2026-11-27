@@ -37,10 +37,11 @@ String formatInrPaise(int paise) {
   return '${negative ? '-' : ''}₹$grouped$fraction';
 }
 
-/// The mode value the booking API accepts (`AUDIO`, `VIDEO`, `IN_PERSON`),
-/// from whatever the catalogue or an older client stored.
+/// The mode value the booking API accepts (`AUDIO`, `VIDEO`, `IN_PERSON`,
+/// `MESSAGE`), from whatever the catalogue or an older client stored.
 String consultationApiMode(String mode) {
   final m = mode.toUpperCase();
+  if (m.contains('MESSAGE') || m.contains('CHAT')) return 'MESSAGE';
   if (m.contains('PERSON')) return 'IN_PERSON';
   if (m.contains('AUDIO') || m.contains('VOICE') || m.contains('PHONE')) return 'AUDIO';
   return 'VIDEO';
@@ -269,6 +270,8 @@ class ConsultationBookingModel {
   final String? locationAddress;
   final String? invoiceNumber;
   final String? cancellationReason;
+  /// WhatsApp message consultation: the astrologer's written answer, once sent.
+  final String? responseText;
 
   const ConsultationBookingModel({
     required this.id,
@@ -297,6 +300,7 @@ class ConsultationBookingModel {
     this.locationAddress,
     this.invoiceNumber,
     this.cancellationReason,
+    this.responseText,
   });
 
   int get priceRupees => (pricePaise ?? 0) ~/ 100;
@@ -364,6 +368,8 @@ class ConsultationBookingModel {
       locationAddress: json['locationAddress'] as String?,
       invoiceNumber: json['invoiceNumber'] as String?,
       cancellationReason: json['cancellationReason'] as String?,
+      responseText: json['responseText'] as String? ??
+          (json['consultationResponse'] is Map ? (json['consultationResponse'] as Map)['text'] as String? : null),
     );
   }
 }
@@ -460,3 +466,8 @@ class ConsultationInvoiceModel {
     );
   }
 }
+
+
+/// A WhatsApp message consultation: one written question, answered in
+/// writing within the type's response days. It has no date and no slot.
+bool isMessageConsultationMode(String mode) => consultationApiMode(mode) == 'MESSAGE';

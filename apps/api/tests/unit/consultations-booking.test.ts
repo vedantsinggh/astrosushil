@@ -275,13 +275,22 @@ describe('my bookings and booking detail', () => {
   });
 });
 
-describe('customer reschedule', () => {
+describe('reschedule (admin only)', () => {
   beforeEach(() => {
     prisma.consultationBooking.findUnique.mockResolvedValue(pendingBooking({ status: 'CONFIRMED', durationMinutes: 30, reminderSentAt: new Date() }));
   });
 
-  it('moves to an offered slot, tells the customer the old schedule and re-arms the reminder', async () => {
-    await service.rescheduleBooking('user-1', 'bk-1', { newDate: '2026-12-02', newSlot: { startTime: '16:00', endTime: '16:30' } });
+  it('rejects client reschedule with ForbiddenError', async () => {
+    await expect(
+      service.rescheduleBooking('user-1', 'bk-1', { newDate: '2026-12-02', newSlot: { startTime: '16:00', endTime: '16:30' } })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      service.rescheduleBooking('user-2', 'bk-1', { newDate: '2026-12-02', newSlot: '16:00' })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('admin reschedule moves to the requested slot, tells the customer the old schedule and re-arms the reminder', async () => {
+    await service.rescheduleBooking('admin-1', 'bk-1', { newDate: '2026-12-02', newSlot: { startTime: '16:00', endTime: '16:30' } }, true);
     expect(prisma.consultationBooking.update.mock.calls[0][0].data).toMatchObject({
       date: '2026-12-02', startTime: '16:00', endTime: '16:30', status: 'RESCHEDULED', reminderSentAt: null,
     });
@@ -290,16 +299,11 @@ describe('customer reschedule', () => {
     });
   });
 
-  it('a customer is bound by the calendar rules; staff are not; nobody can take a booked time', async () => {
+  it('staff are not bound by calendar rules, but nobody can take a booked time', async () => {
     const sunday = { newDate: '2026-11-29', newSlot: '16:00' };
-    await expect(service.rescheduleBooking('user-1', 'bk-1', sunday)).rejects.toThrow(/Sunday/);
     await expect(service.rescheduleBooking('admin-1', 'bk-1', sunday, true)).resolves.toBeTruthy();
 
     prisma.appointmentSlot.findFirst.mockResolvedValue({ id: 'taken' });
     await expect(service.rescheduleBooking('admin-1', 'bk-1', sunday, true)).rejects.toBeInstanceOf(ConflictError);
-  });
-
-  it('someone else\'s booking is a 404', async () => {
-    await expect(service.rescheduleBooking('user-2', 'bk-1', { newDate: '2026-12-02', newSlot: '16:00' })).rejects.toBeInstanceOf(NotFoundError);
   });
 });

@@ -329,7 +329,8 @@ class ConsultationNotifier extends StateNotifier<ConsultationState> {
   }) async {
     final offering = state.selectedOffering;
     final slot = state.selectedSlot;
-    if (offering == null || slot == null) {
+    final isMessage = offering != null && isMessageConsultationMode(offering.mode);
+    if (offering == null || (slot == null && !isMessage)) {
       state = state.copyWith(
         bookingFailure: const ConsultationFailure(ConsultationErrorKind.slotUnavailable),
       );
@@ -337,7 +338,7 @@ class ConsultationNotifier extends StateNotifier<ConsultationState> {
     }
 
     final existing = state.reservation;
-    if (existing != null && _reservationIsFor(existing, offering, slot)) {
+    if (existing != null && slot != null && _reservationIsFor(existing, offering, slot)) {
       if (existing.isExpired()) {
         state = state.copyWith(
           clearReservation: true,
@@ -354,9 +355,9 @@ class ConsultationNotifier extends StateNotifier<ConsultationState> {
       final reservation = await _service.bookAppointment(
         consultationId: offering.sku,
         mode: offering.mode,
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        date: slot?.date,
+        startTime: slot?.startTime,
+        endTime: slot?.endTime,
         birthProfileId: birthProfileId,
         notes: notes,
       );

@@ -68,7 +68,8 @@ export interface ConsultationTypeInput {
   description?: string | null;
   responseDays?: number;
   includes?: string[];
-  durationMinutes: number;
+  /** Optional when the only mode is MESSAGE (stored as 0). */
+  durationMinutes?: number;
   priceLabel?: string | null;
   note?: string | null;
   isActive?: boolean;
@@ -84,7 +85,7 @@ const TYPE_INCLUDE = {
 
 type TypeRow = Prisma.ConsultationTypeGetPayload<{ include: typeof TYPE_INCLUDE }>;
 
-const MODE_ORDER: Record<ConsultationMode, number> = { AUDIO: 0, VIDEO: 1, IN_PERSON: 2 };
+const MODE_ORDER: Record<ConsultationMode, number> = { AUDIO: 0, VIDEO: 1, IN_PERSON: 2, MESSAGE: 3 };
 const SNAPSHOT_TTL_MS = 30_000;
 const RETRY_AFTER_FAILURE_MS = 5_000;
 
@@ -422,7 +423,7 @@ export class ConsultationTypesService {
           kind: input.type === 'special' ? ConsultationTypeKind.SPECIAL : ConsultationTypeKind.NORMAL,
           description: input.description ?? null,
           includes: input.includes ?? [],
-          durationMinutes: input.durationMinutes,
+          durationMinutes: input.durationMinutes ?? 0,
           responseDays: input.responseDays ?? 0,
           priceLabel: input.priceLabel ?? null,
           note: input.note ?? null,

@@ -1,5 +1,7 @@
 'use client';
 
+import { GstBreakdown } from '../GstBreakdown';
+
 import React, { useState } from 'react';
 import {
   CONSULTATION_MODES,
@@ -41,7 +43,7 @@ function blankMode(): ModeState {
 }
 
 function initialState(existing: ConsultationType | null): FormState {
-  const modes: Record<ConsultationMode, ModeState> = { AUDIO: blankMode(), VIDEO: blankMode(), IN_PERSON: blankMode() };
+  const modes: Record<ConsultationMode, ModeState> = { AUDIO: blankMode(), VIDEO: blankMode(), IN_PERSON: blankMode(), MESSAGE: blankMode() };
   for (const mode of existing?.modes ?? []) {
     const percent = mode.gst.rateBasisPoints / 100;
     modes[mode.mode] = {
@@ -76,9 +78,15 @@ function buildBody(form: FormState, existing: ConsultationType | null): { errors
   if (form.priceLabel.length > 200) errors.push('Price label: at most 200 characters');
   if (form.note.length > 2000) errors.push('Note: at most 2000 characters');
 
+  // Website rules: a call or visit needs a duration; a WhatsApp message consultation needs response days.
+  const scheduled = CONSULTATION_MODES.some((mode) => mode !== 'MESSAGE' && form.modes[mode].enabled);
+  const messageOn = form.modes.MESSAGE.enabled;
   const duration = Number(form.durationMinutes);
-  if (!/^\d+$/.test(form.durationMinutes.trim()) || duration < 5) errors.push('Duration: min 5 minutes required');
-  else if (duration > 480) errors.push('Duration: at most 480 minutes');
+  if (scheduled) {
+    if (!/^\d+$/.test(form.durationMinutes.trim()) || duration < 5) errors.push('Duration: min 5 minutes required');
+    else if (duration > 480) errors.push('Duration: at most 480 minutes');
+  }
+  if (messageOn && !(Number(form.responseDays) >= 1)) errors.push('WhatsApp message: give the response time in days (at least 1)');
 
   let responseDays: number | undefined;
   if (form.responseDays.trim()) {
@@ -119,7 +127,7 @@ function buildBody(form: FormState, existing: ConsultationType | null): { errors
       title,
       type: form.type,
       description: form.description.trim() ? form.description : null,
-      durationMinutes: duration,
+      ...(scheduled ? { durationMinutes: duration } : {}),
       ...(responseDays !== undefined ? { responseDays } : existing ? { responseDays: 0 } : {}),
       includes: form.includes,
       priceLabel: form.priceLabel.trim() || null,
@@ -207,7 +215,7 @@ export function ConsultationTypeForm({
               <option value="special">Special</option>
             </select>
           </Field>
-          <Field label="Duration (minutes) *" hint="5 to 480. Sets the length of the slots offered for this consultation.">
+          <Field label="Duration (minutes)" hint="5 to 480, for audio, video and in-person. Not needed for a WhatsApp message consultation.">
             <input className="input-control" inputMode="numeric" value={form.durationMinutes} onChange={(e) => set('durationMinutes', e.target.value)} />
           </Field>
           <Field label="Notice days" hint="How many days ahead a customer must book (0 = same day). Staff bookings ignore it.">
@@ -267,14 +275,17 @@ export function ConsultationTypeForm({
                             ))}
                           </select>
                         </Field>
-                        <Field label="GST type">
+                        <Field label="This price is">
                           <select className="input-control" value={state.gstType} onChange={(e) => setMode(mode, { gstType: e.target.value as GstType })}>
-                            <option value="INCLUSIVE">Inclusive (in price)</option>
-                            <option value="EXCLUSIVE">Exclusive (added on top)</option>
+                            <option value="INCLUSIVE">Inclusive of GST</option>
+                            <option value="EXCLUSIVE">Exclusive of GST</option>
                           </select>
                         </Field>
                       </>
                     )}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <GstBreakdown amountText={state.price} ratePercentText={state.gstRate} inclusive={state.gstType === 'INCLUSIVE'} gstEnabled={state.gstEnabled} />
+                    </div>
                   </div>
                 )}
               </div>

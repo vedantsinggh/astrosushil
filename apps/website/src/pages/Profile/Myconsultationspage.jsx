@@ -95,11 +95,19 @@ function normaliseBooking(b) {
   const modeMap = {
     audio: "Voice Call",
     video: "Video Call",
+    in_person: "In Person",
+    message: "WhatsApp Message",
   };
+  // The API sends AUDIO / VIDEO / IN_PERSON / MESSAGE; older data used lower case.
+  const mode = String(b.mode || "").toLowerCase();
 
-  // date: "28-05-2026" → parse for display
-  const [day, month, year] = (b.date || "").split("-");
-  const scheduledDate = b.date ? `${year}-${month}-${day}` : null; // → ISO for fmtDate
+  // date: "2026-05-28" (API) or "28-05-2026" (older website data); none for a message consultation.
+  let scheduledDate = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(b.date || "")) scheduledDate = b.date;
+  else if (/^\d{2}-\d{2}-\d{4}$/.test(b.date || "")) {
+    const [day, month, year] = b.date.split("-");
+    scheduledDate = `${year}-${month}-${day}`;
+  }
 
   // slot: "11:20-11:50" → show start time
   const scheduledTime = b.slot ? b.slot.split("-")[0] : "—";
@@ -114,14 +122,20 @@ function normaliseBooking(b) {
       name: "Astro Sushil",
       avatar: null,
     },
-    mode: b.mode,
-    callType: modeMap[b.mode] || "Voice Call",
+    mode,
+    callType: modeMap[mode] || b.mode || "Consultation",
     bookedOn: b.createdAt,
     scheduledDate,
     scheduledTime,
     duration: b.duration ?? b.durationMinutes,
-    status: b.status === "booked" || b.status === "confirmed" ? "upcoming" : String(b.status || "").toLowerCase(),
+    status: (() => {
+      const st = String(b.status || "").toLowerCase();
+      if (["booked", "confirmed", "rescheduled"].includes(st)) return "upcoming";
+      if (st === "pending_payment") return "pending";
+      return st;
+    })(),
     amount: b.amount || b.price?.inr || (b.amountPaise != null ? b.amountPaise / 100 : 0),
+    consultationResponse: b.consultationResponse,
   };
 }
 
@@ -211,6 +225,16 @@ function ConsultationCard({ item, index }) {
                 {item.scheduledTime} ({item.duration} mins)
               </p>
             </div>
+            {item.mode === "message" && item.consultationResponse?.text && (
+              <div className="basis-full rounded-xl border border-primary/15 bg-primary/5 px-3 py-2.5">
+                <p className="text-[9px] font-body font-bold text-primary/60 uppercase tracking-widest mb-1">
+                  Your Consultation Response
+                </p>
+                <p className="text-xs font-body text-primary whitespace-pre-wrap">
+                  {item.consultationResponse.text}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
