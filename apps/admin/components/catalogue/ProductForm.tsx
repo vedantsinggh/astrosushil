@@ -1,5 +1,7 @@
 'use client';
 
+import { GstBreakdown, rupeeTextToPaise } from '../GstBreakdown';
+
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiErrorMessage } from '../../lib/api/uploads';
@@ -49,6 +51,7 @@ interface FormState {
   hindiDescription: string;
   categoryId: string;
   sku: string;
+  hsnSac: string;
   hasVariants: boolean;
   mrp: string;
   discountType: ShopDiscountType;
@@ -100,6 +103,7 @@ function initialState(product?: ShopProduct): FormState {
       hindiDescription: '',
       categoryId: '',
       sku: '',
+      hsnSac: '',
       hasVariants: false,
       mrp: '',
       discountType: 'percentage',
@@ -137,6 +141,7 @@ function initialState(product?: ShopProduct): FormState {
     hindiDescription: product.hindiDescription ?? '',
     categoryId: product.categoryId ?? '',
     sku: product.sku ?? '',
+    hsnSac: product.hsnSac ?? '',
     hasVariants: product.hasVariants,
     mrp: product.hasVariants ? '' : paiseToRupeesText(product.mrp),
     discountType: product.discountType,
@@ -197,6 +202,16 @@ function parseDecimal(text: string): number | null {
   return Number(trimmed);
 }
 
+/** Selling price (rupee text) the server derives from MRP and discount (shop-pricing.ts deriveSellingPrice). */
+function sellingPriceText(mrpText: string, discountType: string, discountText: string): string {
+  const mrp = rupeeTextToPaise(mrpText);
+  if (mrp === null) return '';
+  const d = Number(String(discountText ?? '').trim() || '0');
+  if (!Number.isFinite(d) || d <= 0) return (mrp / 100).toFixed(2);
+  const price = discountType === 'percentage' ? Math.max(0, Math.round(mrp - (mrp * Math.round(d * 100)) / 10000)) : Math.max(0, mrp - Math.round(d * 100));
+  return (price / 100).toFixed(2);
+}
+
 export function ProductForm({ product, onSaved }: { product?: ShopProduct; onSaved: (product: ShopProduct) => void }) {
   const isEdit = Boolean(product);
   const [form, setForm] = useState<FormState>(() => initialState(product));
@@ -244,6 +259,7 @@ export function ProductForm({ product, onSaved }: { product?: ShopProduct; onSav
     if (name.length < 2 || name.length > 300) found.push('Product name must be 2 to 300 characters.');
     if (form.shortDescription.trim().length > 2000) found.push('Short description must be at most 2000 characters.');
     if (form.sku.trim().length > 100) found.push('SKU must be at most 100 characters.');
+    if (form.hsnSac.trim() && !/^(\d{4}|\d{6}|\d{8})$/.test(form.hsnSac.trim())) found.push('HSN code must be 4, 6 or 8 digits.');
     if (form.metaTitle.trim().length > 300) found.push('Meta title must be at most 300 characters.');
     if (form.metaDescription.trim().length > 1000) found.push('Meta description must be at most 1000 characters.');
 
@@ -258,6 +274,7 @@ export function ProductForm({ product, onSaved }: { product?: ShopProduct; onSav
       hasVariants: form.hasVariants,
       discountType: form.discountType,
       sku: form.sku.trim() || null,
+      hsnSac: form.hsnSac.trim() || null,
       metaTitle: form.metaTitle.trim() || null,
       metaDescription: form.metaDescription.trim() || null,
       keywords: form.keywords,
@@ -455,6 +472,9 @@ export function ProductForm({ product, onSaved }: { product?: ShopProduct; onSav
         <Field label="SKU" style={{ maxWidth: '320px' }}>
           <input type="text" className="input-control" maxLength={100} value={form.sku} onChange={(e) => set('sku', e.target.value)} />
         </Field>
+        <Field label="HSN code (GST invoice)" style={{ maxWidth: '320px' }}>
+          <input type="text" inputMode="numeric" className="input-control" maxLength={8} placeholder="Blank = default from Website Settings" value={form.hsnSac} onChange={(e) => set('hsnSac', e.target.value.replace(/\D/g, ''))} />
+        </Field>
       </SectionCard>
 
       <SectionCard title="Pricing & Tax">
@@ -484,13 +504,19 @@ export function ProductForm({ product, onSaved }: { product?: ShopProduct; onSav
           <Field label="GST Rate (%)">
             <input type="text" inputMode="decimal" className="input-control" disabled={!form.gstEnabled} value={form.gstRate} onChange={(e) => set('gstRate', e.target.value)} />
           </Field>
-          <Field label="GST Type">
+          <Field label="This price is">
             <select className="input-control" disabled={!form.gstEnabled} value={form.gstType} onChange={(e) => set('gstType', e.target.value as 'inclusive' | 'exclusive')}>
-              <option value="exclusive">Exclusive (added on top)</option>
-              <option value="inclusive">Inclusive (already in the price)</option>
+              <option value="exclusive">Exclusive of GST</option>
+              <option value="inclusive">Inclusive of GST</option>
             </select>
           </Field>
         </div>
+        {!form.hasVariants && (
+          <div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Selling price after discount:</span>
+            <GstBreakdown amountText={sellingPriceText(form.mrp, form.discountType, form.discountValue)} ratePercentText={form.gstRate} inclusive={form.gstType === 'inclusive'} gstEnabled={form.gstEnabled} />
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard title="Variants">
@@ -541,6 +567,7 @@ export function ProductForm({ product, onSaved }: { product?: ShopProduct; onSav
                 </Field>
                 <Field label="MRP (₹)" required>
                   <input type="text" inputMode="decimal" className="input-control" value={v.mrp} onChange={(e) => updateVariant(v.uid, { mrp: e.target.value })} />
+                  <GstBreakdown amountText={sellingPriceText(v.mrp, form.discountType, form.discountValue)} ratePercentText={form.gstRate} inclusive={form.gstType === 'inclusive'} gstEnabled={form.gstEnabled} />
                 </Field>
                 <Field label="Stock">
                   <input type="text" inputMode="numeric" className="input-control" value={v.stock} onChange={(e) => updateVariant(v.uid, { stock: e.target.value })} />

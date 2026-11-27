@@ -37,7 +37,7 @@ export function Breadcrumbs({ items }: { items: Array<{ label: string; href?: st
       </Link>
       {items.map((item, index) => (
         <React.Fragment key={`${item.label}-${index}`}>
-          {' → '}
+          {' / '}
           {item.href ? (
             <Link href={item.href} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
               {item.label}

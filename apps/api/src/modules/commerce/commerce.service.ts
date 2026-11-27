@@ -123,8 +123,9 @@ export class CommerceService {
     // an in-memory snapshot. Money is about to be charged, so the snapshot is re-read now (and the
     // request fails if the database cannot be read) whenever an item is not a code constant: a
     // type created or re-priced a moment ago, or the first request after start-up, is priced right.
-    if (requestedItems.some((item) => commerceCatalog.isDatabaseItem(item.catalogId))) {
-      await commerceCatalog.refresh({ force: true });
+    // Report prices are admin-editable too (2026-11-26) and are re-read the same way.
+    if (requestedItems.some((item) => commerceCatalog.needsFreshRead(item.catalogId))) {
+      await commerceCatalog.refreshFor(requestedItems.map((item) => item.catalogId));
     }
 
     // 3. Authoritative server calculation

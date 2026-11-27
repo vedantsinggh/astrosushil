@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     prisma: {
       order: { findUnique: vi.fn(), update: vi.fn() },
       refund: { findUnique: vi.fn(), create: vi.fn() },
+      reportCatalogEntry: { findMany: vi.fn(async () => []) },
       $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
     },
     paymentService: {

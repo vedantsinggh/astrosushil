@@ -1,6 +1,7 @@
 import { OrderItemType, FulfillmentType, ReportType } from '@prisma/client';
 import { ValidationError } from '../../errors/app-error';
 import { consultationCatalogSource } from '../consultations/consultation-catalog.adapter';
+import { applyOverride, reportCatalogOverrides } from './report-catalog.overrides';
 
 export interface CatalogItem {
   id: string;
@@ -18,7 +19,7 @@ export interface CatalogItem {
   minQuantity: number;
   maxQuantity: number;
   legacyReportType?: ReportType;
-  consultationMode?: 'AUDIO' | 'VIDEO' | 'IN_PERSON';
+  consultationMode?: 'AUDIO' | 'VIDEO' | 'IN_PERSON' | 'MESSAGE';
   durationMinutes?: number;
   responseDays?: number;
   metadataSchema?: {
@@ -33,7 +34,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-kundli': {
     id: 'report-kundli',
     itemType: OrderItemType.REPORT,
-    title: 'Janma Kundli & Birth Chart Report',
+    title: 'Premium Personalised Kundli Report',
     description: 'Comprehensive astrological life blueprint with planetary placements, Bhavas, and Nakshatra.',
     // Owner decision 2026-11-24 (open-questions M1): ₹999 + 18% GST, charged on top. Stored here as the
     // GST-inclusive amount the customer pays, which gives the same net (₹999) and the same GST (₹179.82).
@@ -89,7 +90,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-career': {
     id: 'report-career',
     itemType: OrderItemType.REPORT,
-    title: 'Career & Professional Life Report',
+    title: 'Career Report',
     description: '10th House vocational analysis, career inflection windows, and professional aptitude breakdown.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
@@ -105,7 +106,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-marriage': {
     id: 'report-marriage',
     itemType: OrderItemType.REPORT,
-    title: 'Marriage & Relationship Compatibility Report',
+    title: 'Couple Kundli Matching Report',
     description: 'Ashtakoota 36-Guna Kundli Milan, 7th house partner dynamics, and planetary harmony evaluation.',
     // Owner decision 2026-11-25 (M2): ₹999 + 18% GST, stored as GST-inclusive amount (matching report-kundli).
     pricePaise: 117882, // ₹1,178.82 = ₹999 + GST
@@ -123,7 +124,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-career-pro': {
     id: 'report-career-pro',
     itemType: OrderItemType.REPORT,
-    title: 'Executive Career & Wealth Prosperity Dossier',
+    title: 'Career Report',
     description: 'Multi-divisional D10/D9 analysis with 5-year Dasha roadmap and executive career strategic planning.',
     pricePaise: 69900, // ₹699
     currency: 'INR',
@@ -139,7 +140,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-horoscope': {
     id: 'report-horoscope',
     itemType: OrderItemType.REPORT,
-    title: 'Personalised Horoscope & Yearly Transit Dossier 2026',
+    title: 'Personalised Horoscope Report',
     description: 'Comprehensive annual Chandra Lagna Moon-sign forecast, quarterly trajectories, 12-month matrix, and Vedic remedial guidance.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
@@ -155,7 +156,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-finance': {
     id: 'report-finance',
     itemType: OrderItemType.REPORT,
-    title: 'Personalised Finance & Wealth Dossier',
+    title: 'Finance Report',
     description: 'Comprehensive wealth blueprint analyzing 2nd and 11th houses, Dhana Yogas, SAV cashflow dynamics, 3-year financial horizon, and consecrated Vedic remedies.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
@@ -171,7 +172,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-love': {
     id: 'report-love',
     itemType: OrderItemType.REPORT,
-    title: 'Personalised Love & Relationship Report',
+    title: 'Love Report',
     description: 'Comprehensive romantic and relationship blueprint analyzing 5th and 7th houses, Venus dynamics, Darakaraka spouse portrait, Mulank numerology, marriage timing, and consecrated Vedic remedies.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
@@ -203,7 +204,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-fortune-plus': {
     id: 'report-fortune-plus',
     itemType: OrderItemType.REPORT,
-    title: 'Personalised Fortune Report Plus (Comprehensive Edition)',
+    title: 'Personalised Fortune Report Plus',
     description: 'Comprehensive 25-chapter Vedic numerology and astrological life dossier including Success/Connection/Maturity numbers, 4 Life Pinnacles, 4 birth charts (D1, D9, Chandra, Lal Kitab), 9-planet house attributes, Manglik dosh, Sade Sati timeline, classical yogas, marriage timing, and consecrated remedies.',
     // Website price (astrosushil.com, read 2026-11-24): ₹699 + 18% GST, charged on top. Stored here as the
     // GST-inclusive amount the customer pays, which gives the same net (₹699) and the same GST.
@@ -222,7 +223,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-saturn': {
     id: 'report-saturn',
     itemType: OrderItemType.REPORT,
-    title: 'Saturn in Your Birth Chart Report',
+    title: 'Saturn In Your Birth Chart Report',
     description: 'Comprehensive Vedic guide to Lord Shani analysing your natal Saturn, its 3rd/7th/10th aspects and nakshatra, Saturn\'s Bhinnashtakavarga, your lifetime Sade Sati and Kantak Shani periods, upcoming Saturn transits, and gentle remedies.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
@@ -254,7 +255,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-rahu-ketu-transit': {
     id: 'report-rahu-ketu-transit',
     itemType: OrderItemType.REPORT,
-    title: 'Rahu-Ketu Transit Report',
+    title: 'Rahu Ketu Transit Report',
     description: 'Comprehensive Vedic guide to the lunar nodes analysing your natal Rahu-Ketu axis and nakshatras, and your personal Rahu and Ketu transit periods.',
     pricePaise: 0, // Pending commercial sign-off
     currency: 'INR',
@@ -270,7 +271,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-varshphal': {
     id: 'report-varshphal',
     itemType: OrderItemType.REPORT,
-    title: 'Varshphal (Annual Solar Return) Report',
+    title: 'Varshphal Report',
     description: 'Comprehensive classical Tajika annual solar return horoscope analyzing Muntha progression, Varshesh (Year Lord) selection, Tajika Yogas, Harsha Bala, Mudda Dasha, and 12-month predictive roadmap.',
     pricePaise: 0, // Pending commercial sign-off
     currency: 'INR',
@@ -302,7 +303,7 @@ export const COMMERCE_CATALOG: Record<string, CatalogItem> = {
   'report-personalised-horoscope': {
     id: 'report-personalised-horoscope',
     itemType: OrderItemType.REPORT,
-    title: 'Personalised Horoscope & Yearly Transit Dossier 2026',
+    title: 'Personalised Horoscope Report',
     description: 'Comprehensive annual Chandra Lagna Moon-sign forecast, quarterly trajectories, 12-month matrix, and Vedic remedial guidance.',
     pricePaise: 49900, // ₹499
     currency: 'INR',
@@ -696,7 +697,29 @@ export class CommerceCatalogService {
    *     the previous snapshot.
    */
   public async refresh(options: { force?: boolean } = {}): Promise<void> {
-    await consultationCatalogSource.refresh(options);
+    await Promise.all([consultationCatalogSource.refresh(options), reportCatalogOverrides.refresh(options)]);
+  }
+
+  /**
+   * True when the item's price can change without a release, so it must be re-read before money is
+   * involved: a consultation type (database row) or a report (admin-editable since 2026-11-26).
+   */
+  public needsFreshRead(id: string): boolean {
+    if (this.isDatabaseItem(id)) return true;
+    return COMMERCE_CATALOG[id]?.itemType === OrderItemType.REPORT;
+  }
+
+  /**
+   * Before pricing: re-read now (failing if the database cannot be read) only the sources the
+   * requested items come from: consultation types and/or report edits.
+   */
+  public async refreshFor(ids: readonly string[]): Promise<void> {
+    const consultations = ids.some((id) => this.isDatabaseItem(id));
+    const reports = ids.some((id) => !this.isDatabaseItem(id) && COMMERCE_CATALOG[id]?.itemType === OrderItemType.REPORT);
+    await Promise.all([
+      consultations ? consultationCatalogSource.refresh({ force: true }) : Promise.resolve(),
+      reports ? reportCatalogOverrides.refresh({ force: true }) : Promise.resolve(),
+    ]);
   }
 
   /** True when `id` is not one of the code constants, i.e. it can only be a consultation row. */
@@ -705,7 +728,9 @@ export class CommerceCatalogService {
   }
 
   public getItem(id: string): CatalogItem | null {
-    if (Object.prototype.hasOwnProperty.call(COMMERCE_CATALOG, id)) return COMMERCE_CATALOG[id];
+    if (Object.prototype.hasOwnProperty.call(COMMERCE_CATALOG, id)) {
+      return applyOverride(COMMERCE_CATALOG[id], reportCatalogOverrides.get(id));
+    }
     // Consultation types are database rows (admin-editable); see consultation-catalog.adapter.ts.
     return consultationCatalogSource.getItem(id);
   }
@@ -714,11 +739,11 @@ export class CommerceCatalogService {
     const item = Object.values(COMMERCE_CATALOG).find(
       (entry) => entry.legacyReportType === reportType
     );
-    return item || null;
+    return item ? applyOverride(item, reportCatalogOverrides.get(item.id)) : null;
   }
 
   public listItems(filter?: { itemType?: OrderItemType; activeOnly?: boolean }): CatalogItem[] {
-    let items = Object.values(COMMERCE_CATALOG);
+    let items = Object.values(COMMERCE_CATALOG).map((item) => applyOverride(item, reportCatalogOverrides.get(item.id)));
     if (filter?.itemType) {
       items = items.filter((i) => i.itemType === filter.itemType);
     }

@@ -170,6 +170,7 @@ export interface ShopProduct {
   currency: string;
   stock: number;
   sku: string | null;
+  hsnSac?: string | null;
   isAvailable: boolean;
   isPublished: boolean;
   isFeatured: boolean;
@@ -230,6 +231,7 @@ export interface ShopProductInput {
   discountValue?: number;
   stock?: number;
   sku?: string | null;
+  hsnSac?: string | null;
   variants?: ShopProductVariantInput[];
   downloadableFile?: PrivateFileInput | null;
   gst?: { enabled?: boolean; rate?: number; type?: 'inclusive' | 'exclusive' };
@@ -523,4 +525,77 @@ export interface ShopOrdersSummary {
 
 export function fetchShopOrdersSummary(): Promise<ShopOrdersSummary> {
   return unwrap<ShopOrdersSummary>(`${ADMIN}/shop-orders/reports`);
+}
+
+// -------------------------------------------------------------- PDF report catalogue (editable, 2026-11-26)
+
+export interface ReportContentBlock {
+  title: string;
+  description: string;
+  icon?: string;
+}
+
+export interface ReportFaq {
+  question: string;
+  answer: string;
+}
+
+export interface ReportCatalogEdits {
+  catalogId: string;
+  name: string | null;
+  slug: string | null;
+  shortDescription: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  coverImageKey: string | null;
+  salePricePaise: number | null;
+  /** true: salePricePaise is the final price with GST inside; false: GST is added on top. */
+  priceIncludesGst: boolean;
+  originalPricePaise: number | null;
+  gstRateBp: number | null;
+  isActive: boolean | null;
+  isPremium: boolean;
+  benefits: ReportContentBlock[];
+  features: ReportContentBlock[];
+  faqs: ReportFaq[];
+  hsnSac: string | null;
+  updatedAt: string | null;
+}
+
+export interface ReportCatalogEntry {
+  catalogId: string;
+  reportType: string | null;
+  websiteProduct: { slug: string; name: string; reportType: string } | null;
+  languages: string[];
+  effective: {
+    name: string;
+    slug: string | null;
+    description: string;
+    salePricePaise: number;
+    gstRateBp: number;
+    gstPaise: number;
+    priceWithGstPaise: number;
+    originalPricePaise: number | null;
+    isActive: boolean;
+  };
+  defaults: { name: string; description: string; salePricePaise: number; gstRateBp: number; originalPricePaise: number | null; isActive: boolean };
+  edits: ReportCatalogEdits | null;
+}
+
+export type ReportCatalogUpdate = Partial<Omit<ReportCatalogEdits, 'catalogId' | 'updatedAt'>>;
+
+export function listReportCatalog(): Promise<ReportCatalogEntry[]> {
+  return unwrap<ReportCatalogEntry[]>('/api/v1/admin/report-catalogue');
+}
+
+export function getReportCatalogEntry(catalogId: string): Promise<ReportCatalogEntry> {
+  return unwrap<ReportCatalogEntry>(`/api/v1/admin/report-catalogue/${encodeURIComponent(catalogId)}`);
+}
+
+export function updateReportCatalogEntry(catalogId: string, body: ReportCatalogUpdate): Promise<ReportCatalogEntry> {
+  return unwrap<ReportCatalogEntry>(`/api/v1/admin/report-catalogue/${encodeURIComponent(catalogId)}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export function resetReportCatalogEntry(catalogId: string): Promise<ReportCatalogEntry> {
+  return unwrap<ReportCatalogEntry>(`/api/v1/admin/report-catalogue/${encodeURIComponent(catalogId)}/reset`, { method: 'POST', body: '{}' });
 }
