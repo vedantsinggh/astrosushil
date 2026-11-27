@@ -7,7 +7,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../lib/auth-context';
 import { ConfirmDialog } from '../../components/sales/ui';
 import { buildCsv, formatDateTime } from '../../components/sales/format';
-import { saveTextFile } from '../../lib/api/sales';
+import { downloadFile, saveTextFile } from '../../lib/api/sales';
 
 interface ReportListItem {
   id: string;
@@ -98,6 +98,20 @@ export default function ReportsPage() {
   };
 
   const [isExporting, setIsExporting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // The API reads the PDF from the active store: local disk in development, S3 in production.
+  const handleDownloadPdf = async (id: string) => {
+    setDownloadingId(id);
+    setError(null);
+    try {
+      await downloadFile(`/admin/reports/${id}/download`, `astro-sushil-report-${id}.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   /** Website "Report Orders" export: every report matching the current filters, as CSV. */
   const exportCsv = async () => {
@@ -366,9 +380,22 @@ export default function ReportsPage() {
                       {new Date(r.createdAt).toLocaleString()}
                     </td>
                     <td>
-                      <Link href={`/reports/${r.id}`} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
-                        Debug Pipeline →
-                      </Link>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <Link href={`/reports/${r.id}`} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>
+                          Debug Pipeline →
+                        </Link>
+                        {r.originalStatus === 'COMPLETED' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadPdf(r.id)}
+                            disabled={downloadingId === r.id}
+                            className="btn btn-secondary"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          >
+                            {downloadingId === r.id ? 'Downloading…' : 'Download PDF'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

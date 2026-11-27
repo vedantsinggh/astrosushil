@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { apiFetch } from '../../../lib/api-client';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { useAuth } from '../../../lib/auth-context';
+import { downloadFile } from '../../../lib/api/sales';
 
 interface PipelineStage {
   id: string;
@@ -27,8 +28,8 @@ interface ReportDetailsResponse {
     stage: string | null;
     progress: number;
     reportVersion: string;
-    templateVersion: string;
-    generatorVersion: string;
+    templateVersion: string | null;
+    generatorVersion: string | null;
     calculationVersion: string;
     s3Url: string | null;
     storageKey: string | null;
@@ -39,13 +40,16 @@ interface ReportDetailsResponse {
     errorMessage: string | null;
     isStuck: boolean;
     pdfAvailableOnDisk: boolean;
+    pdfAvailable?: boolean;
+    storageProvider?: string;
+    language?: string;
     createdAt: string;
     updatedAt: string;
     completedAt: string | null;
     failedAt: string | null;
     totalDurationMs: number | null;
   };
-  user: { id: string; email: string; fullName: string | null };
+  user: { id: string; email: string | null; fullName: string | null } | null;
   birthProfileSnapshot: {
     id: string;
     name: string;
@@ -57,7 +61,7 @@ interface ReportDetailsResponse {
     timezone: string;
     profileVersionAtGeneration: string;
     isProfileModifiedSinceReport: boolean;
-  };
+  } | null;
   cacheInfo: {
     source: string;
     cacheKey: string;
@@ -90,6 +94,8 @@ export default function ReportDetailsPage() {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [showConfirmRegenerate, setShowConfirmRegenerate] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,8 +107,8 @@ export default function ReportDetailsPage() {
       const res = await apiFetch<ReportDetailsResponse>(`/api/v1/admin/reports/${reportId}`);
       setData(res);
       // Default to opening failed stage or first stage
-      const failed = res.pipelineStages.find((s) => s.status === 'FAILED');
-      setActiveStageId(failed ? failed.id : res.pipelineStages[0]?.id || null);
+      const failed = (res.pipelineStages ?? []).find((s) => s.status === 'FAILED');
+      setActiveStageId(failed ? failed.id : res.pipelineStages?.[0]?.id || null);
     } catch (err: any) {
       setError(err?.message || 'Failed to load report pipeline diagnostics');
     } finally {
@@ -131,6 +137,19 @@ export default function ReportDetailsPage() {
     }
   };
 
+  // The API reads the PDF from the active store: local disk in development, S3 in production.
+  const handleDownloadPdf = async () => {
+    setIsDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadFile(`/admin/reports/${reportId}/download`, `astro-sushil-report-${reportId}.pdf`);
+    } catch (err: any) {
+      setDownloadError(err?.message || 'Failed to download report PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div>
@@ -153,7 +172,10 @@ export default function ReportDetailsPage() {
     );
   }
 
-  const { report, user, birthProfileSnapshot, cacheInfo, duplicateActiveJobs, errorDiagnostics, pipelineStages, timeline } = data;
+  const { report, user, birthProfileSnapshot, cacheInfo, errorDiagnostics } = data;
+  const duplicateActiveJobs = data.duplicateActiveJobs ?? { activeJobCount: 0, jobs: [] };
+  const pipelineStages = data.pipelineStages ?? [];
+  const timeline = data.timeline ?? [];
   const activeStage = pipelineStages.find((s) => s.id === activeStageId);
 
   return (
@@ -165,7 +187,7 @@ export default function ReportDetailsPage() {
             ← Back to Reports
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h1 className="page-title" style={{ margin: 0 }}>Career Report</h1>
+            <h1 className="page-title" style={{ margin: 0 }}>Report Pipeline</h1>
             {report.isStuck ? (
               <span className="badge badge-warning" style={{ fontSize: '0.9rem' }}>STUCK (&gt;5m)</span>
             ) : (
@@ -179,16 +201,17 @@ export default function ReportDetailsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {report.status === 'COMPLETED' && (
-            <a
-              href={`/api/v1/reports/${report.id}/download-file`}
-              target="_blank"
-              rel="noopener noreferrer"
+          {(report.originalStatus ?? report.status) === 'COMPLETED' && (
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isDownloading}
               className="btn btn-secondary"
               style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              title={report.storageProvider ? `Stored in ${report.storageProvider} storage` : undefined}
             >
-              View / Download PDF
-            </a>
+              {isDownloading ? 'Downloading…' : 'Download PDF'}
+            </button>
           )}
 
           {hasPermission('reports:regenerate') && (
@@ -203,6 +226,12 @@ export default function ReportDetailsPage() {
           )}
         </div>
       </div>
+
+      {downloadError && (
+        <div className="card" style={{ background: '#FEF2F2', borderColor: '#EF4444', marginBottom: '1.5rem', padding: '0.75rem 1.25rem', color: '#991B1B', fontSize: '0.85rem' }}>
+          PDF download failed: {downloadError}
+        </div>
+      )}
 
       {/* CONFIRM REGENERATE MODAL */}
       {showConfirmRegenerate && (
@@ -298,7 +327,7 @@ export default function ReportDetailsPage() {
 
       {/* 1. REPORT PIPELINE VIEW (7 STAGES) */}
       <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: 'var(--text-primary)' }}>Report Compilation Pipeline (7 Stages)</h3>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', color: 'var(--text-primary)' }}>Report Compilation Pipeline ({pipelineStages.length} Stages)</h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', marginBottom: '1.5rem' }}>
           {pipelineStages.map((stg, idx) => {
@@ -343,6 +372,7 @@ export default function ReportDetailsPage() {
                   {stg.status === 'RUNNING' && <span style={{ color: '#2563EB', fontWeight: 700 }}>RUNNING</span>}
                   {stg.status === 'FAILED' && <span style={{ color: '#DC2626', fontWeight: 700 }}>✗ FAILED</span>}
                   {stg.status === 'PENDING' && <span style={{ color: '#9CA3AF' }}>PENDING</span>}
+                  {stg.status === 'SKIPPED' && <span style={{ color: '#9CA3AF' }}>SKIPPED</span>}
                 </div>
               </button>
             );
@@ -452,11 +482,11 @@ export default function ReportDetailsPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Template Version:</span>
-              <strong>{report.templateVersion}</strong>
+              <strong>{report.templateVersion ?? 'N/A'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Generator Version:</span>
-              <strong>{report.generatorVersion}</strong>
+              <strong>{report.generatorVersion ?? 'N/A'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Calculation Version:</span>
@@ -465,6 +495,7 @@ export default function ReportDetailsPage() {
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '0.4rem 0' }} />
 
+            {birthProfileSnapshot ? (
             <div>
               <strong style={{ display: 'block', marginBottom: '0.2rem', color: 'var(--text-primary)' }}>
                 Birth Profile Used ({birthProfileSnapshot.name})
@@ -481,6 +512,9 @@ export default function ReportDetailsPage() {
                 </div>
               )}
             </div>
+            ) : (
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Birth profile not found</div>
+            )}
           </div>
         </div>
 

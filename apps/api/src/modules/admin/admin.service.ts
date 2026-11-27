@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { prisma } from '../../services/prisma.service';
 import { invalidateAccountStatusCache } from '../auth/account-status';
 import { hashPassword, verifyPassword } from '../../utils/hash';
@@ -27,6 +25,9 @@ import { isPlatformReportType } from '../../services/platform-report.runner';
 import { featureAccessService } from '../../services/feature-access.service';
 import { parseDateBound } from '../../utils/business-time';
 import { staffAuthAttemptService } from '../auth/staff-auth-attempt.service';
+import { storageService } from '../../services/storage.service';
+import { logger } from '../../utils/logger';
+import { buildReportDiagnostics, STUCK_TIMEOUT_MS } from './report-diagnostics';
 import {
   SubscriptionsQueryInput,
   PaymentsQueryInput,
@@ -39,7 +40,6 @@ import {
 } from './admin.schemas';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'SUPPORT'];
-const STUCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes in non-terminal state = STUCK
 
 export class AdminService {
   private readonly calculator: ChartCalculator;
@@ -1744,22 +1744,8 @@ export class AdminService {
       userAgent: reqMeta?.userAgent,
     });
 
-    const hasProfile = Boolean(report.birthProfile);
-    let profileDetails: any = null;
     let chartCalculated = false;
-
     if (report.birthProfile) {
-      profileDetails = {
-        id: report.birthProfile.id,
-        name: report.birthProfile.name,
-        dateOfBirth: report.birthProfile.dateOfBirth,
-        timeOfBirth: report.birthProfile.timeOfBirth,
-        latitude: report.birthProfile.latitude,
-        longitude: report.birthProfile.longitude,
-        timezone: report.birthProfile.timezone,
-        placeName: report.birthProfile.placeName,
-      };
-
       try {
         const birthDetails = mapBirthProfileToBirthDetails({
           id: report.birthProfile.id,
@@ -1777,73 +1763,82 @@ export class AdminService {
       }
     }
 
-    const isCompleted = report.status === 'COMPLETED';
-    const isFailed = report.status === 'FAILED';
-    const pdfPath = report.s3Url || null;
-    const pdfExists = Boolean(pdfPath && fs.existsSync(pdfPath));
+    // The PDF lives in the active store: local disk in development, S3 / R2 in production.
+    let pdfAvailable = false;
+    if (report.storageKey) {
+      try {
+        pdfAvailable = await storageService.exists(report.storageKey);
+      } catch (_e) {
+        pdfAvailable = false;
+      }
+    }
 
-    const pipelineStages = [
-      {
-        stage: 1,
-        name: 'Birth Profile Validation',
-        status: hasProfile ? 'COMPLETED' : 'FAILED',
-        details: hasProfile ? `Valid profile '${profileDetails?.name}'` : 'Missing Birth Profile entity',
-      },
-      {
-        stage: 2,
-        name: 'Astrology Chart Calculation',
-        status: chartCalculated ? 'COMPLETED' : 'FAILED',
-        details: chartCalculated ? 'Engine chart generated successfully' : 'Chart calculation failed',
-      },
-      {
-        stage: 3,
-        name: 'Career Synthesis Engine',
-        status: isCompleted ? 'COMPLETED' : isFailed ? 'FAILED' : 'IN_PROGRESS',
-        details: isCompleted ? 'Synthesized career insights' : isFailed ? report.errorMessage || 'Synthesis error' : 'Processing...',
-      },
-      {
-        stage: 4,
-        name: 'Report Data Assembly',
-        status: isCompleted ? 'COMPLETED' : isFailed ? 'FAILED' : 'PENDING',
-        details: isCompleted ? 'Report payload verified' : isFailed ? report.errorCode || 'Assembly error' : 'Waiting...',
-      },
-      {
-        stage: 5,
-        name: 'LaTeX Template Binding',
-        status: isCompleted ? 'COMPLETED' : isFailed ? 'FAILED' : 'PENDING',
-        details: isCompleted ? 'Bound main.tex template' : isFailed ? 'Binding failed' : 'Waiting...',
-      },
-      {
-        stage: 6,
-        name: 'PDF Compilation (XeLaTeX)',
-        status: isCompleted ? 'COMPLETED' : isFailed ? 'FAILED' : 'PENDING',
-        details: isCompleted ? 'Compiled binary PDF' : isFailed ? report.errorMessage || 'XeLaTeX failure' : 'Waiting...',
-      },
-      {
-        stage: 7,
-        name: 'Storage & Delivery',
-        status: pdfExists ? 'COMPLETED' : isFailed ? 'FAILED' : 'PENDING',
-        details: pdfExists ? `Saved to ${pdfPath}` : 'PDF artifact not found on disk',
-      },
-    ];
-
-    return {
-      report: {
-        id: report.id,
+    const activeJobs = await prisma.report.findMany({
+      where: {
+        userId: report.userId,
+        birthProfileId: report.birthProfileId,
         reportType: report.reportType,
-        status: report.status,
-        pdfUrl: report.s3Url,
-        pdfExists,
-        errorCode: report.errorCode,
-        errorMessage: report.errorMessage,
-        user: report.user,
-        birthProfile: profileDetails,
-        createdAt: report.createdAt.toISOString(),
-        completedAt: report.completedAt ? report.completedAt.toISOString() : null,
-        failedAt: report.failedAt ? report.failedAt.toISOString() : null,
+        status: { notIn: ['COMPLETED', 'FAILED'] },
       },
-      pipelineStages,
-    };
+      select: { id: true, status: true, stage: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return buildReportDiagnostics({
+      report,
+      user: report.user,
+      birthProfile: report.birthProfile,
+      chartCalculated,
+      pdfAvailable,
+      storageProvider: storageService.providerName,
+      activeJobs,
+      now: new Date(),
+    });
+  }
+
+  /**
+   * Streams a report PDF to an admin from the active store (local disk in development, S3 / R2 in
+   * production). Unlike the customer route there is no ownership or release-time check; the
+   * download is audited.
+   */
+  public async downloadReportPdf(id: string, adminUser: { id: string; email: string }, reqMeta?: { ipAddress?: string; userAgent?: string }) {
+    const report = await prisma.report.findUnique({
+      where: { id },
+      select: { id: true, reportType: true, status: true, storageKey: true, fileName: true },
+    });
+    if (!report) {
+      throw new NotFoundError(`Report with ID '${id}' not found`);
+    }
+    if (report.status !== 'COMPLETED') {
+      throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
+    }
+    if (!report.storageKey) {
+      throw new AppError('Report PDF file is not available in storage.', 404, 'REPORT_ASSET_NOT_FOUND');
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = await storageService.downloadBuffer(report.storageKey);
+    } catch (err: any) {
+      logger.error({ reportId: id, storageKey: report.storageKey, err: err?.message }, '[ADMIN_PDF_DOWNLOAD] Failed to read report PDF from storage');
+      throw new AppError('Report PDF file is not available in storage.', 404, 'REPORT_ASSET_NOT_FOUND');
+    }
+    if (!buffer || buffer.length === 0) {
+      throw new AppError('Report PDF file is not available in storage.', 404, 'REPORT_ASSET_NOT_FOUND');
+    }
+
+    await this.logAction({
+      adminId: adminUser.id,
+      adminEmail: adminUser.email,
+      action: 'ADMIN_DOWNLOADED_REPORT',
+      resource: `Report:${id}`,
+      details: `Downloaded ${report.reportType} report PDF (${id}) from ${storageService.providerName} storage`,
+      ipAddress: reqMeta?.ipAddress,
+      userAgent: reqMeta?.userAgent,
+    });
+
+    const fileName = (report.fileName || `astro-sushil-report-${id}.pdf`).replace(/[^a-zA-Z0-9._-]/g, '_');
+    return { buffer, fileName };
   }
 
   /**

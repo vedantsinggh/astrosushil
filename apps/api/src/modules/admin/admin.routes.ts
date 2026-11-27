@@ -445,6 +445,25 @@ export async function adminRoutes(fastify: FastifyInstance, _options: FastifyPlu
       },
     });
 
+    // Report PDF Download (local disk in development, S3 / R2 in production)
+    protectedRoutes.get('/reports/:id/download', {
+      preHandler: [checkPermission('reports:read')],
+      schema: { tags: ['Admin Reports'], summary: 'Download a completed report PDF from object storage' },
+      handler: async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const adminProfile = await adminService.getProfile(request.user.id);
+        const { buffer, fileName } = await adminService.downloadReportPdf(id, adminProfile, {
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        });
+        reply.header('Cache-Control', 'no-store');
+        reply.header('Content-Type', 'application/pdf');
+        reply.header('Content-Length', buffer.length.toString());
+        reply.header('Content-Disposition', `attachment; filename="${fileName}"`);
+        return reply.send(buffer);
+      },
+    });
+
     // Report Regeneration (SUPER_ADMIN & ADMIN)
     protectedRoutes.post('/reports/:id/regenerate', {
       preHandler: [checkPermission('reports:regenerate')],
