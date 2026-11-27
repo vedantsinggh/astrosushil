@@ -7,6 +7,8 @@ import { Check, Loader2, MapPin } from "lucide-react";
 import { useAstrologyStore } from "../../store/useAstrologyStore";
 import { trackPurchase } from "../../utils/analytics";
 import PhoneInput from "@/lib/phoneInput";
+import { SavedProfilePicker } from "../../components/BirthProfiles";
+import { getReportMeta, isReportPurchasable } from "../../data/reportCatalogMeta";
 
 const getPhoneInputStyle = (hasError) => ({
   width: "100%",
@@ -95,7 +97,10 @@ export default function BookingForm() {
 
   const navigate = useNavigate();
 
-  const isMatchMaking = report?.reportType === "match_making_pdf";
+  const isMatchMaking =
+    report?.requires === "matchMakingDetails" ||
+    report?.reportType === "match_making_pdf" ||
+    report?.reportType === "marriage_compatibility_pdf";
 
   useEffect(() => {
     if (slug) getReportBySlug(slug);
@@ -162,6 +167,22 @@ export default function BookingForm() {
       [name]: type === "checkbox" ? checked : value,
     }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  /** Fill one person of the form from a saved birth profile (prefix "" | "bride" | "groom"). */
+  const fillFromProfile = (prefix) => (p) => {
+    const key = (field) => (prefix ? prefix + field.charAt(0).toUpperCase() + field.slice(1) : field);
+    setForm((prev) => ({
+      ...prev,
+      [key("fullName")]: p.fullName,
+      [key("dob")]: p.dob,
+      [key("timeOfBirth")]: p.timeOfBirth,
+      [key("birthPlace")]: p.birthPlace,
+      [key("latitude")]: p.latitude,
+      [key("longitude")]: p.longitude,
+      ...(p.gender ? { [key("gender")]: p.gender } : {}),
+    }));
+    setErrors({});
   };
 
   const handlePhoneChange = (name) => (value) => {
@@ -251,7 +272,10 @@ export default function BookingForm() {
         return;
       }
 
-      const isMatchMaking = report.reportType === "match_making_pdf";
+      const isMatchMaking =
+        report?.requires === "matchMakingDetails" ||
+        report.reportType === "match_making_pdf" ||
+        report.reportType === "marriage_compatibility_pdf";
 
       const buyPayload = {
         reportId: report._id,
@@ -418,6 +442,51 @@ export default function BookingForm() {
 
   if (!report) return null;
 
+  const meta = getReportMeta(report);
+  const purchasable = isReportPurchasable(report);
+
+  if (!purchasable) {
+    return (
+      <div className="min-h-[70vh] bg-[#f5f0e8] font-body py-16 px-4 flex items-center justify-center">
+        <div className="max-w-lg w-full bg-white rounded-3xl border border-secondary p-8 text-center shadow-sm">
+          <div className="w-28 aspect-210/297 mx-auto mb-5 rounded-xl overflow-hidden shadow-md">
+            <img
+              src={report.coverImage || meta.coverImage}
+              alt={report.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <span className="inline-block text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 mb-3">
+            Coming Soon · Pricing Pending
+          </span>
+          <h1 className="font-heading text-2xl md:text-3xl text-primary mb-2">
+            {report.name}
+          </h1>
+          <p className="text-sm text-[#555570] mb-6 leading-relaxed">
+            This report edition is currently awaiting commercial pricing and cannot be ordered online yet. You can preview its contents or reach out to our team for release updates.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(`/personalized-astrology-reports/${report.slug || slug}`)}
+              className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-gold transition-colors cursor-pointer"
+            >
+              Back to Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/contact-us/")}
+              className="px-5 py-2.5 rounded-xl border border-primary/25 text-primary text-sm font-medium hover:bg-secondary/50 transition-colors cursor-pointer"
+            >
+              Enquire Now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const includedItems = report.benefits?.length > 0 ? report.benefits : meta.highlights || [];
   const isDisabled = btnState !== "idle";
 
   return (
@@ -434,13 +503,18 @@ export default function BookingForm() {
 
       <div className="max-w-7xl mx-auto grid md:grid-cols-[340px_1fr] gap-8 items-start">
         {/* LEFT */}
-        <div className="bg-white rounded-2xl border border-secondary p-6 shadow-sm  top-6">
+        <div className="bg-white rounded-2xl border border-secondary p-6 shadow-sm top-6">
           <div className="flex justify-center mb-5">
-            <img
-              src={report.coverImage}
-              alt={report.name}
-              className="w-28 h-36 object-contain rounded-xl"
-            />
+            <div
+              className="w-36 aspect-210/297 rounded-xl overflow-hidden shadow-lg"
+              style={{ border: `1.5px solid ${meta.borderTint}` }}
+            >
+              <img
+                src={report.coverImage || meta.coverImage}
+                alt={report.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
           <h2 className="font-heading text-2xl text-primary mb-1">
             {report.name}
@@ -449,9 +523,11 @@ export default function BookingForm() {
             <span className="text-gold font-heading text-2xl font-bold">
               {convert(report.priceBreakdown?.total ?? report.salePrice)}
             </span>
-            <span className="text-[#aaa] line-through text-base">
-              {convert(report.originalPrice)}
-            </span>
+            {report.originalPrice && (
+              <span className="text-[#aaa] line-through text-base">
+                {convert(report.originalPrice)}
+              </span>
+            )}
           </div>
           {report.priceBreakdown?.taxAmount > 0 && (
             <p className="text-[11px] text-[#999] mb-1">
@@ -461,10 +537,10 @@ export default function BookingForm() {
           <p className="text-[#777] text-sm mb-5">{report.shortDescription}</p>
           <div className="border-t border-secondary pt-4">
             <p className="text-primary font-heading text-sm font-bold mb-3">
-              What's Included
+              What&apos;s Included
             </p>
             <ul className="space-y-2">
-              {report.benefits?.map((b, i) => (
+              {includedItems.map((b, i) => (
                 <li
                   key={i}
                   className="flex items-start text-sm text-[#444] leading-snug"
@@ -483,6 +559,7 @@ export default function BookingForm() {
             Your Details
           </h3>
 
+          {!isMatchMaking && <SavedProfilePicker onPick={fillFromProfile("")} />}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {!isMatchMaking ? (
               <>
@@ -685,6 +762,7 @@ export default function BookingForm() {
                     <h4 className="font-heading text-lg text-primary mb-2">
                       Bride Details
                     </h4>
+                    <SavedProfilePicker label="Fill from a saved birth profile" onPick={fillFromProfile("bride")} />
                     <p className="text-sm text-[#555]">
                       Enter the bride's details for matchmaking report
                       generation.
@@ -895,6 +973,7 @@ export default function BookingForm() {
                     <h4 className="font-heading text-lg text-primary mb-2">
                       Groom Details
                     </h4>
+                    <SavedProfilePicker label="Fill from a saved birth profile" onPick={fillFromProfile("groom")} />
                     <p className="text-sm text-[#555]">
                       Enter the groom's details for matchmaking report
                       generation.

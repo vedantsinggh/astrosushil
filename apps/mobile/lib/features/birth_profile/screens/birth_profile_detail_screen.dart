@@ -57,6 +57,22 @@ class BirthProfileDetailScreen extends ConsumerWidget {
           children: [
             // HERO: who this chart belongs to
             _ProfileHero(profile: profile),
+            const SizedBox(height: 12),
+            if (!ref.watch(authStateProvider).isGuest)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: profile.isSelf
+                    ? const Chip(avatar: Icon(Icons.person_rounded, size: 16), label: Text('This is my profile'))
+                    : OutlinedButton.icon(
+                        icon: const Icon(Icons.person_outline_rounded, size: 18),
+                        label: const Text('This is me'),
+                        onPressed: () async {
+                          await ref.read(birthProfileRepositoryProvider).markSelf(profile.id);
+                          ref.invalidate(singleBirthProfileProvider(profile.id));
+                          await ref.read(birthProfilesListNotifierProvider.notifier).fetchProfiles();
+                        },
+                      ),
+              ),
             const SizedBox(height: 20),
 
             // UNRESOLVED LOCATION WARNING (IF LEGACY/UNVERIFIED)

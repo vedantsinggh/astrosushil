@@ -78,15 +78,32 @@ class BirthProfileCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            profile.name,
-                            style: AppTypography.headlineMedium.copyWith(
-                              fontSize: 19,
-                              height: 1.25,
-                              color: AppColors.lightTextPrimary,
-                            ),
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  profile.name,
+                                  style: AppTypography.headlineMedium.copyWith(
+                                    fontSize: 19,
+                                    height: 1.25,
+                                    color: AppColors.lightTextPrimary,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (profile.isSelf) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.lightTextPrimary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('ME', style: AppTypography.labelSmall.copyWith(fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 6),
                           _DetailLine(

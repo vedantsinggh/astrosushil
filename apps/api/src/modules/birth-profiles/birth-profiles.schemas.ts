@@ -49,6 +49,9 @@ export const createBirthProfileSchema = z.object({
   countryCode: z.string().max(10, 'Country code must not exceed 10 characters').optional().nullable(),
   state: z.string().max(100, 'State must not exceed 100 characters').optional().nullable(),
   isResolved: z.boolean().optional(),
+  /** The account holder's own chart; setting it moves "Self" from any other profile. */
+  isSelf: z.boolean().optional(),
+  gender: z.enum(['male', 'female', 'other']).optional().nullable(),
   disambiguation: z
     .preprocess(
       (val) => (val === 'daylight' ? 'earlier' : val === 'standard' ? 'later' : val),

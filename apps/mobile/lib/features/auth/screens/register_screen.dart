@@ -157,6 +157,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         'longitude': longitude,
         'timezone': _selectedTimezone,
         'placeName': _placeNameController.text.trim(),
+        // The sign-up chart is the account holder's own (same rule as the website).
+        'isSelf': true,
       };
 
       final sent = await ref.read(authStateProvider.notifier).sendEmailOtp(email);

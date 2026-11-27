@@ -522,13 +522,26 @@ export class AuthService {
   public async getProfile(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        customerProfile: { select: { dob: true, birthTime: true, birthPlace: true, gender: true } },
+        _count: { select: { birthProfiles: true } },
+      },
     });
 
     if (!user) {
       throw new NotFoundError('User profile not found');
     }
 
-    return this.formatUser(user);
+    // Website accounts kept birth details on the account itself (date, time, place as text, no
+    // coordinates). Until the customer has a birth profile they are returned, so the website can
+    // offer to turn them into the "Self" birth profile (the place still has to be picked).
+    const legacy = user.customerProfile;
+    const savedBirthDetails =
+      user._count.birthProfiles === 0 && legacy && (legacy.dob || legacy.birthTime || legacy.birthPlace)
+        ? { dob: legacy.dob, birthTime: legacy.birthTime, birthPlace: legacy.birthPlace, gender: legacy.gender }
+        : null;
+
+    return { ...this.formatUser(user), savedBirthDetails };
   }
 
   /**

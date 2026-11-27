@@ -16,6 +16,8 @@ export interface BirthProfileResponseDto {
   utcDateTime?: string | null;
   timezoneOffsetSeconds?: number | null;
   disambiguationRequired: boolean;
+  isSelf: boolean;
+  gender: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +61,8 @@ export function mapBirthProfileToResponseDto(profile: {
   utcDateTime?: Date | string | null;
   timezoneOffsetSeconds?: number | null;
   disambiguationRequired?: boolean | null;
+  isSelf?: boolean | null;
+  gender?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): BirthProfileResponseDto {
@@ -94,6 +98,8 @@ export function mapBirthProfileToResponseDto(profile: {
     utcDateTime: utcDateTimeStr,
     timezoneOffsetSeconds: profile.timezoneOffsetSeconds ?? null,
     disambiguationRequired: profile.disambiguationRequired ?? false,
+    isSelf: profile.isSelf ?? false,
+    gender: profile.gender ?? null,
     createdAt: profile.createdAt.toISOString(),
     updatedAt: profile.updatedAt.toISOString(),
   };

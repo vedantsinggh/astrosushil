@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { NotFoundError } from '../../errors/app-error';
 import { normalizeBirthProfile } from '../../utils/birth-details-normalizer';
@@ -31,9 +32,14 @@ export class BirthProfilesService {
       disambiguation: input.disambiguation,
     });
 
+    // At most one "Self" per account (also enforced by a partial unique index).
+    const self = await this.resolveSelf(prisma, userId, normalized.name, input.isSelf);
+    if (self) await prisma.birthProfile.updateMany({ where: { userId, isSelf: true }, data: { isSelf: false } });
     const profile = await prisma.birthProfile.create({
       data: {
         userId,
+        isSelf: self,
+        gender: input.gender ?? null,
         name: normalized.name,
         dateOfBirth: input.dateOfBirth,
         timeOfBirth: normalized.localDateTime.split('T')[1],
@@ -52,6 +58,7 @@ export class BirthProfilesService {
       },
     });
 
+    if (profile.isSelf) await this.nameAccountIfEmpty(userId, profile.name);
     const dto = mapBirthProfileToResponseDto(profile);
 
     return {
@@ -232,6 +239,26 @@ export class BirthProfilesService {
   /**
    * Updates a birth profile with strict user authorization check.
    */
+  /**
+   * Whether a new profile is the account holder's own. Asked explicitly by the client; when the
+   * client does not say (older app versions), the account's first profile named like the account
+   * is "Self", as on sign-up.
+   */
+  private async resolveSelf(tx: Pick<Prisma.TransactionClient, 'user' | 'birthProfile'>, userId: string, name: string, requested: boolean | undefined): Promise<boolean> {
+    if (requested !== undefined) return requested;
+    const [user, count] = await Promise.all([
+      tx.user.findUnique({ where: { id: userId }, select: { fullName: true } }),
+      tx.birthProfile.count({ where: { userId } }),
+    ]);
+    const accountName = user?.fullName?.trim().toLowerCase();
+    return count === 0 && (!accountName || accountName === name.trim().toLowerCase());
+  }
+
+  /** An account without a name takes the name of its Self profile (one name everywhere). */
+  private async nameAccountIfEmpty(userId: string, name: string): Promise<void> {
+    await prisma.user.updateMany({ where: { id: userId, OR: [{ fullName: null }, { fullName: '' }] }, data: { fullName: name } });
+  }
+
   public async updateProfile(
     profileId: string,
     input: UpdateBirthProfileInput,
@@ -294,9 +321,14 @@ export class BirthProfilesService {
       timezoneOffsetSeconds: existingOffsetSeconds,
     });
 
+    if (input.isSelf === true && !existing.isSelf) {
+      await prisma.birthProfile.updateMany({ where: { userId: existing.userId, isSelf: true }, data: { isSelf: false } });
+    }
     const updated = await prisma.birthProfile.update({
       where: { id: profileId },
       data: {
+        ...(input.isSelf !== undefined ? { isSelf: input.isSelf } : {}),
+        ...(input.gender !== undefined ? { gender: input.gender } : {}),
         name: normalized.name,
         dateOfBirth: merged.dateOfBirth,
         timeOfBirth: normalized.localDateTime.split('T')[1],
@@ -314,6 +346,7 @@ export class BirthProfilesService {
         disambiguationRequired: false,
       },
     });
+    if (input.isSelf === true) await this.nameAccountIfEmpty(existing.userId, updated.name);
 
     const dto = mapBirthProfileToResponseDto(updated);
 

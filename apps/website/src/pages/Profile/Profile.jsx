@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import PhoneInput from "../../lib/phoneInput";
+import { BirthProfilesSection } from "../../components/BirthProfiles";
 
 function FloatInput({
   label,
@@ -273,7 +274,8 @@ export default function MyProfile() {
               setForm((p) => ({ ...p, phoneNumber: "+" + value }))
             }
             enableSearch
-            containerStyle={{ width: "100%" }}
+            disabled
+            containerStyle={{ width: "100%", opacity: 0.6 }}
             inputStyle={{
               width: "100%",
               background: "transparent",
@@ -305,41 +307,6 @@ export default function MyProfile() {
             }}
           />
         </div>
-        <FloatInput
-          label="Birth Place"
-          id="birthPlace"
-          value={form.birthPlace}
-          onChange={setField("birthPlace")}
-          icon={MapPin}
-        />
-        <FloatInput
-          label="Birth Time"
-          id="birthTime"
-          type="time"
-          value={form.birthTime}
-          onChange={setField("birthTime")}
-          icon={Clock}
-        />
-
-        <FloatSelect
-          label="Gender"
-          id="gender"
-          value={form.gender}
-          onChange={setField("gender")}
-          options={[
-            { value: "male", label: "Male" },
-            { value: "female", label: "Female" },
-            { value: "other", label: "Other" },
-          ]}
-        />
-        <FloatInput
-          label="Date of Birth"
-          id="dob"
-          type="date"
-          value={form.dob}
-          onChange={setField("dob")}
-          icon={Calendar}
-        />
       </div>
 
       <div className="flex justify-end pt-2">
@@ -358,6 +325,9 @@ export default function MyProfile() {
           {loading ? "Saving…" : "Update"}
         </motion.button>
       </div>
+
+      {/* Birth details live in birth profiles, as in the mobile app (2026-11-26). */}
+      <BirthProfilesSection savedBirthDetails={user?.savedBirthDetails} accountName={user?.fullName} />
     </motion.div>
   );
 }

@@ -102,6 +102,10 @@ class BirthProfileModel {
   final DateTime? utcDateTime;
   final int? timezoneOffsetSeconds;
   final bool disambiguationRequired;
+  /// The account holder's own chart (one per account, the same on website and app).
+  final bool isSelf;
+  /// 'male' | 'female' | 'other', or null when not given.
+  final String? gender;
   final DateTime createdAt;
   final DateTime updatedAt;
   final NormalizedDetailsModel? normalizedDetails;
@@ -124,6 +128,8 @@ class BirthProfileModel {
     this.utcDateTime,
     this.timezoneOffsetSeconds,
     this.disambiguationRequired = false,
+    this.isSelf = false,
+    this.gender,
     required this.createdAt,
     required this.updatedAt,
     this.normalizedDetails,
@@ -160,6 +166,8 @@ class BirthProfileModel {
           : null,
       timezoneOffsetSeconds: (json['timezoneOffsetSeconds'] as num?)?.toInt(),
       disambiguationRequired: json['disambiguationRequired'] as bool? ?? false,
+      isSelf: json['isSelf'] as bool? ?? false,
+      gender: json['gender'] as String?,
       // Record timestamps (instants). Birth date/time above stay untouched
       // strings in the birth place's civil time; never convert them.
       createdAt: AppDateTime.parseInstant(json['createdAt']) ?? DateTime.now(),
@@ -189,6 +197,8 @@ class BirthProfileModel {
       if (utcDateTime != null) 'utcDateTime': utcDateTime!.toIso8601String(),
       if (timezoneOffsetSeconds != null) 'timezoneOffsetSeconds': timezoneOffsetSeconds,
       'disambiguationRequired': disambiguationRequired,
+      'isSelf': isSelf,
+      if (gender != null) 'gender': gender,
       'createdAt': AppDateTime.toJsonInstant(createdAt),
       'updatedAt': AppDateTime.toJsonInstant(updatedAt),
       if (normalizedDetails != null) 'normalizedDetails': normalizedDetails!.toJson(),

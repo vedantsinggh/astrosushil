@@ -159,6 +159,18 @@ class BirthProfileRepository {
     }
   }
 
+  /// Mark a profile as the account holder's own ("Self"); the server moves the mark from any
+  /// other profile, so there is one per account on both website and app.
+  Future<BirthProfileModel> markSelf(String id) async {
+    final response = await _apiClient.patch('/birth-profiles/$id', data: {'isSelf': true});
+    final updated = BirthProfileModel.fromJson(response);
+    final cache = _cacheService;
+    if (cache != null) {
+      await cache.remove(_profilesCacheKey);
+    }
+    return updated;
+  }
+
   /// Update a birth profile
   Future<BirthProfileModel> updateProfile(String id, CreateBirthProfileDto dto, {bool isGuest = false}) async {
     if (isGuest) {
