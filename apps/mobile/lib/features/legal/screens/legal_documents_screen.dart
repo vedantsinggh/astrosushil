@@ -212,34 +212,34 @@ class _LegalDocumentsScreenState extends State<LegalDocumentsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionCard(
-          title: isHindi ? '1. जन्म विवरण एवं डेटा सुरक्षा' : '1. Birth Data Privacy & Encryption',
+          title: isHindi ? '1. दायरा (वेबसाइट, iOS एवं Android)' : '1. Scope (Website, iOS & Android)',
           badgeLabel: 'STRICT PRIVACY',
           body: isHindi
-              ? 'आपकी जन्म तिथि, समय एवं भौगोलिक निर्देशांक (Latitude/Longitude) केवल प्रामाणिक वैदिक कुंडली गणनाओं हेतु प्रयुक्त होते हैं।'
-              : 'Your birth date, time, and geographical coordinates are used exclusively for calculating accurate Vedic birth charts, dashas, and planetary transits.',
+              ? 'यह गोपनीयता नीति एस्ट्रो सुशील प्राइवेट लिमिटेड की वेबसाइट (astrosushil.com), iOS ऐप एवं Android ऐप पर लागू होती है और भारतीय डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 (DPDP Act) के अनुरूप है।'
+              : 'This Privacy Policy applies across the Astro Sushil Private Limited Website (astrosushil.com), iOS App, and Android App in compliance with the Digital Personal Data Protection Act, 2023 (India) and App Store / Play Store standards.',
           bulletPoints: isHindi
               ? [
-                  'सभी डेटा का संचरण आधुनिक TLS 1.3 एन्क्रिप्शन द्वारा सुरक्षित है।',
-                  'जन्म प्रोफाइल विवरण किसी भी विज्ञापनदाता अथवा तीसरे पक्ष को विक्रय नहीं किए जाते।',
-                  'आप किसी भी समय अपने प्रोफाइल को संपादित अथवा स्थायी रूप से हटा सकते हैं।',
+                  'पहचान एवं संपर्क डेटा: पूरा नाम, ईमेल, मोबाइल नंबर (+91/E.164), लिंग एवं OTP लॉगिन विवरण।',
+                  'जन्म एवं ज्योतिष विवरण: जन्म तिथि, समय, स्थान एवं भौगोलिक निर्देशांक (स्वयं एवं सहेजे गए प्रोफाइल)।',
+                  'डिवाइस एवं ऐप डेटा: iOS/Android पुश नोटिफिकेशन टोकन (FCM/APNs), क्रैश लॉग एवं सुरक्षित स्थानीय कैश।',
                 ]
               : [
-                  'All data transmission is encrypted via TLS 1.3 protocol.',
-                  'Birth profiles are never sold, rented, or shared with commercial advertising brokers.',
-                  'You retain complete control to update, export, or permanently delete saved profiles.',
+                  'Account & Identity Data: Full name, email, phone number (E.164 for OTP auth), and gender.',
+                  'Birth & Astrological Data: Date, time, place of birth, and coordinates for Vedic/BNN chart & report calculations.',
+                  'iOS & Android Device Data: Push notification tokens (FCM/APNs), OS/app version, and crash diagnostics. We never use ad-tracking SDKs or sell your data.',
                 ],
         ),
         _buildSectionCard(
-          title: isHindi ? '2. खाता साख एवं सत्र प्रबंधन' : '2. Credentials & Session Security',
+          title: isHindi ? '2. डेटा उपयोग एवं सुरक्षा' : '2. Data Usage, Payments & Security',
           body: isHindi
-              ? 'एस्ट्रो सुशील सुरक्षित पासवर्ड हैशिंग (Argon2id/bcrypt) एवं अल्पकालिक टोकन का उपयोग करता है। सिस्टम लॉग्स में पासवर्ड अथवा भुगतान विवरण कभी दर्ज नहीं किए जाते।'
-              : 'Astro Sushil uses industry-standard hashing and short-lived JWT tokens. Internal logging systems never record plain passwords, OTPs, or payment card information.',
+              ? 'आपका डेटा केवल कुंडली गणना, रिपोर्ट निर्माण, परामर्श एवं लेन-देन सूचनाओं (SMS, WhatsApp, ईमेल, पुश) हेतु प्रयुक्त होता है। सभी डेटा TLS 1.3 द्वारा सुरक्षित है; पासवर्ड, OTP या कार्ड विवरण कभी लॉग नहीं किए जाते।'
+              : 'Your data is used solely for chart calculations, personalized reports, consultations, GST invoicing, and transactional alerts (SMS, WhatsApp, Email, Push). All traffic uses TLS 1.3 encryption; card/UPI credentials are processed only by Razorpay and never stored on our servers.',
         ),
         _buildSectionCard(
-          title: isHindi ? '3. स्थानीय कैश एवं डेटा नियंत्रण' : '3. Local Device Cache & Storage',
+          title: isHindi ? '3. उपयोगकर्ता अधिकार एवं अयोध्या न्यायालय क्षेत्राधिकार' : '3. Your Rights & Exclusive Ayodhya Jurisdiction',
           body: isHindi
-              ? 'ऑफ़लाइन उपलब्धता हेतु कुंडलियां एवं पंचांग डेटा आपके डिवाइस पर सुरक्षित रूप से कैश किए जाते हैं। आप सेटिंग्स मेनू से कभी भी कैश हटा सकते हैं।'
-              : 'Astrology charts and panchang metrics are locally cached on your device for fast offline display. You can clear this cache at any time via App Settings.',
+              ? 'आप किसी भी समय प्रोफाइल हटाने या सहायता हेतु support@astrosushil.com पर संपर्क कर सकते हैं। किसी भी सेवा, रिपोर्ट, परामर्श अथवा डेटा विवाद का न्यायिक क्षेत्राधिकार केवल अयोध्या, उत्तर प्रदेश (भारत) के न्यायालय होंगे।'
+              : 'You may update or request deletion of your account/profiles via App Settings or support@astrosushil.com. All disputes relating to consultations, reports, or data shall be governed by Indian law and subject to the exclusive jurisdiction of the courts in Ayodhya, Uttar Pradesh, India.',
         ),
       ],
     );
@@ -250,23 +250,25 @@ class _LegalDocumentsScreenState extends State<LegalDocumentsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionCard(
-          title: isHindi ? '1. सेवाओं की प्रामाणिकता' : '1. Authenticity of Offerings',
-          badgeLabel: 'VERIFIED',
+          title: isHindi ? '1. सेवाओं का स्वरूप एवं प्रामाणिकता' : '1. Authenticity & Scope of Services',
+          badgeLabel: 'LEGAL TERMS',
           body: isHindi
-              ? 'एस्ट्रो सुशील मंच पर प्रस्तुत सभी ज्योतिषीय गणनाएं, गुप्त नाड़ी पद्धतियां एवं मास्टरक्लास सुशील सर के आधिकारिक अनुसंधान एवं पारंपरिक सूत्रों पर आधारित हैं।'
-              : 'All astrological calculations, Gupta Nadi methodologies, and educational courses are based on authoritative traditional scriptures and Sushil Sir\'s verified research.',
+              ? 'वेबसाइट, iOS एवं Android पर प्रस्तुत सभी वैदिक ज्योतिष एवं गुप्त नाड़ी गणनाएं, रिपोर्ट्स और परामर्श आध्यात्मिक एवं व्यक्तिगत मार्गदर्शन हेतु हैं। यह चिकित्सा, विधिक या वित्तीय सलाह का विकल्प नहीं हैं।'
+              : 'All Vedic astrology, Gupta Nadi (BNN) calculations, personalized PDF reports, courses, and consultations across our Website, iOS App, and Android App are for spiritual and personal reflection purposes, not a substitute for medical, legal, or financial advice.',
         ),
         _buildSectionCard(
-          title: isHindi ? '2. बौद्धिक संपदा एवं सामग्री' : '2. Intellectual Property Rights',
+          title: isHindi ? '2. कठोर नो-रिफंड एवं एडमिन-मात्र पुनर्निर्धारण नीति' : '2. Strict No-Refund & Admin-Only Reschedule Policy',
+          badgeLabel: 'NO REFUND',
           body: isHindi
-              ? 'मंच पर उपलब्ध कोर्स वीडियो, पीडीएफ रिपोर्ट्स, वैदिक सामग्री एवं सॉफ्टवेयर कोड एस्ट्रो सुशील की बौद्धिक संपदा हैं। अनधिकृत रिकॉर्डिंग अथवा पुनर्विक्रय प्रतिबंधित है।'
-              : 'All course videos, proprietary report dossiers, texts, and source algorithms are protected by copyright. Unauthorized distribution, screen recording, or reselling is strictly prohibited.',
+              ? 'सभी भुगतान 100% अंतिम एवं गैर-वापसी योग्य (Non-Refundable) हैं। ग्राहक स्वयं परामर्श का समय पुनर्निर्धारित (Reschedule) नहीं कर सकते; यह केवल अधिकृत एडमिन द्वारा प्रबंधन के विवेक पर किया जा सकता है।'
+              : 'All purchases of consultations, reports, courses, digital items, and physical products are 100% final and non-refundable. Clients cannot reschedule consultations; rescheduling may only be performed by an authorized administrator.',
         ),
         _buildSectionCard(
-          title: isHindi ? '3. उपयोगकर्ता आचरण' : '3. Account Responsibilities',
+          title: isHindi ? '3. बौद्धिक संपदा एवं अयोध्या न्यायालय क्षेत्राधिकार' : '3. Intellectual Property & Ayodhya Court Jurisdiction',
+          badgeLabel: 'AYODHYA COURT',
           body: isHindi
-              ? 'उपयोगकर्ता अपने खाते की सुरक्षा बनाए रखने एवं परामर्श के दौरान सम्मानजनक संवाद हेतु उत्तरदायी हैं।'
-              : 'Users are responsible for safeguarding their login credentials and engaging respectfully during live astrological consultations.',
+              ? 'सभी कोर्स वीडियो, पीडीएफ रिपोर्ट्स एवं सामग्री एस्ट्रो सुशील की बौद्धिक संपदा हैं; अनधिकृत प्रसारण वर्जित है। परामर्श, रिपोर्ट, उत्पाद या किसी भी विषय से संबंधित प्रत्येक विवाद का निर्णय केवल अयोध्या (उत्तर प्रदेश, भारत) के सक्षम न्यायालयों द्वारा किया जाएगा।'
+              : 'All courses, PDF reports, texts, and software are the exclusive copyright of Astro Sushil Private Limited. Every dispute or legal case regarding our consultations, reports, products, or anything related to Astro Sushil shall be judged exclusively by the competent courts in Ayodhya, Uttar Pradesh, India.',
         ),
       ],
     );
@@ -277,42 +279,36 @@ class _LegalDocumentsScreenState extends State<LegalDocumentsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionCard(
-          title: isHindi ? '1. व्यक्तिगत पीडीएफ रिपोर्ट्स' : '1. Personalized PDF Reports',
-          badgeLabel: 'FINAL ON GENERATION',
+          title: isHindi ? '1. सख्त नो-रिफंड नीति (सभी सेवाएं एवं उत्पाद)' : '1. Strict No-Refund Policy (All Offerings)',
+          badgeLabel: 'STRICT NO-REFUND',
           body: isHindi
-              ? 'चूंकि व्यक्तिगत रिपोर्ट्स का निर्माण भुगतान के तुरंत पश्चात ऑन-डिमांड सर्वर द्वारा किया जाता है, इसलिए एक बार तैयार होने पर पीडीएफ रिपोर्ट्स गैर-वापसी योग्य हैं।'
-              : 'Because personalized reports are compiled immediately on-demand by backend ephemeris workers, delivered PDF dossiers are non-refundable once generated.',
+              ? 'एस्ट्रो सुशील (वेबसाइट, iOS एवं Android) पर किया गया प्रत्येक भुगतान अंतिम है। किसी भी परिस्थिति में कोई रिफंड देय नहीं है।'
+              : 'All payments made on Astro Sushil (Website, iOS, and Android) are 100% final and strictly non-refundable under any circumstances.',
           bulletPoints: isHindi
               ? [
-                  'यदि तकनीकी खराबी के कारण रिपोर्ट तैयार नहीं होती, तो निःशुल्क पुनः उत्पादन किया जाएगा।',
-                  'आप हमेशा "मेरी रिपोर्ट्स" से अपने पीडीएफ को निःशुल्क पुनः डाउनलोड कर सकते हैं।',
+                  '1-ऑन-1 परामर्श (ऑडियो, वीडियो, व्यक्तिगत एवं व्हाट्सएप संदेश परामर्श) गैर-वापसी योग्य हैं।',
+                  'व्यक्तिगत पीडीएफ रिपोर्ट्स, कोर्स, डिजिटल डाउनलोड एवं अभिमंत्रित भौतिक सामग्री गैर-वापसी योग्य हैं।',
+                  'सत्र रद्द करने अथवा अनुपस्थिति (No-Show) पर कोई रिफंड नहीं दिया जाएगा।',
                 ]
               : [
-                  'If technical processing fails, report generation will automatically retry at zero cost.',
-                  'Completed PDF reports remain permanently re-downloadable from "My Reports".',
+                  '1-on-1 consultations (Audio, Video, In-Person, and WhatsApp Message) are strictly non-refundable.',
+                  'Personalized PDF reports, courses, digital downloads, and consecrated physical items are non-refundable.',
+                  'Client cancellations or appointment no-shows do not qualify for any refund.',
                 ],
         ),
         _buildSectionCard(
-          title: isHindi ? '2. 1-ऑन-1 लाइव परामर्श' : '2. 1-on-1 Consultations',
-          badgeLabel: '24H ADVANCE NOTICE',
+          title: isHindi ? '2. परामर्श पुनर्निर्धारण एवं तकनीकी सहायता' : '2. Rescheduling & Technical Failures',
+          badgeLabel: 'ADMIN ONLY',
           body: isHindi
-              ? 'परामर्श सत्र प्रारंभ होने से 24 घंटे पूर्व तक रद्द करने पर पूर्ण रिफंड अथवा निःशुल्क समय परिवर्तन की सुविधा उपलब्ध है।'
-              : 'Appointments may be cancelled or rescheduled up to 24 hours prior to the scheduled slot for a full refund or free slot change.',
-          bulletPoints: isHindi
-              ? [
-                  'सत्र से 24 घंटे के भीतर रद्दीकरण अथवा अनुपस्थिति (No-Show) पर रिफंड देय नहीं होगा।',
-                  'स्वीकृत रिफंड 5–7 कार्यदिवसों में मूल भुगतान माध्यम में वापस भेजा जाता है।',
-                ]
-              : [
-                  'Cancellations within 24 hours or appointment no-shows are non-refundable.',
-                  'Approved refunds are credited to the original payment source within 5–7 banking days.',
-                ],
+              ? 'ग्राहक परामर्श का समय स्वयं नहीं बदल सकते; केवल एडमिन विशेष परिस्थितियों में समय बदल सकता है। यदि तकनीकी त्रुटि से पीडीएफ रिपोर्ट तैयार नहीं होती है, तो बिना अतिरिक्त शुल्क के रिपोर्ट पुनः तैयार की जाएगी।'
+              : 'Clients cannot reschedule consultations from the app or website; only an authorized administrator may reschedule a booking. If a technical failure prevents PDF report generation, Astro Sushil will regenerate it at zero additional cost.',
         ),
         _buildSectionCard(
-          title: isHindi ? '3. अभिमंत्रित भौतिक सामग्री' : '3. Consecrated Physical Items',
+          title: isHindi ? '3. न्यायिक क्षेत्राधिकार — अयोध्या न्यायालय' : '3. Exclusive Jurisdiction — Ayodhya Court',
+          badgeLabel: 'AYODHYA COURT',
           body: isHindi
-              ? 'अयोध्या रवि पुष्य जड़ी-बूटी जैसी सामग्री डिलीवरी के 7 दिनों के भीतर मूल सील बंद अवस्था में वापस की जा सकती है।'
-              : 'Consecrated physical items (e.g. Ayodhya Ravi Pushya Sacred Herb) may be returned within 7 days of delivery if the sacred tamper-evident seal is intact.',
+              ? 'परामर्श, रिपोर्ट, भुगतान अथवा किसी भी विषय से संबंधित प्रत्येक विवाद का न्यायिक निर्णय केवल अयोध्या, उत्तर प्रदेश, भारत के सक्षम न्यायालयों द्वारा किया जाएगा।'
+              : 'Every dispute or legal claim regarding consultations, reports, products, or payments shall be judged exclusively by the competent courts in Ayodhya, Uttar Pradesh, India.',
         ),
       ],
     );

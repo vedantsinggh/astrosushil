@@ -5,6 +5,12 @@ import { useSettingStore } from "../store/usSettingStore";
 
 const SITE_URL = "https://astrosushil.com";
 
+const resolveAssetUrl = (value) => {
+  if (!value) return "";
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return `${SITE_URL}${value.startsWith("/") ? "" : "/"}${value}`;
+};
+
 function Seo({
   page,
   canonical,
@@ -28,15 +34,22 @@ function Seo({
     }
   }, [page]);
 
+  const pageSeo = page ? seo : null;
+
   const metaTitle =
     title ||
-    seo?.metaTitle ||
+    pageSeo?.metaTitle ||
     "Astro Sushil Kumar Singh | Guidance by Sushil Kumar Astrologer";
 
   const metaDescription =
     description ||
-    seo?.metaDescription ||
+    pageSeo?.metaDescription ||
     "Astro Sushil Kumar Singh, renowned as one of India’s most trusted astrologers.";
+
+  const metaImage = resolveAssetUrl(image || pageSeo?.image?.url || "");
+  const metaTwitterImage = resolveAssetUrl(
+    twitterImage || image || pageSeo?.twitterImage || pageSeo?.image?.url || "",
+  );
 
   return (
     <Helmet>
@@ -46,7 +59,7 @@ function Seo({
 
       <meta
         name="keywords"
-        content={keywords || seo?.metaKeywords || ""}
+        content={keywords || pageSeo?.metaKeywords || ""}
       />
 
       <link
@@ -56,7 +69,7 @@ function Seo({
 
       <meta
         property="og:title"
-        content={ogTitle || title || seo?.ogTitle || metaTitle}
+        content={ogTitle || title || pageSeo?.ogTitle || metaTitle}
       />
 
       <meta
@@ -64,15 +77,12 @@ function Seo({
         content={
           ogDescription ||
           description ||
-          seo?.ogDescription ||
+          pageSeo?.ogDescription ||
           metaDescription
         }
       />
 
-      <meta
-        property="og:image"
-        content={image || seo?.image?.url || ""}
-      />
+      <meta property="og:image" content={metaImage} />
 
       <meta property="og:type" content="website" />
 
@@ -83,7 +93,7 @@ function Seo({
         content={
           twitterTitle ||
           title ||
-          seo?.twitterTitle ||
+          pageSeo?.twitterTitle ||
           metaTitle
         }
       />
@@ -93,20 +103,12 @@ function Seo({
         content={
           twitterDescription ||
           description ||
-          seo?.twitterDescription ||
+          pageSeo?.twitterDescription ||
           metaDescription
         }
       />
 
-      <meta
-        name="twitter:image"
-        content={
-          twitterImage ||
-          image ||
-          seo?.twitterImage ||
-          ""
-        }
-      />
+      <meta name="twitter:image" content={metaTwitterImage} />
     </Helmet>
   );
 }

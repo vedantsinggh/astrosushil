@@ -640,9 +640,9 @@ export default function ProductDetailPage() {
                       sub="256-bit encryption"
                     />
                     <TrustBadge
-                      icon={RotateCcw}
-                      label="30-Day Refund"
-                      sub="No questions asked"
+                      icon={Shield}
+                      label="No-Refund Policy"
+                      sub="All sales are final"
                     />
                   </>
                 )}
