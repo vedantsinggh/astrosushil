@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme_tokens.dart';
 import '../theme/app_typography.dart';
 import 'astro_controls.dart';
+import 'astro_state_illustration.dart';
 
 /// White content card: 20pt radius, very soft layered shadow and a barely
 /// visible hairline so it reads on the cream canvas. Tappable when [onTap]
@@ -245,13 +246,20 @@ class AstroStateView extends StatelessWidget {
       final bg = isError ? AppColors.errorBg : (tint?.background ?? AppColors.accentFill);
       final effectiveTitle = title ?? (isError ? 'Something went wrong' : '');
       final effectiveAction = actionLabel ?? (isError ? (l10n?.commonTryAgain ?? 'Try again') : null);
+      final isOfflineIcon = icon == Icons.wifi_off_rounded || icon == Icons.cloud_off_rounded;
       children.addAll([
-        Container(
-          width: circle,
-          height: circle,
-          decoration: BoxDecoration(color: onDark ? Colors.white.withValues(alpha: 0.1) : bg, shape: BoxShape.circle),
-          child: Icon(icon, size: circle * 0.48, color: onDark ? AppColors.gold : fg),
-        ),
+        if (isError)
+          AnimatedAstroStateIllustration(
+            type: isOfflineIcon ? AstroStateType.offline : AstroStateType.serverError,
+            size: (compact || short) ? 92 : 132,
+          )
+        else
+          Container(
+            width: circle,
+            height: circle,
+            decoration: BoxDecoration(color: onDark ? Colors.white.withValues(alpha: 0.1) : bg, shape: BoxShape.circle),
+            child: Icon(icon, size: circle * 0.48, color: onDark ? AppColors.gold : fg),
+          ),
         SizedBox(height: compact || short ? 12 : 20),
         if (effectiveTitle.isNotEmpty)
           Semantics(

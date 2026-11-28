@@ -47,16 +47,23 @@ class AstrologyErrorState extends StatelessWidget {
       );
     }
 
+    final isOffline = _isOfflineError();
     return AstroSurfaceCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: AstroStateView.error(
         compact: true,
-        icon: Icons.warning_amber_rounded,
-        title: 'Calculation Unavailable',
+        icon: isOffline ? Icons.wifi_off_rounded : Icons.warning_amber_rounded,
+        title: isOffline ? 'You appear offline' : 'Calculation Unavailable',
         message: message,
         onRetry: onRetry,
         retryLabel: 'Try Again',
       ),
     );
+  }
+
+  bool _isOfflineError() {
+    if (error is NetworkException || error is TimeoutException) return true;
+    final errStr = error?.toString().toLowerCase() ?? '';
+    return errStr.contains('offline') || errStr.contains('socket') || errStr.contains('network');
   }
 }

@@ -13,6 +13,7 @@ import 'package:astro_mobile/features/legal/screens/legal_documents_screen.dart'
 import 'package:astro_mobile/shared/screens/not_found_screen.dart';
 import 'package:astro_mobile/shared/screens/system_maintenance_screen.dart';
 import 'package:astro_mobile/shared/screens/network_error_screen.dart';
+import 'package:astro_mobile/shared/widgets/astro_state_illustration.dart';
 import 'package:astro_mobile/features/auth/screens/register_success_screen.dart';
 import 'package:astro_mobile/shared/theme/app_theme.dart';
 
@@ -262,7 +263,7 @@ void main() {
       expect(refreshed, isTrue);
     });
 
-    testWidgets('NetworkErrorScreen renders offline state and retry button', (tester) async {
+    testWidgets('NetworkErrorScreen renders offline state, animated center widget, and retry button', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 844 * 2);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -271,14 +272,50 @@ void main() {
       await tester.pumpWidget(_buildTestApp(
         child: NetworkErrorScreen(onRetry: () => retried = true),
       ));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
 
+      expect(find.byKey(const Key('network_error_animated_center')), findsOneWidget);
+      expect(find.byType(AnimatedAstroStateIllustration), findsOneWidget);
       expect(find.text("You're offline"), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
 
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
+      // Advance animation ticker to verify continuous animation doesn't throw
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('network_error_retry_button')));
+      await tester.pump(const Duration(milliseconds: 200));
       expect(retried, isTrue);
+    });
+
+    testWidgets('NetworkErrorScreen.serverError renders server state and handles async retry loading', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      var calls = 0;
+      await tester.pumpWidget(_buildTestApp(
+        child: NetworkErrorScreen.serverError(
+          onRetry: () async {
+            calls++;
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+          },
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('SERVER UNAVAILABLE'), findsOneWidget);
+      expect(find.text('Astro Sushil servers are busy'), findsOneWidget);
+      expect(find.byType(AnimatedAstroStateIllustration), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('network_error_retry_button')));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('Retrying…'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(calls, 1);
+      expect(find.text('Try again'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

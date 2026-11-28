@@ -11,6 +11,7 @@ class AstroErrorState extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
   final AstroStateType illustrationType;
+  final bool animate;
 
   const AstroErrorState({
     super.key,
@@ -18,6 +19,7 @@ class AstroErrorState extends StatelessWidget {
     this.message = "Please check your connection and try again in a moment.",
     this.onRetry,
     this.illustrationType = AstroStateType.serverError,
+    this.animate = true,
   });
 
   @override
@@ -36,7 +38,11 @@ class AstroErrorState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              AstroStateIllustration(type: illustrationType, size: short ? 84 : 140),
+              AnimatedAstroStateIllustration(
+                type: illustrationType,
+                size: short ? 92 : 148,
+                animate: animate,
+              ),
               SizedBox(height: short ? 12 : 24),
               Semantics(
                 header: true,

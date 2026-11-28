@@ -13,13 +13,7 @@ enum AstroStateType {
   pdfError,
 }
 
-/// Renders a premium state illustration using coherent on-brand celestial
-/// vector graphics.
-///
-/// Architecture note: When real PNG assets are placed at the paths declared
-/// in [AppAssets] (state_*.png), this widget can be upgraded to load them
-/// via [Image.asset] with this [CustomPaint] as the [errorBuilder] fallback.
-/// Until then the vector painter is the primary and only renderer.
+/// Renders a coherent celestial state illustration with optional smooth motion.
 class AstroStateIllustration extends StatelessWidget {
   final AstroStateType type;
   final double size;
@@ -37,7 +31,94 @@ class AstroStateIllustration extends StatelessWidget {
       height: size,
       child: CustomPaint(
         size: Size(size, size),
-        painter: _AstroStateVectorPainter(type: type),
+        painter: _AstroStateVectorPainter(type: type, progress: 0.25),
+      ),
+    );
+  }
+}
+
+/// Continuously animated celestial state illustration with pulsing waves,
+/// drifting planetary nodes, and twinkling stars for offline & server errors.
+class AnimatedAstroStateIllustration extends StatefulWidget {
+  final AstroStateType type;
+  final double size;
+  final bool animate;
+
+  const AnimatedAstroStateIllustration({
+    super.key,
+    required this.type,
+    this.size = 156.0,
+    this.animate = true,
+  });
+
+  @override
+  State<AnimatedAstroStateIllustration> createState() =>
+      _AnimatedAstroStateIllustrationState();
+}
+
+class _AnimatedAstroStateIllustrationState
+    extends State<AnimatedAstroStateIllustration>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+      value: 0.25,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedAstroStateIllustration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animate != widget.animate) {
+      _syncTicker();
+    }
+  }
+
+  void _syncTicker() {
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final shouldRun = widget.animate && !disableAnimations;
+    if (shouldRun && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!shouldRun && _controller.isAnimating) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => CustomPaint(
+            size: Size(widget.size, widget.size),
+            painter: _AstroStateVectorPainter(
+              type: widget.type,
+              progress: _controller.value,
+              animated: widget.animate,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -53,19 +134,25 @@ const _kGold = Color(0xFFD9B13B);
 /// Custom Vector Painter producing premium, coherent celestial illustrations.
 class _AstroStateVectorPainter extends CustomPainter {
   final AstroStateType type;
+  final double progress;
+  final bool animated;
 
-  const _AstroStateVectorPainter({required this.type});
+  const _AstroStateVectorPainter({
+    required this.type,
+    this.progress = 0.25,
+    this.animated = false,
+  });
 
   // ── Shared paint factories ──────────────────────────────────────────────
 
   Paint get _orbitStroke => Paint()
-    ..color = _kPurple.withOpacity(0.55)
+    ..color = _kPurple.withValues(alpha: 0.55)
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.4
     ..strokeCap = StrokeCap.round;
 
   Paint get _orbitStrokeFaint => Paint()
-    ..color = _kPurple.withOpacity(0.25)
+    ..color = _kPurple.withValues(alpha: 0.25)
     ..style = PaintingStyle.stroke
     ..strokeWidth = 0.9;
 
@@ -90,11 +177,11 @@ class _AstroStateVectorPainter extends CustomPainter {
     ..style = PaintingStyle.fill;
 
   Paint _goldFillOpacity(double opacity) => Paint()
-    ..color = _kGold.withOpacity(opacity)
+    ..color = _kGold.withValues(alpha: opacity)
     ..style = PaintingStyle.fill;
 
   Paint _purpleStroke(double opacity, double width) => Paint()
-    ..color = _kPurple.withOpacity(opacity)
+    ..color = _kPurple.withValues(alpha: opacity)
     ..style = PaintingStyle.stroke
     ..strokeWidth = width
     ..strokeCap = StrokeCap.round;
@@ -178,9 +265,32 @@ class _AstroStateVectorPainter extends CustomPainter {
   // ── Offline: crescent moon + broken orbit + faint stars ─────────────────
 
   void _paintOffline(Canvas c, Offset center, double r, Size size) {
-    // Outer orbit — dashed by drawing arc segments
+    final phase = progress * math.pi * 2;
+
+    if (animated) {
+      // Gentle radiating search ripples so the user sees live retry readiness
+      for (int wave = 0; wave < 2; wave++) {
+        final w = (progress + wave * 0.5) % 1.0;
+        final rippleR = r * (0.65 + 0.55 * w);
+        final rippleAlpha = (1.0 - w) * 0.24;
+        c.drawCircle(
+          center,
+          rippleR,
+          _purpleStroke(rippleAlpha, 1.3),
+        );
+      }
+    }
+
+    // Outer orbit — slowly rotates its break angle
+    final rot = animated ? math.sin(phase) * 0.22 : 0.0;
     final op = _orbitStroke;
-    c.drawArc(Rect.fromCircle(center: center, radius: r), -math.pi * 0.9, math.pi * 1.2, false, op);
+    c.drawArc(
+      Rect.fromCircle(center: center, radius: r),
+      -math.pi * 0.9 + rot,
+      math.pi * 1.2,
+      false,
+      op,
+    );
     // Inner faint ring
     c.drawArc(
       Rect.fromCircle(center: center, radius: r * 0.62),
@@ -190,20 +300,25 @@ class _AstroStateVectorPainter extends CustomPainter {
       _orbitStrokeFaint,
     );
 
-    // Moon crescent slightly offset
-    final moonCenter = center + const Offset(-6, -8);
+    // Moon crescent gently floating
+    final floatY = animated ? math.sin(phase) * 3.0 : 0.0;
+    final moonCenter = center + Offset(-6, -8 + floatY);
     _drawCrescent(c, moonCenter, r * 0.22, _goldFill);
 
-    // Disconnected node — small circle at orbit break point
-    final breakPt = center + Offset(math.cos(-0.3) * r, math.sin(-0.3) * r);
+    // Disconnected node — orbiting node with pulsing halo ring
+    final breakAngle = -0.3 + rot;
+    final breakPt = center + Offset(math.cos(breakAngle) * r, math.sin(breakAngle) * r);
+    final haloR = animated ? 6.0 + 2.5 * (0.5 + 0.5 * math.sin(phase * 2)) : 6.0;
     c.drawCircle(breakPt, 3.5, _goldFill);
-    c.drawCircle(breakPt, 6.0, _goldStroke);
+    c.drawCircle(breakPt, haloR, _goldStrokeWidth(1.5));
 
-    // Three tiny stars
-    final sf = _goldFillOpacity(0.7);
-    _drawStar(c, center + Offset(r * 0.6, -r * 0.7), 1.8, sf);
-    _drawStar(c, center + Offset(-r * 0.75, r * 0.4), 1.4, sf);
-    _drawStar(c, center + Offset(r * 0.2, r * 0.8), 1.2, sf);
+    // Three twinkling stars
+    final t1 = animated ? (0.4 + 0.55 * (0.5 + 0.5 * math.sin(phase))) : 0.7;
+    final t2 = animated ? (0.35 + 0.6 * (0.5 + 0.5 * math.sin(phase + 2.1))) : 0.7;
+    final t3 = animated ? (0.35 + 0.6 * (0.5 + 0.5 * math.sin(phase + 4.2))) : 0.7;
+    _drawStar(c, center + Offset(r * 0.6, -r * 0.7), 2.0, _goldFillOpacity(t1));
+    _drawStar(c, center + Offset(-r * 0.75, r * 0.4), 1.6, _goldFillOpacity(t2));
+    _drawStar(c, center + Offset(r * 0.2, r * 0.8), 1.4, _goldFillOpacity(t3));
   }
 
   // ── Slow connection: planet on orbit with trailing arc ──────────────────
@@ -222,7 +337,7 @@ class _AstroStateVectorPainter extends CustomPainter {
     const trailStart = -math.pi * 0.85;
     const trailSweep = math.pi * 0.5;
     final trailPaint = Paint()
-      ..color = _kGold.withOpacity(0.28)
+      ..color = _kGold.withValues(alpha: 0.28)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0
       ..strokeCap = StrokeCap.round;
@@ -243,17 +358,31 @@ class _AstroStateVectorPainter extends CustomPainter {
   // ── Server error: misaligned orbit with displaced planet ─────────────────
 
   void _paintServerError(Canvas c, Offset center, double r, Size size) {
-    // Outer orbit — slightly elliptical / broken: draw two arcs with a gap
-    final arc1Paint = _orbitStroke;
-    c.drawArc(Rect.fromCircle(center: center, radius: r), 0.4, math.pi * 1.35, false, arc1Paint);
-    c.drawArc(Rect.fromCircle(center: center, radius: r), math.pi + 0.4, math.pi * 0.8, false, arc1Paint);
+    final phase = progress * math.pi * 2;
+    final rot = animated ? phase * 0.35 : 0.0;
 
-    // Displaced planet — off the orbit path
-    final planetPos = center + Offset(r * 0.55, -r * 0.58);
+    if (animated) {
+      // Soft pulsing server beacon wave
+      final pulse = 0.5 + 0.5 * math.sin(phase);
+      c.drawCircle(
+        center,
+        r * (0.78 + 0.22 * pulse),
+        _purpleStroke(0.18 * (1.0 - pulse * 0.6), 1.2),
+      );
+    }
+
+    // Outer orbit — rotating broken arcs
+    final arc1Paint = _orbitStroke;
+    c.drawArc(Rect.fromCircle(center: center, radius: r), 0.4 + rot, math.pi * 1.35, false, arc1Paint);
+    c.drawArc(Rect.fromCircle(center: center, radius: r), math.pi + 0.4 + rot, math.pi * 0.8, false, arc1Paint);
+
+    // Displaced planet — gently bobbing off the orbit path
+    final bob = animated ? math.sin(phase) * 4.0 : 0.0;
+    final planetPos = center + Offset(r * 0.55, -r * 0.58 + bob);
     c.drawCircle(planetPos, r * 0.13, _goldFill);
     c.drawCircle(planetPos, r * 0.13, _goldStroke);
 
-    // Dashed line from orbit to displaced planet (misalignment indicator)
+    // Dashed line from orbit to displaced planet
     const dashCount = 5;
     final orbitEdge = center + Offset(math.cos(-0.52) * r, math.sin(-0.52) * r);
     for (int i = 0; i < dashCount; i++) {
@@ -267,19 +396,21 @@ class _AstroStateVectorPainter extends CustomPainter {
     // Center body
     c.drawCircle(center, r * 0.08, _navyFill);
 
-    // Warning triangle — subtle gold, small
+    // Warning triangle — gently breathing gold outline
+    final triScale = animated ? 1.0 + 0.08 * math.sin(phase * 2) : 1.0;
     final tri = center + Offset(0, r * 0.15);
     final triPath = Path()
-      ..moveTo(tri.dx, tri.dy - r * 0.22)
-      ..lineTo(tri.dx - r * 0.18, tri.dy + r * 0.08)
-      ..lineTo(tri.dx + r * 0.18, tri.dy + r * 0.08)
+      ..moveTo(tri.dx, tri.dy - r * 0.22 * triScale)
+      ..lineTo(tri.dx - r * 0.18 * triScale, tri.dy + r * 0.08 * triScale)
+      ..lineTo(tri.dx + r * 0.18 * triScale, tri.dy + r * 0.08 * triScale)
       ..close();
-    c.drawPath(triPath, _goldStrokeWidth(1.6));
+    c.drawPath(triPath, _goldStrokeWidth(1.8));
 
-    // Stars
-    final sf = _goldFillOpacity(0.55);
-    _drawStar(c, center + Offset(-r * 0.8, -r * 0.5), 1.6, sf);
-    _drawStar(c, center + Offset(r * 0.8, r * 0.55), 1.3, sf);
+    // Twinkling stars
+    final a1 = animated ? (0.35 + 0.55 * (0.5 + 0.5 * math.cos(phase))) : 0.55;
+    final a2 = animated ? (0.35 + 0.55 * (0.5 + 0.5 * math.sin(phase))) : 0.55;
+    _drawStar(c, center + Offset(-r * 0.8, -r * 0.5), 1.8, _goldFillOpacity(a1));
+    _drawStar(c, center + Offset(r * 0.8, r * 0.55), 1.5, _goldFillOpacity(a2));
   }
 
   // ── Empty data: quiet sparse constellation ───────────────────────────────
@@ -299,7 +430,7 @@ class _AstroStateVectorPainter extends CustomPainter {
     ];
 
     final linePaint = Paint()
-      ..color = _kPurple.withOpacity(0.3)
+      ..color = _kPurple.withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.9;
 
@@ -366,7 +497,7 @@ class _AstroStateVectorPainter extends CustomPainter {
     );
     c.drawRRect(lockBodyRect, _navyStroke);
     c.drawRRect(lockBodyRect, Paint()
-      ..color = _kNavy.withOpacity(0.06)
+      ..color = _kNavy.withValues(alpha: 0.06)
       ..style = PaintingStyle.fill);
 
     // Lock shackle (arc above lock body)
@@ -437,7 +568,7 @@ class _AstroStateVectorPainter extends CustomPainter {
       ..lineTo(docTop.dx, docTop.dy + docH)
       ..close();
     c.drawPath(docPath, Paint()
-      ..color = _kNavy.withOpacity(0.05)
+      ..color = _kNavy.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill);
     c.drawPath(docPath, _navyStroke);
 
@@ -470,12 +601,14 @@ class _AstroStateVectorPainter extends CustomPainter {
     );
 
     // Small displaced planet on the broken arc
-    final pa = math.pi * 0.6;
+    const pa = math.pi * 0.6;
     final planetPos = orbitCenter + Offset(math.cos(pa) * r * 0.28, math.sin(pa) * r * 0.28);
     c.drawCircle(planetPos, 3.5, _goldFill);
   }
 
   @override
   bool shouldRepaint(covariant _AstroStateVectorPainter oldDelegate) =>
-      oldDelegate.type != type;
+      oldDelegate.type != type ||
+      oldDelegate.progress != progress ||
+      oldDelegate.animated != animated;
 }

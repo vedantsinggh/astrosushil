@@ -9,12 +9,16 @@ import 'auth_interceptor.dart';
 /// Centralized API client wrapping Dio HTTP requests with retries, custom timeouts, and cancellation.
 class ApiClient {
   final Dio _dio;
+  final VoidCallback? onRequestSuccess;
+  final void Function(AppException handled, Object rawError)? onRequestError;
 
   ApiClient({
     Dio? dio,
     required SecureStorageService storageService,
     String? baseUrl,
     VoidCallback? onUnauthenticated,
+    this.onRequestSuccess,
+    this.onRequestError,
   }) : _dio = dio ??
             Dio(
               BaseOptions(
@@ -69,6 +73,12 @@ class ApiClient {
     }
   }
 
+  AppException _notifyAndMapError(Object e) {
+    final handled = ApiExceptionHandler.handle(e);
+    onRequestError?.call(handled, e);
+    return handled;
+  }
+
   /// Perform HTTP GET request with automatic retry
   Future<Map<String, dynamic>> get(
     String path, {
@@ -87,9 +97,10 @@ class ApiClient {
           cancelToken: cancelToken,
           options: options,
         );
+        onRequestSuccess?.call();
         return response.data ?? {};
       } catch (e) {
-        throw ApiExceptionHandler.handle(e);
+        throw _notifyAndMapError(e);
       }
     });
   }
@@ -112,9 +123,10 @@ class ApiClient {
           cancelToken: cancelToken,
           options: options,
         );
+        onRequestSuccess?.call();
         return response.data ?? [];
       } catch (e) {
-        throw ApiExceptionHandler.handle(e);
+        throw _notifyAndMapError(e);
       }
     });
   }
@@ -129,7 +141,7 @@ class ApiClient {
   }) async {
     try {
       if (kDebugMode) {
-        developer.log('[API] POST ${baseUrl}$path', name: 'ApiClient');
+        developer.log('[API] POST $baseUrl$path', name: 'ApiClient');
       }
       final options = timeout != null
           ? Options(sendTimeout: timeout, receiveTimeout: timeout)
@@ -144,12 +156,13 @@ class ApiClient {
       if (kDebugMode) {
         developer.log('[API] Response: ${response.statusCode} from POST $path', name: 'ApiClient');
       }
+      onRequestSuccess?.call();
       return response.data ?? {};
     } catch (e) {
       if (kDebugMode) {
         developer.log('[API] Error on POST $path: ${e.runtimeType}', name: 'ApiClient', error: e);
       }
-      throw ApiExceptionHandler.handle(e);
+      throw _notifyAndMapError(e);
     }
   }
 
@@ -167,9 +180,10 @@ class ApiClient {
         queryParameters: queryParameters,
         cancelToken: cancelToken,
       );
+      onRequestSuccess?.call();
       return response.data ?? {};
     } catch (e) {
-      throw ApiExceptionHandler.handle(e);
+      throw _notifyAndMapError(e);
     }
   }
 
@@ -187,9 +201,10 @@ class ApiClient {
         queryParameters: queryParameters,
         cancelToken: cancelToken,
       );
+      onRequestSuccess?.call();
       return response.data ?? {};
     } catch (e) {
-      throw ApiExceptionHandler.handle(e);
+      throw _notifyAndMapError(e);
     }
   }
 
@@ -207,9 +222,10 @@ class ApiClient {
         queryParameters: queryParameters,
         cancelToken: cancelToken,
       );
+      onRequestSuccess?.call();
       return response.data ?? {};
     } catch (e) {
-      throw ApiExceptionHandler.handle(e);
+      throw _notifyAndMapError(e);
     }
   }
 
@@ -232,9 +248,10 @@ class ApiClient {
             sendTimeout: AppConfig.connectTimeout,
           ),
         );
+        onRequestSuccess?.call();
         return Uint8List.fromList(response.data ?? []);
       } catch (e) {
-        throw ApiExceptionHandler.handle(e);
+        throw _notifyAndMapError(e);
       }
     });
   }

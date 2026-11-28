@@ -1,57 +1,93 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../errors/app_exception.dart';
 import '../storage/local_cache_service.dart';
-import 'api_client.dart';
 
-/// Network connectivity states
+/// Network connectivity and backend reachability states.
 enum NetworkConnectivityStatus {
   online,
   offline,
+  serverError,
   reconnecting,
 }
 
-/// Centralized state manager for tracking connectivity and API server reachability.
+/// Centralized state manager tracking device connectivity and API reachability.
 class NetworkStateManager extends StateNotifier<NetworkConnectivityStatus> {
-  final ApiClient? _apiClient;
+  final Ref _ref;
   Timer? _healthCheckTimer;
   bool _isChecking = false;
 
-  NetworkStateManager({ApiClient? apiClient})
-      : _apiClient = apiClient,
-        super(NetworkConnectivityStatus.online) {
-    // Perform initial verification
-    checkServerReachability();
-  }
+  NetworkStateManager(this._ref) : super(NetworkConnectivityStatus.online);
 
-  /// Mark status directly from network errors or success
+  /// Sets connectivity status explicitly (for tests or manual overrides).
   void setStatus(NetworkConnectivityStatus status) {
     if (state != status) {
       state = status;
     }
   }
 
-  /// Explicitly ping backend API health endpoint to determine true reachability
+  /// Marks backend reachable after any successful API call.
+  void reportSuccess() {
+    if (state != NetworkConnectivityStatus.online) {
+      state = NetworkConnectivityStatus.online;
+    }
+  }
+
+  /// Updates connectivity state from a live [ApiClient] failure.
+  void reportError(Object handledError, [Object? rawError]) {
+    if (handledError is NetworkException) {
+      if (handledError.message == 'Request was cancelled.') return;
+      setStatus(NetworkConnectivityStatus.offline);
+      return;
+    }
+    if (handledError is TimeoutException) {
+      setStatus(NetworkConnectivityStatus.offline);
+      return;
+    }
+    if (handledError is ServerException ||
+        handledError is MaintenanceException ||
+        handledError is DatabaseUnavailableException) {
+      setStatus(NetworkConnectivityStatus.serverError);
+      return;
+    }
+    if (rawError is DioException) {
+      final code = rawError.response?.statusCode;
+      if (code != null && code >= 500) {
+        setStatus(NetworkConnectivityStatus.serverError);
+      } else if (rawError.type == DioExceptionType.connectionError ||
+          rawError.type == DioExceptionType.connectionTimeout ||
+          rawError.type == DioExceptionType.receiveTimeout ||
+          rawError.type == DioExceptionType.sendTimeout) {
+        setStatus(NetworkConnectivityStatus.offline);
+      }
+    }
+  }
+
+  /// Explicitly pings `/health` to test whether internet and API server have recovered.
   Future<bool> checkServerReachability() async {
     if (_isChecking) return state == NetworkConnectivityStatus.online;
     _isChecking = true;
 
     try {
-      if (_apiClient == null) {
-        state = NetworkConnectivityStatus.online;
-        return true;
-      }
-
-      final result = await _apiClient!.get('/health');
+      final apiClient = _ref.read(apiClientProvider);
+      final result = await apiClient.get(
+        '/health',
+        timeout: const Duration(seconds: 5),
+      );
       if (result['status'] == 'ok' || result['status'] == 'degraded') {
         state = NetworkConnectivityStatus.online;
         return true;
-      } else {
-        state = NetworkConnectivityStatus.reconnecting;
-        return false;
       }
-    } catch (_) {
-      state = NetworkConnectivityStatus.offline;
+      state = NetworkConnectivityStatus.serverError;
+      return false;
+    } catch (e) {
+      reportError(e);
+      if (state == NetworkConnectivityStatus.online ||
+          state == NetworkConnectivityStatus.reconnecting) {
+        state = NetworkConnectivityStatus.offline;
+      }
       return false;
     } finally {
       _isChecking = false;
@@ -71,7 +107,7 @@ final localCacheServiceProvider = Provider<MemoryAndStorageLocalCacheService>((r
 });
 
 /// Riverpod StateNotifierProvider for NetworkStateManager
-final networkStateProvider = StateNotifierProvider<NetworkStateManager, NetworkConnectivityStatus>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return NetworkStateManager(apiClient: apiClient);
+final networkStateProvider =
+    StateNotifierProvider<NetworkStateManager, NetworkConnectivityStatus>((ref) {
+  return NetworkStateManager(ref);
 });

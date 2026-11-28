@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/push/push_service.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/network_state_manager.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../data/auth_repository.dart';
@@ -76,7 +77,12 @@ final secureStorageProvider = Provider<SecureStorageService>((ref) {
 /// API Client provider
 final apiClientProvider = Provider<ApiClient>((ref) {
   final storageService = ref.watch(secureStorageProvider);
-  return ApiClient(storageService: storageService);
+  return ApiClient(
+    storageService: storageService,
+    onRequestSuccess: () => ref.read(networkStateProvider.notifier).reportSuccess(),
+    onRequestError: (handled, raw) =>
+        ref.read(networkStateProvider.notifier).reportError(handled, raw),
+  );
 });
 
 /// Auth Repository provider
