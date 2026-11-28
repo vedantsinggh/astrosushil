@@ -4,7 +4,15 @@ import * as crypto from 'crypto';
 import { logger } from '../utils/logger';
 import { S3ObjectClient } from './storage/s3-client';
 import { encodeKeyPath } from './storage/sigv4';
-import { awsBucketHost, knownAwsBucket, publicObjectAcl, resolveStorageTarget, S3Target } from './storage/storage-config';
+import {
+  awsBucketHost,
+  knownAwsBucket,
+  LegacyAwsBucket,
+  parseLegacyAwsBuckets,
+  publicObjectAcl,
+  resolveStorageTarget,
+  S3Target,
+} from './storage/storage-config';
 
 /**
  * `private` (the default): never publicly readable; reachable only through a short-lived signed URL
@@ -180,11 +188,26 @@ export class StorageService {
     return `${this.publicApiBaseUrl}${LOCAL_PUBLIC_ROUTE_PREFIX}${encodeKeyPath(key)}`;
   }
 
+  private warnedLegacyValue?: string;
+
+  /** STORAGE_LEGACY_AWS_BUCKETS, parsed; malformed entries are ignored and logged once. */
+  private legacyBuckets(): LegacyAwsBucket[] {
+    const raw = process.env.STORAGE_LEGACY_AWS_BUCKETS;
+    const { buckets, invalid } = parseLegacyAwsBuckets(raw);
+    if (invalid.length > 0 && this.warnedLegacyValue !== raw) {
+      this.warnedLegacyValue = raw;
+      logger.warn({ invalidEntries: invalid }, 'STORAGE_LEGACY_AWS_BUCKETS has malformed entries (expected bucket:region); they are ignored');
+    }
+    return buckets;
+  }
+
   /**
    * Turns a stored reference into an object key of OUR store, or null when it points elsewhere.
    * Accepts a bare key, or an absolute URL of the configured bucket (the website stored absolute
    * URLs, sometimes without the key): virtual-hosted and path-style AWS URLs of the website bucket,
    * the active remote store's host, and the local development route. Query strings are ignored.
+   * URLs of the buckets listed in STORAGE_LEGACY_AWS_BUCKETS map to the same key of the ACTIVE
+   * store (their objects were copied there); the legacy bucket itself is never contacted.
    */
   public resolveKey(urlOrKey: string | null | undefined): string | null {
     if (!urlOrKey || typeof urlOrKey !== 'string') return null;
@@ -207,8 +230,11 @@ export class StorageService {
       const pathStyle: Array<{ host: string; bucket: string }> = [];
       const target = this.remoteTarget;
       if (target) bucketHosts.add(target.host.toLowerCase());
-      const aws = knownAwsBucket(process.env);
-      if (aws) {
+      // The configured website bucket, plus legacy buckets whose objects were copied into the
+      // active store under the same key (STORAGE_LEGACY_AWS_BUCKETS; empty unless set).
+      const awsBuckets = [knownAwsBucket(process.env), ...this.legacyBuckets()];
+      for (const aws of awsBuckets) {
+        if (!aws) continue;
         bucketHosts.add(awsBucketHost(aws.bucket, aws.region).toLowerCase());
         bucketHosts.add(`${aws.bucket}.s3.amazonaws.com`.toLowerCase());
         bucketHosts.add(`${aws.bucket}.s3-${aws.region}.amazonaws.com`.toLowerCase());

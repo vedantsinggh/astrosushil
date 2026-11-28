@@ -31,7 +31,7 @@ import {
 import { Prisma, ShopAddressType } from '@prisma/client';
 import { storageService } from '../../services/storage.service';
 import { getUploadedFileSignedUrl, resolveManagedKey } from '../../services/storage/storage-refs';
-import { PRODUCT_INCLUDE, ProductRow, ResolvedLine, resolveLine, toPublicProduct, websiteType } from './product-view';
+import { PRODUCT_INCLUDE, ProductRow, ResolvedLine, productDownloadKey, resolveLine, toPublicProduct, websiteType } from './product-view';
 import { priceCart, PricedCart, PricedLine, resolveShippingPolicy } from './shop-pricing';
 import { typeFilter } from './products.admin.service';
 import { buildDraft, shopOrdersService, snapshotAddress } from '../shop-orders/shop-orders.service';
@@ -703,7 +703,20 @@ export class ProductsService {
 
     // Determine target asset: the file of the purchased variant (kept on the entitlement when it
     // was granted), or one file of a bundle.
-    let targetAssetKey = entitlement.assetKey || entitlement.product.imageUrl;
+    // Without a file on the entitlement (migrated website downloads whose file URL did not
+    // resolve), use the product's own file: the purchased variant's, then the product's. Seeded
+    // products without a file fall back to the product image, as before; a migrated website
+    // purchase (legacyId) never does, because its image is not the file that was bought.
+    let targetAssetKey: string | null = entitlement.assetKey;
+    if (!targetAssetKey && entitlement.variantId) {
+      const variant = await prisma.productVariant.findUnique({
+        where: { id: entitlement.variantId },
+        select: { downloadKey: true },
+      });
+      targetAssetKey = variant?.downloadKey ?? null;
+    }
+    if (!targetAssetKey) targetAssetKey = productDownloadKey(entitlement.product);
+    if (!targetAssetKey && !entitlement.legacyId) targetAssetKey = entitlement.product.imageUrl;
     let targetAssetName = entitlement.assetName || entitlement.product.title;
 
     if (

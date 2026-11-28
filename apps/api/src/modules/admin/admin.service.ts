@@ -26,6 +26,7 @@ import { featureAccessService } from '../../services/feature-access.service';
 import { parseDateBound } from '../../utils/business-time';
 import { staffAuthAttemptService } from '../auth/staff-auth-attempt.service';
 import { storageService } from '../../services/storage.service';
+import { reportObjectKey } from '../../services/storage/report-object';
 import { logger } from '../../utils/logger';
 import { buildReportDiagnostics, STUCK_TIMEOUT_MS } from './report-diagnostics';
 import {
@@ -1764,10 +1765,12 @@ export class AdminService {
     }
 
     // The PDF lives in the active store: local disk in development, S3 / R2 in production.
+    // A migrated website report has only s3Url; reportObjectKey maps it (allowlisted buckets only).
     let pdfAvailable = false;
-    if (report.storageKey) {
+    const pdfKey = reportObjectKey(report);
+    if (pdfKey) {
       try {
-        pdfAvailable = await storageService.exists(report.storageKey);
+        pdfAvailable = await storageService.exists(pdfKey);
       } catch (_e) {
         pdfAvailable = false;
       }
@@ -1804,7 +1807,7 @@ export class AdminService {
   public async downloadReportPdf(id: string, adminUser: { id: string; email: string }, reqMeta?: { ipAddress?: string; userAgent?: string }) {
     const report = await prisma.report.findUnique({
       where: { id },
-      select: { id: true, reportType: true, status: true, storageKey: true, fileName: true },
+      select: { id: true, reportType: true, status: true, storageKey: true, s3Url: true, fileName: true },
     });
     if (!report) {
       throw new NotFoundError(`Report with ID '${id}' not found`);
@@ -1812,15 +1815,16 @@ export class AdminService {
     if (report.status !== 'COMPLETED') {
       throw new AppError(`Report status is ${report.status}. Download is only available for COMPLETED reports.`, 400, 'REPORT_NOT_READY');
     }
-    if (!report.storageKey) {
+    const storageKey = reportObjectKey(report);
+    if (!storageKey) {
       throw new AppError('Report PDF file is not available in storage.', 404, 'REPORT_ASSET_NOT_FOUND');
     }
 
     let buffer: Buffer;
     try {
-      buffer = await storageService.downloadBuffer(report.storageKey);
+      buffer = await storageService.downloadBuffer(storageKey);
     } catch (err: any) {
-      logger.error({ reportId: id, storageKey: report.storageKey, err: err?.message }, '[ADMIN_PDF_DOWNLOAD] Failed to read report PDF from storage');
+      logger.error({ reportId: id, storageKey, err: err?.message }, '[ADMIN_PDF_DOWNLOAD] Failed to read report PDF from storage');
       throw new AppError('Report PDF file is not available in storage.', 404, 'REPORT_ASSET_NOT_FOUND');
     }
     if (!buffer || buffer.length === 0) {

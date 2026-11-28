@@ -87,3 +87,50 @@ export function knownAwsBucket(env: Env = process.env): { bucket: string; region
   const region = env.AWS_S3_REGION_NAME;
   return bucket && region ? { bucket, region } : null;
 }
+
+export interface LegacyAwsBucket {
+  bucket: string;
+  region: string;
+}
+
+/** S3 bucket naming rules (3 to 63 characters, lowercase letters, digits, dots and hyphens). */
+const BUCKET_NAME = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+/** AWS region code, e.g. `ap-south-1`, `us-gov-west-1`. */
+const REGION_NAME = /^[a-z]{2}(-[a-z]+)+-\d{1,2}$/;
+
+/**
+ * Parses STORAGE_LEGACY_AWS_BUCKETS: `bucket:region` entries separated by commas or whitespace,
+ * e.g. `astrosushil:ap-south-1,astro-sushil:ap-southeast-2`. Malformed entries are returned in
+ * `invalid` and never used. Duplicates are dropped.
+ */
+export function parseLegacyAwsBuckets(value: string | undefined | null): { buckets: LegacyAwsBucket[]; invalid: string[] } {
+  const buckets: LegacyAwsBucket[] = [];
+  const invalid: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of (value || '').split(/[\s,]+/)) {
+    const entry = raw.trim();
+    if (!entry) continue;
+    const parts = entry.split(':');
+    const bucket = (parts[0] || '').toLowerCase();
+    const region = (parts[1] || '').toLowerCase();
+    if (parts.length !== 2 || !BUCKET_NAME.test(bucket) || bucket.includes('..') || !REGION_NAME.test(region)) {
+      invalid.push(entry);
+      continue;
+    }
+    const id = `${bucket}:${region}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    buckets.push({ bucket, region });
+  }
+  return { buckets, invalid };
+}
+
+/**
+ * Buckets whose objects were COPIED into the active store under the same key (a testing or
+ * staging copy of the website bucket, see infrastructure/testing/docs/historical-assets.md).
+ * An absolute URL of one of these buckets is then read as that key of the ACTIVE store; nothing is
+ * ever fetched from the legacy bucket itself. Unset (the default) means none.
+ */
+export function legacyAwsBuckets(env: Env = process.env): LegacyAwsBucket[] {
+  return parseLegacyAwsBuckets(env.STORAGE_LEGACY_AWS_BUCKETS).buckets;
+}

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { ReportType, OrderStatus, FulfillmentStatus, ObligationType, OrderItemType } from '@prisma/client';
 import { prisma } from '../../services/prisma.service';
 import { storageService } from '../../services/storage.service';
+import { reportObjectKey } from '../../services/storage/report-object';
 import { NotFoundError, ForbiddenError, AuthorizationError, AppError } from '../../errors/app-error';
 import { CreateReportInput } from './reports.schemas';
 import { careerReportWorker } from '../../services/report-worker.service';
@@ -762,7 +763,8 @@ export class ReportsService {
       throw new AppError(accessState.progressDetail ?? 'Your report is being prepared.', 400, 'REPORT_NOT_READY');
     }
 
-    const storageKey = report.storageKey || `reports/${report.userId}/${report.id}.pdf`;
+    // A migrated website report has no storageKey; its key comes from the allowlisted s3Url.
+    const storageKey = reportObjectKey(report) || `reports/${report.userId}/${report.id}.pdf`;
     const expiresInSeconds = 900; // 15 minutes
     const accessUrl = await storageService.getSignedDownloadUrl(storageKey, expiresInSeconds);
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
@@ -882,23 +884,25 @@ export class ReportsService {
     }
 
     const rawReport = await prisma.report.findUnique({ where: { id: reportId } });
-    if (!rawReport?.storageKey) {
+    // storageKey, or for a migrated website report the key behind its allowlisted s3Url.
+    const storageKey = reportObjectKey(rawReport);
+    if (!storageKey) {
       logger.error(
-        { reportId, userId: user.id },
+        { reportId, userId: user.id, hasLegacyUrl: Boolean(rawReport?.s3Url) },
         '[PDF_DOWNLOAD_ALERT] Completed report record has missing storageKey in database'
       );
       throw new AppError('Report PDF file is not available in storage. Please contact support.', 404, 'REPORT_ASSET_NOT_FOUND');
     }
 
     try {
-      const buffer = await storageService.downloadBuffer(rawReport.storageKey);
+      const buffer = await storageService.downloadBuffer(storageKey);
       if (!buffer || buffer.length === 0) {
         throw new Error('Retrieved storage buffer is empty');
       }
       return { buffer, report };
     } catch (err: any) {
       logger.error(
-        { reportId, storageKey: rawReport.storageKey, err: err?.message },
+        { reportId, storageKey, err: err?.message },
         '[PDF_DOWNLOAD_ALERT] Failed to retrieve stored report artifact from object storage'
       );
       throw new AppError('Report PDF file is not available in storage. Please contact support.', 404, 'REPORT_ASSET_NOT_FOUND');
