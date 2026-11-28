@@ -4,7 +4,7 @@ import axios from "axios";
 import { showError, showSuccess } from "../utils/toast";
 import { loadAuthCsrfToken, setAuthCsrfToken } from "../utils/auth-cookie-client";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+import { API_BASE_URL as BASE_URL } from "../config/api";
 const AUTH_URL = `${BASE_URL}/auth`;
 const ADDRESS_URL = `${BASE_URL}/account/addresses`;
 

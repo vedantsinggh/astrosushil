@@ -80,8 +80,13 @@
     <script>
       (function () {
         var base = "%VITE_API_URL%";
-        if (!base || base.charAt(0) === "%")
-          base = "http://localhost:3000/api/v1";
+        if (!base || base.charAt(0) === "%") {
+          var host = window.location.hostname;
+          base =
+            host === "localhost" || host === "127.0.0.1"
+              ? "http://localhost:3000/api/v1"
+              : "https://api.astrosushil.com/api/v1";
+        }
         window.__heroBanners = fetch(base + "/banners/frontend?page=home")
           .then(function (r) {
             return r.ok ? r.json() : null;

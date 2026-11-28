@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { useCartStore } from "./useCartStore";
 import { trackPurchase } from "../utils/analytics";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+import { API_BASE_URL as BASE_URL } from "../config/api";
 const ORDER_URL = `${BASE_URL}/orders`;
 
 export const usePaymentStore = create((set, get) => {

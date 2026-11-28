@@ -1,18 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect } from "react";
-import { motion } from "framer-motion";
 import { useSettingStore } from "../../store/usSettingStore";
 import Seo from "../../components/Seo";
 import PageHero from "../../components/HeroPage";
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
-  },
-};
 
 export default function PrivacyPolicy() {
   const { settings, fetchSettings } = useSettingStore();
@@ -39,10 +29,7 @@ export default function PrivacyPolicy() {
 
       <div className="min-h-screen bg-[#f5f7f6]">
         <div className="max-w-5xl mx-auto px-5 py-10 space-y-6">
-          <motion.div
-            variants={fadeUp}
-            initial="hidden"
-            animate="show"
+          <div
             className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-10 space-y-8 text-gray-700 leading-relaxed"
           >
             <div className="border-b border-gray-100 pb-4">
@@ -147,7 +134,7 @@ export default function PrivacyPolicy() {
                 </a>
               </p>
             </section>
-          </motion.div>
+          </div>
         </div>
       </div>
     </>

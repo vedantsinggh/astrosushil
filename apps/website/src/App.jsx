@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import './App.css'
 import AppRouter from './router/AppRouter'
 import { useCurrencyStore } from './store/useCurrencyStore';
-import { Link } from 'react-router-dom';
 import OrganizationSchema from './components/schema/OrganizationSchema';
 import { useAuthStore } from './store/useAuthStore';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
  const fetchRates = useCurrencyStore(
@@ -34,10 +34,12 @@ function App() {
   }, []);
 
   return (
-   <main>
-   <OrganizationSchema />
-   <AppRouter />
-   </main>
+   <ErrorBoundary>
+     <main>
+       <OrganizationSchema />
+       <AppRouter />
+     </main>
+   </ErrorBoundary>
   )
 }
 

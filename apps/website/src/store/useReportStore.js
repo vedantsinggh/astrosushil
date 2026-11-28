@@ -2,7 +2,7 @@ import { create } from "zustand";
 import axios from "axios";
 import { showError, showSuccess } from "../utils/toast";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+import { API_BASE_URL as BASE_URL } from "../config/api";
 const REPORT_URL = `${BASE_URL}/report`;
 
 const FALLBACK_COVER_IMAGES = {

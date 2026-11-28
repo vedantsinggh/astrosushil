@@ -64,7 +64,7 @@ export default function FeaturedProducts({
   useEffect(() => {
     getProducts({ limit: 100 });
     if (user) getWishlist();
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const featured = products.filter((p) => p.isFeatured && p.isPublished);
 

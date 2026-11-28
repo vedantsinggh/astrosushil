@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+import { API_BASE_URL as API_URL } from "../config/api";
 
 export const useCurrencyStore = create((set, get) => ({
   currency: "INR",

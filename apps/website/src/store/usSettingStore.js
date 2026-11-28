@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+import { API_BASE_URL as BASE_URL } from "../config/api";
 const INQUIRY_URL = `${BASE_URL}/inquiry`;
 const BLOG_URL = `${BASE_URL}/blogs`;
 const TESTIMONIAL_URL = `${BASE_URL}/testimonial`;

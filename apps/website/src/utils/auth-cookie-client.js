@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+import { API_BASE_URL as BASE_URL } from "../config/api";
 const AUTH_URL = `${BASE_URL}/auth`;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
