@@ -61,6 +61,62 @@ function injectApiPreconnect(apiUrl) {
   };
 }
 
+// Testing deployment (infrastructure/testing/docs/frontend-builds.md). Only
+// VITE_DEPLOY_ENV=testing changes anything; production builds leave it unset.
+function assertTestingApiUrl(apiUrl) {
+  if (!apiUrl) {
+    throw new Error(
+      "[testing build] VITE_API_URL is required when VITE_DEPLOY_ENV=testing (use /api/v1).",
+    );
+  }
+  let host = "";
+  try {
+    host = new URL(apiUrl).hostname.toLowerCase();
+  } catch {
+    host = ""; // relative URL such as /api/v1: same origin, allowed
+  }
+  if (host === "astrosushil.com" || host.endsWith(".astrosushil.com")) {
+    throw new Error(
+      `[testing build] VITE_API_URL must not point at the production API (${host}).`,
+    );
+  }
+}
+
+function testingHtml({ isTesting, noindex }) {
+  return {
+    name: "testing-html",
+    apply: "build",
+    transformIndexHtml(html) {
+      let out = html;
+      if (noindex) {
+        const robots = /<meta name="robots" content="[^"]*"\s*\/?>/;
+        const tag = '<meta name="robots" content="noindex, nofollow" />';
+        out = robots.test(out)
+          ? out.replace(robots, tag)
+          : out.replace("<meta charset", `${tag}\n    <meta charset`);
+      }
+      if (isTesting) {
+        // Keep testing traffic out of the client's Google Ads, GTM, Clarity and Meta Pixel data.
+        const trigger = "setTimeout(loadTrackers, delay);";
+        if (out.split(trigger).length !== 2) {
+          throw new Error(
+            "[testing build] tracker loader not found in index.html; update testingHtml in vite.config.js.",
+          );
+        }
+        out = out.replace(
+          trigger,
+          "/* trackers disabled: VITE_DEPLOY_ENV=testing */",
+        );
+        // The inline banner prefetch falls back to the production API when VITE_API_URL is
+        // missing. assertTestingApiUrl makes that branch unreachable; rewrite it to same-origin so
+        // the built HTML holds no production API host at all.
+        out = out.split('"https://api.astrosushil.com/api/v1"').join('"/api/v1"');
+      }
+      return out;
+    },
+  };
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const HOSTNAME = "https://astrosushil.com";
@@ -170,10 +226,14 @@ async function fetchDynamicRoutes(apiUrl) {
 
 export default defineConfig(async ({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const isTesting = env.VITE_DEPLOY_ENV === "testing";
+  const noindex = env.VITE_NOINDEX === "true";
+  if (isTesting && command === "build") assertTestingApiUrl(env.VITE_API_URL);
   const apiUrl = env.VITE_API_URL || "http://localhost:3000/api/v1";
 
-  const dynamicRoutes =
-    command === "build" ? await fetchDynamicRoutes(apiUrl) : [];
+  // Testing builds skip the sitemap: it lists production URLs and fetches routes from the API.
+  const withSitemap = command === "build" && !isTesting;
+  const dynamicRoutes = withSitemap ? await fetchDynamicRoutes(apiUrl) : [];
 
   const allRoutes = [...staticRoutes, ...dynamicRoutes];
   const allPaths = allRoutes.map((r) => r.url);
@@ -216,9 +276,10 @@ export default defineConfig(async ({ command, mode }) => {
       previewCacheHeadersPlugin(),
       deferNonCriticalCSS(),
       injectApiPreconnect(apiUrl),
+      testingHtml({ isTesting, noindex }),
       react(),
       tailwindcss(),
-      ...(command === "build"
+      ...(withSitemap
         ? [
             sitemap({
               hostname: HOSTNAME,

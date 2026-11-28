@@ -4,6 +4,8 @@
  * in infrastructure/deployment/vm/.env.vm.example; values never appear in the code.
  */
 
+import { recipientAllowlistFromEnv, type RecipientAllowlist } from './recipient-allowlist';
+
 export type ProviderChoice = 'auto' | 'fake' | 'none' | string;
 
 export interface MessagingEnv {
@@ -55,6 +57,11 @@ export interface MessagingEnv {
   };
   reportSendDelayHours: number;
   consultationReminderIstHour: number;
+  /**
+   * Testing deployments only (MESSAGING_RECIPIENT_ALLOWLIST_ENABLED and MESSAGING_ALLOWED_*,
+   * recipient-allowlist.ts). Absent or disabled: every recipient is sent to, as before.
+   */
+  recipientAllowlist?: RecipientAllowlist;
 }
 
 export type WhatsAppTemplateKey =
@@ -165,5 +172,6 @@ export function messagingEnv(env: NodeJS.ProcessEnv = process.env): MessagingEnv
     },
     reportSendDelayHours: num(env, 'REPORT_SEND_DELAY_HOURS', 24, 0),
     consultationReminderIstHour: num(env, 'CONSULTATION_REMINDER_IST_HOUR', 8, 0),
+    recipientAllowlist: recipientAllowlistFromEnv(env),
   };
 }

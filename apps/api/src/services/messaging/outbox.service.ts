@@ -3,6 +3,7 @@ import { prisma } from '../prisma.service';
 import { logger } from '../../utils/logger';
 import { messagingEnv, WhatsAppTemplateKey } from './config';
 import { getMessagingProviders } from './provider-registry';
+import { RECIPIENT_NOT_ALLOWLISTED } from './recipient-allowlist';
 import type { MessageChannel, MessagingProviders, SendResult } from './types';
 
 /**
@@ -255,6 +256,14 @@ export class OutboxService {
         }
 
         const error = errorText(result);
+        if (result.code === RECIPIENT_NOT_ALLOWLISTED) {
+          // Testing deployment: deliberately not sent. Recorded as FAILED with the code in
+          // lastError (the status enum has no "suppressed" value); never retried.
+          await this.store.markFailed(row.id, error);
+          summary.failed += 1;
+          logger.info({ messageId: row.id, event: row.event, channel: row.channel }, '[Outbox] Message suppressed by the recipient allowlist');
+          continue;
+        }
         if (result.retryable && attempt < row.maxAttempts) {
           // 30 s, 2 min, 8 min, ... (base * 4^(attempt-1))
           const delayMs = env.retryBaseSeconds * 1000 * Math.pow(4, attempt - 1);

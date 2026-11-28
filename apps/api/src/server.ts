@@ -6,12 +6,22 @@ import { setProcessRole } from './services/process-identity';
 import { registerContactInquiryNotifier } from './modules/content/contact-inquiry.notifier';
 import { registerSiteSettingsSellerDetails } from './modules/invoices/site-settings-seller.provider';
 import { registerImageProcessor } from './modules/uploads/image-processor';
+import { enforceDeploymentSafety } from './services/deployment-safety';
 
 setProcessRole('api');
 
 const app = buildApp();
 
 const start = async () => {
+  // Testing deployment only (DEPLOYMENT_ENVIRONMENT=testing): refuse live Razorpay keys, warn
+  // when the messaging recipient allowlist is off. Unset: nothing is checked.
+  try {
+    enforceDeploymentSafety('api');
+  } catch (err) {
+    app.log.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+
   // Hooks between modules. Contact form inquiries send the website's two e-mails through the
   // messaging outbox; invoice seller details come from the admin's site settings, with the
   // INVOICE_SELLER_* environment values as the fallback (neither call throws).

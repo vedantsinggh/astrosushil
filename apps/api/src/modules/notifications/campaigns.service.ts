@@ -15,7 +15,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod/v3';
 import { prisma } from '../../services/prisma.service';
 import { logger } from '../../utils/logger';
-import { NotFoundError, ValidationError } from '../../errors/app-error';
+import { AppError, NotFoundError, ValidationError } from '../../errors/app-error';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { messagingEnv } from '../../services/messaging/config';
 import { outboxService, NewOutboundMessage } from '../../services/messaging/outbox.service';
@@ -256,8 +256,19 @@ export async function previewCampaign(input: Pick<CreateCampaignInput, 'kind' | 
 
 const display = (r: Recipient) => r.fullName?.trim() || 'Customer';
 
+/**
+ * NOTIFICATION_CAMPAIGNS_ENABLED=false refuses new campaigns (testing deployments on copied
+ * customer data). Unset or any other value: campaigns work as before.
+ */
+export function campaignsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NOTIFICATION_CAMPAIGNS_ENABLED?.trim().toLowerCase() !== 'false';
+}
+
 export class CampaignsService {
   public async create(input: CreateCampaignInput, actor: { id: string; name: string }) {
+    if (!campaignsEnabled()) {
+      throw new AppError('Campaigns are switched off on this server (NOTIFICATION_CAMPAIGNS_ENABLED=false).', 403, 'CAMPAIGNS_DISABLED');
+    }
     const availability = channelAvailability();
     const unavailable = input.channels.filter((c) => !availability[c].available);
     if (unavailable.length) throw new ValidationError(`Not available yet: ${unavailable.join(', ')}. ${unavailable.map((c) => availability[c].note).join(' ')}`);
@@ -322,6 +333,7 @@ export class CampaignsService {
           for (const t of tokens) {
             const res = await fcmProvider.sendPushNotification({
               token: t.fcmToken,
+              userId: r.id,
               notification: { title: campaign.title, body: campaign.body.slice(0, 240) },
               data: { type: isPromotion ? 'PROMOTIONAL' : 'ANNOUNCEMENT', route, campaignId, ...(campaign.link ? { link: campaign.link } : {}) },
             });

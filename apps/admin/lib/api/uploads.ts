@@ -11,7 +11,7 @@ import { cookieAuthHeaders } from '../api-client';
  * checks here only save a round trip and give the user a clear message.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+import { API_BASE } from '../api-base';
 
 export type UploadPurpose =
   | 'banner'

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../lib/api-client';
+import { API_BASE } from '../../lib/api-base';
 import { StatusBadge } from '../../components/StatusBadge';
 
 type Period = 'today' | '7d' | '30d' | '90d' | '12m' | 'custom';
@@ -144,7 +145,7 @@ export default function AnalyticsPage() {
   }, [period, activeTab]);
 
   const handleExportCsv = (type: 'users' | 'reports' | 'revenue') => {
-    let url = `/api/v1/admin/analytics/export?type=${type}&period=${period}`;
+    let url = `${API_BASE}/api/v1/admin/analytics/export?type=${type}&period=${period}`;
     if (period === 'custom' && customStart && customEnd) {
       url += `&startDate=${encodeURIComponent(customStart)}&endDate=${encodeURIComponent(customEnd)}`;
     }

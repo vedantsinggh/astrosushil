@@ -37,6 +37,8 @@ export interface SendNotificationOptions {
 
 export interface FcmPushPayload {
   token: string;
+  /** Owner of the device token; used only by the testing recipient allowlist (PUSH_ALLOWED_USER_IDS). Never sent to FCM. */
+  userId?: string;
   notification: {
     title: string;
     body: string;

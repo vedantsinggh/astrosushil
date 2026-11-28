@@ -40,6 +40,22 @@ export function reportFileName(reportType: string, personName: string, reportId:
   return `${prefix}-${person}-${reportId.substring(0, 8)}${suffix}.pdf`;
 }
 
+/**
+ * REPORT_STALE_RECOVERY_SCHEDULER_ENABLED=false switches off the recurring stale-job recovery
+ * loop (the start-up recovery still runs). Unset or any other value: on, as before.
+ */
+export function isStaleRecoveryLoopEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.REPORT_STALE_RECOVERY_SCHEDULER_ENABLED?.trim().toLowerCase() !== 'false';
+}
+
+/**
+ * REPORT_SLA_SCHEDULER_ENABLED=false skips the delivery-deadline monitor inside stale recovery
+ * (REPORT_DELAYED customer notification, overdue re-queue). Unset or any other value: on, as before.
+ */
+export function isReportSlaMonitorEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.REPORT_SLA_SCHEDULER_ENABLED?.trim().toLowerCase() !== 'false';
+}
+
 /** How long shutdown waits for in-flight reports before releasing their claims. */
 export function shutdownGraceMs(): number {
   const fromEnv = Number(process.env.REPORT_SHUTDOWN_GRACE_MS);
@@ -250,6 +266,11 @@ export class CareerReportWorker {
       return;
     }
 
+    if (!isStaleRecoveryLoopEnabled()) {
+      logger.info('[CareerReportWorker] Recurring stale-job recovery disabled by REPORT_STALE_RECOVERY_SCHEDULER_ENABLED=false');
+      return;
+    }
+
     const interval = intervalMs ?? parseInt(process.env.STALE_JOB_RECOVERY_INTERVAL_MS || '60000', 10);
     logger.info({ intervalMs: interval }, '⏱️ [CareerReportWorker] Starting recurring stale-job recovery loop');
 
@@ -394,7 +415,11 @@ export class CareerReportWorker {
         await this.finalizeFailedReport(failedReportId);
       }
       const orphanedReconciled = await fulfillmentService.reconcileOrphanedCompletedReports();
-      const slaResult = await this.monitorReportDeadlines();
+      // REPORT_SLA_SCHEDULER_ENABLED=false (testing deployments) skips the SLA monitor: no
+      // REPORT_DELAYED notification and no overdue re-queue. Unset: runs as before.
+      const slaResult = isReportSlaMonitorEnabled()
+        ? await this.monitorReportDeadlines()
+        : { approachingCount: 0, overdueCount: 0, alertsTriggered: 0 };
 
       if (result.recoveredCount > 0 || result.failedCount > 0 || orphanedReconciled > 0 || slaResult.alertsTriggered > 0) {
         logger.info(

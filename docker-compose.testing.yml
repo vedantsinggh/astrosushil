@@ -1,0 +1,351 @@
+# Astro Sushil - isolated TESTING stack (Docker Compose v2).
+#
+# Not used by production (production = pm2 + Caddy VM kit in infrastructure/deployment/vm).
+# Do not run this file by hand; scripts call it through `testing_compose`
+# (infrastructure/testing/scripts/lib/common.sh):
+#
+#   TESTING_ROOT=/opt/astro-sushil/testing docker compose --project-name astro_testing \
+#     --env-file $TESTING_ROOT/env/build.env --env-file $TESTING_ROOT/env/proxy.env \
+#     -f $TESTING_ROOT/repo/docker-compose.testing.yml <cmd>
+#
+# Architecture, health checks, sizing: infrastructure/testing/docs/compose-architecture.md
+#
+# Only the testing proxy publishes host ports. Postgres, Redis, API, worker, admin and
+# website are reachable only on the internal compose networks.
+
+name: astro_testing
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Environment forced on every API-image process (api, worker). These values win over
+# anything set in $TESTING_ROOT/env/api.env.
+x-api-forced-env: &api-forced-env
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: "3000"
+  REPORT_INSTANT_EXECUTION: "false"
+  STORAGE_LOCAL_DIR: /var/lib/astro-sushil/storage
+  REDIS_URL: redis://testing-redis:6379/0
+  # Trust X-Forwarded-* only from containers on the testing_edge subnet (the testing
+  # proxy). Fastify trustProxy accepts an IP/CIDR string (apps/api/src/app.ts).
+  TRUST_PROXY: ${TESTING_EDGE_SUBNET:-172.30.118.0/24}
+  # Prisma CLI / client: no update-check calls to the internet.
+  CHECKPOINT_DISABLE: "1"
+
+services:
+  testing-postgres:
+    image: ${TESTING_POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    env_file:
+      - ${TESTING_ROOT:?set TESTING_ROOT}/env/postgres.env
+    volumes:
+      - testing_pgdata:/var/lib/postgresql/data
+      - ${TESTING_ROOT:?set TESTING_ROOT}/data/postgres-backup:/backups:ro
+    networks:
+      - testing_backend
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_POSTGRES_MEM_LIMIT:-512m}
+          cpus: "${TESTING_POSTGRES_CPUS:-1.0}"
+    logging: *default-logging
+
+  testing-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - ${TESTING_REDIS_MAXMEMORY:-64mb}
+      - --maxmemory-policy
+      - allkeys-lru
+    networks:
+      - testing_backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_REDIS_MEM_LIMIT:-96m}
+          cpus: "${TESTING_REDIS_CPUS:-0.25}"
+    logging: *default-logging
+
+  # One-shot migration runner (profile "tools"). Default: `prisma migrate deploy`.
+  # Scripts may override, e.g. `run --rm testing-migrate npx prisma migrate status`.
+  testing-migrate:
+    # Same image as testing-api (built by that service; never pulled).
+    image: astro-testing-api:${TESTING_IMAGE_TAG:-local}
+    pull_policy: never
+    profiles: ["tools"]
+    restart: "no"
+    working_dir: /app/apps/api
+    command: ["npx", "prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"]
+    env_file:
+      - ${TESTING_ROOT:?set TESTING_ROOT}/env/api.env
+    environment:
+      <<: *api-forced-env
+    networks:
+      - testing_backend
+    depends_on:
+      testing-postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_MIGRATE_MEM_LIMIT:-512m}
+          cpus: "${TESTING_MIGRATE_CPUS:-1.0}"
+    logging: *default-logging
+
+  testing-api:
+    image: astro-testing-api:${TESTING_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    init: true
+    # Same as the image CMD (`npm run start --workspace=apps/api` = `node dist/server.js`
+    # in apps/api) without npm in between, so SIGTERM reaches node directly.
+    working_dir: /app/apps/api
+    command: ["node", "dist/server.js"]
+    env_file:
+      - ${TESTING_ROOT:?set TESTING_ROOT}/env/api.env
+    environment:
+      <<: *api-forced-env
+      NODE_OPTIONS: --max-old-space-size=${TESTING_API_NODE_HEAP_MB:-384}
+    volumes:
+      - testing_storage:/var/lib/astro-sushil/storage
+    networks:
+      - testing_backend
+      - testing_edge
+    depends_on:
+      testing-postgres:
+        condition: service_healthy
+      testing-redis:
+        condition: service_healthy
+    healthcheck:
+      # Liveness (/health). Dependency readiness (/ready) is checked by verify-testing.sh.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_API_MEM_LIMIT:-512m}
+          cpus: "${TESTING_API_CPUS:-1.0}"
+    logging: *default-logging
+
+  testing-worker:
+    # Same image as testing-api (built by that service; never pulled).
+    image: astro-testing-api:${TESTING_IMAGE_TAG:-local}
+    pull_policy: never
+    restart: unless-stopped
+    # init reaps xelatex / pdftoppm / gs child processes spawned by report generation.
+    init: true
+    working_dir: /app
+    command: ["node", "apps/api/dist/worker.js"]
+    stop_grace_period: 45s
+    env_file:
+      - ${TESTING_ROOT:?set TESTING_ROOT}/env/api.env
+    environment:
+      <<: *api-forced-env
+      NODE_OPTIONS: --max-old-space-size=${TESTING_WORKER_NODE_HEAP_MB:-768}
+    volumes:
+      - testing_storage:/var/lib/astro-sushil/storage
+    networks:
+      - testing_backend
+      - testing_edge
+    depends_on:
+      testing-postgres:
+        condition: service_healthy
+      testing-redis:
+        condition: service_healthy
+    healthcheck:
+      # The worker has no HTTP endpoint and no heartbeat outside running jobs.
+      # This check proves (1) a node process running dist/worker.js exists and
+      # (2) the worker container can open a TCP connection to testing-postgres:5432.
+      # It does NOT prove the claim loop is making progress.
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const fs=require('fs');const net=require('net');
+          const alive=fs.readdirSync('/proc').filter(p=>/^[0-9]+$$/.test(p)).some(p=>{try{return fs.readFileSync('/proc/'+p+'/cmdline','utf8').includes('dist/worker.js')}catch(e){return false}});
+          if(!alive)process.exit(1);
+          const s=net.connect(5432,'testing-postgres');s.setTimeout(3000);
+          s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));s.on('timeout',()=>process.exit(1));
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_WORKER_MEM_LIMIT:-1536m}
+          cpus: "${TESTING_WORKER_CPUS:-1.5}"
+    logging: *default-logging
+
+  testing-admin:
+    image: astro-testing-admin:${TESTING_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        # "/" = same origin: the proxy serves admin and /api/ on one origin.
+        NEXT_PUBLIC_API_URL: ${TESTING_ADMIN_API_URL:?set TESTING_ADMIN_API_URL in build.env (normally /)}
+        # Shows the existing TESTING badge in the admin header (components/Header.tsx).
+        NEXT_PUBLIC_APP_ENV: testing
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=${TESTING_ADMIN_NODE_HEAP_MB:-256}
+    networks:
+      - testing_edge
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/',{redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_ADMIN_MEM_LIMIT:-384m}
+          cpus: "${TESTING_ADMIN_CPUS:-0.5}"
+    logging: *default-logging
+
+  testing-website:
+    image: astro-testing-website:${TESTING_IMAGE_TAG:-local}
+    build:
+      context: apps/website
+      dockerfile: Dockerfile
+      args:
+        # Relative (/api/v1): the proxy serves the website and /api/ on one origin.
+        VITE_API_URL: ${TESTING_WEBSITE_API_URL:?set TESTING_WEBSITE_API_URL in build.env (normally /api/v1)}
+        # Testing build: refuses production API URLs, disables trackers, noindex meta.
+        VITE_DEPLOY_ENV: testing
+        VITE_NOINDEX: "true"
+    restart: unless-stopped
+    networks:
+      - testing_edge
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_WEBSITE_MEM_LIMIT:-64m}
+          cpus: "${TESTING_WEBSITE_CPUS:-0.25}"
+    logging: *default-logging
+
+  testing-proxy:
+    image: nginx:1.28.0-alpine
+    restart: unless-stopped
+    ports:
+      - "${TESTING_BIND_ADDRESS:-0.0.0.0}:${TESTING_WEBSITE_PORT:-18080}:8080"
+      - "${TESTING_BIND_ADDRESS:-0.0.0.0}:${TESTING_ADMIN_PORT:-18081}:8081"
+      - "127.0.0.1:${TESTING_API_PORT:-18082}:8082"
+    volumes:
+      - ./infrastructure/testing/nginx/testing.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TESTING_ROOT:?set TESTING_ROOT}/nginx:/etc/nginx/testing:ro
+    networks:
+      - testing_edge
+    depends_on:
+      testing-api:
+        condition: service_healthy
+      testing-admin:
+        condition: service_healthy
+      testing-website:
+        condition: service_healthy
+    healthcheck:
+      # /healthz on the website server block (8080), no basic auth.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_PROXY_MEM_LIMIT:-64m}
+          cpus: "${TESTING_PROXY_CPUS:-0.5}"
+    logging: *default-logging
+
+  # Optional Cloudflare quick tunnels (profile "tunnel"). Random *.trycloudflare.com
+  # URLs, printed in the container log, change on every restart. They reach the
+  # proxy's website / admin server blocks, so basic auth still applies.
+  testing-tunnel-website:
+    image: ${TESTING_CLOUDFLARED_IMAGE:-cloudflare/cloudflared:2024.12.2}
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://testing-proxy:8080"]
+    networks:
+      - testing_edge
+    depends_on:
+      testing-proxy:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_TUNNEL_MEM_LIMIT:-128m}
+          cpus: "${TESTING_TUNNEL_CPUS:-0.25}"
+    logging: *default-logging
+
+  testing-tunnel-admin:
+    image: ${TESTING_CLOUDFLARED_IMAGE:-cloudflare/cloudflared:2024.12.2}
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://testing-proxy:8081"]
+    networks:
+      - testing_edge
+    depends_on:
+      testing-proxy:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${TESTING_TUNNEL_MEM_LIMIT:-128m}
+          cpus: "${TESTING_TUNNEL_CPUS:-0.25}"
+    logging: *default-logging
+
+networks:
+  # No route out of this network: postgres and redis cannot reach the internet.
+  testing_backend:
+    internal: true
+  # Egress allowed (API/worker call storage, payment and messaging providers).
+  # Fixed subnet so the API can trust the testing proxy (TRUST_PROXY).
+  testing_edge:
+    ipam:
+      config:
+        - subnet: ${TESTING_EDGE_SUBNET:-172.30.118.0/24}
+
+volumes:
+  testing_pgdata:
+  testing_storage:

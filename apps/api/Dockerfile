@@ -1,5 +1,11 @@
 FROM node:20.19.0-bookworm-slim AS builder
 
+# Prisma picks its engine binaries from the OpenSSL it detects during `npm ci` /
+# `prisma generate`. Without openssl here it falls back to openssl-1.1.x engines, which
+# do not match the runner (OpenSSL 3), so Prisma would try to download engines at runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy root monorepo manifest and configs

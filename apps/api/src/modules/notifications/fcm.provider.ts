@@ -4,6 +4,7 @@ import { config } from '../../config';
 import { logger } from '../../utils/logger';
 import { prisma } from '../../services/prisma.service';
 import { FcmPushPayload } from './notification.types';
+import { isPushAllowed, RECIPIENT_NOT_ALLOWLISTED, recipientAllowlistFromEnv } from '../../services/messaging/recipient-allowlist';
 
 /**
  * Phone push through Firebase Cloud Messaging, HTTP v1 API.
@@ -84,6 +85,12 @@ export class FcmProvider {
 
   /** Send one push message to one device token. */
   public async sendPushNotification(payload: FcmPushPayload): Promise<{ success: boolean; errorCode?: string }> {
+    // Testing deployments (MESSAGING_RECIPIENT_ALLOWLIST_ENABLED=true): only devices of
+    // PUSH_ALLOWED_USER_IDS / PUSH_ALLOWED_DEVICE_TOKENS get a push. Disabled: no check.
+    if (!isPushAllowed(recipientAllowlistFromEnv(), { userId: payload.userId, token: payload.token })) {
+      logger.info({ tokenPrefix: payload.token.substring(0, 10) }, '[FcmProvider] Push suppressed: device is not on the testing allowlist');
+      return { success: false, errorCode: RECIPIENT_NOT_ALLOWLISTED };
+    }
     const account = this.getAccount();
     if (!account) {
       if (process.env.NODE_ENV === 'production') return { success: false, errorCode: 'PUSH_NOT_CONFIGURED' };

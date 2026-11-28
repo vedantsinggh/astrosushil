@@ -1,0 +1,54 @@
+# Astro Sushil TESTING sites for the EXISTING host Caddy.
+#
+# NOT installed automatically. Install by hand as /etc/caddy/sites/astro-testing.caddy
+# (procedure, validation and rollback: infrastructure/testing/host-proxy/README.md).
+# The production site block in /etc/caddy/Caddyfile is NOT edited; the only change
+# there is one `import /etc/caddy/sites/*.caddy` line.
+#
+# Before installing, replace the base domain in the three hostnames below, e.g.
+#   sed 's/example\.com/NAME.duckdns.org/g' astro-testing.caddy.example > astro-testing.caddy
+#   sed 's/example\.com/CLIENT_DOMAIN/g'    astro-testing.caddy.example > astro-testing.caddy
+# and check the result: grep -n 'example.com' astro-testing.caddy  (must print nothing)
+#
+# Caddy obtains and renews Let's Encrypt certificates automatically for these
+# names (ports 80 and 443 must be reachable from the internet and DNS must already
+# point at this VPS) and redirects http:// to https:// for them.
+#
+# Upstreams are the testing proxy container's published ports on loopback:
+#   127.0.0.1:18080 website, 127.0.0.1:18081 admin, 127.0.0.1:18082 API-only.
+# Basic auth, the IP allowlist, noindex headers and the /api/ same-origin routing
+# all happen in the testing proxy, not here.
+
+(astro_testing_upstream) {
+	encode gzip
+	request_body {
+		# API multipart ceiling is 50 MiB; the testing proxy allows 55m.
+		max_size 55MB
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow, noarchive"
+		-Server
+	}
+	reverse_proxy {args[0]} {
+		# Caddy already sends X-Forwarded-For (client IP only, incoming value
+		# discarded), X-Forwarded-Host and the original Host. Proto is pinned
+		# explicitly because the testing proxy trusts it only from this hop.
+		header_up X-Forwarded-Proto https
+		transport http {
+			dial_timeout 10s
+			response_header_timeout 300s
+		}
+	}
+}
+
+test.example.com {
+	import astro_testing_upstream 127.0.0.1:18080
+}
+
+admin-test.example.com {
+	import astro_testing_upstream 127.0.0.1:18081
+}
+
+api-test.example.com {
+	import astro_testing_upstream 127.0.0.1:18082
+}

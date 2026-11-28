@@ -6,10 +6,20 @@ import { invoiceRecoveryScheduler } from './modules/invoices/invoice-recovery.sw
 import { disconnectPrisma } from './services/prisma.service';
 import { setProcessRole } from './services/process-identity';
 import { logger } from './utils/logger';
+import { enforceDeploymentSafety } from './services/deployment-safety';
 
 setProcessRole('worker');
 
 async function startWorkerLoop() {
+  // Testing deployment only (DEPLOYMENT_ENVIRONMENT=testing): refuse live Razorpay keys, warn
+  // when the messaging recipient allowlist is off. Unset: nothing is checked.
+  try {
+    enforceDeploymentSafety('worker');
+  } catch (err) {
+    logger.error({ err: err instanceof Error ? err.message : String(err) }, '[ReportWorkerProcess] Refusing to start');
+    process.exit(1);
+  }
+
   logger.info('🚀 [ReportWorkerProcess] Background Report Worker started (PostgreSQL Queue)');
 
   let isRunning = true;
@@ -50,12 +60,16 @@ async function startWorkerLoop() {
   careerReportWorker.startStaleRecoveryLoop();
 
   // Prepare the daily Rashi Bhavishya (12 Moon signs) ahead of time
+  // (RASHI_BHAVISHYA_SCHEDULER_ENABLED=false switches it off)
   rashiBhavishyaScheduler.start();
 
   // Outbound messaging: outbox dispatch (incl. delayed report-ready), consultation reminders
+  // (MESSAGING_SCHEDULER_ENABLED=false switches all off; OUTBOX_DISPATCH_, REPORT_RELEASE_,
+  // CONSULTATION_REMINDER_, OTP_CLEANUP_SCHEDULER_ENABLED=false switch one off)
   messagingScheduler.start();
 
   // Invoices left pending get their number (website: recovery every 5 minutes)
+  // (INVOICE_RECOVERY_ENABLED=false switches it off)
   invoiceRecoveryScheduler.start();
 
   // pm2 wait_ready: the worker is ready once recovery ran.

@@ -124,6 +124,7 @@ export class NotificationService {
         for (const t of tokens) {
           const pushRes = await fcmProvider.sendPushNotification({
             token: t.fcmToken,
+            userId,
             notification: { title, body },
             data: {
               type,

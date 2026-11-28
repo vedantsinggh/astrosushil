@@ -14,6 +14,7 @@ import {
 import { SmsLaneProvider } from './providers/smslane.provider';
 import { SmtpEmailProvider } from './providers/smtp.provider';
 import { WhatChimpProvider } from './providers/whatchimp.provider';
+import { DISABLED_ALLOWLIST, withRecipientAllowlist } from './recipient-allowlist';
 import type { EmailProvider, MessagingProviders, SmsProvider, WhatsAppProvider } from './types';
 
 /**
@@ -31,7 +32,10 @@ import type { EmailProvider, MessagingProviders, SmsProvider, WhatsAppProvider }
  * send is only logged and reported as simulated (LogOnly*).
  */
 export function buildMessagingProviders(env: MessagingEnv = messagingEnv()): MessagingProviders {
-  return { sms: buildSms(env), whatsapp: buildWhatsApp(env), email: buildEmail(env) };
+  const providers = { sms: buildSms(env), whatsapp: buildWhatsApp(env), email: buildEmail(env) };
+  // Testing deployments: only allowlisted recipients are sent to (recipient-allowlist.ts).
+  // Disabled (the default) returns the providers unchanged.
+  return withRecipientAllowlist(providers, env.recipientAllowlist ?? DISABLED_ALLOWLIST);
 }
 
 function refuseFakeInProduction(channel: string): void {

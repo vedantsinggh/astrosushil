@@ -20,6 +20,32 @@ class AppConfig {
   /// Production API base URL
   static const String productionApiUrl = 'https://backend.astrosushil.com/api/v1';
 
+  /// Build deployment target, `--dart-define=DEPLOYMENT_ENV=testing` for testing builds.
+  /// Empty (the default) keeps the normal resolution below unchanged.
+  static const String deploymentEnv = String.fromEnvironment('DEPLOYMENT_ENV', defaultValue: '');
+
+  /// Hosts a testing build must never call.
+  static const List<String> productionApiHosts = [
+    'backend.astrosushil.com',
+    'api.astrosushil.com',
+    'astrosushil.com',
+    'www.astrosushil.com',
+  ];
+
+  /// Guards a `DEPLOYMENT_ENV=testing` build: it must have an explicit `API_BASE_URL`
+  /// and that URL must not be a production API host. Other deployment values pass through.
+  static String guardDeploymentUrl({required String deploymentEnv, required String explicitUrl}) {
+    if (deploymentEnv != 'testing') return explicitUrl;
+    if (explicitUrl.isEmpty) {
+      throw StateError('DEPLOYMENT_ENV=testing requires --dart-define=API_BASE_URL=https://<testing-api-host>/api/v1');
+    }
+    final host = Uri.tryParse(explicitUrl.trim())?.host.toLowerCase() ?? '';
+    if (host.isEmpty || productionApiHosts.contains(host)) {
+      throw StateError('DEPLOYMENT_ENV=testing refuses API_BASE_URL host "$host" (production or invalid)');
+    }
+    return explicitUrl;
+  }
+
   /// Custom base URL override (if provided at runtime e.g. in tests)
   static String? _baseUrlOverride;
 
@@ -68,6 +94,8 @@ class AppConfig {
       'API_BASE_URL',
       defaultValue: String.fromEnvironment('TEST_API_URL', defaultValue: ''),
     );
+    // A testing build never falls through to the production URL below.
+    guardDeploymentUrl(deploymentEnv: deploymentEnv, explicitUrl: envApiUrl);
     if (envApiUrl.isNotEmpty) {
       return normalizeApiUrl(envApiUrl);
     }

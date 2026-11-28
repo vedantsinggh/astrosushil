@@ -1,0 +1,109 @@
+# Astro Sushil TESTING hostnames on the EXISTING host Nginx: HTTPS part.
+#
+# NOT installed automatically. Install by hand as
+#   /etc/nginx/sites-available/astro-testing.conf  (+ symlink in sites-enabled)
+# ONLY AFTER the certificate exists (nginx refuses to start with a missing
+# ssl_certificate file). Procedure and rollback: infrastructure/testing/host-proxy/README.md
+# Never edit /etc/nginx/nginx.conf for this.
+#
+# Replace the base domain first:
+#   sed 's/example\.com/CLIENT_DOMAIN/g' astro-testing.conf.example > astro-testing.conf
+#
+# One certificate covers all three names (certbot --cert-name astro-testing).
+# Upstreams are the testing proxy container's published ports on loopback:
+#   127.0.0.1:18080 website, 127.0.0.1:18081 admin, 127.0.0.1:18082 API-only.
+# Basic auth, the IP allowlist, noindex headers and /api/ routing happen in the
+# testing proxy, not here.
+#
+# `listen 443 ssl http2;` works on every nginx from 1.9.5; nginx >= 1.25.1 logs a
+# deprecation warning for it (harmless). On >= 1.25.1 you may instead write
+# `listen 443 ssl;` plus `http2 on;`.
+
+# --------------------------------------------------------------- website ---
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name test.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/astro-testing/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/astro-testing/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:astro_testing_ssl:5m;
+    ssl_session_timeout 1h;
+
+    client_max_body_size 55m;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        # One hop only: the real client address. The testing proxy trusts this
+        # header only from the docker gateway address (TESTING_TRUSTED_PROXY_CIDRS).
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout    300s;
+        proxy_read_timeout    300s;
+    }
+}
+
+# ----------------------------------------------------------------- admin ---
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name admin-test.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/astro-testing/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/astro-testing/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:astro_testing_ssl:5m;
+    ssl_session_timeout 1h;
+
+    client_max_body_size 55m;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:18081;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout    300s;
+        proxy_read_timeout    300s;
+    }
+}
+
+# -------------------------------------------------------------- API-only ---
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api-test.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/astro-testing/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/astro-testing/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:astro_testing_ssl:5m;
+    ssl_session_timeout 1h;
+
+    client_max_body_size 55m;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:18082;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout    300s;
+        proxy_read_timeout    300s;
+    }
+}

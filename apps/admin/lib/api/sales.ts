@@ -7,7 +7,7 @@
  */
 import { apiFetch } from '../api-client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+import { API_BASE } from '../api-base';
 const V1 = '/api/v1';
 
 // ---------------------------------------------------------------------------

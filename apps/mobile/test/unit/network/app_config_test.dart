@@ -72,5 +72,26 @@ void main() {
     test('5. Production URL constant matches authoritative backend domain', () {
       expect(AppConfig.productionApiUrl, equals('https://backend.astrosushil.com/api/v1'));
     });
+
+    test('6. Testing deployment guard requires an explicit non-production API URL', () {
+      // Default builds are unaffected, even without an explicit URL.
+      expect(AppConfig.guardDeploymentUrl(deploymentEnv: '', explicitUrl: ''), equals(''));
+      expect(AppConfig.guardDeploymentUrl(deploymentEnv: 'production', explicitUrl: ''), equals(''));
+
+      expect(
+        AppConfig.guardDeploymentUrl(deploymentEnv: 'testing', explicitUrl: 'https://api-test.example.com/api/v1'),
+        equals('https://api-test.example.com/api/v1'),
+      );
+      expect(() => AppConfig.guardDeploymentUrl(deploymentEnv: 'testing', explicitUrl: ''), throwsStateError);
+      expect(
+        () => AppConfig.guardDeploymentUrl(deploymentEnv: 'testing', explicitUrl: 'https://backend.astrosushil.com/api/v1'),
+        throwsStateError,
+      );
+      expect(
+        () => AppConfig.guardDeploymentUrl(deploymentEnv: 'testing', explicitUrl: 'https://API.astrosushil.com'),
+        throwsStateError,
+      );
+      expect(() => AppConfig.guardDeploymentUrl(deploymentEnv: 'testing', explicitUrl: 'not a url'), throwsStateError);
+    });
   });
 }

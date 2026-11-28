@@ -1,0 +1,29 @@
+# Astro Sushil TESTING hostnames on the EXISTING host Nginx: port 80 part.
+#
+# NOT installed automatically. Install by hand as
+#   /etc/nginx/sites-available/astro-testing-http.conf  (+ symlink in sites-enabled)
+# Procedure, certbot commands and rollback: infrastructure/testing/host-proxy/README.md
+# Never edit /etc/nginx/nginx.conf for this.
+#
+# Replace the base domain first:
+#   sed 's/example\.com/CLIENT_DOMAIN/g' astro-testing-http.conf.example > astro-testing-http.conf
+#
+# This block stays installed permanently: it answers Let's Encrypt HTTP-01
+# challenges from a webroot (used by `certbot certonly --webroot` and renewals)
+# and redirects everything else to https://.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name test.example.com admin-test.example.com api-test.example.com;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://$host$request_uri;
+    }
+}

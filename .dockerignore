@@ -19,3 +19,16 @@ coverage
 scratch
 docs/audits/screenshots
 *.log
+
+# Not needed by any root-context image (api, worker, admin); keeps secrets, bulky
+# local artefacts and the Flutter apps out of the build context.
+*.env
+backend.env
+astro-sushil-backend.env
+*.zip
+platform-output
+test-results
+tmp
+apps/mobile
+apps/desktop
+apps/website
